@@ -24,7 +24,7 @@
                             @else
                                 <img class="wd-70 rounded-circle"
                                     src="{{ route('profile.image', Auth::user()->profile->profile_picture_id) }}"
-                                    alt="profile">
+                                    alt="profile" style="object-fit: cover;">
                             @endif
 
                             <span class="h4 ms-3 text-dark">{{ Auth::user()->name }}</span>
@@ -143,7 +143,7 @@
                                     @else
                                         <img class="img-xs rounded-circle"
                                             src="{{ route('profile.image', Auth::user()->profile->profile_picture_id) }}"
-                                            alt="profile">
+                                            alt="profile" style="object-fit: cover;">
                                     @endif
                                     <div class="ms-2">
                                         <h5>Password Confirmation</h5>

@@ -12,8 +12,8 @@
                             alt="profile">
                     @else
                         <img class="wd-30 ht-30 rounded-circle"
-                            src="{{ route('profile.image', Auth::user()->profile->profile_picture_id) }}"
-                            alt="profile">
+                            src="{{ route('profile.image', Auth::user()->profile->profile_picture_id) }}" alt="profile"
+                            style="object-fit: cover;">
                     @endif
                 </a>
                 <div class="dropdown-menu p-0" aria-labelledby="profileDropdown">
@@ -25,7 +25,7 @@
                             @else
                                 <img class="wd-80 ht-80 rounded-circle"
                                     src="{{ route('profile.image', Auth::user()->profile->profile_picture_id) }}"
-                                    alt="">
+                                    alt="" style="object-fit: cover;">
                             @endif
 
                         </div>
