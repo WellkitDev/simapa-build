@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Pages;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 
-class OrderBookController extends Controller
+class OrderJournalController extends Controller
 {
     /**
      * Display a listing of the resource.
@@ -13,7 +13,7 @@ class OrderBookController extends Controller
     public function index()
     {
         //
-        return view('pages.order.book.index');
+        return view('pages.order.journals.index');
     }
 
     /**
@@ -22,7 +22,7 @@ class OrderBookController extends Controller
     public function create()
     {
         //
-        return view('pages.order.book.create');
+        return view('pages.order.journals.create');
     }
 
     /**
@@ -39,7 +39,7 @@ class OrderBookController extends Controller
     public function show(string $id)
     {
         //
-        return view('pages.order.book.show');
+        return view('pages.order.journals.show');
     }
 
     /**
@@ -48,7 +48,7 @@ class OrderBookController extends Controller
     public function edit(string $id)
     {
         //
-        return view('pages.order.book.edit');
+        return view('pages.order.journals.edit');
     }
 
     /**

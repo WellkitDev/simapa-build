@@ -1,7 +1,9 @@
 <?php
 
-use App\Http\Controllers\Pages\ProfileController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Pages\ProfileController;
+use App\Http\Controllers\Pages\OrderBookController;
+use App\Http\Controllers\Pages\OrderJournalController;
 
 /*
 |--------------------------------------------------------------------------
@@ -23,12 +25,24 @@ Route::get('/dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
+    //profile
     Route::prefix('profile')->group(function() {
         Route::get('', [ProfileController::class, 'index'])->name('profile');
         Route::patch('', [ProfileController::class, 'update'])->name('profile');
         Route::get('/profile-image/{fileId}', [ProfileController::class, 'profileImage'])
         ->name('profile.image')
         ->where('fileId', '[a-zA-Z0-9_-]+');
+    });
+
+    //Order book
+    Route::prefix('order-books')->name('order.book.')->group(function () {
+        Route::get('/', [OrderBookController::class, 'index'])->name('index');
+        Route::get('create', [OrderBookController::class, 'create'])->name('create');
+    });
+    //order journal
+    Route::prefix('order-journals')->name('order.journal.')->group(function () {
+        Route::get('/', [OrderJournalController::class, 'index'])->name('index');
+        Route::get('create', [OrderJournalController::class, 'create'])->name('create');
     });
 });
 
