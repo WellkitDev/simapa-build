@@ -36,10 +36,15 @@ class OrderBookController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(string $id)
+    public function show()
     {
         //
         return view('pages.order.book.show');
+    }
+    public function inv()
+    {
+        //
+        return view('pages.invoices.inv_book');
     }
 
     /**

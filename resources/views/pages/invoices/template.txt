@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Invoice {{ $invoice->inv_no ?? 'Preview' }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 12pt;
+            line-height: 1.5;
+            color: #333;
+            margin: 40px;
+        }
+        .header, .footer { text-align: center; margin-bottom: 30px; }
+        .header h1 { margin: 0; font-size: 20pt; }
+        .header p { margin: 5px 0; }
+        .separator { border-top: 2px solid #000; margin: 20px 0; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 8px; text-align: left; vertical-align: top; }
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        .bold { font-weight: bold; }
+        .status-lunas { color: green; font-weight: bold; }
+        .status-pending { color: orange; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>AVIDPEDIA PUBLISHING</h1>
+    <p>Jasa Layanan Publikasi Buku & Artikel Ilmiah</p>
+    <p>Jl. Contoh No.123, Jakarta Selatan</p>
+    <p>contact@avidpedia.com | 0812-3456-7890</p>
+</div>
+
+<div class="separator"></div>
+
+<p class="text-right">
+    <strong>INVOICE : {{ $invoice->inv_no }}</strong><br>
+    Tanggal : {{ $invoice->issued_at->format('d F Y') }}
+</p>
+
+<div class="separator"></div>
+
+<p><strong>Kepada Yth.</strong><br>
+    {{ $order->authors->first()->name }}
+    @if($order->authors->count() > 1), dkk.@endif<br>
+    @if($order->authors->first()->affiliation)
+        {{ $order->authors->first()->affiliation }}
+    @endif
+</p>
+
+<h3>Detail Order</h3>
+<div class="separator"></div>
+
+<table>
+    <tr>
+        <td width="30%"><strong>Jenis Layanan</strong></td>
+        <td>:
+            @switch($order->type)
+                @case('bk_mandiri') Buku Mandiri @break
+                @case('bk_kolab') Buku Kolaborasi @break
+                @case('at_mandiri') Artikel Jurnal Mandiri @break
+                @case('at_kolab') Artikel Jurnal Kolaborasi @break
+            @endswitch
+            (Naskah {{ $order->naskah_type === 'dibuatkan' ? 'Dibuatkan' : 'Mandiri' }})
+        </td>
+    </tr>
+    <tr>
+        <td><strong>Judul</strong></td>
+        <td>: {{ $order->title }}</td>
+    </tr>
+
+    @if(str_starts_with($order->type, 'bk_'))
+        <tr>
+            <td><strong>Jumlah Bab</strong></td>
+            <td>: {{ $order->chapters }} Bab</td>
+        </tr>
+    @endif
+
+    @if(str_starts_with($order->type, 'at_'))
+        @if($order->scope_id && $order->scope)
+            <tr>
+                <td><strong>Scope</strong></td>
+                <td>: {{ $order->scope->scope }}</td>
+            </tr>
+        @endif
+        @if($order->indexation)
+            <tr>
+                <td><strong>Target Indeksasi</strong></td>
+                <td>: {{ $order->indexation }}</td>
+            </tr>
+        @endif
+        <tr>
+            <td><strong>Jumlah Penulis</strong></td>
+            <td>: {{ $order->count_authors }} orang</td>
+        </tr>
+    @endif
+
+    <tr>
+        <td><strong>Penulis</strong></td>
+        <td>:
+            <ol style="margin:0; padding-left:20px;">
+                @foreach($order->authors->sortBy('pivot.possition') as $author)
+                    <li>{{ $author->name }}@if($author->affiliation) ({{ $author->affiliation }})@endif</li>
+                @endforeach
+            </ol>
+        </td>
+    </tr>
+
+    <tr>
+        <td><strong>Marketing</strong></td>
+        <td>: {{ $order->marketing->name }}</td>
+    </tr>
+
+    @if($order->authors->first()->phone || $order->authors->first()->email)
+        <tr>
+            <td><strong>Kontak</strong></td>
+            <td>:
+                @if($order->authors->first()->phone) {{ $order->authors->first()->phone }} @endif
+                @if($order->authors->first()->email) | {{ $order->authors->first()->email }} @endif
+            </td>
+        </tr>
+    @endif
+</table>
+
+<h3 class="mt-4">Rincian Biaya</h3>
+<div class="separator"></div>
+
+<table>
+    <tr>
+        <td width="70%">
+            Biaya Publikasi
+            @switch($order->type)
+                @case('bk_mandiri') Buku Mandiri ({{ $order->chapters }} bab) @break
+                @case('bk_kolab') Kontribusi Bab Kolaborasi @break
+                @case('at_mandiri') Artikel Mandiri {{ $order->indexation ?? '' }} @break
+                @case('at_kolab') Artikel Kolaborasi {{ $order->indexation ?? '' }} @break
+            @endswitch
+        </td>
+        <td class="text-right">Rp {{ number_format($order->cost_amount, 0, ',', '.') }}</td>
+    </tr>
+    <tr class="bold">
+        <td><strong>Total Tagihan</strong></td>
+        <td class="text-right"><strong>Rp {{ number_format($order->cost_amount, 0, ',', '.') }}</strong></td>
+    </tr>
+</table>
+
+<h3 class="mt-4">Riwayat Pembayaran</h3>
+<div class="separator"></div>
+
+<table>
+    <thead>
+        <tr>
+            <th width="5%">No.</th>
+            <th width="25%">Tanggal</th>
+            <th width="30%">Jenis</th>
+            <th width="25%" class="text-right">Jumlah</th>
+            <th width="15%">Status</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach($order->payments as $i => $payment)
+            <tr>
+                <td>{{ $i + 1 }}</td>
+                <td>{{ $payment->date->format('d M Y') }}</td>
+                <td>{{ ucfirst($payment->type) }}</td>
+                <td class="text-right">Rp {{ number_format($payment->amount, 0, ',', '.') }}</td>
+                <td>
+                    @if($payment->amount >= $order->cost_amount)
+                        <span class="status-lunas">Lunas ✅</span>
+                    @else
+                        Terbayar
+                    @endif
+                </td>
+            </tr>
+        @endforeach
+    </tbody>
+</table>
+
+<p class="mt-3 bold">
+    Sisa Tagihan :
+    <strong>Rp {{ number_format($order->cost_amount - $order->pay_amount, 0, ',', '.') }}</strong>
+</p>
+
+<p class="mt-4 bold">
+    Status Invoice :
+    <strong class="{{ $order->pay_amount >= $order->cost_amount ? 'status-lunas' : 'status-pending' }}">
+        {{ $order->pay_amount >= $order->cost_amount ? 'LUNAS' : 'MENUNGGU PELUNASAN' }}
+    </strong>
+</p>
+
+<div class="footer mt-5">
+    <p>Terima kasih atas kepercayaannya kepada Avidpedia!</p>
+</div>
+
+</body>
+</html>
