@@ -2,12 +2,27 @@
 
 namespace App\Http\Controllers\Pages;
 
-use App\Http\Controllers\Controller;
+use Carbon\Carbon;
+use App\Models\Order;
 use App\Models\Scope;
+use App\Models\Author;
+use App\Models\Invoice;
+use App\Models\Payment;
+use Illuminate\Support\Str;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use App\Http\Controllers\Controller;
+use App\Services\GoogleDriveService;
+use Illuminate\Support\Facades\Auth;
 
 class OrderBookController extends Controller
 {
+    protected $drive;
+
+    public function __construct(GoogleDriveService $drive)
+    {
+        $this->drive = $drive;
+    }
     /**
      * Display a listing of the resource.
      */
@@ -23,7 +38,8 @@ class OrderBookController extends Controller
     public function create()
     {
         //
-        return view('pages.order.book.create');
+        $scopes = Scope::all();
+        return view('pages.order.book.create', compact('scopes'));
     }
 
     /**
@@ -41,6 +57,8 @@ class OrderBookController extends Controller
             'naskah_type'        => 'required|in:dibuatkan,mandiri',
             'publication_type'   => 'required|in:regular,fastrack',
 
+            'issued_at' => 'required|date',
+            'dued_at' => 'required|date|after:issued_at',
             'cost_amount'        => 'required|numeric|min:0',
             'pay_amount'         => 'required|numeric|min:0',
             'status'             => 'required|in:dp,lunas,pelunasan',
@@ -59,14 +77,118 @@ class OrderBookController extends Controller
             'send_invoice_email' => 'sometimes|boolean',
         ]);
 
+        // Generate code_order (misal ORD-202512-0001)
+        $yearMonth = date('Ym');
+        $lastOrder = Order::where('code_order', 'like', "ORD-{$yearMonth}-%")->latest()->first();
+        $seq = $lastOrder ? intval(substr($lastOrder->code_order, -4)) + 1 : 1;
+        $codeOrder = "ORD-{$yearMonth}-" . str_pad($seq, 4, '0', STR_PAD_LEFT);
+        // Simpan Order
+        $order = Order::create([
+            'code_order' => $codeOrder,
+            'type' => $validate['type'],
+            'title' => $validate['title'],
+            'slug' => Str::slug($validate['title']),
+            'chapters' => $validate['chapters'] ?? null,
+            'indexation' => $validate['indexation'] ?? null,
+            'naskah_type' => $validate['naskah_type'],
+            'publication_type' => $validate['publication_type'],
+            'cost_amount' => $validate['cost_amount'],
+            'pay_amount' => $validate['pay_amount'],
+            'debit_amount' => $validate['cost_amount'] - $validate['pay_amount'], // Sisa
+            'status' => 'pending',
+            'user_id' => Auth::id(),
+            'note' => $validate['note'],
+            'contact_phone' => $validate['contact_phone'],
+            'contact_email' => $validate['contact_email'],
+        ]);
+
         // Handle science (create new if not exists)
         $scope_id = $request->scope_id;
         if (!is_numeric($scope_id)) {
-            $scope = Scope::create([
-                'scope' => $scope_id,
-            ]);
+            $scope = Scope::firstOrCreate(['scope' => $scope_id]);
             $scope_id = $scope->id;
         }
+        $order->scopes()->attach($scope_id);
+
+        // Simpan Authors
+        $authorPivots = [];
+        foreach ($validate['authors'] as $authorData) {
+            $author = Author::create($authorData);
+            $authorPivots[$author->id] = ['possition' => $authorData['possition']];
+        }
+        $order->authors()->attach($authorPivots);
+
+        // === UPLOAD STRUK (tetap sama, tanpa ubah handle image) ===
+        $strukId = null;
+        $strukUrl = null;
+
+        if ($request->hasFile('struk_payment')) {
+            $file = $request->file('struk_payment');
+            $year = Carbon::parse($validate['issued_at'])->format('Y');
+            $folderPath = "Application/struk_pembayaran/{$year}";
+
+            $folderId = $this->drive->getOrCreateFolderByPath($folderPath);
+            if (!$folderId) {
+                return back()->with('error', 'Gagal membuat folder Google Drive.');
+            }
+
+            $filename = $validate['contact_email'] . "_struk." . $file->getClientOriginalExtension();
+            $uploadResult = $this->drive->uploadFile($file, $folderId, true, $filename);
+
+            if (!$uploadResult || !isset($uploadResult['id'])) {
+                Log::error('Upload struk gagal', $uploadResult ?? []);
+                return back()->with('error', 'Gagal upload struk. Coba lagi.');
+            }
+
+            $strukId = $uploadResult['id'];
+            $strukUrl = $uploadResult['url'];
+        }
+
+        // Simpan Payment
+        Payment::create([
+            'order_id' => $order->id,
+            'type' => $validate['status'],
+            'amount' => $validate['pay_amount'],
+            'date' => now(),
+            'struk_id' => $strukId,
+            'struk_url' => $strukUrl,
+            'status' => 'paid', // Asumsi awal paid
+        ]);
+
+        // Generate Invoice
+        $invNo = "INV-" . str_replace('ORD-', '', $codeOrder); // Misal INV-202512-0001
+
+        $invoiceDetails = [ // Array untuk cast
+            'jenis_layanan' => $order->type,
+            'judul' => $order->title,
+            'jumlah_bab' => $order->chapters,
+            'scope' => $order->scopes->pluck('scope')->implode(', '),
+            'target_indeksasi' => $order->indexation,
+            'jumlah_penulis' => count($validate['authors']),
+            'penulis' => $order->authors->sortBy('pivot.possition')->map(function($a) {
+                return $a->name . ' (' . $a->affiliation . ')';
+            })->toArray(),
+            'kontak' => $order->contact_phone . ' | ' . $order->contact_email,
+            'marketing' => Auth::user()->name, // Asumsi
+            'total_tagihan' => $order->cost_amount,
+            // Tambah riwayat pembayaran dll.
+        ];
+
+        $invoice = Invoice::create([
+            'order_id' => $order->id,
+            'inv_no' => $invNo,
+            'details' => $invoiceDetails,
+            'issued_at' => $validate['issued_at'],
+            'dued_at' => $validate['dued_at'],
+        ]);
+
+        // Jika send_invoice_email
+        if ($request->send_invoice_email) {
+            // Dispatch ke queue
+            // SendInvoiceJob::dispatch($order, $invoice);
+        }
+
+        return redirect()->back()->with('success', 'Order berhasil disimpan!');
     }
 
     /**

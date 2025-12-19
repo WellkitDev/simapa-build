@@ -16,10 +16,9 @@ return new class extends Migration
             $table->string('code_order')->unique();
             $table->enum('type', ['bk_mandiri', 'bk_kolab', 'at_mandiri', 'at_kolab']);
             $table->string('title');
-            $table->string('slug')->unique();
+            $table->string('slug');
             $table->integer('chapters')->nullable();
             $table->string('indexation')->nullable();
-            $table->integer('count_authors')->default(0);
             $table->enum('naskah_type', ['dibuatkan', 'mandiri']);
             $table->enum('publication_type', ['regular', 'fastrack']);
             $table->string('contact_phone');

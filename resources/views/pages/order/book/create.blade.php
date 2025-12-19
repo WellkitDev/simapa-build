@@ -9,7 +9,7 @@
     <div class="container py-5">
         <h1 class="mb-4">Tambah Order Buku Baru</h1>
 
-        <form method="POST" action="">
+        <form method="POST" action="{{ route('order.book.store') }}" enctype="multipart/form-data">
             @csrf
 
             <!-- Section 1: Informasi Dasar Order -->
@@ -45,9 +45,9 @@
                             <label class="form-label">Scope</label>
                             <select name="scope_id" class="form-select select2" id="scope_id" data-tags="true">
                                 <option value="">Tidak ada / opsional</option>
-                                {{-- @foreach (\App\Models\TbScope::all() as $scope)
-                                <option value="{{ $scope->id }}">{{ $scope->scope }}</option>
-                            @endforeach --}}
+                                @foreach ($scopes as $scope)
+                                    <option value="{{ $scope->id }}">{{ $scope->scope }}</option>
+                                @endforeach
                             </select>
                         </div>
 

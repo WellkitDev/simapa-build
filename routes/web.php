@@ -38,6 +38,7 @@ Route::middleware('auth')->group(function () {
     Route::prefix('order-books')->name('order.book.')->group(function () {
         Route::get('/', [OrderBookController::class, 'index'])->name('index');
         Route::get('create', [OrderBookController::class, 'create'])->name('create');
+        Route::post('create', [OrderBookController::class, 'store'])->name('store');
         Route::get('show', [OrderBookController::class, 'show'])->name('show');
         Route::get('inv', [OrderBookController::class, 'inv'])->name('inv');
     });

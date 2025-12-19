@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -15,7 +16,7 @@ class Order extends Model
 
     protected $fillable = [
         'code_order','type','title','slug','chapters','indexation',
-        'count_authors','naskah_type','publication_type',
+        'naskah_type','publication_type',
         'cost_amount','pay_amount','debit_amount','status',
         'user_id','note', 'contact_phone', 'contact_email',
     ];
@@ -24,12 +25,19 @@ class Order extends Model
     {
         return $this->belongsToMany(
             Scope::class,
-            'tb_scope_orders',
+            'tb_scope_order',
             'order_id',
             'scope_id'
         );
     }
-
+    protected static function boot()
+    {
+        parent::boot();
+        static::creating(function ($order) {
+            $order->slug = Str::slug($order->title);
+            $order->code_order = 'ORD-' . date('Ym') . '-' . str_pad(self::count() + 1, 4, '0', STR_PAD_LEFT);
+        });
+    }
     public function authors()
     {
         return $this->belongsToMany(
