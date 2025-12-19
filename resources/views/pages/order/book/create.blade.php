@@ -1,6 +1,10 @@
 @extends('layouts.master')
 @section('title', 'Create Order Book - SiMAPA')
 
+@push('plugin-styles')
+    <link href="{{ asset('assets/plugins/select2/select2.min.css') }}" rel="stylesheet" />
+@endpush
+
 @section('content')
     <div class="container py-5">
         <h1 class="mb-4">Tambah Order Buku Baru</h1>
@@ -39,7 +43,7 @@
                     <div class="row">
                         <div class="col-6 mb-3">
                             <label class="form-label">Scope</label>
-                            <select name="scope_id" class="form-select">
+                            <select name="scope_id" class="form-select select2" id="scope_id" data-tags="true">
                                 <option value="">Tidak ada / opsional</option>
                                 {{-- @foreach (\App\Models\TbScope::all() as $scope)
                                 <option value="{{ $scope->id }}">{{ $scope->scope }}</option>
@@ -194,7 +198,12 @@
     </div>
 @endsection
 
+@push('plugin-scripts')
+    <script src="{{ asset('assets/plugins/select2/select2.min.js') }}"></script>
+@endpush
+
 @push('custom-scripts')
+    <script src="{{ asset('assets/js/select2.js') }}"></script>
     <script>
         let authorIndex = 1;
 
