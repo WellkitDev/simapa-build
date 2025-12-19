@@ -142,6 +142,7 @@
                     <thead>
                         <tr>
                             <th>No</th>
+                            <th>INV</th>
                             <th>Tanggal</th>
                             <th>Jenis</th>
                             <th>Jumlah</th>
@@ -152,6 +153,7 @@
                     <tbody>
                         <tr>
                             <td>1</td>
+                            <td>INVXXXX</td>
                             <td>01 Jan 2025 10:00</td>
                             <td>DP</td>
                             <td>Rp 5.000.000</td>
