@@ -9,7 +9,10 @@ use App\Models\Author;
 use App\Models\Invoice;
 use App\Models\Payment;
 use Illuminate\Support\Str;
+use App\Helpers\Utf8Cleaner;
+use App\Jobs\SendInvoiceJob;
 use Illuminate\Http\Request;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
 use App\Services\GoogleDriveService;
@@ -77,6 +80,15 @@ class OrderBookController extends Controller
             'send_invoice_email' => 'sometimes|boolean',
         ]);
 
+        $validate['title'] = Utf8Cleaner::clean($validate['title']);
+        $validate['note']  = Utf8Cleaner::clean($validate['note'] ?? '');
+
+        foreach ($validate['authors'] as &$author) {
+            $author['name']        = Utf8Cleaner::clean($author['name']);
+            $author['email']       = Utf8Cleaner::clean($author['email'] ?? '');
+            $author['phone']       = Utf8Cleaner::clean($author['phone'] ?? '');
+            $author['affiliation'] = Utf8Cleaner::clean($author['affiliation'] ?? '');
+        }
         // Generate code_order (misal ORD-202512-0001)
         $yearMonth = date('Ym');
         $lastOrder = Order::where('code_order', 'like', "ORD-{$yearMonth}-%")->latest()->first();
@@ -173,7 +185,7 @@ class OrderBookController extends Controller
             'total_tagihan' => $order->cost_amount,
             // Tambah riwayat pembayaran dll.
         ];
-
+        $invoiceDetails = Utf8Cleaner::clean($invoiceDetails);
         $invoice = Invoice::create([
             'order_id' => $order->id,
             'inv_no' => $invNo,
@@ -182,10 +194,51 @@ class OrderBookController extends Controller
             'dued_at' => $validate['dued_at'],
         ]);
 
+        // Generate PDF dulu di controller
+        $pdf = Pdf::loadView('pages.invoices.inv_book', [
+            'order'   => $order,
+            'invoice' => $invoice,
+        ]);
+
+        $pdfContent = $pdf->output();
+        $fileName   = $invoice->inv_no . '.pdf';
+
+        // === UPLOAD PDF KE GOOGLE DRIVE (sync di controller) ===
+        try {
+            // Simpan temporary dulu
+            $tempPath = storage_path('app/temp/' . $fileName);
+            if (!file_exists(dirname($tempPath))) {
+                mkdir(dirname($tempPath), 0755, true);
+            }
+            file_put_contents($tempPath, $pdfContent);
+
+            // Buat folder di Drive
+            $folderPath = "Application/orders/{$order->id}/invoices";
+            $folderId   = $this->drive->getOrCreateFolderByPath($folderPath);
+
+            if ($folderId) {
+                $uploadResult = $this->drive->uploadFile($tempPath, $folderId, true);
+
+                if ($uploadResult && isset($uploadResult['id'])) {
+                    // Update invoice dengan link Drive
+                    $invoice->update([
+                        'inv_pdf_id'  => $uploadResult['id'],
+                        'inv_pdf_url' => $uploadResult['url'],
+                    ]);
+                }
+            }
+
+            // Hapus temp file
+            @unlink($tempPath);
+        } catch (\Exception $e) {
+            Log::error('Gagal upload PDF invoice ke Drive', ['error' => $e->getMessage()]);
+            // Tetap lanjut kirim email meskipun upload gagal
+        }
+
         // Jika send_invoice_email
-        if ($request->send_invoice_email) {
+        if ($request->has('send_invoice_email')) {
             // Dispatch ke queue
-            // SendInvoiceJob::dispatch($order, $invoice);
+            SendInvoiceJob::dispatch($invoice->id, $pdfContent);
         }
 
         return redirect()->back()->with('success', 'Order berhasil disimpan!');

@@ -92,24 +92,24 @@
                                     <input type="text" name="authors[0][name]" class="form-control mb-2"
                                         placeholder="Nama lengkap + gelar" required>
                                 </div>
-                                <div class="col-12 col-md-4">
-                                    <input type="email" name="authors[0][email]" class="form-control mb-2"
-                                        placeholder="Email">
+                                <div class="col-12 col-md-6">
+                                    <input type="text" name="authors[0][affiliation]" class="form-control mb-2"
+                                        placeholder="Afiliasi / Kampus">
                                 </div>
-                                <div class="col-12 col-md-2">
-                                    <input type="text" name="authors[0][phone]" class="form-control mb-2"
-                                        placeholder="No. WA">
-                                </div>
-                                <div class="col-12 col-md-1 text-end">
+                                <div class="col-12 col-md-1 mb-2 text-end">
                                     <button type="button" class="btn btn-danger btn-sm remove-author">×</button>
                                 </div>
                             </div>
                             <div class="row">
-                                <div class="col-12 col-md-8">
-                                    <input type="text" name="authors[0][affiliation]" class="form-control mb-2"
-                                        placeholder="Afiliasi / Kampus">
+                                <div class="col-12 col-md-4">
+                                    <input type="email" name="authors[0][email]" class="form-control mb-2"
+                                        placeholder="Email">
                                 </div>
                                 <div class="col-12 col-md-4">
+                                    <input type="text" name="authors[0][phone]" class="form-control mb-2"
+                                        placeholder="No. WA">
+                                </div>
+                                <div class="col-12 col-md-3">
                                     <input type="number" name="authors[0][possition]" class="form-control mb-2"
                                         placeholder="Urutan (1,2,3...)" value="1">
                                 </div>
@@ -217,21 +217,21 @@
                     <div class="col-12 col-md-5">
                         <input type="text" name="authors[${authorIndex}][name]" class="form-control mb-2" placeholder="Nama lengkap + gelar" required>
                     </div>
-                    <div class="col-12 col-md-4">
-                        <input type="email" name="authors[${authorIndex}][email]" class="form-control mb-2" placeholder="Email">
+                    <div class="col-12 col-md-6">
+                        <input type="text" name="authors[${authorIndex}][affiliation]" class="form-control mb-2" placeholder="Afiliasi / Kampus">
                     </div>
-                    <div class="col-12 col-md-2">
-                        <input type="text" name="authors[${authorIndex}][phone]" class="form-control mb-2" placeholder="No. WA">
-                    </div>
-                    <div class="col-12 col-md-1 text-end">
+                    <div class="col-12 col-md-1 mb-2 text-end">
                         <button type="button" class="btn btn-danger btn-sm remove-author">×</button>
                     </div>
                 </div>
                 <div class="row">
-                    <div class="col-12 col-md-8">
-                        <input type="text" name="authors[${authorIndex}][affiliation]" class="form-control mb-2" placeholder="Afiliasi / Kampus">
+                    <div class="col-12 col-md-4">
+                        <input type="email" name="authors[${authorIndex}][email]" class="form-control mb-2" placeholder="Email">
                     </div>
                     <div class="col-12 col-md-4">
+                        <input type="text" name="authors[${authorIndex}][phone]" class="form-control mb-2" placeholder="No. WA">
+                    </div>
+                    <div class="col-12 col-md-3">
                         <input type="number" name="authors[${authorIndex}][possition]" class="form-control mb-2" placeholder="Urutan" value="${authorIndex + 1}">
                     </div>
                 </div>
