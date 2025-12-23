@@ -32,7 +32,11 @@ class OrderBookController extends Controller
     public function index()
     {
         //
-        return view('pages.order.book.index');
+        $invoices = Invoice::with(['order.authors', 'order.users', 'order.payments'])
+                       ->latest('issued_at')
+                ->get();
+
+        return view('pages.order.book.index', compact('invoices'));
     }
 
     /**
