@@ -61,7 +61,7 @@ class OrderBookController extends Controller
             'publication_type'   => 'required|in:regular,fastrack',
 
             'issued_at' => 'required|date',
-            'dued_at' => 'required|date|after:issued_at',
+            'dued_at' => 'required|date|after_or_equal:issued_at',
             'cost_amount'        => 'required|numeric|min:0',
             'pay_amount'         => 'required|numeric|min:0',
             'status'             => 'required|in:dp,lunas,pelunasan',
@@ -159,11 +159,11 @@ class OrderBookController extends Controller
         }
 
         // Simpan Payment
-        Payment::create([
+        $payment = Payment::create([
             'order_id' => $order->id,
             'type' => $validate['status'],
             'amount' => $validate['pay_amount'],
-            'date' => now(),
+            'date' => $validate['issued_at'],
             'struk_id' => $strukId,
             'struk_url' => $strukUrl,
             'status' => 'paid', // Asumsi awal paid
@@ -197,9 +197,10 @@ class OrderBookController extends Controller
         ]);
 
         // Generate PDF dulu di controller
-        $pdf = Pdf::loadView('pages.invoices.inv_book', [
+        $pdf = Pdf::loadView('pages.invoices.order_book_inv', [
             'order'   => $order,
             'invoice' => $invoice,
+            'payment' => $payment,
         ]);
 
         $pdfContent = $pdf->output();

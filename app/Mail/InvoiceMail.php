@@ -42,7 +42,7 @@ class InvoiceMail extends Mailable
     public function content(): Content
     {
         return new Content(
-            view: 'pages.invoices.inv_book',
+            view: 'pages.mails.inv_book_mail',
             with: [
                 'invoice' => $this->invoice,
                 'order'   => $this->invoice->order,
@@ -57,11 +57,6 @@ class InvoiceMail extends Mailable
      */
     public function attachments(): array
     {
-        return [
-            // Attachment::fromData(fn () => $this->invoice->inv_pdf_url, $this->invoice->inv_no . '.pdf')
-            //           ->withMime('application/pdf'),
-            // Attachment::fromData(fn () => storage_path('app/temp/' . $this->invoice->inv_no . '.pdf'), $this->invoice->inv_no . '.pdf')
-            //           ->withMime('application/pdf'),
-        ];
+        return [];
     }
 }

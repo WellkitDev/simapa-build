@@ -15,6 +15,10 @@ class Payment extends Model
         'struk_url','struk_id','status'
     ];
 
+    protected $casts = [
+        'date' => 'datetime',
+    ];
+
     public function order()
     {
         return $this->belongsTo(Order::class);
