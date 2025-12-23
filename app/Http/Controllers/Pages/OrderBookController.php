@@ -84,11 +84,13 @@ class OrderBookController extends Controller
         $validate['note']  = Utf8Cleaner::clean($validate['note'] ?? '');
 
         foreach ($validate['authors'] as &$author) {
-            $author['name']        = Utf8Cleaner::clean($author['name']);
-            $author['email']       = Utf8Cleaner::clean($author['email'] ?? '');
-            $author['phone']       = Utf8Cleaner::clean($author['phone'] ?? '');
-            $author['affiliation'] = Utf8Cleaner::clean($author['affiliation'] ?? '');
+            foreach ($author as $k => $v) {
+                if (is_string($v)) {
+                    $author[$k] = Utf8Cleaner::clean($v);
+                }
+            }
         }
+
         // Generate code_order (misal ORD-202512-0001)
         $yearMonth = date('Ym');
         $lastOrder = Order::where('code_order', 'like', "ORD-{$yearMonth}-%")->latest()->first();
@@ -189,7 +191,7 @@ class OrderBookController extends Controller
         $invoice = Invoice::create([
             'order_id' => $order->id,
             'inv_no' => $invNo,
-            'details' => $invoiceDetails,
+            'details' => Utf8Cleaner::clean($invoiceDetails),
             'issued_at' => $validate['issued_at'],
             'dued_at' => $validate['dued_at'],
         ]);
@@ -236,9 +238,9 @@ class OrderBookController extends Controller
         }
 
         // Jika send_invoice_email
-        if ($request->has('send_invoice_email')) {
+        if ($request->boolean('send_invoice_email')) {
             // Dispatch ke queue
-            SendInvoiceJob::dispatch($invoice->id, $pdfContent);
+            SendInvoiceJob::dispatch($invoice->id);
         }
 
         return redirect()->back()->with('success', 'Order berhasil disimpan!');

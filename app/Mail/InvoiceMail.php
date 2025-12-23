@@ -16,16 +16,14 @@ class InvoiceMail extends Mailable
     use Queueable, SerializesModels;
 
     public $invoice;
-    protected $pdfContent;
 
     /**
      * Create a new message instance.
      */
-    public function __construct(Invoice $invoice, $pdfContent)
+    public function __construct(Invoice $invoice)
     {
         //
         $this->invoice = $invoice;
-        $this->pdfContent = $pdfContent;
     }
 
     /**
@@ -60,8 +58,10 @@ class InvoiceMail extends Mailable
     public function attachments(): array
     {
         return [
-            Attachment::fromData(fn () => $this->pdfContent, $this->invoice->inv_no . '.pdf')
-                      ->withMime('application/pdf'),
+            // Attachment::fromData(fn () => $this->invoice->inv_pdf_url, $this->invoice->inv_no . '.pdf')
+            //           ->withMime('application/pdf'),
+            // Attachment::fromData(fn () => storage_path('app/temp/' . $this->invoice->inv_no . '.pdf'), $this->invoice->inv_no . '.pdf')
+            //           ->withMime('application/pdf'),
         ];
     }
 }

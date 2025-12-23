@@ -19,17 +19,16 @@ class SendInvoiceJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    protected $invoiceId;
-    protected $pdfContent;
+    protected int $invoiceId;
+    // protected string $pdfContent;
 
     /**
      * Create a new job instance.
      */
-    public function __construct(int $invoiceId, string $pdfContent)
+    public function __construct(int $invoiceId)
     {
         //
         $this->invoiceId  = $invoiceId;
-        $this->pdfContent = $pdfContent;
 
 
     }
@@ -51,7 +50,7 @@ class SendInvoiceJob implements ShouldQueue
             : $order->contact_email;
 
         try {
-            Mail::to($emailTo)->send(new InvoiceMail($invoice, $this->pdfContent));
+            Mail::to($emailTo)->send(new InvoiceMail($invoice));
 
             Log::info('Email invoice berhasil dikirim', [
                 'to' => $emailTo,

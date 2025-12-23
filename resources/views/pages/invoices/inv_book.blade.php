@@ -220,6 +220,10 @@
         Status Invoice :
         <strong class="status-lunas">LUNAS</strong>
     </p>
+    <p>Invoice dapat diunduh di link berikut:</p>
+    <a href="{{ $invoice->inv_pdf_url }}" class="bold">
+        Download Invoice PDF
+    </a>
 
     <!-- Footer -->
     <div class="footer">
