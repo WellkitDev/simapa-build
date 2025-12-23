@@ -16,7 +16,7 @@
             font-family: Arial, sans-serif;
             font-size: 12px;
             color: #333;
-            margin: 33px;
+            margin: 40px;
         }
 
         .background-logo {
@@ -320,7 +320,7 @@
             <tr>
                 <th width="5%">No.</th>
                 <th width="25%">Tanggal</th>
-                <th width="30%">Jenis</th>
+                <th width="30%">Jenis Pembayaran</th>
                 <th width="25%" class="text-right">Jumlah</th>
                 <th width="15%">Status</th>
             </tr>
