@@ -95,6 +95,51 @@ class OrderBookController extends Controller
             }
         }
 
+        // Ambil title yang sudah dibersihkan
+        $cleanTitle = $validate['title'];
+
+        // Cek apakah sudah ada order dengan judul sama + email sama
+        $existingOrder = Order::where('title', $cleanTitle)
+                            ->where('contact_email', $request->contact_email)
+                            ->first();
+
+        if ($existingOrder) {
+            return redirect()->back()
+                    ->withInput()
+                    ->with('error', 'Kamu sudah pernah membuat order dengan judul buku yang sama. Silakan cek riwayat order atau hubungi admin jika ada kesalahan.');
+        }
+
+        // Kalau lolos, lanjut generate slug seperti biasa (title + author utama)
+        // Ambil nama author utama (posisi 1)
+        $primaryAuthorName = '';
+        if ($validate['authors'] && count($validate['authors']) > 0) {
+            // Cari author dengan possition = 1
+            $primary = collect($validate['authors'])->firstWhere('possition', 1);
+            if ($primary) {
+                // Bersihkan nama: hapus gelar, spasi berlebih
+                $cleanName = preg_replace('/[^a-zA-Z0-9\s-]/', '', $primary['name']);
+                $cleanName = strtolower(trim($cleanName));
+                $cleanName = preg_replace('/\s+/', '-', $cleanName);
+                $primaryAuthorName = $cleanName;
+            }
+        }
+
+        $baseSlug = Str::slug($validate['title']);
+        if ($primaryAuthorName) {
+            $baseSlug .= '-' . $primaryAuthorName;
+        }
+
+        // Optional: tetap buat slug unik kalau kebetulan bentrok (jarang, tapi aman)
+        $slug = $baseSlug;
+        $counter = 1;
+        do {
+            $exists = Order::where('slug', $slug)->exists();
+            if ($exists) {
+                $counter++;
+                $slug = $baseSlug . '-' . $counter;
+            }
+        } while ($exists);
+
         // Generate code_order (misal ORD-202512-0001)
         $yearMonth = date('Ym');
         $lastOrder = Order::where('code_order', 'like', "ORD-{$yearMonth}-%")->latest()->first();
@@ -105,7 +150,7 @@ class OrderBookController extends Controller
             'code_order' => $codeOrder,
             'type' => $validate['type'],
             'title' => $validate['title'],
-            'slug' => Str::slug($validate['title']),
+            'slug' => $slug,
             'chapters' => $validate['chapters'] ?? null,
             'indexation' => $validate['indexation'] ?? null,
             'naskah_type' => $validate['naskah_type'],
@@ -135,6 +180,7 @@ class OrderBookController extends Controller
             $authorPivots[$author->id] = ['possition' => $authorData['possition']];
         }
         $order->authors()->attach($authorPivots);
+
 
         // === UPLOAD STRUK (tetap sama, tanpa ubah handle image) ===
         $strukId = null;
@@ -174,7 +220,7 @@ class OrderBookController extends Controller
         ]);
 
         // Generate Invoice
-        $invNo = "INV-" . str_replace('ORD-', '', $codeOrder); // Misal INV-202512-0001
+        $invNo = "INV-" . str_replace('ORD-', '', $codeOrder). '-' . $payment->id; // Misal INV-202512-0001-01
 
         $invoiceDetails = [ // Array untuk cast
             'jenis_layanan' => $order->type,
@@ -246,6 +292,9 @@ class OrderBookController extends Controller
         if ($request->boolean('send_invoice_email')) {
             // Dispatch ke queue
             SendInvoiceJob::dispatch($invoice->id);
+        }
+        if ($order->slug) {
+            # code...
         }
 
         return redirect()->back()->with('success', 'Order berhasil disimpan!');
