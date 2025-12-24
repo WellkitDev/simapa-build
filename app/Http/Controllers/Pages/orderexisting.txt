@@ -1,0 +1,32 @@
+$paymentEx = Payment::create([
+                'order_id' => $existingOrder->id,
+                'type' => $validate['status'],
+                'amount' => $validate['pay_amount'],
+                'date' => $validate['issued_at'],
+                'struk_id' => $strukId,
+                'struk_url' => $strukUrl,
+                'status' => 'paid', // Asumsi awal paid
+            ]);
+            $existingOrder->pay_amount += $validate['pay_amount'];
+            $existingOrder->debit_amount = $existingOrder->code_order - $existingOrder->pay_amount;
+
+            if ($existingOrder->debit_amount <= 0) {
+                $existingOrder->status = 'completed';
+                $existingOrder->debit_amount = 0;
+            }
+
+            $existingOrder->save();
+
+            $invNo = "INV-" . $paymentEx->id ."-". str_replace('ORD-', '', $codeOrder);
+            $invoice = Invoice::create([
+                'order_id' => $existingOrder->id,
+                'inv_no' => $invNo,
+                'details' => '' ?? null,
+                'issued_at' => $validate['issued_at'],
+                'dued_at' => $validate['dued_at'],
+            ]);
+
+            // return redirect()->route('order.book.show', $existingOrder->id)
+            //     ->with('success', 'Pembayaran berhasil ditambahkan! Order #' . $existingOrder->code_order . ' telah diperbarui.');
+            return redirect()->route('order.book.index')
+                ->with('success', 'Pembayaran berhasil ditambahkan! Order #' . $existingOrder->code_order . ' telah diperbarui.');
