@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Pages\DebtBookController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Pages\ProfileController;
 use App\Http\Controllers\Pages\OrderBookController;
@@ -41,6 +42,9 @@ Route::middleware('auth')->group(function () {
         Route::post('create', [OrderBookController::class, 'store'])->name('store');
         Route::get('show', [OrderBookController::class, 'show'])->name('show');
         Route::get('inv', [OrderBookController::class, 'inv'])->name('inv');
+
+        //payment
+        Route::get('debt', [DebtBookController::class, 'index'])->name('debt.index');
     });
     //order journal
     Route::prefix('order-journals')->name('order.journal.')->group(function () {

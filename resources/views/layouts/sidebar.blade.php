@@ -36,7 +36,37 @@
                     </a>
                 </li>
             @endrole --}}
-
+            <li class="nav-item nav-category">Books</li>
+            <li class="nav-item ">
+                <a href="" class="nav-link">
+                    <i class="link-icon" data-feather="shopping-cart"></i>
+                    <span class="link-title">Order</span>
+                </a>
+            </li>
+            <li class="nav-item ">
+                <a href="" class="nav-link">
+                    <i class="link-icon" data-feather="credit-card"></i>
+                    <span class="link-title">Debt</span>
+                </a>
+            </li>
+            <li class="nav-item ">
+                <a href="" class="nav-link">
+                    <i class="link-icon" data-feather="credit-card"></i>
+                    <span class="link-title">Full Payment</span>
+                </a>
+            </li>
+            <li class="nav-item ">
+                <a href="" class="nav-link">
+                    <i class="link-icon" data-feather="repeat"></i>
+                    <span class="link-title">Refund</span>
+                </a>
+            </li>
+            <li class="nav-item ">
+                <a href="" class="nav-link">
+                    <i class="link-icon" data-feather="package"></i>
+                    <span class="link-title">Approval</span>
+                </a>
+            </li>
             <li class="nav-item nav-category">Account</li>
             <li class="nav-item {{ active_class(['profile']) }}">
                 <a href="{{ route('profile') }}" class="nav-link">
