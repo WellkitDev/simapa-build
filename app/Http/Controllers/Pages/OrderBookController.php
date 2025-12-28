@@ -8,11 +8,14 @@ use App\Models\Scope;
 use App\Models\Author;
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Models\OrderDetail;
 use Illuminate\Support\Str;
 use App\Helpers\Utf8Cleaner;
 use App\Jobs\SendInvoiceJob;
+use App\Models\OrderContact;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
 use App\Services\GoogleDriveService;
@@ -46,7 +49,7 @@ class OrderBookController extends Controller
     {
         //
         $scopes = Scope::all();
-        return view('pages.order.book.create', compact('scopes'));
+        return \view('orders.book.create', \compact('scopes'));
     }
 
     /**
@@ -64,13 +67,8 @@ class OrderBookController extends Controller
             'naskah_type'        => 'required|in:dibuatkan,mandiri',
             'publication_type'   => 'required|in:regular,fastrack',
 
-            'issued_at' => 'required|date',
-            'dued_at' => 'required|date|after_or_equal:issued_at',
+            'issued_at'          => 'required|date',
             'cost_amount'        => 'required|numeric|min:0',
-            'pay_amount'         => 'required|numeric|min:0',
-            'status'             => 'required|in:dp,lunas,pelunasan',
-            'struk_payment'      => 'required|file|mimes:jpg,jpeg,png,pdf|max:10240',
-
             'contact_phone'      => 'required|string',
             'contact_email'      => 'required|email',
 
@@ -79,225 +77,99 @@ class OrderBookController extends Controller
             'authors.*.email'    => 'nullable|email',
             'authors.*.phone'    => 'nullable|string',
             'authors.*.affiliation' => 'nullable|string',
-            'authors.*.possition'   => 'required|integer|min:1',
+            'authors.*.position'   => 'required|integer|min:1',
             'note'               => 'nullable|string',
             'send_invoice_email' => 'sometimes|boolean',
         ]);
 
-        $validate['title'] = Utf8Cleaner::clean($validate['title']);
-        $validate['note']  = Utf8Cleaner::clean($validate['note'] ?? '');
+        // Mencari Order yang memiliki Detail dengan judul sama DAN Contact dengan email sama
+        $isDuplicate = Order::whereHas('details', function ($query) use ($validate) {
+                $query->where('title', $validate['title']);
+            })
+            ->whereHas('contact', function ($query) use ($validate) {
+                $query->where('cp_email', $validate['contact_email']);
+            })
+            ->exists();
 
-        foreach ($validate['authors'] as &$author) {
-            foreach ($author as $k => $v) {
-                if (is_string($v)) {
-                    $author[$k] = Utf8Cleaner::clean($v);
-                }
-            }
-        }
-
-        // Ambil title yang sudah dibersihkan
-        $cleanTitle = $validate['title'];
-
-        // Cek apakah sudah ada order dengan judul sama + email sama
-        $existingOrder = Order::where('title', $cleanTitle)
-                            ->where('contact_email', $request->contact_email)
-                            ->first();
-
-        if ($existingOrder) {
+        // Jika ditemukan duplikat, return kembali dengan pesan error
+        if ($isDuplicate) {
             return redirect()->back()
-                    ->withInput()
-                    ->with('error', 'Data sudah ada, Silakan cek riwayat order!');
+                ->withInput() // Mengembalikan input user agar tidak perlu ketik ulang
+                ->with('error', 'Gagal: Judul naskah dengan Email kontak tersebut sudah terdaftar sebelumnya.');
         }
 
-        // Kalau lolos, lanjut generate slug seperti biasa (title + email utama)
-        // Ambil title yang sudah dibersihkan
-        $cleanTitle = $validate['title'];
-
-        // Buat slug dasar dari title
-        $baseSlug = Str::slug($cleanTitle);
-
-        // Ambil bagian username dari email (sebelum @)
-        // Contoh: budi@gmail.com → budi
-        //           dr.ahmad@univ.ac.id → dr-ahmad
-        $emailParts = explode('@', $validate['contact_email']);
-        $emailUsername = $emailParts[0] ?? 'user'; // fallback kalau aneh
-
-        // Bersihkan username email biar aman buat slug
-        $emailHash = substr(md5($request->contact_email), 0, 8); // 8 karakter unik
-        $baseSlug = $baseSlug . '-' . $emailHash;
-
-        // Kalau mau lebih pendek, bisa pakai substr kalau terlalu panjang
-        // $baseSlug = $baseSlug . '-' . substr($emailSlug, 0, 20); // opsional
-
-        // Pastikan slug unik (sama seperti sebelumnya, tapi lebih aman karena email unik)
-        $slug = $baseSlug;
-        $counter = 1;
-        do {
-            $exists = Order::where('slug', $slug)->exists();
-            if ($exists) {
-                $slug = $baseSlug . '-' . $counter;
-                $counter++;
-            }
-        } while ($exists);
-
-        // Generate code_order (misal ORD-202512-0001)
-        $yearMonth = date('Ym');
-        $lastOrder = Order::where('code_order', 'like', "ORD-{$yearMonth}-%")->latest()->first();
-        $seq = $lastOrder ? intval(substr($lastOrder->code_order, -4)) + 1 : 1;
-        $codeOrder = "ORD-{$yearMonth}-" . str_pad($seq, 4, '0', STR_PAD_LEFT);
-        // Simpan Order
-        $order = Order::create([
-            'code_order' => $codeOrder,
-            'type' => $validate['type'],
-            'title' => $validate['title'],
-            'slug' => $slug,
-            'chapters' => $validate['chapters'] ?? null,
-            'indexation' => $validate['indexation'] ?? null,
-            'naskah_type' => $validate['naskah_type'],
-            'publication_type' => $validate['publication_type'],
-            'cost_amount' => $validate['cost_amount'],
-            'pay_amount' => $validate['pay_amount'],
-            'debit_amount' => $validate['cost_amount'] - $validate['pay_amount'], // Sisa
-            'status' => 'pending',
-            'user_id' => Auth::id(),
-            'note' => $validate['note'],
-            'contact_phone' => $validate['contact_phone'],
-            'contact_email' => $validate['contact_email'],
-        ]);
-
-        // Handle science (create new if not exists)
-        $scope_id = $request->scope_id;
-        if (!is_numeric($scope_id)) {
-            $scope = Scope::firstOrCreate(['scope' => $scope_id]);
-            $scope_id = $scope->id;
-        }
-        $order->scopes()->attach($scope_id);
-
-        // Simpan Authors
-        $authorPivots = [];
-        foreach ($validate['authors'] as $authorData) {
-            $author = Author::create($authorData);
-            $authorPivots[$author->id] = ['possition' => $authorData['possition']];
-        }
-        $order->authors()->attach($authorPivots);
-
-
-        // === UPLOAD STRUK (tetap sama, tanpa ubah handle image) ===
-        $strukId = null;
-        $strukUrl = null;
-
-        if ($request->hasFile('struk_payment')) {
-            $file = $request->file('struk_payment');
-            $year = Carbon::parse($validate['issued_at'])->format('Y');
-            $folderPath = "Application/struk_pembayaran/{$year}";
-
-            $folderId = $this->drive->getOrCreateFolderByPath($folderPath);
-            if (!$folderId) {
-                return back()->with('error', 'Gagal membuat folder Google Drive.');
-            }
-
-            $filename = $validate['contact_email'] . "_struk." . $file->getClientOriginalExtension();
-            $uploadResult = $this->drive->uploadFile($file, $folderId, true, $filename);
-
-            if (!$uploadResult || !isset($uploadResult['id'])) {
-                Log::error('Upload struk gagal', $uploadResult ?? []);
-                return back()->with('error', 'Gagal upload struk. Coba lagi.');
-            }
-
-            $strukId = $uploadResult['id'];
-            $strukUrl = $uploadResult['url'];
-        }
-
-        // Simpan Payment
-        $payment = Payment::create([
-            'order_id' => $order->id,
-            'type' => $validate['status'],
-            'amount' => $validate['pay_amount'],
-            'date' => $validate['issued_at'],
-            'struk_id' => $strukId,
-            'struk_url' => $strukUrl,
-            'status' => 'pending', // Asumsi awal paid
-        ]);
-
-        // Generate Invoice
-        $invNo = "INV-" . str_replace('ORD-', '', $codeOrder). '-' . $payment->id; // Misal INV-202512-0001-01
-
-        $invoiceDetails = [ // Array untuk cast
-            'jenis_layanan' => $order->type,
-            'judul' => $order->title,
-            'jumlah_bab' => $order->chapters,
-            'scope' => $order->scopes->pluck('scope')->implode(', '),
-            'target_indeksasi' => $order->indexation,
-            'jumlah_penulis' => count($validate['authors']),
-            'penulis' => $order->authors->sortBy('pivot.possition')->map(function($a) {
-                return $a->name . ' (' . $a->affiliation . ')';
-            })->toArray(),
-            'kontak' => $order->contact_phone . ' | ' . $order->contact_email,
-            'marketing' => Auth::user()->name, // Asumsi
-            'total_tagihan' => $order->cost_amount,
-            // Tambah riwayat pembayaran dll.
-        ];
-        $invoiceDetails = Utf8Cleaner::clean($invoiceDetails);
-        $invoice = Invoice::create([
-            'order_id' => $order->id,
-            'inv_no' => $invNo,
-            'details' => Utf8Cleaner::clean($invoiceDetails),
-            'issued_at' => $validate['issued_at'],
-            'dued_at' => $validate['dued_at'],
-        ]);
-
-        // Generate PDF dulu di controller
-        $pdf = Pdf::loadView('pages.invoices.order_book_inv', [
-            'order'   => $order,
-            'invoice' => $invoice,
-            'payment' => $payment,
-        ]);
-
-        $pdfContent = $pdf->output();
-        $fileName   = $invoice->inv_no . '.pdf';
-
-        // === UPLOAD PDF KE GOOGLE DRIVE (sync di controller) ===
+        // PROSES TRANSAKSI (JIKA TIDAK DUPLIKAT)
         try {
-            // Simpan temporary dulu
-            $tempPath = storage_path('app/temp/' . $fileName);
-            if (!file_exists(dirname($tempPath))) {
-                mkdir(dirname($tempPath), 0755, true);
-            }
-            file_put_contents($tempPath, $pdfContent);
+            $newOrder = DB::transaction(function () use ($validate) {
+                // Generate code_order (misal ORD-202512-0001)
+                $yearMonth = date('Ym');
+                $lastOrder = Order::where('code_order', 'like', "ORD-{$yearMonth}-%")->lockForUpdate()->latest()->first();
+                $seq = $lastOrder ? intval(substr($lastOrder->code_order, -4)) + 1 : 1;
+                $codeOrder = "ORD-{$yearMonth}-" . str_pad($seq, 4, '0', STR_PAD_LEFT);
 
-            // Buat folder di Drive
-            $folderPath = "Application/orders/{$order->id}/invoices";
-            $folderId   = $this->drive->getOrCreateFolderByPath($folderPath);
+                // ORDER (HEAD)
+                $order = Order::create([
+                    'code_order' => $codeOrder,
+                    'user_id' => Auth::user()->id,
+                    'status' => 'pending',
+                    'note' => $validate['note'] ?? null,
+                    'ordered_at' => $validate['issued_at'],
+                ]);
 
-            if ($folderId) {
-                $uploadResult = $this->drive->uploadFile($tempPath, $folderId, true);
+                // Generate slug
+                $cleanTitle = $validate['title'];
+                $baseSlug = Str::slug($cleanTitle);
+                $finalSlug = $baseSlug . '-' . $order->id;
 
-                if ($uploadResult && isset($uploadResult['id'])) {
-                    // Update invoice dengan link Drive
-                    $invoice->update([
-                        'inv_pdf_id'  => $uploadResult['id'],
-                        'inv_pdf_url' => $uploadResult['url'],
-                    ]);
+                // ORDER DETAIL
+                $detail = OrderDetail::create([
+                    'order_id' => $order->id,
+                    'type' => $validate['type'],
+                    'title' => $validate['title'],
+                    'slug' => $finalSlug,
+                    'chapters' => $validate['chapters'],
+                    'naskah_type' => $validate['naskah_type'],
+                    'publication_type' => $validate['publication_type'],
+                    'cost_amount' => $validate['cost_amount'],
+                ]);
+
+                //handlle science scope (create new if not exists)
+                $scope_id = $validate['scope_id'];
+                if (!is_numeric($scope_id) && !empty($scope_id)) {
+                    $scope = Scope::firstOrCreate(['scope' => $scope_id]);
+                    $scope_id = $scope->id;
                 }
-            }
 
-            // Hapus temp file
-            @unlink($tempPath);
+                if($scope_id) {
+                    $detail->scopes()->attach($scope_id);
+                }
+
+                // Handle Save Authors
+                $authorPivots = [];
+                foreach ($validate['authors'] as $authorData) {
+                    $author = Author::create($authorData);
+                    $authorPivots[$author->id] = ['position' => $authorData['position']];
+                }
+                $detail->authors()->attach($authorPivots);
+
+                // ORDER CONTACT
+                OrderContact::create([
+                    'order_id' => $order->id,
+                    'cp_phone'    => $validate['contact_phone'],
+                    'cp_email'    => $validate['contact_email'],
+                ]);
+                return $order;
+            });
+            return redirect()
+                ->route('order.book.payment.create', ['code_order' => $newOrder->code_order])
+                ->with('success', 'Order berhasil dibuat');
         } catch (\Exception $e) {
-            Log::error('Gagal upload PDF invoice ke Drive', ['error' => $e->getMessage()]);
-            // Tetap lanjut kirim email meskipun upload gagal
+            // Tangkap pesan error dari throw di atas
+            return response()->json([
+                'message' => $e->getMessage()
+            ], 422);
         }
 
-        // Jika send_invoice_email
-        if ($request->boolean('send_invoice_email')) {
-            // Dispatch ke queue
-            SendInvoiceJob::dispatch($invoice->id);
-        }
-        if ($order->slug) {
-            # code...
-        }
-
-        return redirect()->back()->with('success', 'Order berhasil disimpan!');
     }
 
     /**
