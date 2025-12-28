@@ -12,19 +12,20 @@ class Invoice extends Model
     protected $table = 'tb_invoices';
 
     protected $fillable = [
-        'order_id','inv_no','details',
-        'issued_at','dued_at',
-        'inv_pdf_url','inv_pdf_id'
+        'order_id', 'payment_id', 'invoice_no',
+        'issued_at', 'due_at',
+        'pdf_url', 'pdf_drive_id', 'status'
     ];
 
-    protected $casts = [
-        'details' => 'array',
-        'issued_at' => 'datetime',
-        'dued_at' => 'datetime'
-    ];
+    protected $dates = ['issued_at', 'due_at'];
 
     public function order()
     {
         return $this->belongsTo(Order::class);
+    }
+
+    public function payment()
+    {
+        return $this->belongsTo(Payment::class);
     }
 }

@@ -13,11 +13,13 @@ class Author extends Model
     protected $table = 'tb_authors';
     protected $fillable = ['name','email','phone','affiliation'];
 
-    public function orders()
+    public function orderDetails()
     {
         return $this->belongsToMany(
             Order::class,
-            'tb_author_order'
+            'tb_author_orders',
+            'author_id',
+            'order_detail_id'
         )->withPivot('possition')->withTimestamps();
     }
 

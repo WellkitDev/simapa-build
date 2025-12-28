@@ -14,10 +14,10 @@ class Scope extends Model
     public function orders()
     {
         return $this->belongsToMany(
-            Order::class,
-            'tb_scope_order',
+            OrderDetail::class,
+            'tb_scope_orders',
             'scope_id',
-            'order_id'
+            'order_detail_id'
         );
     }
 }
