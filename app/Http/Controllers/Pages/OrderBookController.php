@@ -106,37 +106,37 @@ class OrderBookController extends Controller
         if ($existingOrder) {
             return redirect()->back()
                     ->withInput()
-                    ->with('error', 'Kamu sudah pernah membuat order dengan judul buku yang sama. Silakan cek riwayat order atau hubungi admin jika ada kesalahan.');
+                    ->with('error', 'Data sudah ada, Silakan cek riwayat order!');
         }
 
-        // Kalau lolos, lanjut generate slug seperti biasa (title + author utama)
-        // Ambil nama author utama (posisi 1)
-        $primaryAuthorName = '';
-        if ($validate['authors'] && count($validate['authors']) > 0) {
-            // Cari author dengan possition = 1
-            $primary = collect($validate['authors'])->firstWhere('possition', 1);
-            if ($primary) {
-                // Bersihkan nama: hapus gelar, spasi berlebih
-                $cleanName = preg_replace('/[^a-zA-Z0-9\s-]/', '', $primary['name']);
-                $cleanName = strtolower(trim($cleanName));
-                $cleanName = preg_replace('/\s+/', '-', $cleanName);
-                $primaryAuthorName = $cleanName;
-            }
-        }
+        // Kalau lolos, lanjut generate slug seperti biasa (title + email utama)
+        // Ambil title yang sudah dibersihkan
+        $cleanTitle = $validate['title'];
 
-        $baseSlug = Str::slug($validate['title']);
-        if ($primaryAuthorName) {
-            $baseSlug .= '-' . $primaryAuthorName;
-        }
+        // Buat slug dasar dari title
+        $baseSlug = Str::slug($cleanTitle);
 
-        // Optional: tetap buat slug unik kalau kebetulan bentrok (jarang, tapi aman)
+        // Ambil bagian username dari email (sebelum @)
+        // Contoh: budi@gmail.com → budi
+        //           dr.ahmad@univ.ac.id → dr-ahmad
+        $emailParts = explode('@', $validate['contact_email']);
+        $emailUsername = $emailParts[0] ?? 'user'; // fallback kalau aneh
+
+        // Bersihkan username email biar aman buat slug
+        $emailHash = substr(md5($request->contact_email), 0, 8); // 8 karakter unik
+        $baseSlug = $baseSlug . '-' . $emailHash;
+
+        // Kalau mau lebih pendek, bisa pakai substr kalau terlalu panjang
+        // $baseSlug = $baseSlug . '-' . substr($emailSlug, 0, 20); // opsional
+
+        // Pastikan slug unik (sama seperti sebelumnya, tapi lebih aman karena email unik)
         $slug = $baseSlug;
         $counter = 1;
         do {
             $exists = Order::where('slug', $slug)->exists();
             if ($exists) {
-                $counter++;
                 $slug = $baseSlug . '-' . $counter;
+                $counter++;
             }
         } while ($exists);
 
@@ -216,7 +216,7 @@ class OrderBookController extends Controller
             'date' => $validate['issued_at'],
             'struk_id' => $strukId,
             'struk_url' => $strukUrl,
-            'status' => 'paid', // Asumsi awal paid
+            'status' => 'pending', // Asumsi awal paid
         ]);
 
         // Generate Invoice

@@ -11,18 +11,19 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('tb_orders', function (Blueprint $table) {
+        Schema::create('tb_invoices', function (Blueprint $table) {
             $table->id();
-            $table->string('code_order')->unique();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+
+            $table->foreignId('payment_id')
+                ->constrained('tb_payments')
+                ->cascadeOnDelete();
+
+            $table->string('approved_by')->nullable();
             $table->string('status')->default('pending');
             $table->text('note')->nullable();
-            $table->timestamp('ordered_at')->nullable();
-            $table->timestamp('completed_at')->nullable();
-            $table->timestamps();
-            $table->softDeletes();
+            $table->timestamp('approved_at')->nullable();
 
-            $table->index('status');
+            $table->timestamps();
         });
     }
 
@@ -31,6 +32,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('tb_orders');
+        Schema::dropIfExists('tb_invoices');
     }
 };

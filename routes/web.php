@@ -37,7 +37,7 @@ Route::middleware('auth')->group(function () {
 
     //Order book
     Route::prefix('order-books')->name('order.book.')->group(function () {
-        Route::get('/', [OrderBookController::class, 'index'])->name('index');
+        Route::get('approval', [OrderBookController::class, 'index'])->name('index');
         Route::get('create', [OrderBookController::class, 'create'])->name('create');
         Route::post('create', [OrderBookController::class, 'store'])->name('store');
         Route::get('show', [OrderBookController::class, 'show'])->name('show');

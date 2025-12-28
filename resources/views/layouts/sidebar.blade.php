@@ -37,8 +37,8 @@
                 </li>
             @endrole --}}
             <li class="nav-item nav-category">Books</li>
-            <li class="nav-item ">
-                <a href="" class="nav-link">
+            <li class="nav-item {{ active_class(['order-books', 'order-books/create']) }}">
+                <a href="{{ route('order.book.create') }}" class="nav-link">
                     <i class="link-icon" data-feather="shopping-cart"></i>
                     <span class="link-title">Order</span>
                 </a>
@@ -61,8 +61,8 @@
                     <span class="link-title">Refund</span>
                 </a>
             </li>
-            <li class="nav-item ">
-                <a href="" class="nav-link">
+            <li class="nav-item {{ active_class(['order-books', 'order-books/approval']) }}">
+                <a href="{{ route('order.book.index') }}" class="nav-link">
                     <i class="link-icon" data-feather="package"></i>
                     <span class="link-title">Approval</span>
                 </a>

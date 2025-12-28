@@ -11,22 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('tb_invoices', function (Blueprint $table) {
+        Schema::create('tb_order_contacts', function (Blueprint $table) {
             $table->id();
 
             $table->foreignId('order_id')
                 ->constrained('tb_orders')
                 ->cascadeOnDelete();
 
-            $table->string('inv_no')->unique();
-            $table->text('details')->nullable(); // JSON opsional
-
-            $table->dateTime('issued_at');
-            $table->dateTime('dued_at')->nullable();
-
-            $table->string('inv_pdf_url')->nullable();
-            $table->string('inv_pdf_id')->nullable();
-
+            $table->string('cp_phone');
+            $table->string('cp_email');
             $table->timestamps();
         });
     }
@@ -36,6 +29,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('tb_invoices');
+        Schema::dropIfExists('tb_order_contacts');
     }
 };

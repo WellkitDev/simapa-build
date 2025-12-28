@@ -11,16 +11,16 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('tb_scope_order', function (Blueprint $table) {
+        Schema::create('tb_scope_orders', function (Blueprint $table) {
             $table->foreignId('scope_id')
                 ->constrained('tb_scopes')
                 ->cascadeOnDelete();
 
-            $table->foreignId('order_id')
-                ->constrained('tb_orders')
+            $table->foreignId('order_detail_id')
+                ->constrained('tb_order_details')
                 ->cascadeOnDelete();
 
-            $table->primary(['scope_id', 'order_id']);
+            $table->primary(['scope_id', 'order_detail_id']);
             $table->timestamps();
         });
     }
@@ -30,6 +30,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('tb_scope_order');
+        Schema::dropIfExists('tb_scope_orders');
     }
 };

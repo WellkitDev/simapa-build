@@ -11,19 +11,20 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('tb_author_order', function (Blueprint $table) {
-            $table->foreignId('order_id')
-                ->constrained('tb_orders')
+        Schema::create('tb_author_orders', function (Blueprint $table) {
+            $table->id();
+
+            $table->foreignId('order_detail_id')
+                ->constrained('tb_order_details')
                 ->cascadeOnDelete();
 
             $table->foreignId('author_id')
                 ->constrained('tb_authors')
                 ->cascadeOnDelete();
 
-            $table->integer('possition');
+            $table->integer('position');
 
-            $table->timestamps();
-             $table->primary(['order_id', 'author_id']);
+            $table->unique(['order_detail_id', 'author_id']);
         });
     }
 
@@ -32,6 +33,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('tb_author_order');
+        Schema::dropIfExists('tb_author_orders');
     }
 };
