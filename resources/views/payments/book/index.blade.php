@@ -85,11 +85,18 @@
 
                                             <td>
                                                 @if ($payment->approval && $payment->approval->status == 'pending')
-                                                    <div class="btn-group">
-                                                        <a href="" class="btn btn-sm btn-primary">
+                                                    <form action="{{ route('payment.approve', $payment->id) }}"
+                                                        method="POST">
+                                                        @csrf
+                                                        <button type="submit"
+                                                            class="btn btn-sm btn-primary">Approve</button>
+                                                    </form>
+                                                    {{-- <div class="btn-group">
+                                                        <a href="{{ route('payment.approve', $payment->id) }}"
+                                                            class="btn btn-sm btn-primary">
                                                             Review & Approve
                                                         </a>
-                                                    </div>
+                                                    </div> --}}
                                                 @elseif($payment->approval && $payment->approval->status == 'approved')
                                                     <span class="text-success small"><i class="fa fa-check-circle"></i>
                                                         Completed</span>

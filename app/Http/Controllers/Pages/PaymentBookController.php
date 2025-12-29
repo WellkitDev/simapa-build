@@ -222,6 +222,54 @@ class PaymentBookController extends Controller
         return $pdf->stream('Invoice_' . $invoice->invoice_no . '.pdf');
     }
 
+    public function approve($id)
+    {
+        try {
+            DB::transaction(function () use ($id) {
+                $payment = Payment::findOrFail($id);
+
+                // 1. Update status di tb_payments
+                $payment->update(['status' => 'paid']);
+
+                // 2. Update status di tb_payment_approvals
+                $payment->approval()->update([
+                    'status' => 'approved',
+                    'approved_by' => auth()->id(),
+                    'approved_at' => now()
+                ]);
+
+                // Optional: Jika ini pelunasan, update status Order jadi 'success'
+                if ($payment->payment_type == 'pelunasan') {
+                    $payment->order->update(['status' => 'success']);
+                }
+            });
+
+            return redirect()->route('payment.index')->with('success', 'Pembayaran berhasil disetujui.');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Gagal memproses approval: ' . $e->getMessage());
+        }
+    }
+
+    public function reject(Request $request, $id)
+    {
+        $request->validate(['note' => 'required']);
+
+        DB::transaction(function () use ($id, $request) {
+            $payment = Payment::findOrFail($id);
+
+            $payment->update(['status' => 'rejected']);
+
+            $payment->approval()->update([
+                'status' => 'rejected',
+                'note' => $request->note,
+                'approved_by' => auth()->id(),
+                'approved_at' => now()
+            ]);
+        });
+
+        return back()->with('warning', 'Pembayaran telah ditolak.');
+    }
+
     /**
      * Remove the specified resource from storage.
      */

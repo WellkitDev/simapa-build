@@ -36,7 +36,7 @@ class OrderBookController extends Controller
     {
         //
         // Mengambil order milik user yang sedang login dengan relasi payments
-        $orders = Order::with(['payments', 'details.authors'])
+        $orders = Order::with(['payments.approval', 'details.authors'])
             ->where('user_id', auth()->id()) // Sesuaikan dengan sistem auth Anda
             ->latest()
             ->get();
@@ -177,7 +177,7 @@ class OrderBookController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(string $code_order)
+    public function show($code_order)
     {
         //
        // Gunakan where() untuk mencari berdasarkan code_order alih-alih ID

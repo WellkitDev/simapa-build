@@ -64,10 +64,6 @@
                             <input type="file" class="form-control" name="proof_url" accept="image/*,.pdf" required>
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Catatan Tambahan</label>
-                        <textarea name="note" class="form-control" rows="3"></textarea>
-                    </div>
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" name="send_invoice_email" value="1"
                             id="sendInvoice">

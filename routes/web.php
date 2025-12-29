@@ -47,6 +47,7 @@ Route::middleware('auth')->group(function () {
         Route::get('list', [PaymentBookController::class, 'index'])->name('index');
         Route::get('{code_order}/create', [PaymentBookController::class, 'create'])->name('create');
         Route::post('{code_order}/create', [PaymentBookController::class, 'store'])->name('store');
+        Route::post('approve/{id}', [PaymentBookController::class, 'approve'])->name('approve');
     });
 
 });

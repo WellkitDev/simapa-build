@@ -56,14 +56,20 @@
                                                 @endif
                                             </td>
                                             <td>
-                                                {{-- LOGIKA UTAMA: Jika status pending DAN belum ada payment --}}
+                                                @php
+                                                    // Cek apakah ada pembayaran yang sudah disetujui (paid)
+                                                    $hasApprovedPayment = $order->payments
+                                                        ->where('status', 'paid')
+                                                        ->isNotEmpty();
+                                                @endphp
+
+                                                {{-- KONDISI 1: Jika status pending DAN belum ada data payment sama sekali --}}
                                                 @if ($order->status == 'pending' && $order->payments->isEmpty())
                                                     <a href="{{ route('payment.create', $order->code_order) }}"
                                                         class="btn btn-sm btn-primary">
                                                         <i class="fa fa-credit-card"></i> Lanjutkan Pembayaran
                                                     </a>
 
-                                                    {{-- Tombol Cancel Order (Opsional) --}}
                                                     <form action="" method="POST" style="display:inline;">
                                                         @csrf
                                                         @method('DELETE')
@@ -72,15 +78,30 @@
                                                             Batalkan
                                                         </button>
                                                     </form>
-                                                @elseif($order->status == 'pending' && $order->payments->isNotEmpty())
-                                                    {{-- Jika sudah bayar tapi masih pending (menunggu approval) --}}
-                                                    <span class="text-muted small">Menunggu Verifikasi</span>
+
+                                                    {{-- KONDISI 2: Sudah upload pembayaran tapi belum di-approve (masih pending di tb_payments) --}}
+                                                @elseif($order->status == 'pending' && !$hasApprovedPayment)
+                                                    <div class="btn-group">
+                                                        <a href="{{ route('order.book.show', $order->code_order) }}"
+                                                            class="btn btn-sm btn-outline-info">
+                                                            <i class="fa fa-search"></i> Cek Status
+                                                        </a>
+                                                        <span
+                                                            class="badge bg-warning text-dark d-flex align-items-center px-2">
+                                                            <i class="fa fa-clock me-1"></i> Menunggu Verifikasi
+                                                        </span>
+                                                    </div>
+
+                                                    {{-- KONDISI 3: Pembayaran sudah di-approve (status sudah 'paid' atau order status berubah) --}}
                                                 @else
-                                                    {{-- Jika status sudah bukan pending (misal: processing/success) --}}
                                                     <a href="{{ route('order.book.show', $order->code_order) }}"
                                                         class="btn btn-sm btn-info text-white">
-                                                        Lihat Detail
+                                                        <i class="fa fa-eye"></i> Lihat Detail & Invoice
                                                     </a>
+                                                    @if ($hasApprovedPayment)
+                                                        <span class="badge bg-success"><i class="fa fa-check"></i>
+                                                            Terverifikasi</span>
+                                                    @endif
                                                 @endif
                                             </td>
                                         </tr>

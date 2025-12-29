@@ -24,7 +24,7 @@
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-6">
-                        @php $detail = $order->details->first(); @endphp
+                        @php $detail = $order->details; @endphp
                         <table class="table table-borderless">
                             <tr>
                                 <th width="35%">Kode Order</th>

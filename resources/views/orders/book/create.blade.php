@@ -168,6 +168,10 @@
                             </select>
                         </div> --}}
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">Catatan Tambahan</label>
+                        <textarea name="note" class="form-control" rows="3"></textarea>
+                    </div>
                     {{-- <div class="row">
                         <div class="col-md-4 sm-12 mb-3">
                             <label class="form-label">Struk Pembayaran</label>
