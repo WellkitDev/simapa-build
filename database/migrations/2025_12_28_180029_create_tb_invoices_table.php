@@ -14,14 +14,21 @@ return new class extends Migration
         Schema::create('tb_invoices', function (Blueprint $table) {
             $table->id();
 
-            $table->foreignId('payment_id')
-                ->constrained('tb_payments')
+            $table->foreignId('order_id')
+                ->constrained('tb_orders')
                 ->cascadeOnDelete();
 
-            $table->string('approved_by')->nullable();
-            $table->string('status')->default('pending');
-            $table->text('note')->nullable();
-            $table->timestamp('approved_at')->nullable();
+            $table->foreignId('payment_id')
+                ->nullable()
+                ->constrained('tb_payments')
+                ->nullOnDelete();
+
+            $table->string('invoice_no')->unique();
+            $table->timestamp('issued_at');
+            $table->timestamp('due_at')->nullable();
+            $table->string('pdf_url')->nullable();
+            $table->string('pdf_drive_id')->nullable();
+            $table->string('status')->default('issued');
 
             $table->timestamps();
         });

@@ -16,14 +16,16 @@ class InvoiceMail extends Mailable
     use Queueable, SerializesModels;
 
     public $invoice;
+    public $data;
 
     /**
      * Create a new message instance.
      */
-    public function __construct(Invoice $invoice)
+    public function __construct(Invoice $invoice, array $data)
     {
         //
         $this->invoice = $invoice;
+        $this->data = $data;
     }
 
     /**
@@ -43,10 +45,6 @@ class InvoiceMail extends Mailable
     {
         return new Content(
             view: 'pages.mails.inv_book_mail',
-            with: [
-                'invoice' => $this->invoice,
-                'order'   => $this->invoice->order,
-            ],
         );
     }
 

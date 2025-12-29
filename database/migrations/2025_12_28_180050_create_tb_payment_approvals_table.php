@@ -13,6 +13,16 @@ return new class extends Migration
     {
         Schema::create('tb_payment_approvals', function (Blueprint $table) {
             $table->id();
+
+            $table->foreignId('payment_id')
+                ->constrained('tb_payments')
+                ->cascadeOnDelete();
+
+            $table->string('approved_by')->nullable();
+            $table->string('status')->default('pending');
+            $table->text('note')->nullable();
+            $table->timestamp('approved_at')->nullable();
+
             $table->timestamps();
         });
     }

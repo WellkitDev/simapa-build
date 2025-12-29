@@ -36,13 +36,28 @@
                     </a>
                 </li>
             @endrole --}}
-            <li class="nav-item nav-category">Books</li>
+            <li class="nav-item nav-category">Order</li>
             <li class="nav-item {{ active_class(['order-books', 'order-books/create']) }}">
                 <a href="{{ route('order.book.create') }}" class="nav-link">
                     <i class="link-icon" data-feather="shopping-cart"></i>
-                    <span class="link-title">Order</span>
+                    <span class="link-title">Create Book</span>
                 </a>
             </li>
+            <li class="nav-item {{ active_class(['order-books', 'order-books/list']) }}">
+                <a href="{{ route('order.book.index') }}" class="nav-link">
+                    <i class="link-icon" data-feather="shopping-cart"></i>
+                    <span class="link-title">List</span>
+                </a>
+            </li>
+            <li class="nav-item nav-category">Payment</li>
+            <li class="nav-item {{ active_class(['payments', 'payments/list']) }}">
+                <a href="{{ route('payment.index') }}" class="nav-link">
+                    <i class="link-icon" data-feather="shopping-cart"></i>
+                    <span class="link-title">List</span>
+                </a>
+            </li>
+            <li class="nav-item nav-category">Books</li>
+
             <li class="nav-item ">
                 <a href="" class="nav-link">
                     <i class="link-icon" data-feather="credit-card"></i>
@@ -61,12 +76,12 @@
                     <span class="link-title">Refund</span>
                 </a>
             </li>
-            <li class="nav-item {{ active_class(['order-books', 'order-books/approval']) }}">
+            {{-- <li class="nav-item {{ active_class(['order-books', 'order-books/approval']) }}">
                 <a href="{{ route('order.book.index') }}" class="nav-link">
                     <i class="link-icon" data-feather="package"></i>
                     <span class="link-title">Approval</span>
                 </a>
-            </li>
+            </li> --}}
             <li class="nav-item nav-category">Account</li>
             <li class="nav-item {{ active_class(['profile']) }}">
                 <a href="{{ route('profile') }}" class="nav-link">

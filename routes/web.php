@@ -1,9 +1,10 @@
 <?php
 
-use App\Http\Controllers\Pages\DebtBookController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Pages\ProfileController;
+use App\Http\Controllers\Pages\DebtBookController;
 use App\Http\Controllers\Pages\OrderBookController;
+use App\Http\Controllers\Pages\PaymentBookController;
 use App\Http\Controllers\Pages\OrderJournalController;
 
 /*
@@ -37,20 +38,17 @@ Route::middleware('auth')->group(function () {
 
     //Order book
     Route::prefix('order-books')->name('order.book.')->group(function () {
-        Route::get('approval', [OrderBookController::class, 'index'])->name('index');
+        Route::get('list', [OrderBookController::class, 'index'])->name('index');
         Route::get('create', [OrderBookController::class, 'create'])->name('create');
         Route::post('create', [OrderBookController::class, 'store'])->name('store');
-        Route::get('show', [OrderBookController::class, 'show'])->name('show');
-        Route::get('inv', [OrderBookController::class, 'inv'])->name('inv');
+        Route::get('show/{code_order}', [OrderBookController::class, 'show'])->name('show');
+    });
+    Route::prefix('payments')->name('payment.')->group(function () {
+        Route::get('list', [PaymentBookController::class, 'index'])->name('index');
+        Route::get('{code_order}/create', [PaymentBookController::class, 'create'])->name('create');
+        Route::post('{code_order}/create', [PaymentBookController::class, 'store'])->name('store');
+    });
 
-        //payment
-        Route::get('debt', [DebtBookController::class, 'index'])->name('debt.index');
-    });
-    //order journal
-    Route::prefix('order-journals')->name('order.journal.')->group(function () {
-        Route::get('/', [OrderJournalController::class, 'index'])->name('index');
-        Route::get('create', [OrderJournalController::class, 'create'])->name('create');
-    });
 });
 
 require __DIR__.'/auth.php';

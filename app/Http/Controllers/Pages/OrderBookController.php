@@ -35,11 +35,13 @@ class OrderBookController extends Controller
     public function index()
     {
         //
-        $invoices = Invoice::with(['order.authors', 'order.users', 'order.payments'])
-                       ->latest('issued_at')
-                ->get();
+        // Mengambil order milik user yang sedang login dengan relasi payments
+        $orders = Order::with(['payments', 'details.authors'])
+            ->where('user_id', auth()->id()) // Sesuaikan dengan sistem auth Anda
+            ->latest()
+            ->get();
 
-        return view('pages.order.book.index', compact('invoices'));
+        return view('orders.book.index', compact('orders'));
     }
 
     /**
@@ -161,7 +163,7 @@ class OrderBookController extends Controller
                 return $order;
             });
             return redirect()
-                ->route('order.book.payment.create', ['code_order' => $newOrder->code_order])
+                ->route('payment.create', ['code_order' => $newOrder->code_order])
                 ->with('success', 'Order berhasil dibuat');
         } catch (\Exception $e) {
             // Tangkap pesan error dari throw di atas
@@ -175,10 +177,38 @@ class OrderBookController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show()
+    public function show(string $code_order)
     {
         //
-        return view('pages.order.book.show');
+       // Gunakan where() untuk mencari berdasarkan code_order alih-alih ID
+        $order = Order::with([
+        'details.authors',
+        'details.scopes',
+        'payments.approval',
+        'invoices',
+        'contact'
+        ])->where('code_order', $code_order)->firstOrFail();
+
+        // Ambil detail pertama (karena hasMany tetapi di logika Anda biasanya hanya ada 1)
+        $firstDetail = $order->details;
+
+        // Hitung Keuangan
+        // Pastikan hanya menjumlahkan pembayaran yang statusnya 'paid' atau 'approved'
+        $totalCost = $firstDetail->cost_amount ?? 0;
+
+        $alreadyPaid = $order->payments
+        ->where('status', 'paid')
+        ->sum('amount');
+
+        $remainingBalance = $totalCost - $alreadyPaid;
+
+        return view('orders.book.show', compact(
+        'order',
+        'firstDetail',
+        'totalCost',
+        'alreadyPaid',
+        'remainingBalance'
+        ));
     }
     public function inv()
     {

@@ -1,0 +1,29 @@
+public function handle(): void
+    {
+        //
+        // Ambil data FRESH dari database → pasti bersih & relasi lengkap
+        $invoice = Invoice::with(['order.authors', 'order.scopes'])->findOrFail($this->invoiceId);
+        $order   = $invoice->order;
+        // === KIRIM EMAIL DENGAN ATTACHMENT PDF ===
+        $mainAuthor = $order->authors->where('pivot.possition', 1)->first();
+
+        $emailTo = $mainAuthor && $mainAuthor->email
+            ? $mainAuthor->email
+            : $order->contact_email;
+
+        try {
+            Mail::to($emailTo)->send(new InvoiceMail($invoice));
+
+            Log::info('Email invoice berhasil dikirim', [
+                'to' => $emailTo,
+                'invoice_no' => $invoice->inv_no
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Gagal kirim email invoice', [
+                'to' => $emailTo,
+                'error' => $e->getMessage()
+            ]);
+            // Laravel queue akan otomatis retry sesuai config
+            throw $e; // biar queue retry
+        }
+    }

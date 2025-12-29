@@ -6,8 +6,10 @@ use Carbon\Carbon;
 use App\Models\Order;
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Jobs\SendInvoiceJob;
 use Illuminate\Http\Request;
 use App\Models\PaymentApproval;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
@@ -37,7 +39,7 @@ class PaymentBookController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function create(string $code_order)
+    public function create($code_order)
     {
         //
         $order = Order::with(['details', 'contact'])
@@ -49,7 +51,7 @@ class PaymentBookController extends Controller
         }
 
         // Mengambil detail pertama dari collection hasMany
-        $firstDetail = $order->details->first();
+        $firstDetail = $order->details;
         if (!$firstDetail) {
             return redirect()->back()->with('error', 'Detail order tidak ditemukan.');
         }
@@ -61,7 +63,7 @@ class PaymentBookController extends Controller
 
         // Jika sudah lunas tapi masih buka halaman ini
         if ($remainingBalance <= 0) {
-            return redirect()->route('orders.index')->with('info', 'Order ini sudah lunas.');
+            return redirect()->route('order.book.index')->with('info', 'Order ini sudah lunas.');
         }
 
         return view('payments.book.create', compact(
@@ -115,7 +117,7 @@ class PaymentBookController extends Controller
         }
 
         try {
-            $newOrder = DB::transaction(function () use ($validate, $order, $strukUrl) {
+            $invoiceId = DB::transaction(function () use ($validate, $order, $strukUrl) {
                 $payment = Payment::create([
                     'order_id'     => $order->id,
                     'payment_type' => $validate['status'],
@@ -140,8 +142,14 @@ class PaymentBookController extends Controller
                     'payment_id' => $payment->id,
                     'status'     => 'pending',
                 ]);
-            });
 
+                return $invoice->id;
+            });
+            // Jika send_invoice_email
+            if ($request->boolean('send_invoice_email')) {
+                // Dispatch ke queue
+                SendInvoiceJob::dispatch($invoiceId);
+            }
             return redirect()->route('order.book.create')
                 ->with('success', 'Pembayaran berhasil diajukan, menunggu approval');
         } catch (\Exception $e) {
@@ -174,6 +182,44 @@ class PaymentBookController extends Controller
     public function update(Request $request, string $id)
     {
         //
+    }
+
+    //
+    public function printInvoice(string $invoice_no)
+    {
+        // 1. Ambil data Invoice beserta Order, Detail, Authors, dan Payments
+        $invoice = Invoice::with([
+            'order.details.authors',
+            'order.details.scopes',
+            'order.payments' => function($q) {
+                $q->where('status', 'paid'); // Hanya ambil payment yang sudah valid
+            },
+            'order.contact'
+        ])->where('invoice_no', $invoice_no)->firstOrFail();
+
+        $order = $invoice->order;
+        $detail = $order->details->first();
+
+        // 2. Hitung Keuangan
+        $totalCost = $detail->cost_amount ?? 0;
+        $alreadyPaid = $order->payments->sum('amount');
+        $remainingBalance = $totalCost - $alreadyPaid;
+
+        // 3. Siapkan data untuk View
+        $data = [
+            'invoice' => $invoice,
+            'order' => $order,
+            'detail' => $detail,
+            'totalCost' => $totalCost,
+            'alreadyPaid' => $alreadyPaid,
+            'remainingBalance' => $remainingBalance,
+        ];
+
+        // 4. Generate PDF
+        $pdf = Pdf::loadView('payments.invoice_pdf', $data);
+
+        // 5. Download atau Stream (tampil di browser)
+        return $pdf->stream('Invoice_' . $invoice->invoice_no . '.pdf');
     }
 
     /**

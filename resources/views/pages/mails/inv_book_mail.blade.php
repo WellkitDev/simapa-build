@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Invoice #INV-XXXXXX</title>
+    <title>Invoice #{{ $invoice->inv_no }}</title>
     <link rel="shortcut icon" href="{{ asset('assets/images/favicon.png') }}">
 </head>
 
@@ -38,48 +38,44 @@
                 <!-- Detail Invoice -->
                 <table border="0" cellpadding="0" cellspacing="0" style="width:100%; margin-bottom:20px;">
                     <tr>
-                        <td style="padding:8px 0; color:#555;"><strong>INVOICE :</strong></td>
+                        <td style="padding:8px 0; color:#555;"><strong>INVOICE</strong></td>
                         <td style="padding:8px 0; color:#555;">{{ $invoice->inv_no }}</td>
                     </tr>
                     <tr>
                         <td style="padding:8px 0; color:#555;"><strong>Judul Buku</strong></td>
-                        <td style="padding:8px 0; color:#555;">{{ $order->title }}</td>
+                        <td style="padding:8px 0; color:#555;">{{ $data['title'] }}</td>
                     </tr>
                     <tr>
                         <td style="padding:8px 0; color:#555;"><strong>Total Biaya</strong></td>
-                        <td style="padding:8px 0; color:#555;">Rp {{ number_format($order->cost_amount, 0, ',', '.') }}
+                        <td style="padding:8px 0; color:#555;">Rp {{ number_format($data['totalCost'], 0, ',', '.') }}
                         </td>
                     </tr>
                     <tr>
                         <td style="padding:8px 0; color:#555;"><strong>Jumlah Dibayar</strong></td>
-                        <td style="padding:8px 0; color:#555;">Rp
-                            {{ number_format($order->pay_amount, 0, ',', '.') }}
+                        <td style="padding:8px 0; color:#555;">Rp {{ number_format($data['alreadyPaid'], 0, ',', '.') }}
                         </td>
                     </tr>
                     <tr>
                         <td style="padding:8px 0; color:#555;"><strong>Sisa Bayar</strong></td>
                         <td style="padding:8px 0; color:#555;">Rp
-                            {{ number_format($order->debit_amount, 0, ',', '.') }}</td>
+                            {{ number_format($data['remainingBalance'], 0, ',', '.') }}</td>
                     </tr>
                     <tr>
                         <td style="padding:8px 0; color:#555;"><strong>Tanggal Terbit</strong></td>
-                        <td style="padding:8px 0; color:#555;">{{ $invoice->issued_at->format('d F Y') }}</td>
-                    </tr>
-                    <tr>
-                        <td style="padding:8px 0; color:#555;"><strong>Jatuh Tempo</strong></td>
-                        <td style="padding:8px 0; color:#555;">{{ $invoice->dued_at->format('d F Y') }}</td>
-                    </tr>
-                    <tr>
-                        <td style="padding:8px 0; color:#555;"><strong>Status Pembayaran</strong></td>
                         <td style="padding:8px 0; color:#555;">
-                            {{ $order->pay_amount >= $order->cost_amount ? 'LUNAS' : 'DP' }}</td>
+                            {{ \Carbon\Carbon::parse($invoice->issued_at)->format('d F Y') }}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:8px 0; color:#555;"><strong>Status</strong></td>
+                        <td style="padding:8px 0; color:#555;">
+                            {{ strtoupper($invoice->payment->payment_type ?? 'PAYMENT') }}</td>
                     </tr>
                 </table>
 
                 <p style="color:#555555; font-size:16px; line-height:1.5; margin:0 0 20px;">
-                    File invoice lengkap dapat diunduh di link berikut: <a href="{{ $invoice->inv_pdf_url }}"
+                    File invoice lengkap dapat diunduh di link berikut: <a href="{{ $invoice->pdf_drive_id }}"
                         class="bold">
-                        {{ $invoice->inv_pdf_url }}
+                        {{ $invoice->pdf_drive_id }}
                     </a>.
                     Silakan periksauntuk detail lebih lanjut.
                 </p>
