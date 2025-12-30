@@ -294,10 +294,7 @@
             </td>
         </tr>
 
-        {{-- <tr>
-            <td><strong>Marketing</strong></td>
-            <td>: {{ $order->marketing->name }}</td>
-        </tr> --}}
+
 
         @if ($order->authors->first()->phone || $order->authors->first()->email)
             <tr>
