@@ -30,7 +30,7 @@
                                 <thead>
                                     <tr>
 
-                                        <th>Order ID</th>
+                                        <th>INV</th>
                                         <th>Type</th>
                                         <th>Amount</th>
                                         <th>Proof</th>
@@ -43,7 +43,7 @@
                                     @foreach ($payments as $payment)
                                         <tr>
 
-                                            <td>{{ $payment->order->code_order }}</td>
+                                            <td>{{ $payment->invoice->invoice_no }}</td>
                                             <td><span
                                                     class="badge bg-secondary">{{ strtoupper($payment->payment_type) }}</span>
                                             </td>

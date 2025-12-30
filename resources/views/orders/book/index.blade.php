@@ -86,10 +86,10 @@
                                                             class="btn btn-sm btn-outline-info">
                                                             <i class="fa fa-search"></i> Cek Status
                                                         </a>
-                                                        <span
+                                                        {{-- <span
                                                             class="badge bg-warning text-dark d-flex align-items-center px-2">
                                                             <i class="fa fa-clock me-1"></i> Menunggu Verifikasi
-                                                        </span>
+                                                        </span> --}}
                                                     </div>
 
                                                     {{-- KONDISI 3: Pembayaran sudah di-approve (status sudah 'paid' atau order status berubah) --}}
@@ -98,10 +98,10 @@
                                                         class="btn btn-sm btn-info text-white">
                                                         <i class="fa fa-eye"></i> Lihat Detail & Invoice
                                                     </a>
-                                                    @if ($hasApprovedPayment)
+                                                    {{-- @if ($hasApprovedPayment)
                                                         <span class="badge bg-success"><i class="fa fa-check"></i>
                                                             Terverifikasi</span>
-                                                    @endif
+                                                    @endif --}}
                                                 @endif
                                             </td>
                                         </tr>
