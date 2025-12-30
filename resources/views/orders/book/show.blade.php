@@ -38,11 +38,12 @@
                             </tr>
                             <tr>
                                 <th>Judul</th>
-                                <td>: {{ $detail->title ?? 'Judul Belum Diisi' }}</td>
+                                <td class="text-wrap" style="width: 150px;">: {{ $detail->title ?? 'Judul Belum Diisi' }}
+                                </td>
                             </tr>
                             <tr>
-                                <th>Jumlah Bab</th>
-                                <td>: {{ $detail->chapters ?? 0 }} Bab</td>
+                                <th>{{ $detail->type === 'bk_kolab' ? 'Bab Order' : 'Jumlah Bab' }}</th>
+                                <td>: {{ $detail->chapters ?? 0 }}</td>
                             </tr>
                             <tr>
                                 <th>Scope</th>

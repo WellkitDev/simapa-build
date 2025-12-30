@@ -50,6 +50,12 @@
                 </a>
             </li>
             <li class="nav-item nav-category">Payment</li>
+            <li class="nav-item {{ active_class(['payments', 'payments/dp']) }}">
+                <a href="{{ route('payment.dp.index') }}" class="nav-link">
+                    <i class="link-icon" data-feather="credit-card"></i>
+                    <span class="link-title">Debt</span>
+                </a>
+            </li>
             <li class="nav-item {{ active_class(['payments', 'payments/list']) }}">
                 <a href="{{ route('payment.index') }}" class="nav-link">
                     <i class="link-icon" data-feather="shopping-cart"></i>
@@ -58,12 +64,6 @@
             </li>
             <li class="nav-item nav-category">Books</li>
 
-            <li class="nav-item ">
-                <a href="" class="nav-link">
-                    <i class="link-icon" data-feather="credit-card"></i>
-                    <span class="link-title">Debt</span>
-                </a>
-            </li>
             <li class="nav-item ">
                 <a href="" class="nav-link">
                     <i class="link-icon" data-feather="credit-card"></i>

@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Pages;
 
-use App\Http\Controllers\Controller;
 use App\Models\Order;
 use Illuminate\Http\Request;
+use App\Http\Controllers\Controller;
 
-class DebtBookController extends Controller
+class FullPaymentBookController extends Controller
 {
     /**
      * Display a listing of the resource.
@@ -14,15 +14,15 @@ class DebtBookController extends Controller
     public function index()
     {
         //
-        $orders = Order::with(['payments', 'details', 'contact'])
-            ->whereHas('payments', function($q) {
-                $q->where('payment_type', 'dp');
+        // Ambil order yang total pembayarannya (status paid) >= cost_amount
+        $orders = Order::with(['payments.approval', 'details', 'contact', 'invoices'])
+            ->whereHas('details', function($query) {
+                $query->whereRaw('(SELECT SUM(amount) FROM tb_payments WHERE tb_payments.order_id = tb_orders.id AND status = "paid") >= tb_order_details.cost_amount');
             })
-            ->where('status', '!=', 'success') // Anggap 'success' adalah lunas & selesai
             ->latest()
             ->get();
 
-        return view('payments.dp.index', compact('orders'));
+        return view('payments.lunas.index', compact('orders'));
     }
 
     /**

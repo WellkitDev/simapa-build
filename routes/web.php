@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Pages\ProfileController;
 use App\Http\Controllers\Pages\DebtBookController;
+use App\Http\Controllers\Pages\FullPaymentBookController;
 use App\Http\Controllers\Pages\OrderBookController;
 use App\Http\Controllers\Pages\PaymentBookController;
 use App\Http\Controllers\Pages\OrderJournalController;
@@ -48,6 +49,12 @@ Route::middleware('auth')->group(function () {
         Route::get('{code_order}/create', [PaymentBookController::class, 'create'])->name('create');
         Route::post('{code_order}/create', [PaymentBookController::class, 'store'])->name('store');
         Route::post('approve/{id}', [PaymentBookController::class, 'approve'])->name('approve');
+
+        //dp
+        Route::get('dp', [DebtBookController::class, 'index'])->name('dp.index');
+
+        //lunas
+        Route::get('full', [FullPaymentBookController::class, 'index'])->name('fp.index');
     });
 
 });
