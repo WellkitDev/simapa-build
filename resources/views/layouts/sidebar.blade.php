@@ -37,13 +37,19 @@
                 </li>
             @endrole --}}
             <li class="nav-item nav-category">Order</li>
-            <li class="nav-item {{ active_class(['order-books', 'order-books/create']) }}">
+            <li class="nav-item {{ active_class(['books', 'books/create']) }}">
                 <a href="{{ route('order.book.create') }}" class="nav-link">
                     <i class="link-icon" data-feather="shopping-cart"></i>
-                    <span class="link-title">Create Book</span>
+                    <span class="link-title">Book</span>
                 </a>
             </li>
-            <li class="nav-item {{ active_class(['order-books', 'order-books/list']) }}">
+            <li class="nav-item {{ active_class(['journal', 'journal/create']) }}">
+                <a href="{{ route('order.journal.create') }}" class="nav-link">
+                    <i class="link-icon" data-feather="shopping-cart"></i>
+                    <span class="link-title">Journal</span>
+                </a>
+            </li>
+            <li class="nav-item {{ active_class(['books', 'books/list']) }}">
                 <a href="{{ route('order.book.index') }}" class="nav-link">
                     <i class="link-icon" data-feather="shopping-cart"></i>
                     <span class="link-title">List</span>

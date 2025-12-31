@@ -32,7 +32,23 @@
                             </tr>
                             <tr>
                                 <th>Jenis Layanan</th>
-                                <td>: {{ $detail->type ?? '-' }}
+                                <td>: @switch($detail->type)
+                                        @case('bk_mandiri')
+                                            Buku Mandiri
+                                        @break
+
+                                        @case('bk_kolab')
+                                            Buku Kolaborasi
+                                        @break
+
+                                        @case('at_mandiri')
+                                            Artikel Mandiri
+                                        @break
+
+                                        @case('at_kolab')
+                                            Artikel Kolaborasi
+                                        @break
+                                    @endswitch
                                     <span class="badge bg-info ms-2 text-uppercase">{{ $detail->naskah_type ?? '-' }}</span>
                                 </td>
                             </tr>
@@ -42,8 +58,13 @@
                                 </td>
                             </tr>
                             <tr>
-                                <th>{{ $detail->type === 'bk_kolab' ? 'Bab Order' : 'Jumlah Bab' }}</th>
-                                <td>: {{ $detail->chapters ?? 0 }}</td>
+                                @if (str_starts_with($detail->type, 'at_'))
+                                    <th>Target Indeksasi</th>
+                                    <td>: {{ strtoupper($detail->indexation) }}</td>
+                                @else
+                                    <th>{{ $detail->type === 'bk_kolab' ? 'Bab Order' : 'Jumlah Bab' }}</th>
+                                    <td>: {{ $detail->chapters ?? 0 }}</td>
+                                @endif
                             </tr>
                             <tr>
                                 <th>Scope</th>

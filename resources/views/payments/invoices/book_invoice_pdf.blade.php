@@ -251,11 +251,11 @@
                     @break
 
                     @case('at_mandiri')
-                        Artikel Jurnal Mandiri
+                        Artikel Mandiri
                     @break
 
                     @case('at_kolab')
-                        Artikel Jurnal Kolaborasi
+                        Artikel Kolaborasi
                     @break
                 @endswitch
                 (Naskah {{ $detail->naskah_type === 'dibuatkan' ? 'Dibuatkan' : 'Mandiri' }})</td>

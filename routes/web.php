@@ -38,12 +38,19 @@ Route::middleware('auth')->group(function () {
     });
 
     //Order book
-    Route::prefix('order-books')->name('order.book.')->group(function () {
+    Route::prefix('books')->name('order.book.')->group(function () {
         Route::get('list', [OrderBookController::class, 'index'])->name('index');
         Route::get('create', [OrderBookController::class, 'create'])->name('create');
         Route::post('create', [OrderBookController::class, 'store'])->name('store');
         Route::get('show/{code_order}', [OrderBookController::class, 'show'])->name('show');
     });
+    //order  journal
+    Route::prefix('journal')->name('order.journal.')->group(function () {
+        Route::get('create', [OrderJournalController::class, 'create'])->name('create');
+        Route::post('create', [OrderJournalController::class, 'store'])->name('store');
+        Route::get('show/{code_order}', [OrderJournalController::class, 'show'])->name('show');
+    });
+
     Route::prefix('payments')->name('payment.')->group(function () {
         Route::get('list', [PaymentBookController::class, 'index'])->name('index');
         Route::get('{code_order}/create', [PaymentBookController::class, 'create'])->name('create');

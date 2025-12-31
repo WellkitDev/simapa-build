@@ -65,7 +65,6 @@ class OrderBookController extends Controller
             'title'              => 'required|string|max:255',
             'scope_id'           => 'nullable',
             'chapters'           => 'nullable|integer|min:1',
-
             'naskah_type'        => 'required|in:dibuatkan,mandiri',
             'publication_type'   => 'required|in:regular,fastrack',
 
@@ -81,7 +80,6 @@ class OrderBookController extends Controller
             'authors.*.affiliation' => 'nullable|string',
             'authors.*.position'   => 'required|integer|min:1',
             'note'               => 'nullable|string',
-            'send_invoice_email' => 'sometimes|boolean',
         ]);
 
         // Mencari Order yang memiliki Detail dengan judul sama DAN Contact dengan email sama
