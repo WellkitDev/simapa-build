@@ -201,7 +201,9 @@
             <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Invoice Terakhir</h5>
                 @if ($order->invoices->isNotEmpty())
-                    <a href="#" class="btn btn-light btn-sm">📄 Download PDF Invoice</a>
+                    <a href="{{ route('payment.printInvoice', $order->code_order) }}" target="_blank"
+                        class="btn btn-light btn-sm">Download
+                        PDF Invoice</a>
                 @endif
             </div>
             <div class="card-body text-center">

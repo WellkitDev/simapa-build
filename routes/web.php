@@ -56,6 +56,7 @@ Route::middleware('auth')->group(function () {
         Route::get('{code_order}/create', [PaymentBookController::class, 'create'])->name('create');
         Route::post('{code_order}/create', [PaymentBookController::class, 'store'])->name('store');
         Route::post('approve/{id}', [PaymentBookController::class, 'approve'])->name('approve');
+        Route::get('print/{code_order}', [PaymentBookController::class, 'printInvoice'])->name('printInvoice');
 
         //dp
         Route::get('dp', [DebtBookController::class, 'index'])->name('dp.index');

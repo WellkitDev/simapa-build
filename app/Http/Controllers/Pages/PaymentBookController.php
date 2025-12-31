@@ -192,40 +192,51 @@ class PaymentBookController extends Controller
     }
 
     //
-    public function printInvoice(string $invoice_no)
+    public function printInvoice(string $code_order)
     {
-        // 1. Ambil data Invoice beserta Order, Detail, Authors, dan Payments
+        // 1. Cari Invoice yang order-nya punya code_order ini
+        // Pakai whereHas biar tetap mulai dari Invoice (seperti job yang sudah final)
         $invoice = Invoice::with([
             'order.details.authors',
             'order.details.scopes',
-            'order.payments' => function($q) {
-                $q->where('status', 'paid'); // Hanya ambil payment yang sudah valid
+            'order.payments' => function ($query) {
+                $query->where('status', 'paid')->orderBy('paid_at', 'asc');
             },
             'order.contact'
-        ])->where('invoice_no', $invoice_no)->firstOrFail();
+        ])
+        ->whereHas('order', function ($query) use ($code_order) {
+            $query->where('code_order', $code_order);
+        })
+        ->firstOrFail(); // Kalau gak ketemu → 404 otomatis
 
-        $order = $invoice->order;
+        // 2. Ambil relasi yang pasti ada
+        $order  = $invoice->order;
         $detail = $order->details->first();
 
-        // 2. Hitung Keuangan
-        $totalCost = $detail->cost_amount ?? 0;
-        $alreadyPaid = $order->payments->sum('amount');
+        if (!$detail) {
+            abort(404, 'Detail order tidak ditemukan.');
+        }
+
+        // 3. Hitung keuangan — hanya dari payment yang sudah paid
+        $totalCost        = $detail->cost_amount ?? 0;
+        $alreadyPaid      = $order->payments->sum('amount'); // sudah difilter di query
         $remainingBalance = $totalCost - $alreadyPaid;
 
-        // 3. Siapkan data untuk View
+        // 4. Siapkan data untuk view (sama persis seperti di job)
         $data = [
-            'invoice' => $invoice,
-            'order' => $order,
-            'detail' => $detail,
-            'totalCost' => $totalCost,
-            'alreadyPaid' => $alreadyPaid,
+            'invoice'          => $invoice,
+            'order'            => $order,
+            'detail'           => $detail,
+            'totalCost'        => $totalCost,
+            'alreadyPaid'      => $alreadyPaid,
             'remainingBalance' => $remainingBalance,
         ];
 
-        // 4. Generate PDF
-        $pdf = Pdf::loadView('payments.invoice_pdf', $data);
+        // 5. Generate PDF
+        $pdf = Pdf::loadView('payments.invoices.book_invoice_pdf', $data);
+        // atau nama view yang kamu pakai, misal: 'pdf.invoice-book'
 
-        // 5. Download atau Stream (tampil di browser)
+        // 6. Stream ke browser
         return $pdf->stream('Invoice_' . $invoice->invoice_no . '.pdf');
     }
 
