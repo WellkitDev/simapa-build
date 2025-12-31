@@ -39,6 +39,6 @@ class OrderDetail extends Model
             'tb_author_orders',
             'order_detail_id',
             'author_id'
-        );
+        )->withPivot('position');
     }
 }

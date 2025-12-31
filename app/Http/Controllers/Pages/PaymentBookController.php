@@ -211,7 +211,7 @@ class PaymentBookController extends Controller
 
         // 2. Ambil relasi yang pasti ada
         $order  = $invoice->order;
-        $detail = $order->details->first();
+        $detail = $order->details;
 
         if (!$detail) {
             abort(404, 'Detail order tidak ditemukan.');

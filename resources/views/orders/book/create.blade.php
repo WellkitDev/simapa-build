@@ -139,10 +139,6 @@
                             <input type="number" name="cost_amount" class="form-control" required min="0"
                                 step="1000">
                         </div>
-                        {{-- <div class="col-md-6 mb-3">
-                            <label class="form-label">Due Date <span class="text-danger">*</span></label>
-                            <input type="datetime-local" class="form-control" name="dued_at" required>
-                        </div> --}}
                     </div>
                     <div class="row">
 
@@ -154,43 +150,11 @@
                             <label class="form-label">Email <span class="text-danger">*</span></label>
                             <input type="email" class="form-control" name="contact_email" value="" required>
                         </div>
-                        {{-- <div class="col-md-4 sm-12 mb-3">
-                            <label class="form-label">Total Pembayaran (Rp) <span class="text-danger">*</span></label>
-                            <input type="number" name="pay_amount" class="form-control" required min="0"
-                                step="1000">
-                        </div>
-                        <div class="col-md-4 sm-12 mb-3">
-                            <label class="form-label">Status Pembayaran</label>
-                            <select name="status" class="form-select" required>
-                                <option value="dp">Down Payment/DP</option>
-                                <option value="lunas">Full Payment/Lunas</option>
-                                <option value="pelunasan">Paydown/Pelunasan</option>
-                            </select>
-                        </div> --}}
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Catatan Tambahan</label>
                         <textarea name="note" class="form-control" rows="3"></textarea>
                     </div>
-                    {{-- <div class="row">
-                        <div class="col-md-4 sm-12 mb-3">
-                            <label class="form-label">Struk Pembayaran</label>
-                            <input type="file" class="form-control" name="struk_payment" accept="image/*,.pdf"
-                                required>
-                        </div>
-
-                    </div> --}}
-                    {{-- <div class="mb-3">
-                        <label class="form-label">Catatan Tambahan</label>
-                        <textarea name="note" class="form-control" rows="3"></textarea>
-                    </div> --}}
-                    {{-- <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name="send_invoice_email" value="1"
-                            id="sendInvoice">
-                        <label class="form-check-label" for="sendInvoice">
-                            Kirim invoice otomatis via email ke author utama setelah order disimpan
-                        </label>
-                    </div> --}}
                 </div>
             </div>
 

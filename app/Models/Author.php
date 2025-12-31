@@ -16,11 +16,11 @@ class Author extends Model
     public function orderDetails()
     {
         return $this->belongsToMany(
-            Order::class,
+            OrderDetail::class,
             'tb_author_orders',
             'author_id',
             'order_detail_id'
-        )->withPivot('possition')->withTimestamps();
+        )->withPivot('position');
     }
 
 }

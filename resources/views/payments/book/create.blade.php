@@ -1,12 +1,12 @@
 @extends('layouts.master')
-@section('title', 'Paymen Order Book {{ $order->code_order }} - SiMAPA')
+@section('title', 'Paymen Order {{ $order->code_order }} - SiMAPA')
 
 @push('plugin-styles')
 @endpush
 
 @section('content')
     <div class="container py-5">
-        <h1 class="mb-4">Payment Order Buku {{ $order->code_order }}</h1>
+        <h1 class="mb-4">Payment Order {{ $order->code_order }}</h1>
 
         <form method="POST" action="{{ route('payment.store', $order->code_order) }}" enctype="multipart/form-data">
             @csrf

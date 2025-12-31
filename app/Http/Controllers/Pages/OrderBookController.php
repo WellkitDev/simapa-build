@@ -217,18 +217,114 @@ class OrderBookController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(string $id)
+    public function edit(string $code_order)
     {
         //
-        return view('pages.order.book.edit');
+        // Load order beserta semua relasinya
+        $order = Order::with(['details.authors', 'contact', 'invoices'])->where('code_order', $code_order)->firstOrFail();
+
+        // Ambil data scope untuk dropdown
+        $scopes = Scope::all();
+
+        return view('orders.edit', compact('order', 'scopes'));
+
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
+    public function update(Request $request, string $code_order)
     {
         //
+        // 1. Validasi Input
+        $request->validate([
+            'type'               => 'required|in:bk_mandiri,bk_kolab,at_mandiri,at_kolab',
+            'title'              => 'required|string|max:255',
+            'scope_id'           => 'nullable',
+            'chapters'           => 'nullable|integer|min:1',
+            'naskah_type'        => 'required|in:dibuatkan,mandiri',
+            'publication_type'   => 'required|in:regular,fastrack',
+            'indexation'         => 'nullable|string',
+            'issued_at'          => 'required|date',
+            'cost_amount'        => 'required|numeric|min:0',
+            'contact_phone'      => 'required|string',
+            'contact_email'      => 'required|email',
+
+            'authors'            => 'required|array|min:1',
+            'authors.*.name'     => 'required|string',
+            'authors.*.email'    => 'nullable|email',
+            'authors.*.phone'    => 'nullable|string',
+            'authors.*.affiliation' => 'nullable|string',
+            'authors.*.position'   => 'required|integer|min:1',
+            'note'               => 'nullable|string',
+        ]);
+
+        try {
+            DB::transaction(function () use ($request, $code_order) {
+                $order = Order::findOrFail($code_order);
+                $order->update([
+                    'note' => $request->note,
+                    'ordered_at' => $request->issued_at,
+                ]);
+                $index = '';
+                if ($request->has('indexation')) {
+                    $index = $request->indexation;
+                }
+                $bab = '0';
+                if ($request->has('chapters')) {
+                    $bab = $request->chapters;
+                }
+                // 2. Update Detail Order
+                $order->details()->update([
+                    'title' => $request->title,
+                    'type' => $request->type,
+                    'indexation' =>  $index,
+                    'chapters' => $bab,
+                    'naskah_type' => $request->naskah_type,
+                    'publication_type' => $request->publication_type,
+                    'cost_amount' => $request->cost_amount,
+                ]);
+
+                if ($request->has('scope_id')) {
+                    // Jika scope_id di form edit hanya bisa pilih satu (bukan multiple)
+                    // sync akan menghapus scope lama dan menggantinya dengan yang baru
+                    $order->details->scopes()->sync([$request->scope_id]);
+                }
+
+                // 3. Update Contact Person
+                $order->contact()->update([
+                    'cp_phone' => $request->contact_phone,
+                    'cp_email' => $request->contact_email,
+                ]);
+
+                // 4. Update Authors (Hapus yang lama, simpan yang baru dari form)
+                $detail = $order->details;
+                $detail->authors()->detach();
+
+                foreach ($request->authors as $authorData) {
+                    // Cari atau buat author berdasarkan email (agar tidak duplikat di tb_authors)
+                    $author = \App\Models\Author::updateOrCreate(
+                        ['email' => $authorData['email']],
+                        [
+                            'name'        => $authorData['name'],
+                            'affiliation' => $authorData['affiliation'] ?? null,
+                            'phone'       => $authorData['phone'] ?? null,
+                        ]
+                    );
+
+                    // Hubungkan kembali ke tabel pivot dengan data position
+                    $detail->authors()->attach($author->id, [
+                        'position' => $authorData['position'] ?? 1,
+                    ]);
+                }
+
+            });
+
+            return redirect()->route('order.book.index')->with('success', 'Order #' . $code_order . ' berhasil diperbarui.');
+
+        } catch (\Exception $e) {
+            return back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage())->withInput();
+        }
     }
 
     /**

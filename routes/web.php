@@ -43,6 +43,8 @@ Route::middleware('auth')->group(function () {
         Route::get('create', [OrderBookController::class, 'create'])->name('create');
         Route::post('create', [OrderBookController::class, 'store'])->name('store');
         Route::get('show/{code_order}', [OrderBookController::class, 'show'])->name('show');
+        Route::get('update/{code_order}', [OrderBookController::class, 'edit'])->name('edit');
+        Route::put('update/{code_order}', [OrderBookController::class, 'update'])->name('update');
     });
     //order  journal
     Route::prefix('journal')->name('order.journal.')->group(function () {
