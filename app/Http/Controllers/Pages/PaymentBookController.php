@@ -123,6 +123,7 @@ class PaymentBookController extends Controller
                     'payment_type' => $validate['status'],
                     'amount'       => $validate['pay_amount'],
                     'proof_url'    => $strukUrl,
+                    'paid_at'      => $validate['issued_at'],
                     'status'       => 'paid',
                 ]);
 
@@ -142,6 +143,12 @@ class PaymentBookController extends Controller
                     'payment_id' => $payment->id,
                     'status'     => 'pending',
                 ]);
+
+                 if ($payment->payment_type === 'lunas' || $payment->payment_type === 'pelunasan') {
+                    $order->update([
+                        'status' => 'lunas',
+                    ]);
+                 }
 
                 return $invoice->id;
             });
@@ -226,7 +233,7 @@ class PaymentBookController extends Controller
     {
         try {
             DB::transaction(function () use ($id) {
-                $payment = Payment::findOrFail($id);
+                $payment = Payment::with(['approval', 'order'])->findOrFail($id);
 
                 // 1. Update status di tb_payments
                 $payment->update(['status' => 'paid']);
@@ -239,8 +246,8 @@ class PaymentBookController extends Controller
                 ]);
 
                 // Optional: Jika ini pelunasan, update status Order jadi 'success'
-                if ($payment->payment_type == 'pelunasan') {
-                    $payment->order->update(['status' => 'success']);
+                if ($payment->payment_type === 'lunas' || $payment->payment_type == 'pelunasan') {
+                    $payment->order->update(['status' => 'lunas']);
                 }
             });
 

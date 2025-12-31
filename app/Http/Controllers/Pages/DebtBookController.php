@@ -18,7 +18,7 @@ class DebtBookController extends Controller
             ->whereHas('payments', function($q) {
                 $q->where('payment_type', 'dp');
             })
-            ->where('status', '!=', 'success') // Anggap 'success' adalah lunas & selesai
+            ->where('status', '!=', 'lunas') // Anggap 'success' adalah lunas & selesai
             ->latest()
             ->get();
 

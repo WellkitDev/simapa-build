@@ -84,7 +84,7 @@
         .detail th,
         .detail td {
             border: 1px solid #ccc;
-            padding: 5px 0px;
+            padding: 5px 5px;
             text-align: left;
         }
 
@@ -194,7 +194,8 @@
             <td width="50%" class="invoice-info" valign="bottom">
                 <h2>INVOICE</h2>
                 <p><strong>#{{ $invoice->invoice_no }}</strong></p>
-                <p>Terbit: {{ \Carbon\Carbon::parse($invoice->issued_at)->format('d F Y') }}</p>
+                <p>Issue: {{ \Carbon\Carbon::parse($order->ordered_at)->format('d F Y') }}</p>
+                <p>Expired: {{ \Carbon\Carbon::parse($invoice->due_at)->format('d F Y') }}</p>
             </td>
         </tr>
     </table>
@@ -206,11 +207,11 @@
                 <h4>Kepada Yth.</h4>
                 <p>
                     @if ($detail && $detail->authors->isNotEmpty())
-                        {{ $detail->authors->first()->name }}@if ($detail->authors->count() > 1)
+                        {{ Str::title($detail->authors->first()->name) }}@if ($detail->authors->count() > 1)
                             , dkk.
                         @endif
                         <br>
-                        {{ $detail->authors->first()->affiliation ?? '-' }}<br>
+                        {{ Str::title($detail->authors->first()->affiliation) ?? '-' }}<br>
                         {{ $order->contact->cp_email ?? '-' }}<br>
                         {{ $order->contact->cp_phone ?? '-' }}
                     @else
@@ -261,22 +262,31 @@
         </tr>
         <tr>
             <td><strong>Judul</strong></td>
-            <td>: {{ $detail->title ?? '-' }}</td>
-        </tr>
-        <tr>
-            <td><strong>{{ $detail->type === 'bk_mandiri' ? 'Jumlah Bab' : 'Bab Order' }}</strong></td>
-            <td>: {{ $detail->chapters ?? 0 }}</td>
+            <td>: {{ Str::title($detail->title) ?? '-' }}</td>
         </tr>
         <tr>
             <td><strong>Scope</strong></td>
             <td>: {{ $detail->scopes->pluck('scope')->implode(' / ') }}</td>
         </tr>
+        @if (str_starts_with($detail->type, 'at_'))
+            @if ($detail->indexation)
+                <tr>
+                    <td><strong>Target Indeksasi</strong></td>
+                    <td>: {{ strtoupper($detail->indexation) }}</td>
+                </tr>
+            @endif
+        @else
+            <tr>
+                <td><strong>{{ $detail->type === 'bk_mandiri' ? 'Jumlah Bab' : 'Bab Order' }}</strong></td>
+                <td>: {{ $detail->chapters ?? 0 }}</td>
+            </tr>
+        @endif
         <tr>
             <td><strong>Penulis</strong></td>
             <td>:
                 <ol style="margin:5px 0 0 0; padding-left:20px;">
                     @foreach ($detail->authors as $author)
-                        <li>{{ $author->name }} ({{ $author->affiliation ?? '-' }})</li>
+                        <li>{{ Str::title($author->name) }} ({{ Str::title($author->affiliation) ?? '-' }})</li>
                     @endforeach
                 </ol>
             </td>
@@ -305,17 +315,17 @@
                 <th width="25%">Tanggal</th>
                 <th width="30%">Jenis</th>
                 <th width="25%" class="text-right">Jumlah</th>
-                <th width="15%">Status</th>
+                <th width="15%"class="text-right">Status</th>
             </tr>
         </thead>
         <tbody>
             @foreach ($order->payments as $index => $payment)
                 <tr>
                     <td>{{ $index + 1 }}</td>
-                    <td>{{ $payment->created_at->format('d M Y') }}</td>
+                    <td>{{ \Carbon\Carbon::parse($payment->paid_at)->format('d M Y') }}</td>
                     <td>{{ strtoupper($payment->payment_type) }}</td>
                     <td class="text-right">Rp {{ number_format($payment->amount, 0, ',', '.') }}</td>
-                    <td>Terbayar</td>
+                    <td class="text-right">Terbayar</td>
                 </tr>
             @endforeach
         </tbody>

@@ -107,10 +107,10 @@
                                             </td>
                                         </tr>
                                     @empty
-                                        <tr>
+                                        {{-- <tr>
                                             <td colspan="6" class="text-center py-5 text-muted">Belum ada pesanan yang
                                                 lunas.</td>
-                                        </tr>
+                                        </tr> --}}
                                     @endforelse
                                 </tbody>
                             </table>

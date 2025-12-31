@@ -18,9 +18,8 @@
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Issue Date <span class="text-danger"></span></label>
-                            <input type="datetime-local" class="form-control" name="issued_at" readonly
-                                value="{{ $order->ordered_at }}">
+                            <label class="form-label">Paid Date <span class="text-danger"></span></label>
+                            <input type="datetime-local" class="form-control" name="issued_at" required>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Due Date <span class="text-danger">*</span></label>
