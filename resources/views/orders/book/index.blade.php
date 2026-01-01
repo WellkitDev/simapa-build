@@ -40,7 +40,7 @@
                                     @foreach ($orders as $order)
                                         <tr>
                                             <td>{{ $order->code_order }}</td>
-                                            <td>{{ $order->details->title ?? '-' }}</td>
+                                            <td>{{ Str::title(Str::limit($order->details->title, 50)) ?? '-' }}</td>
                                             <td>
                                                 @foreach ($order->details->authors as $author)
                                                     <span class="badge border text-dark fw-normal bg-light">
