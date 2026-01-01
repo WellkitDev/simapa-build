@@ -88,6 +88,31 @@
                     <span class="link-title">Approval</span>
                 </a>
             </li> --}}
+            <li class="nav-item nav-category">Income</li>
+            <li class="nav-item {{ active_class(['income', 'income/order']) }}">
+                <a href="{{ route('income.order') }}" class="nav-link">
+                    <i class="link-icon" data-feather="user"></i>
+                    <span class="link-title">Order</span>
+                </a>
+            </li>
+            <li class="nav-item {{ active_class(['income', 'income/payment']) }}">
+                <a href="{{ route('income.payment') }}" class="nav-link">
+                    <i class="link-icon" data-feather="user"></i>
+                    <span class="link-title">Payment</span>
+                </a>
+            </li>
+            <li class="nav-item {{ active_class(['income', 'income/pending']) }}">
+                <a href="{{ route('income.pending') }}" class="nav-link">
+                    <i class="link-icon" data-feather="user"></i>
+                    <span class="link-title">Pending</span>
+                </a>
+            </li>
+            <li class="nav-item {{ active_class(['income', 'income/full-payment']) }}">
+                <a href="{{ route('income.lunas') }}" class="nav-link">
+                    <i class="link-icon" data-feather="user"></i>
+                    <span class="link-title">Full Payment</span>
+                </a>
+            </li>
             <li class="nav-item nav-category">Account</li>
             <li class="nav-item {{ active_class(['profile']) }}">
                 <a href="{{ route('profile') }}" class="nav-link">

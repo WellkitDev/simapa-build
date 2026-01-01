@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Pages\ProfileController;
 use App\Http\Controllers\Pages\DebtBookController;
 use App\Http\Controllers\Pages\FullPaymentBookController;
+use App\Http\Controllers\Pages\IncomeController;
 use App\Http\Controllers\Pages\OrderBookController;
 use App\Http\Controllers\Pages\PaymentBookController;
 use App\Http\Controllers\Pages\OrderJournalController;
@@ -65,6 +66,13 @@ Route::middleware('auth')->group(function () {
 
         //lunas
         Route::get('full', [FullPaymentBookController::class, 'index'])->name('fp.index');
+    });
+
+    Route::prefix('income')->name('income.')->group(function () {
+        Route::get('order', [IncomeController::class, 'indexOrderIncome'])->name('order');
+        Route::get('payment', [IncomeController::class, 'indexPaymentIncome'])->name('payment');
+        Route::get('pending', [IncomeController::class, 'incomeReport'])->name('pending');
+        Route::get('full-payment', [IncomeController::class, 'incomeLunas'])->name('lunas');
     });
 
 });
