@@ -10,12 +10,12 @@
     <div class="sidebar-body">
         <ul class="nav">
             <li class="nav-item nav-category">Main</li>
-            {{-- <li class="nav-item {{ active_class(['dashboard']) }}">
+            <li class="nav-item {{ active_class(['dashboard']) }}">
                 <a href="{{ route('dashboard') }}" class="nav-link">
                     <i class="link-icon" data-feather="box"></i>
                     <span class="link-title">Dashboard</span>
                 </a>
-            </li> --}}
+            </li>
 
             {{-- @role(['superadmin', 'manager', 'marketing'])
                 <li class="nav-item nav-category">Management Order</li>
@@ -36,8 +36,28 @@
                     </a>
                 </li>
             @endrole --}}
-            <li class="nav-item nav-category">Order</li>
-            <li class="nav-item {{ active_class(['books', 'books/create']) }}">
+            <li class="nav-item nav-category">Management</li>
+            <li class="nav-item {{ active_class(['order/*']) }}">
+                <a class="nav-link" data-bs-toggle="collapse" href="#order" role="button"
+                    aria-expanded="{{ is_active_route(['order/*']) }}" aria-controls="order">
+                    <i class="link-icon" data-feather="shopping-cart"></i>
+                    <span class="link-title">Order</span>
+                    <i class="link-arrow" data-feather="chevron-down"></i>
+                </a>
+                <div class="collapse {{ show_class(['order/*']) }}" id="order">
+                    <ul class="nav sub-menu">
+                        <li class="nav-item">
+                            <a href="{{ route('order.book.create') }}"
+                                class="nav-link {{ active_class(['order/buku/*']) }}">Buku</a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('order.journal.create') }}"
+                                class="nav-link {{ active_class(['order/jurnal/*']) }}">Jurnal</a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+            {{-- <li class="nav-item {{ active_class(['books', 'books/create']) }}">
                 <a href="{{ route('order.book.create') }}" class="nav-link">
                     <i class="link-icon" data-feather="shopping-cart"></i>
                     <span class="link-title">Book</span>
@@ -48,10 +68,10 @@
                     <i class="link-icon" data-feather="shopping-cart"></i>
                     <span class="link-title">Journal</span>
                 </a>
-            </li>
-            <li class="nav-item {{ active_class(['books', 'books/list']) }}">
+            </li> --}}
+            <li class="nav-item {{ active_class(['management', 'management/*']) }}">
                 <a href="{{ route('order.book.index') }}" class="nav-link">
-                    <i class="link-icon" data-feather="shopping-cart"></i>
+                    <i class="link-icon" data-feather="list"></i>
                     <span class="link-title">List</span>
                 </a>
             </li>
@@ -64,14 +84,14 @@
             </li>
             <li class="nav-item {{ active_class(['payments', 'payments/full']) }}">
                 <a href="{{ route('payment.fp.index') }}" class="nav-link">
-                    <i class="link-icon" data-feather="credit-card"></i>
+                    <i class="link-icon" data-feather="shopping-bag"></i>
                     <span class="link-title">Full Payment</span>
                 </a>
             </li>
             <li class="nav-item {{ active_class(['payments', 'payments/list']) }}">
                 <a href="{{ route('payment.index') }}" class="nav-link">
-                    <i class="link-icon" data-feather="shopping-cart"></i>
-                    <span class="link-title">List</span>
+                    <i class="link-icon" data-feather="list"></i>
+                    <span class="link-title">Approved</span>
                 </a>
             </li>
             {{-- <li class="nav-item nav-category">Books</li>
@@ -91,25 +111,25 @@
             <li class="nav-item nav-category">Income</li>
             <li class="nav-item {{ active_class(['income', 'income/order']) }}">
                 <a href="{{ route('income.order') }}" class="nav-link">
-                    <i class="link-icon" data-feather="user"></i>
+                    <i class="link-icon" data-feather="package"></i>
                     <span class="link-title">Order</span>
                 </a>
             </li>
             <li class="nav-item {{ active_class(['income', 'income/payment']) }}">
                 <a href="{{ route('income.payment') }}" class="nav-link">
-                    <i class="link-icon" data-feather="user"></i>
+                    <i class="link-icon" data-feather="package"></i>
                     <span class="link-title">Payment</span>
                 </a>
             </li>
             <li class="nav-item {{ active_class(['income', 'income/pending']) }}">
                 <a href="{{ route('income.pending') }}" class="nav-link">
-                    <i class="link-icon" data-feather="user"></i>
+                    <i class="link-icon" data-feather="package"></i>
                     <span class="link-title">Pending</span>
                 </a>
             </li>
             <li class="nav-item {{ active_class(['income', 'income/full-payment']) }}">
                 <a href="{{ route('income.lunas') }}" class="nav-link">
-                    <i class="link-icon" data-feather="user"></i>
+                    <i class="link-icon" data-feather="package"></i>
                     <span class="link-title">Full Payment</span>
                 </a>
             </li>

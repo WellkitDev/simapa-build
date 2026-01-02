@@ -23,6 +23,9 @@ use App\Http\Controllers\Pages\OrderJournalController;
 Route::get('/', function () {
     return view('welcome');
 });
+Route::get('/template', function () {
+    return view('layouts.template.template');
+});
 
 Route::get('/dashboard', function () {
     return view('dashboard');
@@ -39,19 +42,21 @@ Route::middleware('auth')->group(function () {
     });
 
     //Order book
-    Route::prefix('books')->name('order.book.')->group(function () {
-        Route::get('list', [OrderBookController::class, 'index'])->name('index');
-        Route::get('create', [OrderBookController::class, 'create'])->name('create');
-        Route::post('create', [OrderBookController::class, 'store'])->name('store');
-        Route::get('show/{code_order}', [OrderBookController::class, 'show'])->name('show');
-        Route::get('update/{code_order}', [OrderBookController::class, 'edit'])->name('edit');
-        Route::put('update/{code_order}', [OrderBookController::class, 'update'])->name('update');
+    Route::prefix('order')->name('order.')->group(function () {
+
+        Route::get('buku/create', [OrderBookController::class, 'create'])->name('book.create');
+        Route::post('buku/create', [OrderBookController::class, 'store'])->name('book.store');
+        Route::get('buku/show/{code_order}', [OrderBookController::class, 'show'])->name('book.show');
+        Route::get('buku/update/{code_order}', [OrderBookController::class, 'edit'])->name('book.edit');
+        Route::put('buku/update/{code_order}', [OrderBookController::class, 'update'])->name('book.update');
+
+        Route::get('jurnal/create', [OrderJournalController::class, 'create'])->name('journal.create');
+        Route::post('jurnal/create', [OrderJournalController::class, 'store'])->name('journal.store');
+        Route::get('jurnal/show/{code_order}', [OrderJournalController::class, 'show'])->name('journal.show');
     });
     //order  journal
-    Route::prefix('journal')->name('order.journal.')->group(function () {
-        Route::get('create', [OrderJournalController::class, 'create'])->name('create');
-        Route::post('create', [OrderJournalController::class, 'store'])->name('store');
-        Route::get('show/{code_order}', [OrderJournalController::class, 'show'])->name('show');
+    Route::prefix('management')->name('order.')->group(function () {
+        Route::get('order', [OrderBookController::class, 'index'])->name('book.index');
     });
 
     Route::prefix('payments')->name('payment.')->group(function () {

@@ -32,6 +32,7 @@
                                         <th>Order ID</th>
                                         <th>Judul</th>
                                         <th>Authors</th>
+                                        <th>Type</th>
                                         <th>Status Order</th>
                                         <th>Action</th>
                                     </tr>
@@ -40,13 +41,32 @@
                                     @foreach ($orders as $order)
                                         <tr>
                                             <td>{{ $order->code_order }}</td>
-                                            <td>{{ Str::title(Str::limit($order->details->title, 50)) ?? '-' }}</td>
+                                            <td>{{ Str::title(Str::limit($order->details->title, 30)) ?? '-' }}</td>
                                             <td>
                                                 @foreach ($order->details->authors as $author)
                                                     <span class="badge border text-dark fw-normal bg-light">
                                                         <i class="fa fa-user size-10"></i> {{ $author->name }}
                                                     </span>
                                                 @endforeach
+                                            </td>
+                                            <td>
+                                                @switch($order->details->type)
+                                                    @case('bk_mandiri')
+                                                        Buku
+                                                    @break
+
+                                                    @case('bk_kolab')
+                                                        Buku
+                                                    @break
+
+                                                    @case('at_mandiri')
+                                                        Artikel
+                                                    @break
+
+                                                    @case('at_kolab')
+                                                        Artikel
+                                                    @break
+                                                @endswitch
                                             </td>
                                             <td>
                                                 @if ($order->status == 'pending')
@@ -66,16 +86,16 @@
                                                 {{-- KONDISI 1: Jika status pending DAN belum ada data payment sama sekali --}}
                                                 @if ($order->status == 'pending' && $order->payments->isEmpty())
                                                     <a href="{{ route('payment.create', $order->code_order) }}"
-                                                        class="btn btn-sm btn-primary">
-                                                        <i class="fa fa-credit-card"></i> Lanjutkan Pembayaran
+                                                        class="btn btn-icon btn-primary">
+                                                        <i class="" data-feather="credit-card"></i>
                                                     </a>
 
                                                     <form action="" method="POST" style="display:inline;">
                                                         @csrf
                                                         @method('DELETE')
-                                                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                        <button type="submit" class="btn btn-icon btn-danger"
                                                             onclick="return confirm('Batalkan pesanan ini?')">
-                                                            Batalkan
+                                                            <i class="" data-feather="x"></i>
                                                         </button>
                                                     </form>
 
@@ -83,8 +103,8 @@
                                                 @elseif($order->status == 'pending' && !$hasApprovedPayment)
                                                     <div class="btn-group">
                                                         <a href="{{ route('order.book.show', $order->code_order) }}"
-                                                            class="btn btn-sm btn-outline-info">
-                                                            <i class="fa fa-search"></i> Cek Status
+                                                            class="btn btn-icon btn-outline-primary">
+                                                            <i class="" data-feather="check"></i>
                                                         </a>
                                                         {{-- <span
                                                             class="badge bg-warning text-dark d-flex align-items-center px-2">
@@ -95,8 +115,12 @@
                                                     {{-- KONDISI 3: Pembayaran sudah di-approve (status sudah 'paid' atau order status berubah) --}}
                                                 @else
                                                     <a href="{{ route('order.book.show', $order->code_order) }}"
-                                                        class="btn btn-sm btn-info text-white">
-                                                        <i class="fa fa-eye"></i> Lihat Detail & Invoice
+                                                        class="btn btn-icon btn-primary">
+                                                        <i class="" data-feather="eye"></i>
+                                                    </a>
+                                                    <a href="{{ route('order.book.edit', $order->code_order) }}"
+                                                        class="btn btn-icon btn-outline-primary">
+                                                        <i class="" data-feather="edit"></i>
                                                     </a>
                                                     {{-- @if ($hasApprovedPayment)
                                                         <span class="badge bg-success"><i class="fa fa-check"></i>

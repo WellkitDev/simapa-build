@@ -16,11 +16,13 @@
 
                     <div class="d-flex justify-content-between align-items-baseline mb-md-4">
                         <h6 class="card-title mb-0">Management Order Books</h6>
-                        <div class="btn-group" role="group">
-                            <a href="#" class="btn btn-primary">Trash</a>
-                            <a href="#" class="btn btn-outline-primary">Export</a>
-                            <a href="#" class="btn btn-primary">Create</a>
-                        </div>
+                        @role(['marketing'])
+                            <div class="btn-group" role="group">
+                                <a href="#" class="btn btn-primary">Trash</a>
+                                <a href="#" class="btn btn-outline-primary">Export</a>
+                                <a href="#" class="btn btn-primary">Create</a>
+                            </div>
+                        @endrole
                     </div>
 
                     <div class="row mt-4">
@@ -35,7 +37,9 @@
                                         <th>Amount</th>
                                         <th>Proof</th>
                                         <th>Payment Status</th>
-                                        <th>Approval Status</th>
+                                        @role(['superadmin', 'manager'])
+                                            <th>Approval Status</th>
+                                        @endrole
                                         <th>Action</th>
                                     </tr>
                                 </thead>
@@ -51,8 +55,8 @@
                                             <td>
                                                 @if ($payment->proof_url)
                                                     <a href="{{ $payment->proof_url }}" target="_blank"
-                                                        class="btn btn-sm btn-info text-white">
-                                                        <i class="fa fa-eye"></i> View Proof
+                                                        class="btn btn-icon btn-outline-secondary">
+                                                        <i class="" data-feather="eye"></i>
                                                     </a>
                                                 @else
                                                     <span class="text-muted">No Proof</span>
@@ -82,28 +86,39 @@
                                                     <span class="badge bg-dark">No Approval Data</span>
                                                 @endif
                                             </td>
+                                            @role(['superadmin', 'manager'])
+                                                <td>
+                                                    @if ($payment->approval && $payment->approval->status == 'pending')
+                                                        <div class="btn-group">
+                                                            <form action="{{ route('payment.approve', $payment->id) }}"
+                                                                method="POST">
+                                                                @csrf
+                                                                <button type="submit"
+                                                                    class="btn btn-icon btn-xs btn-primary me-2"><i
+                                                                        class="" data-feather="check"></i></button>
+                                                            </form>
+                                                            <form action="{{ route('payment.approve', $payment->id) }}"
+                                                                method="POST">
+                                                                @csrf
+                                                                <button type="submit" class="btn btn-icon btn-xs btn-danger"><i
+                                                                        class="" data-feather="x"></i></button>
+                                                            </form>
+                                                        </div>
 
-                                            <td>
-                                                @if ($payment->approval && $payment->approval->status == 'pending')
-                                                    <form action="{{ route('payment.approve', $payment->id) }}"
-                                                        method="POST">
-                                                        @csrf
-                                                        <button type="submit"
-                                                            class="btn btn-sm btn-primary">Approve</button>
-                                                    </form>
-                                                    {{-- <div class="btn-group">
+                                                        {{-- <div class="btn-group">
                                                         <a href="{{ route('payment.approve', $payment->id) }}"
                                                             class="btn btn-sm btn-primary">
                                                             Review & Approve
                                                         </a>
                                                     </div> --}}
-                                                @elseif($payment->approval && $payment->approval->status == 'approved')
-                                                    <span class="text-success small"><i class="fa fa-check-circle"></i>
-                                                        Completed</span>
-                                                @else
-                                                    ---
-                                                @endif
-                                            </td>
+                                                    @elseif($payment->approval && $payment->approval->status == 'approved')
+                                                        <span class="text-success small">
+                                                            Completed</span>
+                                                    @else
+                                                        ---
+                                                    @endif
+                                                </td>
+                                            @endrole
                                         </tr>
                                     @endforeach
                                 </tbody>

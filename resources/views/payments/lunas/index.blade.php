@@ -42,8 +42,7 @@
                                 style="border-collapse: collapse; border-spacing: 0; width: 100%;">
                                 <thead>
                                     <tr>
-                                        <th>Invoice & Order</th>
-                                        <th>Pelanggan</th>
+                                        <th>Invoice</th>
                                         <th>Total Bayar</th>
                                         <th>Status Approval</th>
                                         <th>Update Terakhir</th>
@@ -61,10 +60,10 @@
                                                 <strong>{{ $order->invoices->first()->invoice_no ?? 'N/A' }}</strong><br>
                                                 <small class="text-muted">{{ $order->code_order }}</small>
                                             </td>
-                                            <td>
-                                                {{ $order->contact->cp_name }}<br>
-                                                <small class="text-muted">{{ $order->contact->cp_email }}</small>
-                                            </td>
+                                            {{-- <td>
+                                                <small
+                                                    class="text-muted align-middle">{{ $order->contact->cp_email }}</small>
+                                            </td> --}}
                                             <td>
                                                 <span class="fw-bold">Rp
                                                     {{ number_format($order->payments->where('status', 'paid')->sum('amount'), 0, ',', '.') }}</span><br>
@@ -73,34 +72,31 @@
                                             </td>
                                             <td>
                                                 @if ($approval && $approval->status == 'approved')
-                                                    <span
-                                                        class="badge bg-light-success text-success border border-success px-3">
-                                                        <i class="fa fa-user-check me-1"></i> Terverifikasi
+                                                    <span class="badge bg-primary">
+                                                        Verifikasi
                                                     </span>
                                                 @elseif($approval && $approval->status == 'pending')
-                                                    <span
-                                                        class="badge bg-light-warning text-warning border border-warning px-3">
-                                                        <i class="fa fa-spinner fa-spin me-1"></i> Menunggu Review
+                                                    <span class="badge bg-secondary">
+                                                        Pending
                                                     </span>
                                                 @else
-                                                    <span class="badge bg-light-secondary text-secondary px-3">Tanpa
-                                                        Approval</span>
+                                                    <span class="badge bg-danger">Reject</span>
                                                 @endif
                                             </td>
                                             <td>
-                                                <small>{{ $latestPayment->updated_at->format('d M Y H:i') }}</small>
+                                                {{ $latestPayment->updated_at->format('d M Y H:i') }}
                                             </td>
                                             <td class="text-center">
                                                 <div class="btn-group">
                                                     <a href="{{ route('order.book.show', $order->code_order) }}"
-                                                        class="btn btn-sm btn-info text-white" title="Lihat Detail">
-                                                        <i class="fa fa-eye"></i>
+                                                        class="btn btn-icon btn-sm btn-primary" title="Lihat Detail">
+                                                        <i class="" data-feather="eye"></i>
                                                     </a>
                                                     @if ($order->invoices->first() && $order->invoices->first()->pdf_drive_id)
                                                         <a href="{{ $order->invoices->first()->pdf_drive_id }}"
-                                                            target="_blank" class="btn btn-sm btn-outline-danger"
+                                                            target="_blank" class="btn btn-icon btn-sm btn-outline-primary"
                                                             title="Unduh Invoice PDF">
-                                                            <i class="fa fa-file-pdf"></i>
+                                                            <i class="" data-feather="download"></i>
                                                         </a>
                                                     @endif
                                                 </div>

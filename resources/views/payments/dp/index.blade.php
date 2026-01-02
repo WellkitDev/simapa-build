@@ -29,7 +29,7 @@
                                 style="border-collapse: collapse; border-spacing: 0; width: 100%;">
                                 <thead>
                                     <tr>
-                                        <th>No. Invoice</th>
+                                        <th>INV</th>
                                         <th>Pelanggan</th>
                                         <th>Judul Buku</th>
                                         <th>Total Biaya</th>
@@ -55,11 +55,10 @@
 
                                             </td>
                                             <td>
-                                                {{ $order->contact->cp_name }}<br>
                                                 <small class="text-muted">{{ $order->contact->cp_email }}</small>
                                             </td>
                                             <td style="max-width: 250px;" class="text-truncate">
-                                                {{ Str::title(Str::limit($detail->title, 50)) ?? 'N/A' }}
+                                                {{ Str::title(Str::limit($detail->title, 40)) ?? 'N/A' }}
                                             </td>
                                             <td>Rp {{ number_format($totalCost, 0, ',', '.') }}</td>
                                             <td class="text-success fw-bold">
@@ -71,17 +70,17 @@
                                             <td>
                                                 <div class="btn-group">
                                                     <a href="{{ route('payment.create', $order->code_order) }}"
-                                                        class="btn btn-sm btn-outline-secondary" title="Detail">
-                                                        <i class="fa fa-eye"></i>
+                                                        class="btn btn-icon btn-sm btn-outline-primary" title="Detail">
+                                                        <i class="" data-feather="credit-card"></i>
                                                     </a>
                                                     <a href="{{ route('order.book.show', $order->code_order) }}"
-                                                        class="btn btn-sm btn-outline-primary" title="Detail">
-                                                        <i class="fa fa-eye"></i>
+                                                        class="btn btn-icon btn-sm btn-primary" title="Detail">
+                                                        <i class="" data-feather="eye"></i>
                                                     </a>
                                                     <a href="https://wa.me/{{ $order->contact->cp_phone }}?text=Halo {{ $order->contact->cp_name }}, kami dari Avidpedia ingin mengingatkan tagihan pelunasan untuk buku {{ $detail->title }} sebesar Rp {{ number_format($remaining, 0, ',', '.') }}"
-                                                        target="_blank" class="btn btn-sm btn-outline-success"
+                                                        target="_blank" class="btn btn-icon btn-sm btn-outline-primary"
                                                         title="Kirim WA">
-                                                        <i class="fab fa-whatsapp"></i>
+                                                        <i class="" data-feather="message-circle"></i>
                                                     </a>
                                                 </div>
                                             </td>
