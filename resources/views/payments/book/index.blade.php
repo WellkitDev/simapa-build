@@ -37,10 +37,11 @@
                                         <th>Amount</th>
                                         <th>Proof</th>
                                         <th>Payment Status</th>
+                                        <th>User</th>
+                                        <th>Approval Status</th>
                                         @role(['superadmin', 'manager'])
-                                            <th>Approval Status</th>
+                                            <th>Action</th>
                                         @endrole
-                                        <th>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -68,7 +69,9 @@
                                                     {{ ucfirst($payment->status) }}
                                                 </span>
                                             </td>
-
+                                            <td>
+                                                {{ $payment->order->user->name }}
+                                            </td>
                                             <td>
                                                 @if ($payment->approval)
                                                     @php

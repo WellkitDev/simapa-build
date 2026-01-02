@@ -12,8 +12,8 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, HasRoles, Notifiable, SoftDeletes;
-
+    use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
+    use HasRoles;
     /**
      * The attributes that are mass assignable.
      *
@@ -55,5 +55,9 @@ class User extends Authenticatable
     public function profile()
     {
         return $this->hasOne(UserProfile::class);
+    }
+    public function order()
+    {
+        return $this->belongsTo(Order::class);
     }
 }

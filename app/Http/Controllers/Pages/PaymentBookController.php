@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
 use App\Services\GoogleDriveService;
+use Illuminate\Support\Facades\Auth;
 
 class PaymentBookController extends Controller
 {
@@ -30,8 +31,13 @@ class PaymentBookController extends Controller
     {
         //
         $payments = Payment::with('order', 'invoice', 'approval')
-                    ->latest()
-                    ->get();
+            ->whereHas('order', function($q) {
+                $q->with('details')->when(Auth::user()->hasRole('marketing'), function ($query) {
+                    return $query->where('user_id', Auth::id());
+                });
+            })
+            ->latest()
+            ->get();
 
         return view('payments.book.index', compact('payments'));
     }
@@ -135,7 +141,7 @@ class PaymentBookController extends Controller
                     'invoice_no' => $invNo,
                     'issued_at'  => $validate['issued_at'],
                     'due_at'     => $validate['dued_at'],
-                    'status'     => 'paid',
+                    'status'     => 'pending',
                 ]);
 
                 // APPROVAL
@@ -268,18 +274,16 @@ class PaymentBookController extends Controller
         }
     }
 
-    public function reject(Request $request, $id)
+    public function reject($id)
     {
-        $request->validate(['note' => 'required']);
 
-        DB::transaction(function () use ($id, $request) {
+        DB::transaction(function () use ($id) {
             $payment = Payment::findOrFail($id);
 
             $payment->update(['status' => 'rejected']);
-
             $payment->approval()->update([
                 'status' => 'rejected',
-                'note' => $request->note,
+                'note' => 'data tidak valid',
                 'approved_by' => auth()->id(),
                 'approved_at' => now()
             ]);
@@ -294,5 +298,12 @@ class PaymentBookController extends Controller
     public function destroy(string $id)
     {
         //
+        $payment = Payment::findOrFail($id);
+
+        // Cegah hapus jika sudah approved (Opsional, tergantung kebijakan Anda)
+        if($payment->status == 'paid') return back()->with('error', 'Pembayaran yang sudah diapprove tidak boleh dihapus.');
+
+        $payment->delete();
+        return back()->with('success', 'Data pembayaran berhasil dihapus.');
     }
 }

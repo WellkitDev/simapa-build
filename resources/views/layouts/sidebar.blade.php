@@ -37,26 +37,28 @@
                 </li>
             @endrole --}}
             <li class="nav-item nav-category">Management</li>
-            <li class="nav-item {{ active_class(['order/*']) }}">
-                <a class="nav-link" data-bs-toggle="collapse" href="#order" role="button"
-                    aria-expanded="{{ is_active_route(['order/*']) }}" aria-controls="order">
-                    <i class="link-icon" data-feather="shopping-cart"></i>
-                    <span class="link-title">Order</span>
-                    <i class="link-arrow" data-feather="chevron-down"></i>
-                </a>
-                <div class="collapse {{ show_class(['order/*']) }}" id="order">
-                    <ul class="nav sub-menu">
-                        <li class="nav-item">
-                            <a href="{{ route('order.book.create') }}"
-                                class="nav-link {{ active_class(['order/buku/*']) }}">Buku</a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="{{ route('order.journal.create') }}"
-                                class="nav-link {{ active_class(['order/jurnal/*']) }}">Jurnal</a>
-                        </li>
-                    </ul>
-                </div>
-            </li>
+            @role(['superadmin', 'manager', 'marketing'])
+                <li class="nav-item {{ active_class(['order/*']) }}">
+                    <a class="nav-link" data-bs-toggle="collapse" href="#order" role="button"
+                        aria-expanded="{{ is_active_route(['order/*']) }}" aria-controls="order">
+                        <i class="link-icon" data-feather="shopping-cart"></i>
+                        <span class="link-title">Order</span>
+                        <i class="link-arrow" data-feather="chevron-down"></i>
+                    </a>
+                    <div class="collapse {{ show_class(['order/*']) }}" id="order">
+                        <ul class="nav sub-menu">
+                            <li class="nav-item">
+                                <a href="{{ route('order.book.create') }}"
+                                    class="nav-link {{ active_class(['order/buku/*']) }}">Buku</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('order.journal.create') }}"
+                                    class="nav-link {{ active_class(['order/jurnal/*']) }}">Jurnal</a>
+                            </li>
+                        </ul>
+                    </div>
+                </li>
+            @endrole
             {{-- <li class="nav-item {{ active_class(['books', 'books/create']) }}">
                 <a href="{{ route('order.book.create') }}" class="nav-link">
                     <i class="link-icon" data-feather="shopping-cart"></i>
@@ -69,10 +71,16 @@
                     <span class="link-title">Journal</span>
                 </a>
             </li> --}}
-            <li class="nav-item {{ active_class(['management', 'management/*']) }}">
+            <li class="nav-item {{ active_class(['management', 'management/list/*']) }}">
                 <a href="{{ route('order.book.index') }}" class="nav-link">
                     <i class="link-icon" data-feather="list"></i>
                     <span class="link-title">List</span>
+                </a>
+            </li>
+            <li class="nav-item {{ active_class(['management', 'management/title/*']) }}">
+                <a href="{{ route('order.book.indexJudul') }}" class="nav-link">
+                    <i class="link-icon" data-feather="list"></i>
+                    <span class="link-title">Archive</span>
                 </a>
             </li>
             <li class="nav-item nav-category">Payment</li>

@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers\Pages;
 
-use App\Http\Controllers\Controller;
 use App\Models\Order;
 use Illuminate\Http\Request;
+use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Auth;
 
 class DebtBookController extends Controller
 {
@@ -17,6 +18,11 @@ class DebtBookController extends Controller
         $orders = Order::with(['payments', 'details', 'contact'])
             ->whereHas('payments', function($q) {
                 $q->where('payment_type', 'dp');
+            })
+            ->whereHas('details', function($q) {
+                $q->when(Auth::user()->hasRole('marketing'), function ($q) {
+                    return $q->where('user_id', Auth::id());
+                });
             })
             ->where('status', '!=', 'lunas') // Anggap 'success' adalah lunas & selesai
             ->latest()

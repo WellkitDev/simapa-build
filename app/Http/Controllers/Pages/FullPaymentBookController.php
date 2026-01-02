@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Pages;
 use App\Models\Order;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Auth;
 
 class FullPaymentBookController extends Controller
 {
@@ -17,7 +18,10 @@ class FullPaymentBookController extends Controller
         // Ambil order yang total pembayarannya (status paid) >= cost_amount
         $orders = Order::with(['payments.approval', 'details', 'contact', 'invoices'])
             ->whereHas('details', function($query) {
-                $query->whereRaw('(SELECT SUM(amount) FROM tb_payments WHERE tb_payments.order_id = tb_orders.id AND status = "paid") >= tb_order_details.cost_amount');
+                $query->whereRaw('(SELECT SUM(amount) FROM tb_payments WHERE tb_payments.order_id = tb_orders.id AND status = "paid") >= tb_order_details.cost_amount')
+                ->when(Auth::user()->hasRole('marketing'), function ($q) {
+                    return $q->where('user_id', Auth::id());
+                });
             })
             ->latest()
             ->get();

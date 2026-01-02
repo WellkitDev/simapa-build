@@ -36,12 +36,67 @@ class OrderBookController extends Controller
     {
         //
         // Mengambil order milik user yang sedang login dengan relasi payments
+        // $orders = Order::with(['payments.approval', 'details.authors'])
+        //     ->where('user_id', auth()->id()) // Sesuaikan dengan sistem auth Anda
+        //     ->latest()
+        //     ->get();
         $orders = Order::with(['payments.approval', 'details.authors'])
-            ->where('user_id', auth()->id()) // Sesuaikan dengan sistem auth Anda
+            ->when(Auth::user()->hasRole('marketing'), function ($q) {
+                return $q->where('user_id', Auth::id());
+            }) // Sesuaikan dengan sistem auth Anda
             ->latest()
             ->get();
 
         return view('orders.book.index', compact('orders'));
+    }
+
+    public function indexJudul()
+    {
+       $judulData = OrderDetail::select(
+            'tb_order_details.title',
+            'tb_order_details.type',
+            'tb_order_details.order_id',
+            'tb_order_details.id as detail_id',
+            // Menghitung jumlah author dari tabel pivot tb_author_orders
+            DB::raw('COUNT(DISTINCT tb_author_orders.author_id) as total_author')
+        )
+        // Join ke tabel Order menggunakan tb_orders (sesuai Model Order Anda)
+        ->join('tb_orders', 'tb_order_details.order_id', '=', 'tb_orders.id')
+        // Join ke tabel pivot author
+        ->leftJoin('tb_author_orders', 'tb_order_details.id', '=', 'tb_author_orders.order_detail_id')
+        ->when(Auth::user()->hasRole('marketing'), function ($q) {
+            return $q->where('tb_orders.user_id', Auth::id());
+        })
+        // Grouping menggunakan nama tabel yang benar: tb_order_details
+        ->groupBy(
+            'tb_order_details.title',
+            'tb_order_details.type',
+            'tb_order_details.order_id',
+            'tb_order_details.id'
+        )
+        ->get();
+
+        return view('orders.index-title', compact('judulData'));
+    }
+
+    public function detailJudul($id)
+    {
+        // Mengambil detail naskah beserta author dan ordernya
+        // Mengambil detail naskah
+        $detail = OrderDetail::with([
+                'authors',
+                'order.user' // Meload data marketing
+            ])
+            ->where('id', $id)
+            // Tambahkan filter marketing di sini agar user marketing tidak bisa mengintip ID detail orang lain
+            ->whereHas('order', function($q) {
+                $q->when(Auth::user()->hasRole('marketing'), function ($query) {
+                    return $query->where('tb_orders.user_id', Auth::id());
+                });
+            })
+            ->firstOrFail();
+
+        return view('orders.detail-title', compact('detail'));
     }
 
     /**

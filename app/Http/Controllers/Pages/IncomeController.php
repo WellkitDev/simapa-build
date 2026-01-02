@@ -7,6 +7,7 @@ use App\Models\Payment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Auth;
 
 class IncomeController extends Controller
 {
@@ -19,7 +20,9 @@ class IncomeController extends Controller
                 $q->where('status', 'approved');
             })
             ->whereHas('order', function($q) {
-                $q->where('status', 'lunas');
+                $q->where('status', 'lunas')->with('details')->when(Auth::user()->hasRole('marketing'), function ($q) {
+                    return $q->where('user_id', Auth::id());
+                });
             });
 
         // Rekap Tahunan
@@ -55,7 +58,13 @@ class IncomeController extends Controller
         // Query Dasar untuk Income yang sudah di-Approve
         $baseQuery = Payment::whereHas('approval', function($query) {
             $query->where('status', 'approved'); // Sesuaikan 'approved' dengan string di DB Anda
-        });
+        })->whereHas('order', function($q) {
+                $q->where('status', 'lunas')
+                ->with('details')
+                ->when(Auth::user()->hasRole('marketing'), function ($q) {
+                    return $q->where('user_id', Auth::id());
+                });
+            });
 
         // Table 1: Total Income per Tahun
         $yearlyIncome = (clone $baseQuery)
@@ -111,6 +120,9 @@ class IncomeController extends Controller
         // Tambahan: Ambil data order pending untuk tabel detail
         $pendingOrders = Order::where('status', '!=', 'lunas')
             ->with(['details'])
+                ->when(Auth::user()->hasRole('marketing'), function ($q) {
+                    return $q->where('user_id', Auth::id());
+                })
             ->withSum(['payments as total_paid' => function($q) {
                 $q->whereHas('approval', fn($a) => $a->where('status', 'approved'));
             }], 'amount')
@@ -125,6 +137,9 @@ class IncomeController extends Controller
         // Eager load details dan payments untuk optimasi
         $completedOrders = Order::where('status', 'lunas')
             ->with(['details'])
+                ->when(Auth::user()->hasRole('marketing'), function ($q) {
+                    return $q->where('user_id', Auth::id());
+                })
             ->withSum(['payments as total_paid' => function($q) {
                 $q->whereHas('approval', fn($a) => $a->where('status', 'approved'));
             }], 'amount')
