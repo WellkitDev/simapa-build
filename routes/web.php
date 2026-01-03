@@ -22,10 +22,7 @@ use App\Http\Controllers\Pages\OrderJournalController;
 */
 
 Route::get('/', function () {
-    return view('welcome');
-});
-Route::get('/template', function () {
-    return view('layouts.template.template');
+    return redirect()->route('login');
 });
 
 Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard')->middleware(['auth', 'verified']);
@@ -83,7 +80,14 @@ Route::middleware('auth')->group(function () {
         Route::get('pending', [IncomeController::class, 'incomeReport'])->name('pending');
         Route::get('full-payment', [IncomeController::class, 'incomeLunas'])->name('lunas');
     });
+});
 
+Route::fallback(function () {
+    if (auth()->check()) {
+        return redirect()->route('dashboard');
+    }
+
+    return redirect('/');
 });
 
 require __DIR__.'/auth.php';

@@ -56,8 +56,8 @@
                         <li class="dropdown-item py-2">
                             <form action="{{ route('logout') }}" method="POST">
                                 @csrf
-                                <button type="submit" class="bt-logout text-body ms-0"><i class="me-2 icon-md"
-                                        data-feather="log-out"></i>
+                                <button type="submit" class="btn btn-link text-body text-decoration-none p-0 ms-0"><i
+                                        class="me-2 icon-md" data-feather="log-out"></i>
                                     <span>Log Out</span></button>
                             </form>
                         </li>
