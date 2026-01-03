@@ -60,10 +60,6 @@
                                                 <strong>{{ $order->invoices->first()->invoice_no ?? 'N/A' }}</strong><br>
                                                 <small class="text-muted">{{ $order->code_order }}</small>
                                             </td>
-                                            {{-- <td>
-                                                <small
-                                                    class="text-muted align-middle">{{ $order->contact->cp_email }}</small>
-                                            </td> --}}
                                             <td>
                                                 <span class="fw-bold">Rp
                                                     {{ number_format($order->payments->where('status', 'paid')->sum('amount'), 0, ',', '.') }}</span><br>
@@ -103,10 +99,6 @@
                                             </td>
                                         </tr>
                                     @empty
-                                        {{-- <tr>
-                                            <td colspan="6" class="text-center py-5 text-muted">Belum ada pesanan yang
-                                                lunas.</td>
-                                        </tr> --}}
                                     @endforelse
                                 </tbody>
                             </table>

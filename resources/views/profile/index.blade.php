@@ -38,10 +38,7 @@
                 </div>
                 <div class="d-flex justify-content-center p-3 rounded-bottom">
                     <ul class="d-flex align-items-center m-0 p-0">
-                        {{-- <li class="d-flex align-items-center ">
-                            <i class="me-1 icon-md text-primary" data-feather="columns"></i>
-                            <a class="pt-1px d-none d-md-block text-primary" href="#">Timeline</a>
-                        </li> --}}
+
                         <li class="ms-3 ps-3 border-start d-flex align-items-center active">
                             <i class="me-1 icon-md" data-feather="user"></i>
                             <a class="pt-1px d-none d-md-block text-body" href="#">About</a>
@@ -113,17 +110,6 @@
                             <p class="text-muted">Disable</p>
                         @endif
                     </div>
-                    {{-- <div class="mt-3 d-flex social-links">
-                        <a href="javascript:;" class="btn btn-icon border btn-xs me-2">
-                            <i data-feather="github"></i>
-                        </a>
-                        <a href="javascript:;" class="btn btn-icon border btn-xs me-2">
-                            <i data-feather="twitter"></i>
-                        </a>
-                        <a href="javascript:;" class="btn btn-icon border btn-xs me-2">
-                            <i data-feather="instagram"></i>
-                        </a>
-                    </div> --}}
                 </div>
             </div>
         </div>

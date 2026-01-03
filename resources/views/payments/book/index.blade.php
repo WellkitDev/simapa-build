@@ -107,13 +107,6 @@
                                                                         class="" data-feather="x"></i></button>
                                                             </form>
                                                         </div>
-
-                                                        {{-- <div class="btn-group">
-                                                        <a href="{{ route('payment.approve', $payment->id) }}"
-                                                            class="btn btn-sm btn-primary">
-                                                            Review & Approve
-                                                        </a>
-                                                    </div> --}}
                                                     @elseif($payment->approval && $payment->approval->status == 'approved')
                                                         <span class="text-success small">
                                                             Completed</span>

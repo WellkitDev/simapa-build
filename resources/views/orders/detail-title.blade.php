@@ -8,13 +8,6 @@
 
 @section('content')
     <div class="page-content">
-        <nav class="page-breadcrumb">
-            <ol class="breadcrumb">
-                {{-- <li class="breadcrumb-item"><a href="{{ route('orders.index-title') }}">Daftar Judul</a></li>
-                <li class="breadcrumb-item active" aria-current="page">Detail Naskah</li> --}}
-            </ol>
-        </nav>
-
         <div class="row">
             <div class="col-md-12">
                 <div class="card mb-4">

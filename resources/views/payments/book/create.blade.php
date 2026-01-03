@@ -1,5 +1,5 @@
 @extends('layouts.master')
-@section('title', 'Paymen Order {{ $order->code_order }} - SiMAPA')
+@section('title', 'Payment Order - SiMAPA')
 
 @push('plugin-styles')
 @endpush
