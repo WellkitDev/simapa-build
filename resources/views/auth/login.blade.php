@@ -9,7 +9,7 @@
                     <div class="row">
                         <div class="col-md-6 pe-md-0">
                             <div class="auth-side-wrapper"
-                                style="background-image: url('https://www.avidpedia.com/storage/hero_banners/JiozRTUFm2oNKOuSpw8PWy44cX7EPHc34tOLAwIB.jpg')">
+                                style="background-image: url('{{ asset('assets/images/bg-login.png') }}');">
                             </div>
                         </div>
                         <div class="col-md-6 ps-md-0">
