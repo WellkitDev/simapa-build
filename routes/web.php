@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\DashboardController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Pages\ProfileController;
 use App\Http\Controllers\Pages\DebtBookController;
@@ -27,9 +28,9 @@ Route::get('/template', function () {
     return view('layouts.template.template');
 });
 
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard')->middleware(['auth', 'verified']);
+// Route::get('/dashboard', function () {
+// })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
     //profile
@@ -66,6 +67,7 @@ Route::middleware('auth')->group(function () {
         Route::get('{code_order}/create', [PaymentBookController::class, 'create'])->name('create');
         Route::post('{code_order}/create', [PaymentBookController::class, 'store'])->name('store');
         Route::post('approve/{id}', [PaymentBookController::class, 'approve'])->name('approve');
+        Route::post('reject/{id}', [PaymentBookController::class, 'reject'])->name('reject');
         Route::get('print/{code_order}', [PaymentBookController::class, 'printInvoice'])->name('printInvoice');
 
         //dp

@@ -276,20 +276,38 @@ class PaymentBookController extends Controller
 
     public function reject($id)
     {
+        // Validasi input note jika dikirim dari modal/form
 
-        DB::transaction(function () use ($id) {
-            $payment = Payment::findOrFail($id);
+        try {
+            DB::transaction(function () use ($id) {
+                // Gunakan with('approval') agar lebih efisien
+                $payment = Payment::with('approval')->findOrFail($id);
 
-            $payment->update(['status' => 'rejected']);
-            $payment->approval()->update([
-                'status' => 'rejected',
-                'note' => 'data tidak valid',
-                'approved_by' => auth()->id(),
-                'approved_at' => now()
-            ]);
-        });
+                // 1. Update status di tb_payments menjadi 'failed' atau 'rejected'
+                // Sesuaikan dengan enum/string yang Anda gunakan di database
+                $payment->update(['status' => 'rejected']);
 
-        return back()->with('warning', 'Pembayaran telah ditolak.');
+                // 2. Update status di tb_payment_approvals
+                // Pastikan menggunakan updateOrCreate jika ada kemungkinan data approval belum terbuat
+                $payment->approval()->update([
+                    'status'      => 'rejected',
+                    'note'        => 'Data tidak valid', // Alasan dari input user
+                    'approved_by' => auth()->id(),
+                    'approved_at' => now()
+                ]);
+
+                // 3. Optional: Jika pembayaran ditolak, pastikan status Order tetap 'pending'
+                // atau kembali ke status sebelumnya (tidak menjadi 'lunas')
+                if ($payment->order) {
+                    $payment->order->update(['status' => 'pending']);
+                }
+            });
+
+            return redirect()->route('payment.index')->with('warning', 'Pembayaran telah ditolak.');
+
+        } catch (\Exception $e) {
+            return back()->with('error', 'Gagal menolak pembayaran: ' . $e->getMessage());
+        }
     }
 
     /**

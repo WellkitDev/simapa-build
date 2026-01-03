@@ -100,7 +100,7 @@
                                                                     class="btn btn-icon btn-xs btn-primary me-2"><i
                                                                         class="" data-feather="check"></i></button>
                                                             </form>
-                                                            <form action="{{ route('payment.approve', $payment->id) }}"
+                                                            <form action="{{ route('payment.reject', $payment->id) }}"
                                                                 method="POST">
                                                                 @csrf
                                                                 <button type="submit" class="btn btn-icon btn-xs btn-danger"><i
