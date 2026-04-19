@@ -79,7 +79,7 @@ Route::middleware('auth')->group(function () {
         Route::get('pending', [IncomeController::class, 'incomeReport'])->name('pending');
         Route::get('full-payment', [IncomeController::class, 'incomeLunas'])->name('lunas');
     });
-    
+
     //Route User management
     Route::prefix('user-management')->group(function() {
         Route::get('', [ManagementUserController::class, 'index'])->name('user.management');
@@ -92,6 +92,7 @@ Route::middleware('auth')->group(function () {
         ->withTrashed();
     })->middleware(['can:access-usermanagement']);
 });
+
 
 Route::fallback(function () {
     if (auth()->check()) {
