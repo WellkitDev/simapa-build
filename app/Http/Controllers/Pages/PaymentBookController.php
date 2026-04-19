@@ -64,7 +64,7 @@ class PaymentBookController extends Controller
 
         // LOGIKA PERHITUNGAN
         $totalCost = $firstDetail->cost_amount;
-        $alreadyPaid = $order->payments->sum('amount');
+        $alreadyPaid = $order->payments->where('status', 'paid')->sum('amount');
         $remainingBalance = $totalCost - $alreadyPaid;
 
         // Jika sudah lunas tapi masih buka halaman ini

@@ -6,6 +6,7 @@ use App\Http\Controllers\Pages\ProfileController;
 use App\Http\Controllers\Pages\DebtBookController;
 use App\Http\Controllers\Pages\FullPaymentBookController;
 use App\Http\Controllers\Pages\IncomeController;
+use App\Http\Controllers\Pages\ManagementUserController;
 use App\Http\Controllers\Pages\OrderBookController;
 use App\Http\Controllers\Pages\PaymentBookController;
 use App\Http\Controllers\Pages\OrderJournalController;
@@ -78,6 +79,18 @@ Route::middleware('auth')->group(function () {
         Route::get('pending', [IncomeController::class, 'incomeReport'])->name('pending');
         Route::get('full-payment', [IncomeController::class, 'incomeLunas'])->name('lunas');
     });
+    
+    //Route User management
+    Route::prefix('user-management')->group(function() {
+        Route::get('', [ManagementUserController::class, 'index'])->name('user.management');
+        Route::post('', [ManagementUserController::class, 'store'])->name('user.management.store');
+        Route::put('edit/{user}', [ManagementUserController::class, 'update'])->name('user.management.update');
+        Route::delete('destroy/{user}', [ManagementUserController::class, 'destroy'])->name('user.management.destroy');
+        Route::post('{user}/restore', [ManagementUserController::class, 'restore'])->name('user.management.restore')->withTrashed();
+        Route::post('{user}/force-delete', [ManagementUserController::class, 'forceDelete'])
+        ->name('user.management.forceDelete')
+        ->withTrashed();
+    })->middleware(['can:access-usermanagement']);
 });
 
 Route::fallback(function () {

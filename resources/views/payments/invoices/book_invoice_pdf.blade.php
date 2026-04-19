@@ -360,8 +360,7 @@
     <div class="signature">
         <p>Jambi, {{ now()->format('d F Y') }}</p>
         <img src="{{ public_path('assets/images/ttd.png') }}" alt="Tanda tangan">
-        <p><b>Eric Krisna Sandi</b></p>
-        <p>Direktur Avidpedia Publishing</p>
+        <p><b><strong>PT AVID MEDIA INDONESIA</strong></b></p>
     </div>
     <div class="clear"></div>
 
