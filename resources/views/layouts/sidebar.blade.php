@@ -9,7 +9,7 @@
     </div>
     <div class="sidebar-body">
         <ul class="nav">
-            <li class="nav-item nav-category">Main</li>
+            <li class="nav-item nav-category">Menu Utama</li>
             <li class="nav-item {{ active_class(['dashboard']) }}">
                 <a href="{{ route('dashboard') }}" class="nav-link">
                     <i class="link-icon" data-feather="box"></i>
@@ -17,90 +17,61 @@
                 </a>
             </li>
 
-            {{-- @role(['superadmin', 'manager', 'marketing'])
-                <li class="nav-item nav-category">Management Order</li>
-                <li class="nav-item {{ active_class(['order-books', 'order-books/*']) }}">
-                    <a href="{{ route('order.book.index') }}" class="nav-link">
-                        <i class="link-icon" data-feather="users"></i>
-                        <span class="link-title">Books</span>
-                    </a>
-                </li>
-            @endrole
-
-            @role(['superadmin', 'manager'])
-                <li class="nav-item nav-category">Management</li>
-                <li class="nav-item {{ active_class(['user-management']) }}">
-                    <a href="{{ route('user.management') }}" class="nav-link">
-                        <i class="link-icon" data-feather="users"></i>
-                        <span class="link-title">User Management</span>
-                    </a>
-                </li>
-            @endrole --}}
-            <li class="nav-item nav-category">Management</li>
             @role(['superadmin', 'manager', 'marketing'])
+                <li class="nav-item nav-category">Order &amp; Naskah</li>
                 <li class="nav-item {{ active_class(['order/*']) }}">
-                    <a class="nav-link" data-bs-toggle="collapse" href="#order" role="button"
-                        aria-expanded="{{ is_active_route(['order/*']) }}" aria-controls="order">
+                    <a class="nav-link" data-bs-toggle="collapse" href="#menuOrder" role="button"
+                        aria-expanded="{{ is_active_route(['order/*']) }}" aria-controls="menuOrder">
                         <i class="link-icon" data-feather="shopping-cart"></i>
-                        <span class="link-title">Order</span>
+                        <span class="link-title">Buat Order</span>
                         <i class="link-arrow" data-feather="chevron-down"></i>
                     </a>
-                    <div class="collapse {{ show_class(['order/*']) }}" id="order">
+                    <div class="collapse {{ show_class(['order/*']) }}" id="menuOrder">
                         <ul class="nav sub-menu">
                             <li class="nav-item">
-                                <a href="{{ route('order.book.create') }}"
-                                    class="nav-link {{ active_class(['order/buku/*']) }}">Buku</a>
+                                <a href="{{ route('order.book.create') }}" class="nav-link {{ active_class(['order/buku/*']) }}">Buku</a>
                             </li>
                             <li class="nav-item">
-                                <a href="{{ route('order.journal.create') }}"
-                                    class="nav-link {{ active_class(['order/jurnal/*']) }}">Jurnal</a>
+                                <a href="{{ route('order.journal.create') }}" class="nav-link {{ active_class(['order/jurnal/*']) }}">Jurnal</a>
                             </li>
                         </ul>
                     </div>
                 </li>
+                <li class="nav-item {{ active_class(['management/order']) }}">
+                    <a href="{{ route('order.book.index') }}" class="nav-link">
+                        <i class="link-icon" data-feather="list"></i>
+                        <span class="link-title">Daftar Order</span>
+                    </a>
+                </li>
+                <li class="nav-item {{ active_class(['management/title']) }}">
+                    <a href="{{ route('order.book.indexJudul') }}" class="nav-link">
+                        <i class="link-icon" data-feather="archive"></i>
+                        <span class="link-title">Arsip Judul</span>
+                    </a>
+                </li>
             @endrole
-            {{-- <li class="nav-item {{ active_class(['books', 'books/create']) }}">
-                <a href="{{ route('order.book.create') }}" class="nav-link">
-                    <i class="link-icon" data-feather="shopping-cart"></i>
-                    <span class="link-title">Book</span>
-                </a>
-            </li>
-            <li class="nav-item {{ active_class(['journal', 'journal/create']) }}">
-                <a href="{{ route('order.journal.create') }}" class="nav-link">
-                    <i class="link-icon" data-feather="shopping-cart"></i>
-                    <span class="link-title">Journal</span>
-                </a>
-            </li> --}}
-            <li class="nav-item {{ active_class(['management', 'management/list/*']) }}">
-                <a href="{{ route('order.book.index') }}" class="nav-link">
-                    <i class="link-icon" data-feather="list"></i>
-                    <span class="link-title">List</span>
-                </a>
-            </li>
-            <li class="nav-item {{ active_class(['management', 'management/title/*']) }}">
-                <a href="{{ route('order.book.indexJudul') }}" class="nav-link">
-                    <i class="link-icon" data-feather="list"></i>
-                    <span class="link-title">Archive</span>
-                </a>
-            </li>
-            <li class="nav-item nav-category">Payment</li>
-            <li class="nav-item {{ active_class(['payments', 'payments/dp']) }}">
-                <a href="{{ route('payment.dp.index') }}" class="nav-link">
+
+            <li class="nav-item nav-category">Pembayaran</li>
+            <li class="nav-item {{ active_class(['payments/*']) }}">
+                <a class="nav-link" data-bs-toggle="collapse" href="#menuPayment" role="button"
+                    aria-expanded="{{ is_active_route(['payments/*']) }}" aria-controls="menuPayment">
                     <i class="link-icon" data-feather="credit-card"></i>
-                    <span class="link-title">Debt Payment</span>
+                    <span class="link-title">Pembayaran</span>
+                    <i class="link-arrow" data-feather="chevron-down"></i>
                 </a>
-            </li>
-            <li class="nav-item {{ active_class(['payments', 'payments/full']) }}">
-                <a href="{{ route('payment.fp.index') }}" class="nav-link">
-                    <i class="link-icon" data-feather="shopping-bag"></i>
-                    <span class="link-title">Full Payment</span>
-                </a>
-            </li>
-            <li class="nav-item {{ active_class(['payments', 'payments/list']) }}">
-                <a href="{{ route('payment.index') }}" class="nav-link">
-                    <i class="link-icon" data-feather="list"></i>
-                    <span class="link-title">Approved</span>
-                </a>
+                <div class="collapse {{ show_class(['payments/*']) }}" id="menuPayment">
+                    <ul class="nav sub-menu">
+                        <li class="nav-item">
+                            <a href="{{ route('payment.dp.index') }}" class="nav-link">DP / Tagihan</a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('payment.fp.index') }}" class="nav-link">Pelunasan</a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('payment.index') }}" class="nav-link">Disetujui</a>
+                        </li>
+                    </ul>
+                </div>
             </li>
             <li class="nav-item {{ request()->routeIs('invoice.*') ? 'active' : '' }}">
                 <a href="{{ route('invoice.index') }}" class="nav-link">
@@ -108,58 +79,38 @@
                     <span class="link-title">Invoice</span>
                 </a>
             </li>
-            {{-- <li class="nav-item nav-category">Books</li>
 
-            <li class="nav-item ">
-                <a href="" class="nav-link">
-                    <i class="link-icon" data-feather="repeat"></i>
-                    <span class="link-title">Refund</span>
+            <li class="nav-item nav-category">Laporan</li>
+            <li class="nav-item {{ active_class(['income/*']) }}">
+                <a class="nav-link" data-bs-toggle="collapse" href="#menuIncome" role="button"
+                    aria-expanded="{{ is_active_route(['income/*']) }}" aria-controls="menuIncome">
+                    <i class="link-icon" data-feather="bar-chart-2"></i>
+                    <span class="link-title">Pendapatan</span>
+                    <i class="link-arrow" data-feather="chevron-down"></i>
                 </a>
-            </li> --}}
-            {{-- <li class="nav-item {{ active_class(['order-books', 'order-books/approval']) }}">
-                <a href="{{ route('order.book.index') }}" class="nav-link">
-                    <i class="link-icon" data-feather="package"></i>
-                    <span class="link-title">Approval</span>
-                </a>
-            </li> --}}
-            <li class="nav-item nav-category">Income</li>
-            <li class="nav-item {{ active_class(['income', 'income/order']) }}">
-                <a href="{{ route('income.order') }}" class="nav-link">
-                    <i class="link-icon" data-feather="package"></i>
-                    <span class="link-title">Order</span>
-                </a>
+                <div class="collapse {{ show_class(['income/*']) }}" id="menuIncome">
+                    <ul class="nav sub-menu">
+                        <li class="nav-item"><a href="{{ route('income.order') }}" class="nav-link">Order</a></li>
+                        <li class="nav-item"><a href="{{ route('income.payment') }}" class="nav-link">Payment</a></li>
+                        <li class="nav-item"><a href="{{ route('income.pending') }}" class="nav-link">Pending</a></li>
+                        <li class="nav-item"><a href="{{ route('income.lunas') }}" class="nav-link">Lunas</a></li>
+                    </ul>
+                </div>
             </li>
-            <li class="nav-item {{ active_class(['income', 'income/payment']) }}">
-                <a href="{{ route('income.payment') }}" class="nav-link">
-                    <i class="link-icon" data-feather="package"></i>
-                    <span class="link-title">Payment</span>
-                </a>
-            </li>
-            <li class="nav-item {{ active_class(['income', 'income/pending']) }}">
-                <a href="{{ route('income.pending') }}" class="nav-link">
-                    <i class="link-icon" data-feather="package"></i>
-                    <span class="link-title">Pending</span>
-                </a>
-            </li>
-            <li class="nav-item {{ active_class(['income', 'income/full-payment']) }}">
-                <a href="{{ route('income.lunas') }}" class="nav-link">
-                    <i class="link-icon" data-feather="package"></i>
-                    <span class="link-title">Full Payment</span>
-                </a>
-            </li>
-            <li class="nav-item nav-category">Account</li>
+
+            <li class="nav-item nav-category">Akun</li>
             @role(['superadmin', 'manager'])
                 <li class="nav-item {{ active_class(['user-management']) }}">
                     <a href="{{ route('user.management') }}" class="nav-link">
                         <i class="link-icon" data-feather="users"></i>
-                        <span class="link-title">User Management</span>
+                        <span class="link-title">Manajemen User</span>
                     </a>
                 </li>
             @endrole
             <li class="nav-item {{ active_class(['profile']) }}">
                 <a href="{{ route('profile') }}" class="nav-link">
                     <i class="link-icon" data-feather="user"></i>
-                    <span class="link-title">Profile</span>
+                    <span class="link-title">Profil</span>
                 </a>
             </li>
         </ul>

@@ -176,4 +176,35 @@ class ArchiveGroupedTitlesTest extends TestCase
             'status'          => 'menunggu_proses',
         ]);
     }
+
+    /** @test */
+    public function sidebar_shows_renamed_archive_label_for_marketing(): void
+    {
+        $resp = $this->actingAs($this->marketing)->get(route('order.book.indexJudul'));
+
+        $resp->assertOk();
+        $resp->assertSee('Arsip Judul');
+        $resp->assertSee('Daftar Order');
+    }
+
+    /** @test */
+    public function sidebar_hides_user_management_from_marketing(): void
+    {
+        $resp = $this->actingAs($this->marketing)->get(route('order.book.indexJudul'));
+
+        $resp->assertOk();
+        $resp->assertDontSee('Manajemen User');
+    }
+
+    /** @test */
+    public function sidebar_shows_user_management_for_superadmin(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole('superadmin');
+
+        $resp = $this->actingAs($admin)->get(route('order.book.indexJudul'));
+
+        $resp->assertOk();
+        $resp->assertSee('Manajemen User');
+    }
 }
