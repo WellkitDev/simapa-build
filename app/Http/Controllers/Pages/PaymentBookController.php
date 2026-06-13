@@ -64,7 +64,7 @@ class PaymentBookController extends Controller
 
         // LOGIKA PERHITUNGAN
         $totalCost = $firstDetail->cost_amount;
-        $alreadyPaid = $order->payments->sum('amount');
+        $alreadyPaid = $order->payments->where('status', 'paid')->sum('amount');
         $remainingBalance = $totalCost - $alreadyPaid;
 
         // Jika sudah lunas tapi masih buka halaman ini
@@ -141,7 +141,15 @@ class PaymentBookController extends Controller
                     'invoice_no' => $invNo,
                     'issued_at'  => $validate['issued_at'],
                     'due_at'     => $validate['dued_at'],
-                    'status'     => 'pending',
+                    'status'     => 'diterbitkan',
+                ]);
+
+                \App\Models\InvoiceLog::create([
+                    'invoice_id'  => $invoice->id,
+                    'from_status' => '',
+                    'to_status'   => 'diterbitkan',
+                    'changed_by'  => Auth::id(),
+                    'note'        => 'Invoice dibuat otomatis dari pembayaran.',
                 ]);
 
                 // APPROVAL
@@ -261,6 +269,22 @@ class PaymentBookController extends Controller
                     'approved_by' => auth()->id(),
                     'approved_at' => now()
                 ]);
+
+                // Update invoice terkait ke status lunas
+                $invoice = Invoice::where('payment_id', $payment->id)->first();
+                if ($invoice) {
+                    $fromStatus = $invoice->status;
+                    $invoice->update([
+                        'status' => 'lunas',
+                    ]);
+                    \App\Models\InvoiceLog::create([
+                        'invoice_id'  => $invoice->id,
+                        'from_status' => $fromStatus,
+                        'to_status'   => 'lunas',
+                        'changed_by'  => auth()->id(),
+                        'note'        => 'Disetujui otomatis saat payment approve.',
+                    ]);
+                }
 
                 // Optional: Jika ini pelunasan, update status Order jadi 'success'
                 if ($payment->payment_type === 'lunas' || $payment->payment_type == 'pelunasan') {
