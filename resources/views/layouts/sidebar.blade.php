@@ -102,6 +102,12 @@
                     <span class="link-title">Approved</span>
                 </a>
             </li>
+            <li class="nav-item {{ request()->routeIs('invoice.*') ? 'active' : '' }}">
+                <a href="{{ route('invoice.index') }}" class="nav-link">
+                    <i class="link-icon" data-feather="file-text"></i>
+                    <span class="link-title">Invoice</span>
+                </a>
+            </li>
             {{-- <li class="nav-item nav-category">Books</li>
 
             <li class="nav-item ">
@@ -142,6 +148,14 @@
                 </a>
             </li>
             <li class="nav-item nav-category">Account</li>
+            @role(['superadmin', 'manager'])
+                <li class="nav-item {{ active_class(['user-management']) }}">
+                    <a href="{{ route('user.management') }}" class="nav-link">
+                        <i class="link-icon" data-feather="users"></i>
+                        <span class="link-title">User Management</span>
+                    </a>
+                </li>
+            @endrole
             <li class="nav-item {{ active_class(['profile']) }}">
                 <a href="{{ route('profile') }}" class="nav-link">
                     <i class="link-icon" data-feather="user"></i>
