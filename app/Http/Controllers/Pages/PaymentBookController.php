@@ -30,7 +30,7 @@ class PaymentBookController extends Controller
     public function index()
     {
         //
-        $payments = Payment::with('order', 'invoice', 'approval')
+        $payments = Payment::with(['order.user', 'invoice', 'approval'])
             ->whereHas('order', function($q) {
                 $q->with('details')->when(Auth::user()->hasRole('marketing'), function ($query) {
                     return $query->where('user_id', Auth::id());

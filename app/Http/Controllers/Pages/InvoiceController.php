@@ -9,6 +9,7 @@ use App\Models\Payment;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class InvoiceController extends Controller
 {
@@ -43,20 +44,24 @@ class InvoiceController extends Controller
             'payment_id' => 'nullable|exists:tb_payments,id',
         ]);
 
-        $invoice = Invoice::create([
-            ...$data,
-            'status' => 'draft',
-        ]);
+        $invoiceId = DB::transaction(function () use ($data) {
+            $invoice = Invoice::create([
+                ...$data,
+                'status' => 'draft',
+            ]);
 
-        InvoiceLog::create([
-            'invoice_id'  => $invoice->id,
-            'from_status' => '',
-            'to_status'   => 'draft',
-            'changed_by'  => Auth::id(),
-            'note'        => 'Invoice dibuat.',
-        ]);
+            InvoiceLog::create([
+                'invoice_id'  => $invoice->id,
+                'from_status' => '',
+                'to_status'   => 'draft',
+                'changed_by'  => Auth::id(),
+                'note'        => 'Invoice dibuat.',
+            ]);
 
-        return redirect()->route('invoice.show', $invoice->id)
+            return $invoice->id;
+        });
+
+        return redirect()->route('invoice.show', $invoiceId)
             ->with('success', 'Invoice berhasil dibuat.');
     }
 
@@ -117,15 +122,18 @@ class InvoiceController extends Controller
         ]);
 
         $fromStatus = $invoice->status;
-        $invoice->update(['status' => $data['status']]);
 
-        InvoiceLog::create([
-            'invoice_id'  => $invoice->id,
-            'from_status' => $fromStatus,
-            'to_status'   => $data['status'],
-            'changed_by'  => Auth::id(),
-            'note'        => $data['note'] ?? null,
-        ]);
+        DB::transaction(function () use ($invoice, $data, $fromStatus) {
+            $invoice->update(['status' => $data['status']]);
+
+            InvoiceLog::create([
+                'invoice_id'  => $invoice->id,
+                'from_status' => $fromStatus,
+                'to_status'   => $data['status'],
+                'changed_by'  => Auth::id(),
+                'note'        => $data['note'] ?? null,
+            ]);
+        });
 
         return back()->with('success', 'Status invoice diperbarui.');
     }
@@ -141,19 +149,21 @@ class InvoiceController extends Controller
         $invoice    = Invoice::findOrFail($id);
         $fromStatus = $invoice->status;
 
-        $invoice->update([
-            'status'       => 'dibatalkan',
-            'cancelled_by' => Auth::id(),
-            'cancelled_at' => now(),
-        ]);
+        DB::transaction(function () use ($invoice, $fromStatus, $request) {
+            $invoice->update([
+                'status'       => 'dibatalkan',
+                'cancelled_by' => Auth::id(),
+                'cancelled_at' => now(),
+            ]);
 
-        InvoiceLog::create([
-            'invoice_id'  => $invoice->id,
-            'from_status' => $fromStatus,
-            'to_status'   => 'dibatalkan',
-            'changed_by'  => Auth::id(),
-            'note'        => $request->note,
-        ]);
+            InvoiceLog::create([
+                'invoice_id'  => $invoice->id,
+                'from_status' => $fromStatus,
+                'to_status'   => 'dibatalkan',
+                'changed_by'  => Auth::id(),
+                'note'        => $request->note,
+            ]);
+        });
 
         return back()->with('warning', 'Invoice dibatalkan.');
     }
@@ -172,19 +182,21 @@ class InvoiceController extends Controller
             return back()->withErrors(['note' => 'Invoice harus berstatus lunas untuk di-refund.']);
         }
 
-        $invoice->update([
-            'status'      => 'refund',
-            'refunded_by' => Auth::id(),
-            'refunded_at' => now(),
-        ]);
+        DB::transaction(function () use ($invoice, $request) {
+            $invoice->update([
+                'status'      => 'refund',
+                'refunded_by' => Auth::id(),
+                'refunded_at' => now(),
+            ]);
 
-        InvoiceLog::create([
-            'invoice_id'  => $invoice->id,
-            'from_status' => 'lunas',
-            'to_status'   => 'refund',
-            'changed_by'  => Auth::id(),
-            'note'        => $request->note,
-        ]);
+            InvoiceLog::create([
+                'invoice_id'  => $invoice->id,
+                'from_status' => 'lunas',
+                'to_status'   => 'refund',
+                'changed_by'  => Auth::id(),
+                'note'        => $request->note,
+            ]);
+        });
 
         return back()->with('success', 'Invoice berhasil di-refund.');
     }
