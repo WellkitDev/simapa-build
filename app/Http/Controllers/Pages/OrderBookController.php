@@ -13,6 +13,8 @@ use Illuminate\Support\Str;
 use App\Helpers\Utf8Cleaner;
 use App\Jobs\SendInvoiceJob;
 use App\Models\OrderContact;
+use App\Models\TitleProgress;
+use App\Models\TitleProgressLog;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\DB;
@@ -50,51 +52,93 @@ class OrderBookController extends Controller
         return view('orders.book.index', compact('orders'));
     }
 
-    public function indexJudul()
+    public function indexJudul(Request $request)
     {
-       $judulData = OrderDetail::select(
-            'tb_order_details.title',
-            'tb_order_details.type',
-            'tb_order_details.order_id',
-            'tb_order_details.id as detail_id',
-            // Menghitung jumlah author dari tabel pivot tb_author_orders
-            DB::raw('COUNT(DISTINCT tb_author_orders.author_id) as total_author')
-        )
-        // Join ke tabel Order menggunakan tb_orders (sesuai Model Order Anda)
-        ->join('tb_orders', 'tb_order_details.order_id', '=', 'tb_orders.id')
-        // Join ke tabel pivot author
-        ->leftJoin('tb_author_orders', 'tb_order_details.id', '=', 'tb_author_orders.order_detail_id')
-        ->when(Auth::user()->hasRole('marketing'), function ($q) {
-            return $q->where('tb_orders.user_id', Auth::id());
-        })
-        // Grouping menggunakan nama tabel yang benar: tb_order_details
-        ->groupBy(
-            'tb_order_details.title',
-            'tb_order_details.type',
-            'tb_order_details.order_id',
-            'tb_order_details.id'
-        )
-        ->get();
+        $query = OrderDetail::select(
+                'tb_order_details.title',
+                'tb_order_details.type',
+                'tb_order_details.order_id',
+                'tb_order_details.id as detail_id',
+                DB::raw('COUNT(DISTINCT tb_author_orders.author_id) as total_author'),
+                'tb_title_progress.status as progress_status',
+                'tb_title_progress.assigned_role as progress_role',
+                'tb_title_progress.updated_at as progress_updated_at'
+            )
+            ->join('tb_orders', 'tb_order_details.order_id', '=', 'tb_orders.id')
+            ->leftJoin('tb_author_orders', 'tb_order_details.id', '=', 'tb_author_orders.order_detail_id')
+            ->leftJoin('tb_title_progress', 'tb_order_details.id', '=', 'tb_title_progress.order_detail_id')
+            ->when(Auth::user()->hasRole('marketing'), fn($q) =>
+                $q->where('tb_orders.user_id', Auth::id())
+            )
+            ->when($request->filled('search'), function ($q) use ($request) {
+                $search = '%' . $request->search . '%';
+                $q->where(function ($inner) use ($search) {
+                    $inner->where('tb_order_details.title', 'like', $search)
+                          ->orWhereExists(function ($sub) use ($search) {
+                              $sub->select(DB::raw(1))
+                                  ->from('tb_authors')
+                                  ->join('tb_author_orders', 'tb_authors.id', '=', 'tb_author_orders.author_id')
+                                  ->whereColumn('tb_author_orders.order_detail_id', 'tb_order_details.id')
+                                  ->where('tb_authors.name', 'like', $search);
+                          });
+                });
+            })
+            ->when($request->filled('tipe'), fn($q) =>
+                $q->where('tb_order_details.type', 'like', $request->tipe . '%')
+            )
+            ->when($request->filled('status'), fn($q) =>
+                $q->where('tb_title_progress.status', $request->status)
+            )
+            ->when($request->filled('tahun'), fn($q) =>
+                $q->whereYear('tb_orders.ordered_at', $request->tahun)
+            )
+            ->groupBy(
+                'tb_order_details.title',
+                'tb_order_details.type',
+                'tb_order_details.order_id',
+                'tb_order_details.id',
+                'tb_title_progress.status',
+                'tb_title_progress.assigned_role',
+                'tb_title_progress.updated_at'
+            )
+            ->get();
 
-        return view('orders.index-title', compact('judulData'));
+        $tahunList = Order::selectRaw('YEAR(ordered_at) as tahun')
+            ->distinct()->orderByDesc('tahun')->pluck('tahun');
+
+        return view('orders.index-title', [
+            'judulData' => $query,
+            'tahunList' => $tahunList,
+        ]);
     }
 
     public function detailJudul($id)
     {
-        // Mengambil detail naskah beserta author dan ordernya
-        // Mengambil detail naskah
         $detail = OrderDetail::with([
                 'authors',
-                'order.user' // Meload data marketing
+                'scopes',
+                'order.user',
+                'titleProgress.logs.changedBy',
             ])
             ->where('id', $id)
-            // Tambahkan filter marketing di sini agar user marketing tidak bisa mengintip ID detail orang lain
             ->whereHas('order', function($q) {
-                $q->when(Auth::user()->hasRole('marketing'), function ($query) {
-                    return $query->where('tb_orders.user_id', Auth::id());
-                });
+                $q->when(Auth::user()->hasRole('marketing'), fn($query) =>
+                    $query->where('tb_orders.user_id', Auth::id())
+                );
             })
             ->firstOrFail();
+
+        // Fallback: buat TitleProgress jika belum ada (data lama sebelum fitur ini)
+        if (!$detail->titleProgress) {
+            TitleProgress::create([
+                'order_detail_id' => $detail->id,
+                'status'          => 'menunggu_proses',
+                'assigned_role'   => 'marketing',
+                'updated_by'      => Auth::id(),
+                'started_at'      => now(),
+            ]);
+            $detail->load('titleProgress.logs.changedBy');
+        }
 
         return view('orders.detail-title', compact('detail'));
     }
@@ -182,14 +226,14 @@ class OrderBookController extends Controller
                     'type' => $validate['type'],
                     'title' => $validate['title'],
                     'slug' => $finalSlug,
-                    'chapters' => $validate['chapters'],
+                    'chapters' => $validate['chapters'] ?? null,
                     'naskah_type' => $validate['naskah_type'],
                     'publication_type' => $validate['publication_type'],
                     'cost_amount' => $validate['cost_amount'],
                 ]);
 
                 //handlle science scope (create new if not exists)
-                $scope_id = $validate['scope_id'];
+                $scope_id = $validate['scope_id'] ?? null;
                 if (!is_numeric($scope_id) && !empty($scope_id)) {
                     $scope = Scope::firstOrCreate(['scope' => $scope_id]);
                     $scope_id = $scope->id;
@@ -206,6 +250,15 @@ class OrderBookController extends Controller
                     $authorPivots[$author->id] = ['position' => $authorData['position']];
                 }
                 $detail->authors()->attach($authorPivots);
+
+                // Auto-create TitleProgress
+                TitleProgress::create([
+                    'order_detail_id' => $detail->id,
+                    'status'          => 'menunggu_proses',
+                    'assigned_role'   => 'marketing',
+                    'updated_by'      => Auth::id(),
+                    'started_at'      => now(),
+                ]);
 
                 // ORDER CONTACT
                 OrderContact::create([
