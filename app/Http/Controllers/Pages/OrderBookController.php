@@ -14,7 +14,6 @@ use App\Helpers\Utf8Cleaner;
 use App\Jobs\SendInvoiceJob;
 use App\Models\OrderContact;
 use App\Models\TitleProgress;
-use App\Models\TitleProgressLog;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\DB;
@@ -130,13 +129,15 @@ class OrderBookController extends Controller
 
         // Fallback: buat TitleProgress jika belum ada (data lama sebelum fitur ini)
         if (!$detail->titleProgress) {
-            TitleProgress::create([
-                'order_detail_id' => $detail->id,
-                'status'          => 'menunggu_proses',
-                'assigned_role'   => 'marketing',
-                'updated_by'      => Auth::id(),
-                'started_at'      => now(),
-            ]);
+            DB::transaction(function () use ($detail) {
+                TitleProgress::create([
+                    'order_detail_id' => $detail->id,
+                    'status'          => 'menunggu_proses',
+                    'assigned_role'   => 'marketing',
+                    'updated_by'      => Auth::id(),
+                    'started_at'      => now(),
+                ]);
+            });
             $detail->load('titleProgress.logs.changedBy');
         }
 

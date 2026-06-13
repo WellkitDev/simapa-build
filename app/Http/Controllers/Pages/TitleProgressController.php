@@ -7,6 +7,7 @@ use App\Models\TitleProgressLog;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class TitleProgressController extends Controller
 {
@@ -16,7 +17,7 @@ class TitleProgressController extends Controller
         $user     = Auth::user();
         $target   = $request->input('status');
 
-        if ($user->hasRole('marketing')) {
+        if (!$user->hasAnyRole(['manager', 'superadmin'])) {
             abort(403);
         }
 
@@ -24,7 +25,12 @@ class TitleProgressController extends Controller
             return back()->with('error', 'Status tidak valid untuk tipe naskah ini.');
         }
 
-        $nextStatus   = $progress->getNextStatus();
+        $nextStatus = $progress->getNextStatus();
+
+        if ($nextStatus === null) {
+            return back()->with('error', 'Naskah sudah berada di tahap akhir.');
+        }
+
         $isCorrection = ($target !== $nextStatus);
 
         if ($user->hasRole('manager') && $isCorrection) {
@@ -37,22 +43,24 @@ class TitleProgressController extends Controller
 
         $fromStatus = $progress->status;
 
-        $progress->update([
-            'status'        => $target,
-            'assigned_role' => TitleProgress::getHandlerForStatus($target),
-            'note'          => $request->input('note'),
-            'updated_by'    => $user->id,
-            'started_at'    => now(),
-        ]);
+        DB::transaction(function () use ($progress, $target, $fromStatus, $user, $request, $isCorrection) {
+            $progress->update([
+                'status'        => $target,
+                'assigned_role' => TitleProgress::getHandlerForStatus($target),
+                'note'          => $request->input('note'),
+                'updated_by'    => $user->id,
+                'started_at'    => now(),
+            ]);
 
-        TitleProgressLog::create([
-            'title_progress_id' => $progress->id,
-            'from_status'       => $fromStatus,
-            'to_status'         => $target,
-            'changed_by'        => $user->id,
-            'note'              => $request->input('note'),
-            'is_correction'     => $isCorrection,
-        ]);
+            TitleProgressLog::create([
+                'title_progress_id' => $progress->id,
+                'from_status'       => $fromStatus,
+                'to_status'         => $target,
+                'changed_by'        => $user->id,
+                'note'              => $request->input('note'),
+                'is_correction'     => $isCorrection,
+            ]);
+        });
 
         return back()->with('success', 'Status berhasil diperbarui.');
     }
