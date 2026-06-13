@@ -41,4 +41,9 @@ class OrderDetail extends Model
             'author_id'
         )->withPivot('position');
     }
+
+    public function titleProgress()
+    {
+        return $this->hasOne(TitleProgress::class);
+    }
 }
