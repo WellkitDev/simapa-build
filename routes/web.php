@@ -11,6 +11,7 @@ use App\Http\Controllers\Pages\OrderBookController;
 use App\Http\Controllers\Pages\PaymentBookController;
 use App\Http\Controllers\Pages\OrderJournalController;
 use App\Http\Controllers\Pages\TitleProgressController;
+use App\Http\Controllers\Pages\InvoiceController;
 
 /*
 |--------------------------------------------------------------------------
@@ -80,6 +81,19 @@ Route::middleware('auth')->group(function () {
 
         //lunas
         Route::get('full', [FullPaymentBookController::class, 'index'])->name('fp.index');
+    });
+
+    Route::prefix('invoices')->name('invoice.')->group(function () {
+        Route::get('',             [InvoiceController::class, 'index'])->name('index');
+        Route::get('create',       [InvoiceController::class, 'create'])->name('create');
+        Route::post('',            [InvoiceController::class, 'store'])->name('store');
+        Route::get('{id}',         [InvoiceController::class, 'show'])->name('show');
+        Route::get('{id}/edit',    [InvoiceController::class, 'edit'])->name('edit');
+        Route::put('{id}',         [InvoiceController::class, 'update'])->name('update');
+        Route::post('{id}/status', [InvoiceController::class, 'updateStatus'])->name('updateStatus');
+        Route::post('{id}/cancel', [InvoiceController::class, 'cancel'])->name('cancel');
+        Route::post('{id}/refund', [InvoiceController::class, 'refund'])->name('refund');
+        Route::get('{id}/logs',    [InvoiceController::class, 'logs'])->name('logs');
     });
 
     Route::prefix('income')->name('income.')->group(function () {
