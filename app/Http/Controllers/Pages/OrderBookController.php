@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
 use App\Services\GoogleDriveService;
+use App\Services\TitleArchiveService;
 use Illuminate\Support\Facades\Auth;
 
 class OrderBookController extends Controller
@@ -51,64 +52,16 @@ class OrderBookController extends Controller
         return view('orders.book.index', compact('orders'));
     }
 
-    public function indexJudul(Request $request)
+    public function indexJudul(TitleArchiveService $archive)
     {
-        $query = OrderDetail::select(
-                'tb_order_details.title',
-                'tb_order_details.type',
-                'tb_order_details.order_id',
-                'tb_order_details.id as detail_id',
-                DB::raw('COUNT(DISTINCT tb_author_orders.author_id) as total_author'),
-                'tb_title_progress.status as progress_status',
-                'tb_title_progress.assigned_role as progress_role',
-                'tb_title_progress.updated_at as progress_updated_at'
-            )
-            ->join('tb_orders', 'tb_order_details.order_id', '=', 'tb_orders.id')
-            ->leftJoin('tb_author_orders', 'tb_order_details.id', '=', 'tb_author_orders.order_detail_id')
-            ->leftJoin('tb_title_progress', 'tb_order_details.id', '=', 'tb_title_progress.order_detail_id')
-            ->when(Auth::user()->hasRole('marketing'), fn($q) =>
-                $q->where('tb_orders.user_id', Auth::id())
-            )
-            ->when($request->filled('search'), function ($q) use ($request) {
-                $search = '%' . $request->search . '%';
-                $q->where(function ($inner) use ($search) {
-                    $inner->where('tb_order_details.title', 'like', $search)
-                          ->orWhereExists(function ($sub) use ($search) {
-                              $sub->select(DB::raw(1))
-                                  ->from('tb_authors')
-                                  ->join('tb_author_orders', 'tb_authors.id', '=', 'tb_author_orders.author_id')
-                                  ->whereColumn('tb_author_orders.order_detail_id', 'tb_order_details.id')
-                                  ->where('tb_authors.name', 'like', $search);
-                          });
-                });
-            })
-            ->when($request->filled('tipe'), fn($q) =>
-                $q->where('tb_order_details.type', 'like', $request->tipe . '%')
-            )
-            ->when($request->filled('status'), fn($q) =>
-                $q->where('tb_title_progress.status', $request->status)
-            )
-            ->when($request->filled('tahun'), fn($q) =>
-                $q->whereYear('tb_orders.ordered_at', $request->tahun)
-            )
-            ->groupBy(
-                'tb_order_details.title',
-                'tb_order_details.type',
-                'tb_order_details.order_id',
-                'tb_order_details.id',
-                'tb_title_progress.status',
-                'tb_title_progress.assigned_role',
-                'tb_title_progress.updated_at'
-            )
+        $details = OrderDetail::with(['order.user', 'authors', 'titleProgress'])
+            ->when(Auth::user()->hasRole('marketing'), fn ($q) =>
+                $q->whereHas('order', fn ($o) => $o->where('user_id', Auth::id())))
             ->get();
 
-        $tahunList = Order::selectRaw('YEAR(ordered_at) as tahun')
-            ->distinct()->orderByDesc('tahun')->pluck('tahun');
+        $judulData = $archive->groupDetails($details);
 
-        return view('orders.index-title', [
-            'judulData' => $query,
-            'tahunList' => $tahunList,
-        ]);
+        return view('orders.index-title', compact('judulData'));
     }
 
     public function detailJudul($id)

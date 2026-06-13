@@ -107,4 +107,38 @@ class ArchiveGroupedTitlesTest extends TestCase
 
         $this->assertCount(2, $rows);
     }
+
+    /** @test */
+    public function archive_index_groups_titles_into_rows(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole('superadmin');
+
+        $this->makeDetail('Manuscripts and Memory: Malay-Indonesian World', 'at_kolab', 'editing', ['Alice']);
+        $this->makeDetail('manuscripts and memory  malay indonesian world', 'at_kolab', 'menunggu_proses', ['Bob']);
+
+        $resp = $this->actingAs($admin)->get(route('order.book.indexJudul'));
+
+        $resp->assertOk();
+        $rows = $resp->viewData('judulData');
+        $this->assertCount(1, $rows);
+        $this->assertSame(2, $rows->first()->total_author);
+        $resp->assertSee('Arsip Judul');
+    }
+
+    /** @test */
+    public function marketing_only_sees_own_orders_in_archive(): void
+    {
+        $other = User::factory()->create();
+        $other->assignRole('marketing');
+
+        $this->makeDetail('Buku Orang Lain', 'bk_mandiri', 'editing', ['X'], $other);
+        $this->makeDetail('Buku Saya',       'bk_mandiri', 'editing', ['Y'], $this->marketing);
+
+        $resp = $this->actingAs($this->marketing)->get(route('order.book.indexJudul'));
+
+        $rows = $resp->viewData('judulData');
+        $this->assertCount(1, $rows);
+        $this->assertSame('Buku Saya', $rows->first()->title);
+    }
 }

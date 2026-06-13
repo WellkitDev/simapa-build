@@ -7,7 +7,7 @@
             <li class="nav-item dropdown">
                 <a class="nav-link dropdown-toggle" href="#" id="profileDropdown" role="button"
                     data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                    @if (!Auth::user()->profile->profile_picture_url)
+                    @if (!Auth::user()->profile?->profile_picture_url)
                         <img class="wd-30 ht-30 rounded-circle" src="{{ asset('assets/images/others/user.svg') }}"
                             alt="profile">
                     @else
@@ -19,7 +19,7 @@
                 <div class="dropdown-menu p-0" aria-labelledby="profileDropdown">
                     <div class="d-flex flex-column align-items-center border-bottom px-5 py-3">
                         <div class="mb-3">
-                            @if (!Auth::user()->profile->profile_picture_url)
+                            @if (!Auth::user()->profile?->profile_picture_url)
                                 <img class="wd-80 ht-80 rounded-circle"
                                     src="{{ asset('assets/images/others/user.svg') }}" alt="">
                             @else
