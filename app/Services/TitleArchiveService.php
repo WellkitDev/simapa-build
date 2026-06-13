@@ -36,4 +36,55 @@ class TitleArchiveService
             ? TitleProgress::BOOK_STAGES
             : TitleProgress::ARTICLE_STAGES;
     }
+
+    public function groupDetails(Collection $details): Collection
+    {
+        return $details
+            ->groupBy(fn (OrderDetail $d) => $this->groupKey($d))
+            ->map(fn (Collection $group) => $this->summarize($group))
+            ->sortByDesc('last_update')
+            ->values();
+    }
+
+    public function summarize(Collection $details): object
+    {
+        // Representative = most recently updated variant; tie-break by largest id.
+        $repr = $details
+            ->sort(fn (OrderDetail $a, OrderDetail $b) =>
+                ($this->lastUpdateOf($b)->timestamp <=> $this->lastUpdateOf($a)->timestamp)
+                    ?: ($b->id <=> $a->id))
+            ->first();
+
+        $pipeline = $this->pipelineClass($repr->type);
+        $stages   = $this->stagesFor($pipeline);
+
+        $statuses = $details->map(fn (OrderDetail $d) =>
+            optional($d->titleProgress)->status ?? 'menunggu_proses');
+
+        // Bottleneck = status with the smallest stage index.
+        $bottleneck = $statuses
+            ->sortBy(fn (string $s) =>
+                ($i = array_search($s, $stages, true)) === false ? PHP_INT_MAX : $i)
+            ->first();
+
+        return (object) [
+            'detail_id_repr'    => $repr->id,
+            'title'             => $repr->title,
+            'type'              => $repr->type,
+            'type_label'        => $pipeline === 'buku' ? 'Buku' : 'Artikel',
+            'total_author'      => $details
+                                    ->flatMap(fn (OrderDetail $d) => $d->authors->pluck('id'))
+                                    ->unique()
+                                    ->count(),
+            'bottleneck_status' => $bottleneck,
+            'handler'           => TitleProgress::getHandlerForStatus($bottleneck),
+            'last_update'       => $details->map(fn (OrderDetail $d) => $this->lastUpdateOf($d))->max(),
+            'is_mixed'          => $statuses->unique()->count() > 1,
+        ];
+    }
+
+    private function lastUpdateOf(OrderDetail $detail): Carbon
+    {
+        return optional($detail->titleProgress)->updated_at ?? $detail->updated_at;
+    }
 }

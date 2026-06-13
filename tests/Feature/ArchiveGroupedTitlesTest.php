@@ -1,0 +1,110 @@
+<?php
+
+namespace Tests\Feature;
+
+use Tests\TestCase;
+use App\Models\User;
+use App\Models\Order;
+use App\Models\Author;
+use App\Models\OrderDetail;
+use App\Models\TitleProgress;
+use App\Services\TitleArchiveService;
+use App\Services\GoogleDriveService;
+use Illuminate\Support\Str;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Role;
+
+class ArchiveGroupedTitlesTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private User $marketing;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // OrderBookController constructor injects GoogleDriveService — avoid real API.
+        $this->mock(GoogleDriveService::class);
+
+        Role::create(['name' => 'marketing', 'guard_name' => 'web']);
+        Role::create(['name' => 'manager',   'guard_name' => 'web']);
+        Role::create(['name' => 'superadmin','guard_name' => 'web']);
+
+        $this->marketing = User::factory()->create();
+        $this->marketing->assignRole('marketing');
+    }
+
+    /**
+     * Create one order-detail (title) with authors and an optional progress status.
+     * Pass $status = null to simulate legacy data without a TitleProgress row.
+     */
+    private function makeDetail(
+        string $title,
+        string $type,
+        ?string $status,
+        array $authorNames,
+        ?User $owner = null
+    ): OrderDetail {
+        $owner = $owner ?? $this->marketing;
+
+        $order  = Order::factory()->create(['user_id' => $owner->id]);
+        $detail = OrderDetail::factory()->create([
+            'order_id' => $order->id,
+            'type'     => $type,
+            'title'    => $title,
+        ]);
+
+        foreach ($authorNames as $i => $name) {
+            $author = Author::create([
+                'name'  => $name,
+                'email' => Str::slug($name) . '@example.com',
+            ]);
+            $detail->authors()->attach($author->id, ['position' => $i + 1]);
+        }
+
+        if ($status !== null) {
+            TitleProgress::create([
+                'order_detail_id' => $detail->id,
+                'status'          => $status,
+                'assigned_role'   => TitleProgress::getHandlerForStatus($status),
+                'updated_by'      => $owner->id,
+                'started_at'      => now(),
+            ]);
+        }
+
+        return $detail->load(['authors', 'titleProgress', 'order.user']);
+    }
+
+    /** @test */
+    public function it_groups_normalized_title_variants_into_one_summary_row(): void
+    {
+        $this->makeDetail('Manuscripts and Memory: Malay-Indonesian World', 'at_kolab', 'editing', ['Alice']);
+        $this->makeDetail('manuscripts and memory  malay indonesian world', 'at_kolab', 'menunggu_proses', ['Bob']);
+
+        $svc     = app(TitleArchiveService::class);
+        $details = OrderDetail::with(['authors', 'titleProgress'])->get();
+        $rows    = $svc->groupDetails($details);
+
+        $this->assertCount(1, $rows);
+
+        $row = $rows->first();
+        $this->assertSame(2, $row->total_author);
+        $this->assertSame('menunggu_proses', $row->bottleneck_status); // least-advanced wins
+        $this->assertSame('marketing', $row->handler);                 // handler of bottleneck stage
+        $this->assertTrue($row->is_mixed);
+        $this->assertSame('Artikel', $row->type_label);
+    }
+
+    /** @test */
+    public function it_keeps_same_title_in_different_pipelines_separate(): void
+    {
+        $this->makeDetail('Sejarah Nusantara', 'bk_mandiri', 'editing', ['A']);
+        $this->makeDetail('Sejarah Nusantara', 'at_mandiri', 'editing', ['B']);
+
+        $rows = app(TitleArchiveService::class)
+            ->groupDetails(OrderDetail::with(['authors', 'titleProgress'])->get());
+
+        $this->assertCount(2, $rows);
+    }
+}
