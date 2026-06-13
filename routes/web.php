@@ -58,6 +58,7 @@ Route::middleware('auth')->group(function () {
         Route::get('order', [OrderBookController::class, 'index'])->name('book.index');
         Route::get('title', [OrderBookController::class, 'indexJudul'])->name('book.indexJudul');
         Route::get('title/details/{id}', [OrderBookController::class, 'detailJudul'])->name('indexJudul.detail');
+        Route::get('title/order/{id}', [OrderBookController::class, 'progressDetail'])->name('indexJudul.progress');
     });
 
     Route::prefix('management')->group(function () {

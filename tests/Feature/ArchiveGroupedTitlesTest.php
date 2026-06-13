@@ -141,4 +141,39 @@ class ArchiveGroupedTitlesTest extends TestCase
         $this->assertCount(1, $rows);
         $this->assertSame('Buku Saya', $rows->first()->title);
     }
+
+    /** @test */
+    public function group_detail_lists_all_orders_in_the_group(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole('superadmin');
+
+        $d1 = $this->makeDetail('Manuscripts and Memory: Malay-Indonesian World', 'at_kolab', 'editing', ['Alice']);
+        $this->makeDetail('manuscripts and memory  malay indonesian world', 'at_kolab', 'menunggu_proses', ['Bob']);
+
+        $resp = $this->actingAs($admin)->get(route('order.indexJudul.detail', $d1->id));
+
+        $resp->assertOk();
+        $details = $resp->viewData('details');
+        $this->assertCount(2, $details);
+        $resp->assertSee('Alice')->assertSee('Bob');
+    }
+
+    /** @test */
+    public function progress_detail_autocreates_progress_for_legacy_detail(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole('superadmin');
+
+        $detail = $this->makeDetail('Buku Lama Tanpa Progress', 'bk_mandiri', null, ['Z']);
+        $this->assertDatabaseMissing('tb_title_progress', ['order_detail_id' => $detail->id]);
+
+        $resp = $this->actingAs($admin)->get(route('order.indexJudul.progress', $detail->id));
+
+        $resp->assertOk();
+        $this->assertDatabaseHas('tb_title_progress', [
+            'order_detail_id' => $detail->id,
+            'status'          => 'menunggu_proses',
+        ]);
+    }
 }

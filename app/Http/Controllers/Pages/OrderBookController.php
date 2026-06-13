@@ -64,7 +64,27 @@ class OrderBookController extends Controller
         return view('orders.index-title', compact('judulData'));
     }
 
-    public function detailJudul($id)
+    public function detailJudul($id, TitleArchiveService $archive)
+    {
+        $base = OrderDetail::query()
+            ->when(Auth::user()->hasRole('marketing'), fn ($q) =>
+                $q->whereHas('order', fn ($o) => $o->where('user_id', Auth::id())));
+
+        $clicked = (clone $base)->with('order')->findOrFail($id);
+        $key     = $archive->groupKey($clicked);
+
+        $details = (clone $base)
+            ->with(['order.user', 'authors', 'titleProgress'])
+            ->get()
+            ->filter(fn ($d) => $archive->groupKey($d) === $key)
+            ->values();
+
+        $summary = $archive->summarize($details);
+
+        return view('orders.detail-title-group', compact('summary', 'details'));
+    }
+
+    public function progressDetail($id)
     {
         $detail = OrderDetail::with([
                 'authors',
@@ -73,14 +93,13 @@ class OrderBookController extends Controller
                 'titleProgress.logs.changedBy',
             ])
             ->where('id', $id)
-            ->whereHas('order', function($q) {
-                $q->when(Auth::user()->hasRole('marketing'), fn($query) =>
-                    $query->where('tb_orders.user_id', Auth::id())
-                );
+            ->whereHas('order', function ($q) {
+                $q->when(Auth::user()->hasRole('marketing'), fn ($query) =>
+                    $query->where('tb_orders.user_id', Auth::id()));
             })
             ->firstOrFail();
 
-        // Fallback: buat TitleProgress jika belum ada (data lama sebelum fitur ini)
+        // Fallback: create TitleProgress for legacy data created before this feature.
         if (!$detail->titleProgress) {
             DB::transaction(function () use ($detail) {
                 TitleProgress::create([
