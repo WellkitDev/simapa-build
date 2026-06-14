@@ -68,8 +68,8 @@
                         @endforeach
                     </div>
 
-                    {{-- Form Update Status (manager & superadmin) --}}
-                    @hasanyrole('manager|superadmin')
+                    {{-- Form Update Status (production, manager & superadmin) --}}
+                    @hasanyrole('production|manager|superadmin')
                         @if($progress->getNextStatus())
                         <form method="POST" action="{{ route('title.progress.update', $progress->id) }}" class="row g-2 mt-2">
                             @csrf
@@ -113,6 +113,49 @@
                     @endif
                 </div>
             </div>
+
+            {{-- Penugasan & Prioritas --}}
+            @hasanyrole('production|manager|superadmin')
+            <div class="card mb-4">
+                <div class="card-header bg-transparent border-bottom">
+                    <h5 class="mb-0">Penugasan & Prioritas</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <form method="POST" action="{{ route('manuscript.assign', $progress->id) }}">
+                                @csrf
+                                <label class="form-label form-label-sm">Editor / Penanggung Jawab</label>
+                                <div class="d-flex gap-2">
+                                    <select name="assigned_user_id" class="form-select form-select-sm">
+                                        <option value="">— Belum ditugaskan —</option>
+                                        @foreach(\App\Models\User::whereHas('roles', fn($q) => $q->whereIn('name', ['production','manager']))->orderBy('name')->get() as $ed)
+                                            <option value="{{ $ed->id }}" {{ $progress->assigned_user_id == $ed->id ? 'selected' : '' }}>{{ $ed->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    <button type="submit" class="btn btn-sm btn-primary">Simpan</button>
+                                </div>
+                                @error('assigned_user_id') <small class="text-danger">{{ $message }}</small> @enderror
+                            </form>
+                        </div>
+                        <div class="col-md-6">
+                            <form method="POST" action="{{ route('manuscript.priority', $progress->id) }}">
+                                @csrf
+                                <label class="form-label form-label-sm">Prioritas</label>
+                                <div class="d-flex gap-2">
+                                    <select name="priority" class="form-select form-select-sm">
+                                        @foreach(['low','normal','high'] as $pr)
+                                            <option value="{{ $pr }}" {{ $progress->priority === $pr ? 'selected' : '' }}>{{ ucfirst($pr) }}</option>
+                                        @endforeach
+                                    </select>
+                                    <button type="submit" class="btn btn-sm btn-primary">Simpan</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            @endhasanyrole
 
             {{-- Daftar Penulis --}}
             <div class="card mb-4">
