@@ -117,6 +117,7 @@ Route::middleware('auth')->group(function () {
     })->middleware(['can:access-usermanagement']);
 });
 
+
 Route::fallback(function () {
     if (auth()->check()) {
         return redirect()->route('dashboard');
