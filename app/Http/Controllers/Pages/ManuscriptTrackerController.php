@@ -66,8 +66,45 @@ class ManuscriptTrackerController extends Controller
         $byStatus = $details->groupBy(fn ($d) => $d->titleProgress->status);
         $editors  = User::whereHas('roles', fn ($q) => $q->whereIn('name', ['production', 'manager']))
             ->orderBy('name')->get(['id', 'name']);
+        $zones    = $this->buildZones($stages);
 
-        return view('manuscript.' . $view, compact('details', 'stages', 'byStatus', 'tipe', 'view', 'editors'));
+        return view('manuscript.' . $view, compact('details', 'stages', 'byStatus', 'tipe', 'view', 'editors', 'zones'));
+    }
+
+    /**
+     * Kelompokkan stage yang berurutan berdasarkan role penanggung jawab menjadi
+     * zona berlabel (Antrian → Produksi → Finalisasi) untuk batas visual di papan.
+     */
+    private function buildZones(array $stages): array
+    {
+        $meta = [
+            'marketing'  => ['label' => 'Antrian',    'sub' => 'Marketing',     'tint' => '#F1F5F9', 'accent' => '#64748B'],
+            'production' => ['label' => 'Produksi',   'sub' => 'Tim Produksi',  'tint' => '#EEF2FF', 'accent' => '#4C5FD5'],
+            'superadmin' => ['label' => 'Finalisasi', 'sub' => 'Superadmin',    'tint' => '#ECFDF5', 'accent' => '#16A34A'],
+        ];
+
+        $zones = [];
+        foreach ($stages as $stage) {
+            $role = TitleProgress::getHandlerForStatus($stage);
+            $last = count($zones) - 1;
+
+            if ($last < 0 || $zones[$last]['role'] !== $role) {
+                $m = $meta[$role] ?? ['label' => ucfirst($role), 'sub' => $role, 'tint' => '#F8FAFC', 'accent' => '#94A3B8'];
+                $zones[] = [
+                    'role'   => $role,
+                    'label'  => $m['label'],
+                    'sub'    => $m['sub'],
+                    'tint'   => $m['tint'],
+                    'accent' => $m['accent'],
+                    'stages' => [],
+                ];
+                $last++;
+            }
+
+            $zones[$last]['stages'][] = $stage;
+        }
+
+        return $zones;
     }
 
     public function move(Request $request, int $id, TitleProgressService $service)

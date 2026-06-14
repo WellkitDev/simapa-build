@@ -208,4 +208,17 @@ class ManuscriptTrackerTest extends TestCase
 
         $this->assertDatabaseHas('tb_title_progress', ['id' => $p->id, 'status' => 'cetak']);
     }
+
+    /** @test */
+    public function board_groups_columns_into_role_zones(): void
+    {
+        $this->progress('editing'); // buku: punya zona Antrian + Produksi + Finalisasi
+        $this->actingAs($this->user('production'));
+
+        $this->get(route('manuscript.board', ['tipe' => 'buku']))
+            ->assertOk()
+            ->assertSee('Antrian')
+            ->assertSee('Produksi')
+            ->assertSee('Finalisasi');
+    }
 }
