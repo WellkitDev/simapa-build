@@ -3,6 +3,7 @@
 
 namespace App\Services;
 
+use App\Models\OrderDetail;
 use App\Models\User;
 use App\Models\TitleProgress;
 use App\Models\TitleProgressLog;
@@ -111,6 +112,40 @@ class TitleProgressService
 
         $progress->update(['priority' => $priority]);
         return $progress;
+    }
+
+    /**
+     * Buat TitleProgress untuk detail baru. Jika sudah ada order lain berjudul sama (grup)
+     * yang sedang diproses, warisi status + penugasan grup agar tetap sinkron; jika tidak,
+     * mulai dari 'menunggu_proses'.
+     */
+    public function createForDetail(OrderDetail $detail, ?int $actorId = null): TitleProgress
+    {
+        $bookTypes = ['bk_mandiri', 'bk_kolab'];
+        $stages = in_array($detail->type, $bookTypes, true)
+            ? TitleProgress::BOOK_STAGES
+            : TitleProgress::ARTICLE_STAGES;
+
+        $sibling = OrderDetail::where('group_key', $detail->group_key)
+            ->where('id', '!=', $detail->id)
+            ->whereHas('titleProgress')
+            ->with('titleProgress')
+            ->get()
+            ->map->titleProgress
+            ->sortBy(fn ($p) => array_search($p->status, $stages, true))
+            ->first();
+
+        $status = $sibling->status ?? 'menunggu_proses';
+
+        return TitleProgress::create([
+            'order_detail_id'  => $detail->id,
+            'status'           => $status,
+            'assigned_role'    => TitleProgress::getHandlerForStatus($status),
+            'assigned_user_id' => $sibling->assigned_user_id ?? null,
+            'priority'         => $sibling->priority ?? 'normal',
+            'updated_by'       => $actorId,
+            'started_at'       => now(),
+        ]);
     }
 
     // ─── Aksi serempak untuk satu grup judul (semua order judul yang sama) ───

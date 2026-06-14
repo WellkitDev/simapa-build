@@ -224,14 +224,8 @@ class OrderBookController extends Controller
                 }
                 $detail->authors()->attach($authorPivots);
 
-                // Auto-create TitleProgress
-                TitleProgress::create([
-                    'order_detail_id' => $detail->id,
-                    'status'          => 'menunggu_proses',
-                    'assigned_role'   => 'marketing',
-                    'updated_by'      => Auth::id(),
-                    'started_at'      => now(),
-                ]);
+                // Auto-create TitleProgress (warisi status grup jika judul sudah ada).
+                app(\App\Services\TitleProgressService::class)->createForDetail($detail, Auth::id());
 
                 // ORDER CONTACT
                 OrderContact::create([

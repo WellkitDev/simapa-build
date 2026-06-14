@@ -6,7 +6,6 @@ use App\Models\Order;
 use App\Models\Scope;
 use App\Models\Author;
 use App\Models\OrderDetail;
-use App\Models\TitleProgress;
 use Illuminate\Support\Str;
 use App\Models\OrderContact;
 use Illuminate\Http\Request;
@@ -134,15 +133,9 @@ class OrderJournalController extends Controller
                 }
                 $detail->authors()->attach($authorPivots);
 
-                // Auto-create TitleProgress (sama seperti order buku) agar naskah
-                // artikel langsung masuk Manuscript Tracker.
-                TitleProgress::create([
-                    'order_detail_id' => $detail->id,
-                    'status'          => 'menunggu_proses',
-                    'assigned_role'   => 'marketing',
-                    'updated_by'      => Auth::id(),
-                    'started_at'      => now(),
-                ]);
+                // Auto-create TitleProgress agar naskah artikel masuk Manuscript Tracker
+                // (warisi status grup jika judul sudah ada).
+                app(\App\Services\TitleProgressService::class)->createForDetail($detail, Auth::id());
 
                 // ORDER CONTACT
                 OrderContact::create([

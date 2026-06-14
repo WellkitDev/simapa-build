@@ -190,4 +190,50 @@ class TitleProgressTest extends TestCase
 
         $this->assertEquals(1, TitleProgress::count());
     }
+
+    /** @test */
+    public function new_book_order_of_existing_title_inherits_group_status(): void
+    {
+        // Sudah ada order judul sama yang sedang di stage 'layout'.
+        $existing = \App\Models\OrderDetail::factory()->create([
+            'type' => 'bk_mandiri', 'title' => 'Buku Warisan',
+        ]);
+        TitleProgress::create([
+            'order_detail_id' => $existing->id,
+            'status'          => 'layout',
+            'assigned_role'   => 'production',
+            'started_at'      => now(),
+        ]);
+
+        $this->actingAs($this->marketing);
+
+        $payload = [
+            'type'             => 'bk_mandiri',
+            'title'            => 'Buku Warisan', // judul sama → grup sama
+            'naskah_type'      => 'mandiri',
+            'publication_type' => 'regular',
+            'issued_at'        => now()->toDateString(),
+            'cost_amount'      => 1000000,
+            'contact_phone'    => '08123456789',
+            'contact_email'    => 'warisan@example.com',
+            'authors'          => [
+                [
+                    'name'        => 'Penulis Warisan',
+                    'email'       => 'penulis-warisan@example.com',
+                    'phone'       => '0812',
+                    'affiliation' => 'UI',
+                    'position'    => 1,
+                ],
+            ],
+        ];
+
+        $this->post(route('order.book.store'), $payload);
+
+        $new = \App\Models\OrderDetail::where('title', 'Buku Warisan')
+            ->where('id', '!=', $existing->id)
+            ->firstOrFail();
+
+        // Order baru mewarisi status grup, bukan reset ke 'menunggu_proses'.
+        $this->assertEquals('layout', $new->titleProgress->status);
+    }
 }
