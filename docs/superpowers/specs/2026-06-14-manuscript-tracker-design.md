@@ -36,6 +36,7 @@ layout, dan UX-nya — bukan kodenya.
 | Create | `app/Services/TitleProgressService.php` |
 | Create | `database/migrations/2026_06_14_000001_add_assignment_to_tb_title_progress.php` |
 | Create | `resources/views/manuscript/board.blade.php` |
+| Create | `resources/views/manuscript/list.blade.php` |
 | Create | `resources/views/manuscript/partials/card.blade.php` |
 | Create | `tests/Feature/ManuscriptTrackerTest.php` |
 | Create | `tests/Unit/TitleProgressServiceTest.php` |
@@ -134,9 +135,10 @@ Aturan formal `changeStatus`:
 
 ### Aturan assign & prioritas
 
-- **Assign editor:** `assigned_user_id` harus user dengan role `production` (validasi),
-  atau `null` (lepas tugas). Yang boleh meng-assign: `production` (termasuk self-assign),
-  `manager`, `superadmin`.
+- **Assign editor:** `assigned_user_id` harus user dengan role `production` **atau**
+  `manager` (validasi), atau `null` (lepas tugas). Superadmin tidak masuk daftar assignee
+  (perannya finalisasi/oversight). Yang boleh meng-assign: `production` (termasuk
+  self-assign), `manager`, `superadmin`.
 - **Prioritas:** nilai ∈ `PRIORITIES`. Yang boleh: `production`, `manager`, `superadmin`.
 
 ---
@@ -147,6 +149,7 @@ Di grup `management` (sudah ada middleware `auth`, `verified`):
 
 ```php
 GET  management/manuscript               → ManuscriptTrackerController@index    name: manuscript.board
+       (?view=board|list, default board; ?tipe=buku|artikel; ?editor=; ?priority=)
 POST management/manuscript/{id}/move     → @move      name: manuscript.move      middleware role:production|manager|superadmin
 POST management/manuscript/{id}/assign   → @assign    name: manuscript.assign    middleware role:production|manager|superadmin
 POST management/manuscript/{id}/priority → @priority  name: manuscript.priority  middleware role:production|manager|superadmin
@@ -176,9 +179,11 @@ Mengikuti layout mockup, diterjemahkan ke Bootstrap 5 + Alpine + SortableJS.
 ### Header
 - Judul **"Manuscript Tracker"**, subjudul: `"{n} naskah aktif · geser kartu untuk memajukan tahap"`.
 - Aksi: **toggle Buku / Artikel** (mengubah query `?tipe=buku|artikel`, default `buku`),
-  filter **Editor** (dropdown user production + "Semua" + "Tugas saya"),
+  filter **Editor** (dropdown user production/manager + "Semua" + "Tugas saya"),
   filter **Prioritas** (Semua/High/Normal/Low),
-  toggle **Papan / Daftar** (Daftar → link ke `order.book.indexJudul` yang sudah ada — tidak dibuat ulang).
+  toggle **Papan / Daftar** (mengubah `?view=board|list` — view daftar dirender di dalam
+  tracker ini, berbagi controller/dataset/filter yang sama; **bukan** link keluar ke
+  "Arsip Judul").
 
 ### Kolom
 - Kolom = stage pipeline tipe terpilih (`BOOK_STAGES` / `ARTICLE_STAGES`).
@@ -208,18 +213,27 @@ Konten (sesuai mockup):
 - **Detail penuh** (timeline lengkap, riwayat log, koreksi superadmin) tetap di halaman
   `detail-title` yang sudah ada — klik judul kartu nge-link ke sana.
 
-### Query papan (hindari N+1)
+### View Daftar (`manuscript/list.blade.php`)
+
+Toggle "Daftar" merender tabel **di dalam** tracker, memakai controller, dataset, dan
+filter yang **sama** dengan papan (`?view=list`). Kolom: judul, tipe, stage (badge),
+**editor**, **prioritas**, umur di stage, aksi (Detail / Majukan). Ini melengkapi papan —
+bukan menggantikan "Arsip Judul" lama (yang tetap utuh untuk marketing/arsip umum).
+Pada layar mobile, `index` default ke `view=list` (papan butuh scroll horizontal).
+
+### Query (hindari N+1) — dipakai papan & daftar
+
 `OrderDetail` di-eager-load: `order`, `authors`, `scopes`, `titleProgress.assignedUser`,
-difilter `type` (set buku/artikel), opsional `assigned_user_id` & `priority`,
-dikelompokkan per `status`. Scope role: production/manager/superadmin melihat seluruh
-pipeline tipe terpilih.
+difilter `type` (set buku/artikel), opsional `assigned_user_id` & `priority`. Untuk papan
+dikelompokkan per `status`; untuk daftar ditampilkan datar. Scope role:
+production/manager/superadmin melihat seluruh pipeline tipe terpilih.
 
 ---
 
 ## 6. Halaman Detail (`detail-title.blade.php` — modifikasi)
 
 Tambahan minimal pada halaman yang sudah ada:
-- Kontrol **Assign editor** (dropdown user production) → `manuscript.assign`.
+- Kontrol **Assign editor** (dropdown user production/manager) → `manuscript.assign`.
 - Kontrol **Prioritas** (low/normal/high) → `manuscript.priority`.
 - Form update status existing tetap, kini juga berlaku untuk `production` (lewat service).
 
@@ -245,7 +259,7 @@ production. "Arsip Judul" yang ada tetap untuk superadmin/manager/marketing.
 | Superadmin koreksi tanpa note | 422 JSON, toast "catatan wajib" |
 | Target stage tak valid untuk tipe | 422 JSON |
 | Naskah sudah di stage akhir | 422 JSON ("tahap akhir") |
-| Assign user bukan role production | 422 JSON |
+| Assign user bukan role production/manager | 422 JSON |
 | Naskah belum punya `TitleProgress` (data lama) | Auto-create `menunggu_proses` saat diakses (fallback yang sudah ada di `detailJudul`) |
 | Request AJAX gagal / jaringan | Kartu di-revert, toast "gagal, coba lagi" |
 | CSRF / sesi habis | 419 → toast minta refresh |
@@ -264,7 +278,7 @@ production. "Arsip Judul" yang ada tetap untuk superadmin/manager/marketing.
 - production gerakkan `menunggu_proses` → `AuthorizationException`.
 - manager maju stage apa pun → sukses; manager koreksi → ditolak.
 - superadmin koreksi tanpa note → `ValidationException`; dengan note → log `is_correction=true`.
-- assignEditor dengan user non-production → `ValidationException`; dengan production → tersimpan.
+- assignEditor dengan user di luar role production/manager → `ValidationException`; dengan production/manager → tersimpan; `null` → lepas tugas.
 - setPriority nilai invalid → ditolak; valid → tersimpan.
 
 **Feature — `ManuscriptTrackerTest`:**
@@ -295,8 +309,8 @@ jalankan terhadap `avidpedi_simapa_test` via `.env.testing`, **bukan** DB asli.
 
 - Drag halus, kursor `grab`/`grabbing`; kolom target ter-highlight saat hover.
 - Setiap aksi memberi umpan balik < 1 dtk (optimistic + toast).
-- **Responsif**: papan `overflow-x:auto` (scroll horizontal) di layar sempit; di mobile
-  sarankan default ke view Daftar.
+- **Responsif**: papan `overflow-x:auto` (scroll horizontal) di layar sempit; `index`
+  default ke `?view=list` pada mobile.
 - **Aksesibilitas**: tombol "Majukan", dropdown quick-action, dan link kartu dapat
   diakses keyboard; kartu punya `aria-label`; warna stage tidak jadi satu-satunya penanda
   (selalu ada teks).
