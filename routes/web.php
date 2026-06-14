@@ -11,6 +11,7 @@ use App\Http\Controllers\Pages\OrderBookController;
 use App\Http\Controllers\Pages\PaymentBookController;
 use App\Http\Controllers\Pages\OrderJournalController;
 use App\Http\Controllers\Pages\TitleProgressController;
+use App\Http\Controllers\Pages\ManuscriptTrackerController;
 use App\Http\Controllers\Pages\InvoiceController;
 
 /*
@@ -67,6 +68,21 @@ Route::middleware('auth')->group(function () {
             ->middleware('role:production|manager|superadmin');
         Route::get('title/{id}/logs', [TitleProgressController::class, 'logs'])
             ->name('title.progress.logs');
+    });
+
+    Route::prefix('management')->group(function () {
+        Route::get('manuscript', [ManuscriptTrackerController::class, 'index'])
+            ->name('manuscript.board')
+            ->middleware('role:production|manager|superadmin');
+        Route::post('manuscript/{id}/move', [ManuscriptTrackerController::class, 'move'])
+            ->name('manuscript.move')
+            ->middleware('role:production|manager|superadmin');
+        Route::post('manuscript/{id}/assign', [ManuscriptTrackerController::class, 'assign'])
+            ->name('manuscript.assign')
+            ->middleware('role:production|manager|superadmin');
+        Route::post('manuscript/{id}/priority', [ManuscriptTrackerController::class, 'priority'])
+            ->name('manuscript.priority')
+            ->middleware('role:production|manager|superadmin');
     });
 
     Route::prefix('payments')->name('payment.')->group(function () {
