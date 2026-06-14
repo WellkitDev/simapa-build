@@ -11,56 +11,16 @@ use Illuminate\Support\Facades\DB;
 
 class TitleProgressController extends Controller
 {
-    public function update(Request $request, int $id)
+    public function update(Request $request, int $id, \App\Services\TitleProgressService $service)
     {
         $progress = TitleProgress::with('orderDetail')->findOrFail($id);
-        $user     = Auth::user();
-        $target   = $request->input('status');
 
-        if (!$user->hasAnyRole(['manager', 'superadmin'])) {
-            abort(403);
-        }
-
-        if (!$progress->isValidStatus($target)) {
-            return back()->with('error', 'Status tidak valid untuk tipe naskah ini.');
-        }
-
-        $nextStatus = $progress->getNextStatus();
-
-        if ($nextStatus === null) {
-            return back()->with('error', 'Naskah sudah berada di tahap akhir.');
-        }
-
-        $isCorrection = ($target !== $nextStatus);
-
-        if ($user->hasRole('manager') && $isCorrection) {
-            abort(403);
-        }
-
-        if ($isCorrection && empty(trim($request->input('note', '')))) {
-            return back()->withErrors(['note' => 'Catatan wajib diisi untuk koreksi status.'])->withInput();
-        }
-
-        $fromStatus = $progress->status;
-
-        DB::transaction(function () use ($progress, $target, $fromStatus, $user, $request, $isCorrection) {
-            $progress->update([
-                'status'        => $target,
-                'assigned_role' => TitleProgress::getHandlerForStatus($target),
-                'note'          => $request->input('note'),
-                'updated_by'    => $user->id,
-                'started_at'    => now(),
-            ]);
-
-            TitleProgressLog::create([
-                'title_progress_id' => $progress->id,
-                'from_status'       => $fromStatus,
-                'to_status'         => $target,
-                'changed_by'        => $user->id,
-                'note'              => $request->input('note'),
-                'is_correction'     => $isCorrection,
-            ]);
-        });
+        $service->changeStatus(
+            $progress,
+            (string) $request->input('status'),
+            Auth::user(),
+            $request->input('note')
+        );
 
         return back()->with('success', 'Status berhasil diperbarui.');
     }

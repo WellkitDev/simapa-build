@@ -64,7 +64,7 @@ Route::middleware('auth')->group(function () {
     Route::prefix('management')->group(function () {
         Route::post('title/{id}/update-status', [TitleProgressController::class, 'update'])
             ->name('title.progress.update')
-            ->middleware('role:manager|superadmin');
+            ->middleware('role:production|manager|superadmin');
         Route::get('title/{id}/logs', [TitleProgressController::class, 'logs'])
             ->name('title.progress.logs');
     });
