@@ -128,4 +128,34 @@ class DetailOrderPaymentInvoiceTest extends TestCase
             ->get(route('invoice.pdf', $invoice->id))
             ->assertStatus(404);
     }
+
+    /** @test */
+    public function store_saves_email_flag_and_does_not_email_while_pending(): void
+    {
+        Queue::fake();
+
+        // GoogleDriveService must return a folder id + upload url for store() to succeed.
+        $this->mock(GoogleDriveService::class, function ($m) {
+            $m->shouldReceive('getOrCreateFolderByPath')->andReturn('folder-123');
+            $m->shouldReceive('uploadFile')->andReturn(['id' => 'file-1', 'url' => 'https://drive/struk']);
+        });
+
+        $order = $this->makeOrder();
+
+        $resp = $this->actingAs($this->marketing)->post(route('payment.store', $order->code_order), [
+            'issued_at'          => now()->toDateString(),
+            'dued_at'            => now()->addDays(14)->toDateString(),
+            'status'             => 'dp',
+            'pay_amount'         => 500000,
+            'proof_url'          => UploadedFile::fake()->image('struk.jpg'),
+            'send_invoice_email' => '1',
+        ]);
+
+        $resp->assertRedirect();
+        $this->assertDatabaseHas('tb_invoices', [
+            'order_id'        => $order->id,
+            'email_requested' => true,
+        ]);
+        Queue::assertNotPushed(SendInvoiceJob::class);
+    }
 }

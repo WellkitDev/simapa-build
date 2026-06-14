@@ -122,8 +122,10 @@ class PaymentBookController extends Controller
             $strukUrl = $uploadResult['url'];
         }
 
+        $emailRequested = $request->boolean('send_invoice_email');
+
         try {
-            $invoiceId = DB::transaction(function () use ($validate, $order, $strukUrl) {
+            $invoiceId = DB::transaction(function () use ($validate, $order, $strukUrl, $emailRequested) {
                 $payment = Payment::create([
                     'order_id'     => $order->id,
                     'payment_type' => $validate['status'],
@@ -136,12 +138,13 @@ class PaymentBookController extends Controller
                 // INVOICE
                 $invNo = "INV-" . str_replace('ORD-', '', $order->code_order). '-' . $payment->id;
                 $invoice = Invoice::create([
-                    'order_id'   => $order->id,
-                    'payment_id' => $payment->id,
-                    'invoice_no' => $invNo,
-                    'issued_at'  => $validate['issued_at'],
-                    'due_at'     => $validate['dued_at'],
-                    'status'     => 'diterbitkan',
+                    'order_id'        => $order->id,
+                    'payment_id'      => $payment->id,
+                    'invoice_no'      => $invNo,
+                    'issued_at'       => $validate['issued_at'],
+                    'due_at'          => $validate['dued_at'],
+                    'status'          => 'diterbitkan',
+                    'email_requested' => $emailRequested,
                 ]);
 
                 \App\Models\InvoiceLog::create([
@@ -166,11 +169,6 @@ class PaymentBookController extends Controller
 
                 return $invoice->id;
             });
-            // Jika send_invoice_email
-            if ($request->boolean('send_invoice_email')) {
-                // Dispatch ke queue
-                SendInvoiceJob::dispatch($invoiceId);
-            }
             return redirect()->route('order.book.create')
                 ->with('success', 'Pembayaran berhasil diajukan, menunggu approval');
         } catch (\Exception $e) {
