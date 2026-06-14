@@ -103,4 +103,29 @@ class DetailOrderPaymentInvoiceTest extends TestCase
         $this->assertSame(600000, (int) $data['remainingBalance']); // 1_000_000 - 400_000
         $this->assertCount(1, $data['order']->payments);            // only the approved one
     }
+
+    /** @test */
+    public function invoice_pdf_route_streams_a_pdf(): void
+    {
+        $order   = $this->makeOrder();
+        $this->makePayment($order, 'lunas', 1000000, 'approved');
+        $invoice = $this->makeInvoice($order, null, false);
+
+        $resp = $this->actingAs($this->manager)->get(route('invoice.pdf', $invoice->id));
+
+        $resp->assertOk();
+        $this->assertSame('application/pdf', $resp->headers->get('content-type'));
+    }
+
+    /** @test */
+    public function marketing_cannot_download_other_users_invoice_pdf(): void
+    {
+        $owner = User::factory()->create(); $owner->assignRole('marketing');
+        $order = $this->makeOrder($owner); // belongs to someone else
+        $invoice = $this->makeInvoice($order, null, false);
+
+        $this->actingAs($this->marketing)
+            ->get(route('invoice.pdf', $invoice->id))
+            ->assertStatus(404);
+    }
 }

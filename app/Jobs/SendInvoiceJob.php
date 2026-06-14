@@ -40,13 +40,14 @@ class SendInvoiceJob implements ShouldQueue
     public function handle(GoogleDriveService $drive): void
     {
         //
-        $invoice = Invoice::with(['order.details.authors', 'order.payments', 'order.contact'])->find($this->invoiceId);
+        $invoice = Invoice::find($this->invoiceId);
         if (!$invoice) return;
 
-        // 1. Persiapkan Data & Generate PDF
-        $totalCost = $invoice->order->details->cost_amount ?? 0;
-        $alreadyPaid = $invoice->order->payments->where('status', 'paid')->sum('amount');
-        $remainingBalance = $totalCost - $alreadyPaid;
+        $data             = \App\Support\InvoicePdfData::for($invoice);
+        $invoice          = $data['invoice'];
+        $totalCost        = $data['totalCost'];
+        $alreadyPaid      = $data['alreadyPaid'];
+        $remainingBalance = $data['remainingBalance'];
 
         $pdf = Pdf::loadView('payments.invoices.book_invoice_pdf', [
             'invoice' => $invoice,

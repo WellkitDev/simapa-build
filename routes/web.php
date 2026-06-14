@@ -75,7 +75,6 @@ Route::middleware('auth')->group(function () {
         Route::post('{code_order}/create', [PaymentBookController::class, 'store'])->name('store');
         Route::post('approve/{id}', [PaymentBookController::class, 'approve'])->name('approve');
         Route::post('reject/{id}', [PaymentBookController::class, 'reject'])->name('reject');
-        Route::get('print/{code_order}', [PaymentBookController::class, 'printInvoice'])->name('printInvoice');
 
         //dp
         Route::get('dp', [DebtBookController::class, 'index'])->name('dp.index');
@@ -95,6 +94,7 @@ Route::middleware('auth')->group(function () {
         Route::post('{id}/cancel', [InvoiceController::class, 'cancel'])->name('cancel');
         Route::post('{id}/refund', [InvoiceController::class, 'refund'])->name('refund');
         Route::get('{id}/logs',    [InvoiceController::class, 'logs'])->name('logs');
+        Route::get('{id}/pdf', [InvoiceController::class, 'pdf'])->name('pdf');
     });
 
     Route::prefix('income')->name('income.')->group(function () {

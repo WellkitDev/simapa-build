@@ -6,6 +6,8 @@ use App\Models\Invoice;
 use App\Models\InvoiceLog;
 use App\Models\Order;
 use App\Models\Payment;
+use App\Support\InvoicePdfData;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
@@ -205,5 +207,19 @@ class InvoiceController extends Controller
     {
         $invoice = Invoice::with('logs.changedBy')->findOrFail($id);
         return response()->json($invoice->logs);
+    }
+
+    public function pdf(int $id)
+    {
+        $invoice = Invoice::query()
+            ->when(Auth::user()->hasRole('marketing'), fn ($q) =>
+                $q->whereHas('order', fn ($o) => $o->where('user_id', Auth::id())))
+            ->findOrFail($id);
+
+        $data = InvoicePdfData::for($invoice);
+        abort_if(!$data['detail'], 404, 'Detail order tidak ditemukan.');
+
+        return Pdf::loadView('payments.invoices.book_invoice_pdf', $data)
+            ->stream('Invoice_' . $invoice->invoice_no . '.pdf');
     }
 }
