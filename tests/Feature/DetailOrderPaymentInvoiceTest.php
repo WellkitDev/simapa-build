@@ -200,4 +200,48 @@ class DetailOrderPaymentInvoiceTest extends TestCase
 
         Queue::assertNotPushed(SendInvoiceJob::class);
     }
+
+    /** @test */
+    public function manager_can_edit_pending_payment_and_order_status_recomputes(): void
+    {
+        $order   = $this->makeOrder(); // cost 1_000_000
+        $payment = $this->makePayment($order, 'dp', 300000, 'pending');
+
+        $this->actingAs($this->manager)->put(route('payment.update', $payment->id), [
+            'amount'       => 1000000,
+            'payment_type' => 'lunas',
+            'paid_at'      => now()->toDateString(),
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('tb_payments', ['id' => $payment->id, 'amount' => 1000000, 'payment_type' => 'lunas']);
+        $this->assertDatabaseHas('tb_orders', ['id' => $order->id, 'status' => 'lunas']); // remaining <= 0
+    }
+
+    /** @test */
+    public function approved_payment_cannot_be_edited(): void
+    {
+        $order   = $this->makeOrder();
+        $payment = $this->makePayment($order, 'dp', 300000, 'approved');
+
+        $this->actingAs($this->manager)->put(route('payment.update', $payment->id), [
+            'amount'       => 999,
+            'payment_type' => 'dp',
+            'paid_at'      => now()->toDateString(),
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('tb_payments', ['id' => $payment->id, 'amount' => 300000]); // unchanged
+    }
+
+    /** @test */
+    public function marketing_cannot_edit_payment(): void
+    {
+        $order   = $this->makeOrder();
+        $payment = $this->makePayment($order, 'dp', 300000, 'pending');
+
+        $this->actingAs($this->marketing)->put(route('payment.update', $payment->id), [
+            'amount'       => 1,
+            'payment_type' => 'dp',
+            'paid_at'      => now()->toDateString(),
+        ])->assertStatus(403);
+    }
 }

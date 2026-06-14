@@ -75,6 +75,9 @@ Route::middleware('auth')->group(function () {
         Route::post('{code_order}/create', [PaymentBookController::class, 'store'])->name('store');
         Route::post('approve/{id}', [PaymentBookController::class, 'approve'])->name('approve');
         Route::post('reject/{id}', [PaymentBookController::class, 'reject'])->name('reject');
+        Route::put('{id}', [PaymentBookController::class, 'update'])
+            ->name('update')
+            ->middleware('role:manager|superadmin');
 
         //dp
         Route::get('dp', [DebtBookController::class, 'index'])->name('dp.index');

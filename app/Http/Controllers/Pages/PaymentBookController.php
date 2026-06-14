@@ -200,7 +200,50 @@ class PaymentBookController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        //
+        $payment = Payment::with(['approval', 'order.details'])->findOrFail($id);
+
+        if (optional($payment->approval)->status !== 'pending') {
+            return back()->with('error', 'Pembayaran sudah diproses, tidak bisa diedit.');
+        }
+
+        $validate = $request->validate([
+            'amount'       => 'required|numeric|min:1',
+            'payment_type' => 'required|in:dp,lunas,pelunasan',
+            'paid_at'      => 'required|date',
+            'proof_url'    => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240',
+        ]);
+
+        $strukUrl = $payment->proof_url;
+        if ($request->hasFile('proof_url')) {
+            $file = $request->file('proof_url');
+            $year = Carbon::parse($validate['paid_at'])->format('Y');
+            $folderId = $this->drive->getOrCreateFolderByPath("Application/struk_pembayaran/{$year}");
+            if (!$folderId) {
+                return back()->with('error', 'Gagal membuat folder Google Drive.');
+            }
+            $filename = $payment->order->contact->cp_email . "_struk." . $file->getClientOriginalExtension();
+            $uploadResult = $this->drive->uploadFile($file, $folderId, true, $filename);
+            if (!$uploadResult || !isset($uploadResult['url'])) {
+                return back()->with('error', 'Gagal upload bukti. Coba lagi.');
+            }
+            $strukUrl = $uploadResult['url'];
+        }
+
+        DB::transaction(function () use ($payment, $validate, $strukUrl) {
+            $payment->update([
+                'amount'       => $validate['amount'],
+                'payment_type' => $validate['payment_type'],
+                'paid_at'      => $validate['paid_at'],
+                'proof_url'    => $strukUrl,
+            ]);
+
+            $order = $payment->order;
+            $cost  = $order->details->cost_amount ?? 0;
+            $paid  = $order->payments()->where('status', 'paid')->sum('amount');
+            $order->update(['status' => ($cost - $paid) <= 0 ? 'lunas' : 'pending']);
+        });
+
+        return back()->with('success', 'Pembayaran berhasil diperbarui.');
     }
 
     public function approve($id)
