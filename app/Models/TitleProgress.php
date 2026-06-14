@@ -15,6 +15,7 @@ class TitleProgress extends Model
     protected $fillable = [
         'order_detail_id', 'status', 'assigned_role',
         'note', 'updated_by', 'started_at',
+        'assigned_user_id', 'priority',
     ];
 
     protected $dates = ['started_at'];
@@ -31,18 +32,20 @@ class TitleProgress extends Model
 
     const STAGE_HANDLER = [
         'menunggu_proses' => 'marketing',
-        'templating'      => 'manager',
-        'editing'         => 'manager',
-        'revisi'          => 'manager',
-        'submit'          => 'manager',
+        'templating'      => 'production',
+        'editing'         => 'production',
+        'revisi'          => 'production',
+        'submit'          => 'production',
         'loa'             => 'superadmin',
         'publish'         => 'superadmin',
-        'layout'          => 'manager',
-        'proofreading'    => 'manager',
-        'isbn'            => 'manager',
+        'layout'          => 'production',
+        'proofreading'    => 'production',
+        'isbn'            => 'production',
         'cetak'           => 'superadmin',
         'terbit'          => 'superadmin',
     ];
+
+    const PRIORITIES = ['low', 'normal', 'high'];
 
     public function orderDetail()
     {
@@ -57,6 +60,11 @@ class TitleProgress extends Model
     public function updatedBy()
     {
         return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    public function assignedUser()
+    {
+        return $this->belongsTo(User::class, 'assigned_user_id');
     }
 
     public function getStages(): array
