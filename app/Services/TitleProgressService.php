@@ -38,26 +38,30 @@ class TitleProgressService
             throw ValidationException::withMessages(['note' => 'Catatan wajib diisi untuk koreksi status.']);
         }
 
-        return DB::transaction(function () use ($progress, $target, $current, $actor, $note, $isCorrection) {
-            $progress->update([
-                'status'        => $target,
-                'assigned_role' => TitleProgress::getHandlerForStatus($target),
-                'note'          => $note,
-                'updated_by'    => $actor->id,
-                'started_at'    => now(),
-            ]);
+        return DB::transaction(fn () => $this->applyStatus($progress, $current, $target, $actor, $note, $isCorrection));
+    }
 
-            TitleProgressLog::create([
-                'title_progress_id' => $progress->id,
-                'from_status'       => $current,
-                'to_status'         => $target,
-                'changed_by'        => $actor->id,
-                'note'              => $note,
-                'is_correction'     => $isCorrection,
-            ]);
+    /** Tulis perubahan status + log untuk satu progress (tanpa validasi — pemanggil yang memvalidasi). */
+    private function applyStatus(TitleProgress $progress, string $from, string $target, User $actor, ?string $note, bool $isCorrection): TitleProgress
+    {
+        $progress->update([
+            'status'        => $target,
+            'assigned_role' => TitleProgress::getHandlerForStatus($target),
+            'note'          => $note,
+            'updated_by'    => $actor->id,
+            'started_at'    => now(),
+        ]);
 
-            return $progress;
-        });
+        TitleProgressLog::create([
+            'title_progress_id' => $progress->id,
+            'from_status'       => $from,
+            'to_status'         => $target,
+            'changed_by'        => $actor->id,
+            'note'              => $note,
+            'is_correction'     => $isCorrection,
+        ]);
+
+        return $progress;
     }
 
     private function authorizeChange(User $actor, string $current, bool $isCorrection): void
@@ -107,5 +111,71 @@ class TitleProgressService
 
         $progress->update(['priority' => $priority]);
         return $progress;
+    }
+
+    // ─── Aksi serempak untuk satu grup judul (semua order judul yang sama) ───
+
+    /**
+     * Majukan/koreksi status SELURUH varian dalam satu grup judul sekaligus.
+     * Status kanonik grup = stage paling awal (bottleneck) di antara varian.
+     * Maju: varian yang masih tertinggal dibawa ke target. Koreksi (superadmin): semua disinkron.
+     */
+    public function changeGroupStatus(iterable $progresses, string $target, User $actor, ?string $note = null): void
+    {
+        $progresses = collect($progresses);
+        if ($progresses->isEmpty()) {
+            return;
+        }
+
+        $stages = $progresses->first()->getStages();
+
+        if (!in_array($target, $stages, true)) {
+            throw ValidationException::withMessages(['status' => 'Status tidak valid untuk tipe naskah ini.']);
+        }
+
+        $canonical    = $progresses->sortBy(fn ($p) => array_search($p->status, $stages, true))->first()->status;
+        $canonicalIdx = array_search($canonical, $stages, true);
+        $next         = $stages[$canonicalIdx + 1] ?? null;
+
+        if ($next === null) {
+            throw ValidationException::withMessages(['status' => 'Naskah sudah berada di tahap akhir.']);
+        }
+
+        $isCorrection = ($target !== $next);
+        $this->authorizeChange($actor, $canonical, $isCorrection);
+
+        if ($isCorrection && trim((string) $note) === '') {
+            throw ValidationException::withMessages(['note' => 'Catatan wajib diisi untuk koreksi status.']);
+        }
+
+        $targetIdx = array_search($target, $stages, true);
+
+        DB::transaction(function () use ($progresses, $stages, $target, $targetIdx, $actor, $note, $isCorrection) {
+            foreach ($progresses as $p) {
+                $idx = array_search($p->status, $stages, true);
+                // Maju: hanya varian di belakang target. Koreksi: seluruh varian.
+                if (($isCorrection || $idx < $targetIdx) && $p->status !== $target) {
+                    $this->applyStatus($p, $p->status, $target, $actor, $note, $isCorrection);
+                }
+            }
+        });
+    }
+
+    public function assignGroup(iterable $progresses, ?int $userId, User $actor): void
+    {
+        DB::transaction(function () use ($progresses, $userId, $actor) {
+            foreach (collect($progresses) as $p) {
+                $this->assignEditor($p, $userId, $actor);
+            }
+        });
+    }
+
+    public function setGroupPriority(iterable $progresses, string $priority, User $actor): void
+    {
+        DB::transaction(function () use ($progresses, $priority, $actor) {
+            foreach (collect($progresses) as $p) {
+                $this->setPriority($p, $priority, $actor);
+            }
+        });
     }
 }

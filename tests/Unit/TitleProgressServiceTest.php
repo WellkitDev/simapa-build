@@ -200,4 +200,76 @@ class TitleProgressServiceTest extends TestCase
         $this->expectException(AuthorizationException::class);
         $this->svc->setPriority($p, 'high', $this->user('marketing'));
     }
+
+    /**
+     * Buat 2 varian order untuk judul yang sama (grup), masing-masing dengan status sendiri.
+     */
+    private function group(string $status1, string $status2, string $type = 'bk_mandiri', string $title = 'Judul Grup Sama')
+    {
+        $ids = [];
+        foreach ([$status1, $status2] as $st) {
+            $detail = OrderDetail::factory()->create(['type' => $type, 'title' => $title]);
+            $ids[] = TitleProgress::create([
+                'order_detail_id' => $detail->id,
+                'status'          => $st,
+                'assigned_role'   => TitleProgress::getHandlerForStatus($st),
+                'started_at'      => now(),
+            ])->id;
+        }
+        return TitleProgress::with('orderDetail')->whereIn('id', $ids)->get();
+    }
+
+    /** @test */
+    public function group_advance_brings_all_laggards_to_next_stage(): void
+    {
+        $grp = $this->group('editing', 'layout'); // kanonik = editing, next = layout
+        $this->svc->changeGroupStatus($grp, 'layout', $this->user('production'));
+
+        foreach ($grp as $p) {
+            $this->assertEquals('layout', $p->fresh()->status);
+        }
+    }
+
+    /** @test */
+    public function group_advance_blocked_when_canonical_stage_owned_by_superadmin(): void
+    {
+        $grp = $this->group('cetak', 'terbit'); // kanonik = cetak (superadmin)
+        $this->expectException(AuthorizationException::class);
+        $this->svc->changeGroupStatus($grp, 'terbit', $this->user('production'));
+    }
+
+    /** @test */
+    public function superadmin_group_correction_syncs_all_variants(): void
+    {
+        $grp = $this->group('isbn', 'layout'); // kanonik = layout
+        $this->svc->changeGroupStatus($grp, 'editing', $this->user('superadmin'), 'koreksi grup');
+
+        foreach ($grp as $p) {
+            $this->assertEquals('editing', $p->fresh()->status);
+        }
+    }
+
+    /** @test */
+    public function group_assign_sets_editor_on_all_variants(): void
+    {
+        $grp = $this->group('editing', 'editing');
+        $editor = $this->user('production');
+
+        $this->svc->assignGroup($grp, $editor->id, $this->user('manager'));
+
+        foreach ($grp as $p) {
+            $this->assertEquals($editor->id, $p->fresh()->assigned_user_id);
+        }
+    }
+
+    /** @test */
+    public function group_priority_sets_value_on_all_variants(): void
+    {
+        $grp = $this->group('editing', 'editing');
+        $this->svc->setGroupPriority($grp, 'high', $this->user('manager'));
+
+        foreach ($grp as $p) {
+            $this->assertEquals('high', $p->fresh()->priority);
+        }
+    }
 }
