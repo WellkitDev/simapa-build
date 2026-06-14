@@ -162,6 +162,7 @@ class TitleProgressTest extends TestCase
         $payload = [
             'type'             => 'at_mandiri',
             'title'            => 'Artikel Tes Integrasi',
+            'scope_id'         => '', // form selalu mengirim field ini (boleh kosong)
             'indexation'       => 'Scopus Q2',
             'naskah_type'      => 'mandiri',
             'publication_type' => 'regular',
