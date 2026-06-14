@@ -87,4 +87,20 @@ class DetailOrderPaymentInvoiceTest extends TestCase
             'email_requested' => true,
         ]);
     }
+
+    /** @test */
+    public function invoice_pdf_data_counts_only_approved_payments(): void
+    {
+        $order = $this->makeOrder();
+        $this->makePayment($order, 'dp', 400000, 'approved');
+        $this->makePayment($order, 'pelunasan', 600000, 'pending'); // must be excluded
+        $this->makePayment($order, 'dp', 100000, 'rejected');       // must be excluded
+        $invoice = $this->makeInvoice($order, null, false);
+
+        $data = \App\Support\InvoicePdfData::for($invoice);
+
+        $this->assertSame(400000, (int) $data['alreadyPaid']);
+        $this->assertSame(600000, (int) $data['remainingBalance']); // 1_000_000 - 400_000
+        $this->assertCount(1, $data['order']->payments);            // only the approved one
+    }
 }
