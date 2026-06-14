@@ -41,7 +41,8 @@ class ManuscriptTrackerController extends Controller
 
         $stages   = $tipe === 'buku' ? TitleProgress::BOOK_STAGES : TitleProgress::ARTICLE_STAGES;
         $byStatus = $details->groupBy(fn ($d) => $d->titleProgress->status);
-        $editors  = User::role(['production', 'manager'])->orderBy('name')->get(['id', 'name']);
+        $editors  = User::whereHas('roles', fn ($q) => $q->whereIn('name', ['production', 'manager']))
+            ->orderBy('name')->get(['id', 'name']);
 
         return view('manuscript.' . $view, compact('details', 'stages', 'byStatus', 'tipe', 'view', 'editors'));
     }
