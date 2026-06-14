@@ -14,6 +14,38 @@ use Illuminate\Support\Str;
 
 class ManuscriptTrackerController extends Controller
 {
+    public function index(Request $request)
+    {
+        $bookTypes = ['bk_mandiri', 'bk_kolab'];
+        $tipe = $request->query('tipe') === 'artikel' ? 'artikel' : 'buku';
+        $view = $request->query('view') === 'list' ? 'list' : 'board';
+
+        $editorFilter = $request->query('editor');
+        if ($editorFilter === 'me') {
+            $editorFilter = (string) Auth::id();
+        }
+
+        $details = OrderDetail::query()
+            ->with(['order.user', 'authors', 'scopes', 'titleProgress.assignedUser'])
+            ->whereHas('titleProgress')
+            ->when(
+                $tipe === 'buku',
+                fn ($q) => $q->whereIn('type', $bookTypes),
+                fn ($q) => $q->whereNotIn('type', $bookTypes)
+            )
+            ->when($editorFilter !== null && $editorFilter !== '', fn ($q) =>
+                $q->whereHas('titleProgress', fn ($t) => $t->where('assigned_user_id', $editorFilter)))
+            ->when($request->filled('priority'), fn ($q) =>
+                $q->whereHas('titleProgress', fn ($t) => $t->where('priority', $request->query('priority'))))
+            ->get();
+
+        $stages   = $tipe === 'buku' ? TitleProgress::BOOK_STAGES : TitleProgress::ARTICLE_STAGES;
+        $byStatus = $details->groupBy(fn ($d) => $d->titleProgress->status);
+        $editors  = User::role(['production', 'manager'])->orderBy('name')->get(['id', 'name']);
+
+        return view('manuscript.' . $view, compact('details', 'stages', 'byStatus', 'tipe', 'view', 'editors'));
+    }
+
     public function move(Request $request, int $id, TitleProgressService $service)
     {
         $progress = TitleProgress::with('orderDetail')->findOrFail($id);

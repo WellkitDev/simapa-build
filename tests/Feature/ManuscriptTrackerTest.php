@@ -101,4 +101,58 @@ class ManuscriptTrackerTest extends TestCase
         $this->postJson(route('manuscript.move', $p->id), ['status' => 'layout'])
             ->assertStatus(403);
     }
+
+    /** @test */
+    public function board_renders_for_production(): void
+    {
+        $this->progress('editing'); // satu kartu di kolom editing (buku)
+        $this->actingAs($this->user('production'));
+
+        $this->get(route('manuscript.board', ['tipe' => 'buku']))
+            ->assertOk()
+            ->assertSee('Manuscript Tracker')
+            ->assertSee('Editing');
+    }
+
+    /** @test */
+    public function marketing_cannot_access_board(): void
+    {
+        $this->actingAs($this->user('marketing'));
+        $this->get(route('manuscript.board'))->assertStatus(403);
+    }
+
+    /** @test */
+    public function guest_is_redirected_from_board(): void
+    {
+        $this->get(route('manuscript.board'))->assertRedirect(route('login'));
+    }
+
+    /** @test */
+    public function list_view_renders(): void
+    {
+        $this->progress('editing');
+        $this->actingAs($this->user('production'));
+
+        $this->get(route('manuscript.board', ['view' => 'list']))
+            ->assertOk()
+            ->assertSee('Manuscript Tracker');
+    }
+
+    /** @test */
+    public function priority_filter_narrows_results(): void
+    {
+        $high = $this->progress('editing');
+        $high->update(['priority' => 'high']);
+        $high->orderDetail->update(['title' => 'NASKAH PRIORITAS TINGGI']);
+
+        $normal = $this->progress('editing');
+        $normal->orderDetail->update(['title' => 'NASKAH BIASA']);
+
+        $this->actingAs($this->user('production'));
+
+        $this->get(route('manuscript.board', ['tipe' => 'buku', 'priority' => 'high']))
+            ->assertOk()
+            ->assertSee('NASKAH PRIORITAS TINGGI')
+            ->assertDontSee('NASKAH BIASA');
+    }
 }
