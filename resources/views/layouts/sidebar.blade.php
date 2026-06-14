@@ -51,6 +51,16 @@
                 </li>
             @endrole
 
+            @role(['superadmin', 'manager', 'production'])
+                <li class="nav-item nav-category">Produksi</li>
+                <li class="nav-item {{ active_class(['management/manuscript']) }}">
+                    <a href="{{ route('manuscript.board') }}" class="nav-link">
+                        <i class="link-icon" data-feather="trello"></i>
+                        <span class="link-title">Manuscript Tracker</span>
+                    </a>
+                </li>
+            @endrole
+
             <li class="nav-item nav-category">Pembayaran</li>
             <li class="nav-item {{ active_class(['payments/*']) }}">
                 <a class="nav-link" data-bs-toggle="collapse" href="#menuPayment" role="button"
