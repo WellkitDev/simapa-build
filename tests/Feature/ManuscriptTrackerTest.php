@@ -194,4 +194,18 @@ class ManuscriptTrackerTest extends TestCase
             ->assertSee('High')
             ->assertSee('Majukan ke Layout'); // next stage after editing (buku)
     }
+
+    /** @test */
+    public function rejected_web_move_redirects_back_with_flash_error(): void
+    {
+        $p = $this->progress('cetak'); // milik superadmin — production tak boleh
+        $this->actingAs($this->user('production'));
+
+        // POST biasa (bukan JSON) = jalur tombol fallback "Majukan"
+        $this->post(route('manuscript.move', $p->id), ['status' => 'terbit'])
+            ->assertRedirect()
+            ->assertSessionHas('error');
+
+        $this->assertDatabaseHas('tb_title_progress', ['id' => $p->id, 'status' => 'cetak']);
+    }
 }

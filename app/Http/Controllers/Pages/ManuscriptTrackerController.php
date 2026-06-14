@@ -8,12 +8,35 @@ use App\Models\OrderDetail;
 use App\Models\TitleProgress;
 use App\Models\User;
 use App\Services\TitleProgressService;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class ManuscriptTrackerController extends Controller
 {
+    /**
+     * Jalankan aksi service. Untuk request non-JSON, ubah kegagalan otorisasi/validasi
+     * menjadi redirect-back + flash error. Request AJAX tetap menerima 403/422 JSON.
+     */
+    private function runOrFlash(Request $request, \Closure $action): ?RedirectResponse
+    {
+        try {
+            $action();
+            return null;
+        } catch (AuthorizationException | ValidationException $e) {
+            if ($request->expectsJson()) {
+                throw $e;
+            }
+            $message = $e instanceof ValidationException
+                ? (collect($e->errors())->flatten()->first() ?? 'Data tidak valid.')
+                : ($e->getMessage() ?: 'Anda tidak berhak melakukan aksi ini.');
+            return back()->with('error', $message);
+        }
+    }
+
     public function index(Request $request)
     {
         $bookTypes = ['bk_mandiri', 'bk_kolab'];
@@ -50,9 +73,14 @@ class ManuscriptTrackerController extends Controller
     public function move(Request $request, int $id, TitleProgressService $service)
     {
         $progress = TitleProgress::with('orderDetail')->findOrFail($id);
-        $service->changeStatus($progress, (string) $request->input('status'), Auth::user(), $request->input('note'));
-        $progress->refresh();
 
+        if ($redirect = $this->runOrFlash($request, fn () =>
+            $service->changeStatus($progress, (string) $request->input('status'), Auth::user(), $request->input('note'))
+        )) {
+            return $redirect;
+        }
+
+        $progress->refresh();
         $label = Str::title(str_replace('_', ' ', $progress->status));
         if ($request->expectsJson()) {
             return response()->json([
@@ -72,7 +100,12 @@ class ManuscriptTrackerController extends Controller
         $raw = $request->input('assigned_user_id');
         $userId = ($raw === null || $raw === '') ? null : (int) $raw;
 
-        $service->assignEditor($progress, $userId, Auth::user());
+        if ($redirect = $this->runOrFlash($request, fn () =>
+            $service->assignEditor($progress, $userId, Auth::user())
+        )) {
+            return $redirect;
+        }
+
         $progress->refresh()->load('assignedUser');
 
         if ($request->expectsJson()) {
@@ -91,7 +124,13 @@ class ManuscriptTrackerController extends Controller
     public function priority(Request $request, int $id, TitleProgressService $service)
     {
         $progress = TitleProgress::findOrFail($id);
-        $service->setPriority($progress, (string) $request->input('priority'), Auth::user());
+
+        if ($redirect = $this->runOrFlash($request, fn () =>
+            $service->setPriority($progress, (string) $request->input('priority'), Auth::user())
+        )) {
+            return $redirect;
+        }
+
         $progress->refresh();
 
         if ($request->expectsJson()) {

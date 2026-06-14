@@ -3,11 +3,9 @@
 namespace App\Http\Controllers\Pages;
 
 use App\Models\TitleProgress;
-use App\Models\TitleProgressLog;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 
 class TitleProgressController extends Controller
 {
