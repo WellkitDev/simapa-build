@@ -13,7 +13,7 @@ class Invoice extends Model
     protected $table = 'tb_invoices';
 
     protected $fillable = [
-        'order_id', 'payment_id', 'invoice_no', 'type', 'status',
+        'order_id', 'payment_id', 'invoice_no', 'type', 'status', 'email_requested',
         'issued_at', 'due_at', 'note',
         'pdf_url', 'pdf_drive_id',
         'cancelled_by', 'cancelled_at',
