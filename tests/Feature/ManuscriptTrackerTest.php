@@ -221,4 +221,62 @@ class ManuscriptTrackerTest extends TestCase
             ->assertSee('Produksi')
             ->assertSee('Finalisasi');
     }
+
+    /** Buat beberapa order untuk judul yang sama (satu grup). Kembalikan TitleProgress-nya. */
+    private function groupOrders(string $title, array $statuses, string $type = 'bk_mandiri'): array
+    {
+        $progresses = [];
+        foreach ($statuses as $st) {
+            $detail = OrderDetail::factory()->create(['type' => $type, 'title' => $title]);
+            $progresses[] = TitleProgress::create([
+                'order_detail_id' => $detail->id,
+                'status'          => $st,
+                'assigned_role'   => TitleProgress::getHandlerForStatus($st),
+                'started_at'      => now(),
+            ]);
+        }
+        return $progresses;
+    }
+
+    /** @test */
+    public function board_shows_one_card_per_title_group(): void
+    {
+        $this->groupOrders('Judul Kembar Tiga', ['editing', 'editing', 'editing']);
+        $this->actingAs($this->user('production'));
+
+        $content = $this->get(route('manuscript.board', ['tipe' => 'buku']))
+            ->assertOk()->getContent();
+
+        // 3 order judul sama → hanya 1 kartu (judul tampil sekali, bukan tiga kali).
+        $this->assertEquals(1, substr_count($content, 'Judul Kembar Tiga'));
+    }
+
+    /** @test */
+    public function group_move_advances_all_orders_of_the_title(): void
+    {
+        $progresses = $this->groupOrders('Judul Serempak', ['editing', 'editing']);
+        $this->actingAs($this->user('production'));
+
+        $this->postJson(route('manuscript.move', $progresses[0]->id), ['status' => 'layout'])
+            ->assertOk()->assertJson(['ok' => true, 'status' => 'layout']);
+
+        foreach ($progresses as $p) {
+            $this->assertDatabaseHas('tb_title_progress', ['id' => $p->id, 'status' => 'layout']);
+        }
+    }
+
+    /** @test */
+    public function group_assign_sets_editor_on_all_orders(): void
+    {
+        $editor = $this->user('production');
+        $progresses = $this->groupOrders('Judul Assign Grup', ['editing', 'editing']);
+        $this->actingAs($this->user('manager'));
+
+        $this->postJson(route('manuscript.assign', $progresses[0]->id), ['assigned_user_id' => $editor->id])
+            ->assertOk();
+
+        foreach ($progresses as $p) {
+            $this->assertDatabaseHas('tb_title_progress', ['id' => $p->id, 'assigned_user_id' => $editor->id]);
+        }
+    }
 }

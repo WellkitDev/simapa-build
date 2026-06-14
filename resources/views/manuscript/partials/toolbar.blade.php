@@ -2,7 +2,7 @@
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
     <div>
         <h4 class="mb-0">Manuscript Tracker</h4>
-        <small class="text-muted">{{ $details->count() }} naskah aktif · geser kartu untuk memajukan tahap</small>
+        <small class="text-muted">{{ $groups->count() }} judul aktif · geser kartu untuk memajukan tahap</small>
     </div>
     <form method="GET" action="{{ route('manuscript.board') }}" class="d-flex flex-wrap gap-2 align-items-center">
         <input type="hidden" name="tipe" value="{{ $tipe }}">

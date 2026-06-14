@@ -63,12 +63,45 @@ class ManuscriptTrackerController extends Controller
             ->get();
 
         $stages   = $tipe === 'buku' ? TitleProgress::BOOK_STAGES : TitleProgress::ARTICLE_STAGES;
-        $byStatus = $details->groupBy(fn ($d) => $d->titleProgress->status);
+        $groups   = $this->buildGroupCards($details, $stages);
+        $byStatus = $groups->groupBy(fn ($g) => optional($g->titleProgress)->status ?? 'menunggu_proses');
         $editors  = User::whereHas('roles', fn ($q) => $q->whereIn('name', ['production', 'manager']))
             ->orderBy('name')->get(['id', 'name']);
         $zones    = $this->buildZones($stages);
 
-        return view('manuscript.' . $view, compact('details', 'stages', 'byStatus', 'tipe', 'view', 'editors', 'zones'));
+        return view('manuscript.' . $view, compact('groups', 'stages', 'byStatus', 'tipe', 'view', 'editors', 'zones'));
+    }
+
+    /**
+     * Satu kartu per grup judul. Representasi kartu = varian "bottleneck" (stage paling
+     * awal) agar kartu duduk di kolom status grup. Lampirkan metadata grup ke representasi.
+     */
+    private function buildGroupCards($details, array $stages)
+    {
+        return collect($details)
+            ->groupBy('group_key')
+            ->map(function ($variants) use ($stages) {
+                $repr = $variants
+                    ->sortBy(fn ($d) => array_search(optional($d->titleProgress)->status ?? 'menunggu_proses', $stages, true))
+                    ->first();
+
+                $statuses = $variants->map(fn ($d) => optional($d->titleProgress)->status ?? 'menunggu_proses');
+
+                $repr->group_order_count  = $variants->count();
+                $repr->group_author_count = $variants->flatMap(fn ($d) => $d->authors->pluck('id'))->unique()->count();
+                $repr->group_is_mixed     = $statuses->unique()->count() > 1;
+
+                return $repr;
+            })
+            ->values();
+    }
+
+    /** Semua TitleProgress dari order yang berbagi judul (grup) dengan $progress. */
+    private function groupFor(TitleProgress $progress)
+    {
+        return TitleProgress::with('orderDetail')
+            ->whereHas('orderDetail', fn ($q) => $q->where('group_key', $progress->orderDetail->group_key))
+            ->get();
     }
 
     /**
@@ -110,22 +143,22 @@ class ManuscriptTrackerController extends Controller
     public function move(Request $request, int $id, TitleProgressService $service)
     {
         $progress = TitleProgress::with('orderDetail')->findOrFail($id);
+        $group    = $this->groupFor($progress);
+        $target   = (string) $request->input('status');
 
         if ($redirect = $this->runOrFlash($request, fn () =>
-            $service->changeStatus($progress, (string) $request->input('status'), Auth::user(), $request->input('note'))
+            $service->changeGroupStatus($group, $target, Auth::user(), $request->input('note'))
         )) {
             return $redirect;
         }
 
-        $progress->refresh();
-        $label = Str::title(str_replace('_', ' ', $progress->status));
+        $label = Str::title(str_replace('_', ' ', $target));
         if ($request->expectsJson()) {
             return response()->json([
-                'ok'            => true,
-                'id'            => $progress->id,
-                'status'        => $progress->status,
-                'assigned_role' => $progress->assigned_role,
-                'message'       => "Naskah dipindahkan ke {$label}.",
+                'ok'      => true,
+                'id'      => $progress->id,
+                'status'  => $target,
+                'message' => "Naskah dipindahkan ke {$label}.",
             ]);
         }
         return back()->with('success', "Naskah dipindahkan ke {$label}.");
@@ -133,12 +166,13 @@ class ManuscriptTrackerController extends Controller
 
     public function assign(Request $request, int $id, TitleProgressService $service)
     {
-        $progress = TitleProgress::findOrFail($id);
+        $progress = TitleProgress::with('orderDetail')->findOrFail($id);
+        $group = $this->groupFor($progress);
         $raw = $request->input('assigned_user_id');
         $userId = ($raw === null || $raw === '') ? null : (int) $raw;
 
         if ($redirect = $this->runOrFlash($request, fn () =>
-            $service->assignEditor($progress, $userId, Auth::user())
+            $service->assignGroup($group, $userId, Auth::user())
         )) {
             return $redirect;
         }
@@ -160,10 +194,11 @@ class ManuscriptTrackerController extends Controller
 
     public function priority(Request $request, int $id, TitleProgressService $service)
     {
-        $progress = TitleProgress::findOrFail($id);
+        $progress = TitleProgress::with('orderDetail')->findOrFail($id);
+        $group = $this->groupFor($progress);
 
         if ($redirect = $this->runOrFlash($request, fn () =>
-            $service->setPriority($progress, (string) $request->input('priority'), Auth::user())
+            $service->setGroupPriority($group, (string) $request->input('priority'), Auth::user())
         )) {
             return $redirect;
         }

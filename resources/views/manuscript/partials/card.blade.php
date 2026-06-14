@@ -1,18 +1,24 @@
 {{-- resources/views/manuscript/partials/card.blade.php --}}
 @php
-    $p       = $detail->titleProgress;
-    $next    = $p->getNextStatus();
-    $primary = $detail->authors->sortBy('pivot.position')->first();
-    $service = optional($detail->scopes->first())->name ?? strtoupper($detail->type);
+    $p          = $detail->titleProgress;
+    $next       = $p->getNextStatus();
+    $primary    = $detail->authors->sortBy('pivot.position')->first();
+    $service    = optional($detail->scopes->first())->name ?? strtoupper($detail->type);
+    $orderCount = $detail->group_order_count ?? 1;
 @endphp
 <div class="card mb-2 mt-card" data-id="{{ $p->id }}" data-status="{{ $p->status }}">
     <div class="card-body p-2">
         <div class="d-flex justify-content-between align-items-center">
             <span class="text-primary fw-bold" style="font-size:11px">{{ $detail->order->code_order ?? '—' }}</span>
-            @if($p->priority === 'high')<span class="badge bg-danger">High</span>@endif
+            <div class="d-flex gap-1">
+                @if($orderCount > 1)
+                    <span class="badge bg-secondary" title="Jumlah order untuk judul ini">{{ $orderCount }} order</span>
+                @endif
+                @if($p->priority === 'high')<span class="badge bg-danger">High</span>@endif
+            </div>
         </div>
 
-        <a href="{{ route('order.indexJudul.progress', $detail->id) }}"
+        <a href="{{ route('order.indexJudul.detail', $detail->id) }}"
            class="d-block fw-semibold text-dark text-decoration-none mt-1" style="font-size:13px; line-height:1.3">
             {{ Str::limit($detail->title, 60) }}
         </a>
@@ -27,7 +33,12 @@
 
         <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
             <span class="badge bg-info">{{ Str::limit($service, 18) }}</span>
-            <small class="text-muted">{{ optional($p->started_at)->diffForHumans() }}</small>
+            <small class="text-muted">
+                @if($detail->group_is_mixed ?? false)
+                    <span class="badge bg-light text-muted" title="Status antar order belum seragam">beragam</span>
+                @endif
+                {{ optional($p->started_at)->diffForHumans() }}
+            </small>
         </div>
 
         <div class="d-flex justify-content-between align-items-center mt-1">

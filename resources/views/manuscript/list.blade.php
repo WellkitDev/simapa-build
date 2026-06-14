@@ -22,6 +22,7 @@
                     <thead>
                         <tr>
                             <th>Judul Naskah</th>
+                            <th>Order</th>
                             <th>Stage</th>
                             <th>Editor</th>
                             <th>Prioritas</th>
@@ -30,23 +31,27 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse($details as $detail)
+                        @forelse($groups as $detail)
                             @php $p = $detail->titleProgress; @endphp
                             <tr>
                                 <td>
-                                    <strong>{{ Str::limit($detail->title, 50) }}</strong><br>
-                                    <small class="text-muted">{{ $detail->order->code_order ?? '—' }}</small>
+                                    <strong>{{ Str::limit($detail->title, 50) }}</strong>
+                                    <small class="text-muted">· {{ $detail->group_author_count ?? $detail->authors->count() }} penulis</small>
                                 </td>
-                                <td><span class="badge bg-{{ $statusBadge[$p->status] ?? 'secondary' }}">{{ Str::title(str_replace('_', ' ', $p->status)) }}</span></td>
+                                <td><span class="badge bg-secondary">{{ $detail->group_order_count ?? 1 }}</span></td>
+                                <td>
+                                    <span class="badge bg-{{ $statusBadge[$p->status] ?? 'secondary' }}">{{ Str::title(str_replace('_', ' ', $p->status)) }}</span>
+                                    @if($detail->group_is_mixed ?? false)<span class="badge bg-light text-muted">beragam</span>@endif
+                                </td>
                                 <td>{{ optional($p->assignedUser)->name ?? '—' }}</td>
                                 <td><span class="badge bg-{{ $prioBadge[$p->priority] ?? 'secondary' }}">{{ ucfirst($p->priority) }}</span></td>
                                 <td><small>{{ optional($p->started_at)->diffForHumans() }}</small></td>
                                 <td class="text-end">
-                                    <a href="{{ route('order.indexJudul.progress', $detail->id) }}" class="btn btn-sm btn-outline-primary">Detail</a>
+                                    <a href="{{ route('order.indexJudul.detail', $detail->id) }}" class="btn btn-sm btn-outline-primary">Detail</a>
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="6" class="text-center text-muted py-4">Tidak ada naskah.</td></tr>
+                            <tr><td colspan="7" class="text-center text-muted py-4">Tidak ada naskah.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
