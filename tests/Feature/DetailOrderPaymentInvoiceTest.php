@@ -158,4 +158,46 @@ class DetailOrderPaymentInvoiceTest extends TestCase
         ]);
         Queue::assertNotPushed(SendInvoiceJob::class);
     }
+
+    /** @test */
+    public function approve_dispatches_email_when_requested(): void
+    {
+        Queue::fake();
+        $order   = $this->makeOrder();
+        $payment = $this->makePayment($order, 'lunas', 1000000, 'pending');
+        $invoice = $this->makeInvoice($order, $payment, true, 'diterbitkan');
+
+        $this->actingAs($this->manager)
+            ->post(route('payment.approve', $payment->id))
+            ->assertRedirect();
+
+        Queue::assertPushed(SendInvoiceJob::class);
+        $this->assertDatabaseHas('tb_invoices', ['id' => $invoice->id, 'status' => 'lunas']);
+    }
+
+    /** @test */
+    public function approve_does_not_email_when_not_requested(): void
+    {
+        Queue::fake();
+        $order   = $this->makeOrder();
+        $payment = $this->makePayment($order, 'lunas', 1000000, 'pending');
+        $this->makeInvoice($order, $payment, false, 'diterbitkan');
+
+        $this->actingAs($this->manager)->post(route('payment.approve', $payment->id))->assertRedirect();
+
+        Queue::assertNotPushed(SendInvoiceJob::class);
+    }
+
+    /** @test */
+    public function approve_is_blocked_when_already_approved(): void
+    {
+        Queue::fake();
+        $order   = $this->makeOrder();
+        $payment = $this->makePayment($order, 'lunas', 1000000, 'approved');
+        $this->makeInvoice($order, $payment, true, 'lunas');
+
+        $this->actingAs($this->manager)->post(route('payment.approve', $payment->id))->assertRedirect();
+
+        Queue::assertNotPushed(SendInvoiceJob::class);
+    }
 }

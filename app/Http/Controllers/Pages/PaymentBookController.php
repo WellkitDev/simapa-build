@@ -205,27 +205,28 @@ class PaymentBookController extends Controller
 
     public function approve($id)
     {
-        try {
-            DB::transaction(function () use ($id) {
-                $payment = Payment::with(['approval', 'order'])->findOrFail($id);
+        $payment = Payment::with('approval')->findOrFail($id);
 
-                // 1. Update status di tb_payments
+        if (optional($payment->approval)->status === 'approved') {
+            return back()->with('info', 'Pembayaran sudah disetujui.');
+        }
+
+        try {
+            $invoiceToEmail = null;
+
+            DB::transaction(function () use ($payment, &$invoiceToEmail) {
                 $payment->update(['status' => 'paid']);
 
-                // 2. Update status di tb_payment_approvals
                 $payment->approval()->update([
-                    'status' => 'approved',
+                    'status'      => 'approved',
                     'approved_by' => auth()->id(),
-                    'approved_at' => now()
+                    'approved_at' => now(),
                 ]);
 
-                // Update invoice terkait ke status lunas
                 $invoice = Invoice::where('payment_id', $payment->id)->first();
                 if ($invoice) {
                     $fromStatus = $invoice->status;
-                    $invoice->update([
-                        'status' => 'lunas',
-                    ]);
+                    $invoice->update(['status' => 'lunas']);
                     \App\Models\InvoiceLog::create([
                         'invoice_id'  => $invoice->id,
                         'from_status' => $fromStatus,
@@ -233,13 +234,21 @@ class PaymentBookController extends Controller
                         'changed_by'  => auth()->id(),
                         'note'        => 'Disetujui otomatis saat payment approve.',
                     ]);
+
+                    if ($invoice->email_requested) {
+                        $invoiceToEmail = $invoice->id;
+                    }
                 }
 
-                // Optional: Jika ini pelunasan, update status Order jadi 'success'
-                if ($payment->payment_type === 'lunas' || $payment->payment_type == 'pelunasan') {
+                if ($payment->payment_type === 'lunas' || $payment->payment_type === 'pelunasan') {
+                    $payment->load('order');
                     $payment->order->update(['status' => 'lunas']);
                 }
             });
+
+            if (!empty($invoiceToEmail)) {
+                SendInvoiceJob::dispatch($invoiceToEmail);
+            }
 
             return redirect()->route('payment.index')->with('success', 'Pembayaran berhasil disetujui.');
         } catch (\Exception $e) {
