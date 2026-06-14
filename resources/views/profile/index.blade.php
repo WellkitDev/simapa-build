@@ -18,7 +18,7 @@
                     <div
                         class="d-flex justify-content-between align-items-center position-absolute top-90 w-100 px-2 px-md-4 mt-n4">
                         <div>
-                            @if (!Auth::user()->profile->profile_picture_url)
+                            @if (!Auth::user()->profile?->profile_picture_url)
                                 <img class="wd-70 rounded-circle" src="{{ asset('assets/images/others/user.svg') }}"
                                     alt="profile">
                             @else
@@ -123,7 +123,7 @@
                         <div class="card-header">
                             <div class="d-flex align-items-center justify-content-between">
                                 <div class="d-flex align-items-center">
-                                    @if (!Auth::user()->profile->profile_picture_url)
+                                    @if (!Auth::user()->profile?->profile_picture_url)
                                         <img class="img-xs rounded-circle"
                                             src="{{ asset('assets/images/others/user.svg') }}" alt="profile">
                                     @else
@@ -234,7 +234,7 @@
                         <div class="card-header">
                             <div class="d-flex align-items-center justify-content-between">
                                 <div class="d-flex align-items-center">
-                                    @if (!Auth::user()->profile->profile_picture_url)
+                                    @if (!Auth::user()->profile?->profile_picture_url)
                                         <img class="img-xs rounded-circle"
                                             src="{{ asset('assets/images/others/user.svg') }}" alt="profile">
                                     @else

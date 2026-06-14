@@ -2,18 +2,18 @@
 
 namespace Tests\Feature;
 
-// use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class ExampleTest extends TestCase
 {
     /**
-     * A basic test example.
+     * The root URL redirects guests to the login screen by design
+     * (see routes/web.php).
      */
-    public function test_the_application_returns_a_successful_response(): void
+    public function test_the_application_redirects_to_login(): void
     {
         $response = $this->get('/');
 
-        $response->assertStatus(200);
+        $response->assertRedirect(route('login'));
     }
 }
