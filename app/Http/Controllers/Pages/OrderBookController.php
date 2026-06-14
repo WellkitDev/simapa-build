@@ -264,6 +264,7 @@ class OrderBookController extends Controller
         'details.authors',
         'details.scopes',
         'payments.approval',
+        'payments.invoice',
         'invoices',
         'contact'
         ])->where('code_order', $code_order)->firstOrFail();

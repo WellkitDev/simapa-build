@@ -160,35 +160,91 @@
                                 <th>Jumlah</th>
                                 <th>Bukti</th>
                                 <th>Status Approval</th>
+                                <th>Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
                             @forelse($order->payments as $index => $payment)
+                                @php $appStatus = $payment->approval->status ?? 'pending'; @endphp
                                 <tr>
                                     <td>{{ $index + 1 }}</td>
                                     <td>{{ $payment->created_at->format('d M Y H:i') }}</td>
-                                    <td><span class="badge bg-secondary text-uppercase">{{ $payment->payment_type }}</span>
-                                    </td>
+                                    <td><span class="badge bg-secondary text-uppercase">{{ $payment->payment_type }}</span></td>
                                     <td>Rp {{ number_format($payment->amount, 0, ',', '.') }}</td>
                                     <td>
                                         @if ($payment->proof_url)
-                                            <a href="{{ $payment->proof_url }}" target="_blank"
-                                                class="btn btn-sm btn-outline-primary">Lihat Bukti</a>
+                                            <a href="{{ $payment->proof_url }}" target="_blank" class="btn btn-sm btn-outline-primary">Lihat Bukti</a>
                                         @else
                                             -
                                         @endif
                                     </td>
                                     <td>
-                                        @php $appStatus = $payment->approval->status ?? 'pending'; @endphp
-                                        <span
-                                            class="badge {{ $appStatus == 'approved' ? 'bg-success' : ($appStatus == 'rejected' ? 'bg-danger' : 'bg-warning') }}">
+                                        <span class="badge {{ $appStatus == 'approved' ? 'bg-success' : ($appStatus == 'rejected' ? 'bg-danger' : 'bg-warning') }}">
                                             {{ ucfirst($appStatus) }}
                                         </span>
                                     </td>
+                                    <td class="text-nowrap">
+                                        @if ($payment->invoice)
+                                            <a href="{{ route('invoice.pdf', $payment->invoice->id) }}" target="_blank"
+                                               class="btn btn-sm btn-outline-success">Download Invoice</a>
+                                        @endif
+                                        @hasanyrole('manager|superadmin')
+                                            @if ($appStatus === 'pending')
+                                                <button type="button" class="btn btn-sm btn-outline-warning"
+                                                        data-bs-toggle="modal" data-bs-target="#editPayment{{ $payment->id }}">Edit</button>
+                                            @endif
+                                        @endhasanyrole
+                                    </td>
                                 </tr>
+
+                                @hasanyrole('manager|superadmin')
+                                    @if ($appStatus === 'pending')
+                                        <div class="modal fade" id="editPayment{{ $payment->id }}" tabindex="-1" aria-hidden="true">
+                                            <div class="modal-dialog">
+                                                <form class="modal-content" method="POST"
+                                                      action="{{ route('payment.update', $payment->id) }}" enctype="multipart/form-data">
+                                                    @csrf
+                                                    @method('PUT')
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title">Edit Pembayaran</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Jumlah (Rp)</label>
+                                                            <input type="number" name="amount" class="form-control" min="1"
+                                                                   value="{{ old('amount', $payment->amount) }}" required>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Jenis</label>
+                                                            <select name="payment_type" class="form-select" required>
+                                                                @foreach (['dp' => 'DP', 'lunas' => 'Lunas', 'pelunasan' => 'Pelunasan'] as $val => $lbl)
+                                                                    <option value="{{ $val }}" {{ $payment->payment_type === $val ? 'selected' : '' }}>{{ $lbl }}</option>
+                                                                @endforeach
+                                                            </select>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Tanggal</label>
+                                                            <input type="date" name="paid_at" class="form-control"
+                                                                   value="{{ old('paid_at', \Carbon\Carbon::parse($payment->paid_at)->format('Y-m-d')) }}" required>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Bukti (opsional, kosongkan jika tidak diganti)</label>
+                                                            <input type="file" name="proof_url" class="form-control" accept=".jpg,.jpeg,.png,.pdf">
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                                                        <button type="submit" class="btn btn-primary">Simpan</button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    @endif
+                                @endhasanyrole
                             @empty
                                 <tr>
-                                    <td colspan="6" class="text-center text-muted">Belum ada riwayat pembayaran.</td>
+                                    <td colspan="7" class="text-center text-muted">Belum ada riwayat pembayaran.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -199,34 +255,55 @@
 
         <div class="card shadow-sm">
             <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Invoice Terakhir</h5>
-                @if ($order->invoices->isNotEmpty())
-                    <a href="{{ route('payment.printInvoice', $order->code_order) }}" target="_blank"
-                        class="btn btn-light btn-sm">Download
-                        PDF Invoice</a>
-                @endif
+                <h5 class="mb-0">Daftar Invoice</h5>
+                <span class="badge {{ $remainingBalance <= 0 ? 'bg-success' : 'bg-warning text-dark' }}">
+                    {{ $remainingBalance <= 0 ? 'LUNAS' : 'MENUNGGU PELUNASAN' }}
+                </span>
             </div>
-            <div class="card-body text-center">
-                @if ($order->invoices->isNotEmpty())
-                    @php $latestInv = $order->invoices->last(); @endphp
-                    <p><strong>No. Invoice:</strong> {{ $latestInv->invoice_no }}</p>
-                    <p><strong>Tanggal Terbit:</strong> {{ \Carbon\Carbon::parse($latestInv->issued_at)->format('d F Y') }}
-                    </p>
-                    <p><strong>Jatuh Tempo:</strong> {{ \Carbon\Carbon::parse($latestInv->due_at)->format('d F Y') }}</p>
-
-                    <h4 class="mt-4">
-                        Status:
-                        @if ($remainingBalance <= 0)
-                            <span class="text-success fw-bold">LUNAS</span>
-                        @else
-                            <span class="text-warning fw-bold text-uppercase">Menunggu Pelunasan</span>
-                        @endif
-                    </h4>
-                @else
-                    <div class="py-3">
-                        <p class="text-muted">Invoice belum diterbitkan.</p>
-                    </div>
-                @endif
+            <div class="card-body">
+                @php
+                    $invStatusColors = [
+                        'draft' => 'secondary', 'diterbitkan' => 'info', 'jatuh_tempo' => 'warning',
+                        'lunas' => 'success', 'dibatalkan' => 'danger', 'refund' => 'dark',
+                    ];
+                @endphp
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>No</th>
+                                <th>No. Invoice</th>
+                                <th>Tanggal Terbit</th>
+                                <th>Jatuh Tempo</th>
+                                <th>Status</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($order->invoices->sortByDesc('id') as $i => $invoice)
+                                <tr>
+                                    <td>{{ $i + 1 }}</td>
+                                    <td>{{ $invoice->invoice_no }}</td>
+                                    <td>{{ \Carbon\Carbon::parse($invoice->issued_at)->format('d F Y') }}</td>
+                                    <td>{{ \Carbon\Carbon::parse($invoice->due_at)->format('d F Y') }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ $invStatusColors[$invoice->status] ?? 'secondary' }}">
+                                            {{ Str::title(str_replace('_', ' ', $invoice->status)) }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="{{ route('invoice.pdf', $invoice->id) }}" target="_blank"
+                                           class="btn btn-sm btn-outline-success">Download</a>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted">Invoice belum diterbitkan.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>

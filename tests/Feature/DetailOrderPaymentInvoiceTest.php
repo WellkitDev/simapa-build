@@ -244,4 +244,20 @@ class DetailOrderPaymentInvoiceTest extends TestCase
             'paid_at'      => now()->toDateString(),
         ])->assertStatus(403);
     }
+
+    /** @test */
+    public function detail_order_page_shows_invoice_table_and_payment_actions(): void
+    {
+        $order   = $this->makeOrder();
+        $payment = $this->makePayment($order, 'dp', 300000, 'pending');
+        $invoice = $this->makeInvoice($order, $payment, false, 'diterbitkan');
+
+        $resp = $this->actingAs($this->manager)->get(route('order.book.show', $order->code_order));
+
+        $resp->assertOk();
+        $resp->assertSee('Daftar Invoice');
+        $resp->assertSee($invoice->invoice_no);
+        $resp->assertSee('Download Invoice');
+        $resp->assertSee('Edit Pembayaran'); // edit modal title shown for pending payment (manager)
+    }
 }
