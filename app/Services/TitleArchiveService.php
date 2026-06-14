@@ -27,7 +27,12 @@ class TitleArchiveService
 
     public function groupKey(OrderDetail $detail): string
     {
-        return $this->pipelineClass($detail->type) . '|' . $this->normalizeTitle($detail->title);
+        return $this->groupKeyFor($detail->type, $detail->title);
+    }
+
+    public function groupKeyFor(string $type, string $title): string
+    {
+        return $this->pipelineClass($type) . '|' . $this->normalizeTitle($title);
     }
 
     public function stagesFor(string $pipelineClass): array

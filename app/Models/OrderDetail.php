@@ -14,8 +14,19 @@ class OrderDetail extends Model
         'order_id', 'type', 'title', 'slug',
         'chapters', 'indexation',
         'naskah_type', 'publication_type',
-        'cost_amount'
+        'cost_amount', 'group_key',
     ];
+
+    protected static function booted(): void
+    {
+        // Jaga group_key selalu sinkron dengan tipe + judul (pengelompokan judul).
+        static::saving(function (OrderDetail $detail) {
+            if ($detail->type !== null && $detail->title !== null) {
+                $detail->group_key = (new \App\Services\TitleArchiveService())
+                    ->groupKeyFor($detail->type, $detail->title);
+            }
+        });
+    }
 
     public function order()
     {
