@@ -153,4 +153,40 @@ class TitleProgressTest extends TestCase
 
         $this->assertEquals(1, TitleProgress::count());
     }
+
+    /** @test */
+    public function title_progress_is_created_when_journal_order_is_stored(): void
+    {
+        $this->actingAs($this->marketing);
+
+        $payload = [
+            'type'             => 'at_mandiri',
+            'title'            => 'Artikel Tes Integrasi',
+            'indexation'       => 'Scopus Q2',
+            'naskah_type'      => 'mandiri',
+            'publication_type' => 'regular',
+            'issued_at'        => now()->toDateString(),
+            'cost_amount'      => 2000000,
+            'contact_phone'    => '08123456789',
+            'contact_email'    => 'artikel@example.com',
+            'authors'          => [
+                [
+                    'name'        => 'Penulis Artikel',
+                    'email'       => 'penulis-artikel@example.com',
+                    'phone'       => '0812',
+                    'affiliation' => 'UI',
+                    'position'    => 1,
+                ],
+            ],
+        ];
+
+        $this->post(route('order.journal.store'), $payload);
+
+        $this->assertDatabaseHas('tb_title_progress', [
+            'status'        => 'menunggu_proses',
+            'assigned_role' => 'marketing',
+        ]);
+
+        $this->assertEquals(1, TitleProgress::count());
+    }
 }
