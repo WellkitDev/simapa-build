@@ -155,4 +155,43 @@ class ManuscriptTrackerTest extends TestCase
             ->assertSee('NASKAH PRIORITAS TINGGI')
             ->assertDontSee('NASKAH BIASA');
     }
+
+    /** @test */
+    public function board_card_shows_author_editor_priority_and_next_action(): void
+    {
+        $editor = $this->user('production');
+
+        $author = \App\Models\Author::create([
+            'name'        => 'Dr. Faizul Husnayain',
+            'email'       => 'faizul@example.com',
+            'phone'       => '08123456789',
+            'affiliation' => 'UIN Antasari',
+        ]);
+
+        $detail = OrderDetail::factory()->create([
+            'type'  => 'bk_mandiri',
+            'title' => 'Adaptive Fuzzy Control of UAV',
+        ]);
+        $detail->authors()->attach($author->id, ['position' => 1]);
+
+        TitleProgress::create([
+            'order_detail_id'  => $detail->id,
+            'status'           => 'editing',
+            'assigned_role'    => 'production',
+            'assigned_user_id' => $editor->id,
+            'priority'         => 'high',
+            'started_at'       => now(),
+        ]);
+
+        $this->actingAs($this->user('production'));
+
+        $this->get(route('manuscript.board', ['tipe' => 'buku']))
+            ->assertOk()
+            ->assertSee('Adaptive Fuzzy Control of UAV')
+            ->assertSee('Dr. Faizul Husnayain')
+            ->assertSee('UIN Antasari')
+            ->assertSee($editor->name)
+            ->assertSee('High')
+            ->assertSee('Majukan ke Layout'); // next stage after editing (buku)
+    }
 }
