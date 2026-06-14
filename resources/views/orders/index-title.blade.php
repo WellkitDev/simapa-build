@@ -83,10 +83,23 @@
 @push('custom-scripts')
 <script>
     $(function () {
-        $(".datatable").DataTable({
+        var table = $(".datatable").DataTable({
             pageLength: 10,
             order: [[1, "asc"]],
+            // Kolom No (index 0) tidak ikut diurut/dicari; dinomori ulang via event di bawah.
+            columnDefs: [
+                { targets: 0, orderable: false, searchable: false }
+            ],
         });
+
+        // Nomor urut selalu 1..n mengikuti hasil filter & urutan (menyambung antar halaman).
+        table.on('order.dt search.dt', function () {
+            var i = 1;
+            table.cells(null, 0, { search: 'applied', order: 'applied' }).every(function () {
+                this.data(i++);
+            });
+        }).draw();
+
         $(".dataTables_length select, .dataTables_filter input").addClass("form-control mb-2");
         $('.custom-select').select2();
     });
