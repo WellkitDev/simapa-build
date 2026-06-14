@@ -21,6 +21,9 @@ class TitleProgressService
             throw ValidationException::withMessages(['status' => 'Status tidak valid untuk tipe naskah ini.']);
         }
 
+        // Tahap akhir bersifat terminal untuk SEMUA role (termasuk superadmin) —
+        // konsisten dengan perilaku controller sebelumnya. Koreksi naskah yang sudah
+        // terbit/publish di luar cakupan fitur ini.
         $next = $progress->getNextStatus();
         if ($next === null) {
             throw ValidationException::withMessages(['status' => 'Naskah sudah berada di tahap akhir.']);

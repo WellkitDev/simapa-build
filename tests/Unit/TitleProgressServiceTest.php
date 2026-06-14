@@ -159,4 +159,45 @@ class TitleProgressServiceTest extends TestCase
         $this->expectException(ValidationException::class);
         $this->svc->setPriority($p, 'urgent', $manager);
     }
+
+    /** @test */
+    public function change_status_from_final_stage_is_blocked_for_all_roles(): void
+    {
+        $p = $this->progress('terbit'); // tahap akhir buku — terminal
+        $this->expectException(ValidationException::class);
+        $this->svc->changeStatus($p, 'cetak', $this->user('superadmin'), 'mau cetak ulang');
+    }
+
+    /** @test */
+    public function change_status_rejects_target_invalid_for_type(): void
+    {
+        $p = $this->progress('editing', 'bk_mandiri'); // 'publish' bukan stage buku
+        $this->expectException(ValidationException::class);
+        $this->svc->changeStatus($p, 'publish', $this->user('superadmin'));
+    }
+
+    /** @test */
+    public function correction_with_whitespace_only_note_is_rejected(): void
+    {
+        $p = $this->progress('isbn');
+        $this->expectException(ValidationException::class);
+        $this->svc->changeStatus($p, 'editing', $this->user('superadmin'), '   ');
+    }
+
+    /** @test */
+    public function assign_editor_rejects_unauthorized_actor(): void
+    {
+        $p = $this->progress('editing');
+        $editor = $this->user('production');
+        $this->expectException(AuthorizationException::class);
+        $this->svc->assignEditor($p, $editor->id, $this->user('marketing'));
+    }
+
+    /** @test */
+    public function set_priority_rejects_unauthorized_actor(): void
+    {
+        $p = $this->progress('editing');
+        $this->expectException(AuthorizationException::class);
+        $this->svc->setPriority($p, 'high', $this->user('marketing'));
+    }
 }
