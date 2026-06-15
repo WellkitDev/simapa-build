@@ -185,7 +185,8 @@ class ManuscriptTrackerTest extends TestCase
 
         $this->actingAs($this->user('production'));
 
-        $this->get(route('manuscript.board', ['tipe' => 'buku']))
+        // scope=all: kartu ditugaskan ke editor lain → uji "papan tim", bukan default Meja Saya
+        $this->get(route('manuscript.board', ['tipe' => 'buku', 'scope' => 'all']))
             ->assertOk()
             ->assertSee('Adaptive Fuzzy Control of UAV')
             ->assertSee('Dr. Faizul Husnayain')

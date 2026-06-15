@@ -44,6 +44,11 @@ class ManuscriptTrackerController extends Controller
         $tipe = $request->query('tipe') === 'artikel' ? 'artikel' : 'buku';
         $view = in_array($request->query('view'), ['list', 'log'], true) ? $request->query('view') : 'board';
 
+        $isProductionOnly = Auth::user()->hasRole('production') && ! Auth::user()->hasAnyRole(['manager', 'superadmin']);
+        $scope = $request->query('scope') === 'all' ? 'all'
+               : ($request->query('scope') === 'mine' ? 'mine' : ($isProductionOnly ? 'mine' : 'all'));
+        $prodStages = TitleProgress::productionStages();
+
         $editorFilter = $request->query('editor');
         if ($editorFilter === 'me') {
             $editorFilter = (string) Auth::id();
@@ -63,10 +68,21 @@ class ManuscriptTrackerController extends Controller
                 $q->whereHas('titleProgress', fn ($t) => $t->where('priority', $request->query('priority'))))
             ->when($request->boolean('review'), fn ($q) =>
                 $q->whereHas('titleProgress', fn ($t) => $t->where('needs_review', true)))
+            ->when($scope === 'mine', fn ($q) =>
+                $q->whereHas('titleProgress', fn ($t) =>
+                    $t->where('assigned_user_id', Auth::id())
+                      ->orWhere(fn ($w) => $w->whereNull('assigned_user_id')->whereIn('status', $prodStages))))
             ->get();
 
         $stages   = $tipe === 'buku' ? TitleProgress::BOOK_STAGES : TitleProgress::ARTICLE_STAGES;
         $groups   = $this->buildGroupCards($details, $stages);
+        $prioRank = ['high' => 0, 'normal' => 1, 'low' => 2];
+        $groups   = $groups->sortBy(function ($g) use ($prioRank) {
+            $p = $g->titleProgress;
+            $overdue = $p->target_date && $p->target_date->isPast() && ! TitleProgress::isFinal($p->status) ? 0 : 1;
+            $target  = optional($p->target_date)->timestamp ?? PHP_INT_MAX;
+            return [$overdue, $prioRank[$p->priority] ?? 1, $target];
+        })->values();
         $byStatus = $groups->groupBy(fn ($g) => optional($g->titleProgress)->status ?? 'menunggu_proses');
         $editors  = User::whereHas('roles', fn ($q) => $q->whereIn('name', ['production', 'manager']))
             ->orderBy('name')->get(['id', 'name']);
@@ -90,7 +106,7 @@ class ManuscriptTrackerController extends Controller
                 ->get();
         }
 
-        return view('manuscript.' . $view, compact('groups', 'stages', 'byStatus', 'tipe', 'view', 'editors', 'zones', 'reviewCount', 'logs'));
+        return view('manuscript.' . $view, compact('groups', 'stages', 'byStatus', 'tipe', 'view', 'editors', 'zones', 'reviewCount', 'logs', 'scope'));
     }
 
     /**
