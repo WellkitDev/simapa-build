@@ -325,11 +325,18 @@ class TitleProgressServiceTest extends TestCase
     }
 
     /** @test */
-    public function set_target_date_rejects_unauthorized_actor(): void
+    public function set_target_date_allows_marketing_but_rejects_roleless_user(): void
     {
         $p = $this->progress('editing');
-        $this->expectException(AuthorizationException::class);
+
+        // Marketing kini boleh set target.
         $this->svc->setTargetDate($p, '2026-09-30', $this->user('marketing'));
+        $this->assertEquals('2026-09-30', $p->fresh()->target_date->toDateString());
+
+        // User tanpa role tetap ditolak.
+        $noRole = User::factory()->create();
+        $this->expectException(AuthorizationException::class);
+        $this->svc->setTargetDate($p, '2026-10-01', $noRole);
     }
 
     /** @test */

@@ -88,7 +88,7 @@ Route::middleware('auth')->group(function () {
             ->middleware('role:manager|superadmin');
         Route::post('manuscript/{id}/target', [ManuscriptTrackerController::class, 'target'])
             ->name('manuscript.target')
-            ->middleware('role:production|manager|superadmin');
+            ->middleware('role:marketing|production|manager|superadmin');
     });
 
     Route::prefix('payments')->name('payment.')->group(function () {

@@ -119,10 +119,10 @@ class TitleProgressService
         return $progress;
     }
 
-    /** Set/clear target tanggal terbit/publish. Kosong = hapus target. */
+    /** Set/clear target tanggal terbit/publish. Kosong = hapus target. Marketing juga boleh. */
     public function setTargetDate(TitleProgress $progress, ?string $date, User $actor): TitleProgress
     {
-        if (! $actor->hasAnyRole(['production', 'manager', 'superadmin'])) {
+        if (! $actor->hasAnyRole(['marketing', 'production', 'manager', 'superadmin'])) {
             throw new AuthorizationException();
         }
 

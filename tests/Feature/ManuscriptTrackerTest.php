@@ -383,6 +383,18 @@ class ManuscriptTrackerTest extends TestCase
     }
 
     /** @test */
+    public function marketing_can_set_target_date(): void
+    {
+        $p = $this->progress('editing');
+        $this->actingAs($this->user('marketing'));
+
+        $this->postJson(route('manuscript.target', $p->id), ['target_date' => '2026-12-31'])
+            ->assertOk()->assertJson(['ok' => true, 'target_date' => '2026-12-31']);
+
+        $this->assertDatabaseHas('tb_title_progress', ['id' => $p->id, 'target_date' => '2026-12-31']);
+    }
+
+    /** @test */
     public function board_card_shows_target_date(): void
     {
         $p = $this->progress('editing');

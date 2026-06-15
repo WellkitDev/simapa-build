@@ -113,15 +113,16 @@
                 </div>
             </div>
 
-            {{-- Penugasan & Prioritas --}}
-            @hasanyrole('production|manager|superadmin')
+            {{-- Kontrol Naskah --}}
+            @hasanyrole('marketing|production|manager|superadmin')
             <div class="card mb-4">
                 <div class="card-header bg-transparent border-bottom">
-                    <h5 class="mb-0">Penugasan & Prioritas</h5>
+                    <h5 class="mb-0">Kontrol Naskah</h5>
                 </div>
                 <div class="card-body">
                     @php $tw = in_array($detail->type, ['bk_mandiri','bk_kolab'], true) ? 'terbit' : 'publish'; @endphp
                     <div class="row g-3">
+                        @hasanyrole('production|manager|superadmin')
                         <div class="col-md-4">
                             <form method="POST" action="{{ route('manuscript.assign', $progress->id) }}">
                                 @csrf
@@ -152,6 +153,7 @@
                                 </div>
                             </form>
                         </div>
+                        @endhasanyrole
                         <div class="col-md-4">
                             <form method="POST" action="{{ route('manuscript.target', $progress->id) }}">
                                 @csrf
