@@ -121,8 +121,9 @@
                     <h5 class="mb-0">Penugasan & Prioritas</h5>
                 </div>
                 <div class="card-body">
+                    @php $tw = in_array($detail->type, ['bk_mandiri','bk_kolab'], true) ? 'terbit' : 'publish'; @endphp
                     <div class="row g-3">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <form method="POST" action="{{ route('manuscript.assign', $progress->id) }}">
                                 @csrf
                                 <label class="form-label form-label-sm">Editor / Penanggung Jawab</label>
@@ -138,7 +139,7 @@
                                 @error('assigned_user_id') <small class="text-danger">{{ $message }}</small> @enderror
                             </form>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <form method="POST" action="{{ route('manuscript.priority', $progress->id) }}">
                                 @csrf
                                 <label class="form-label form-label-sm">Prioritas</label>
@@ -150,6 +151,18 @@
                                     </select>
                                     <button type="submit" class="btn btn-sm btn-primary">Simpan</button>
                                 </div>
+                            </form>
+                        </div>
+                        <div class="col-md-4">
+                            <form method="POST" action="{{ route('manuscript.target', $progress->id) }}">
+                                @csrf
+                                <label class="form-label form-label-sm">Target {{ $tw }}</label>
+                                <div class="d-flex gap-2">
+                                    <input type="date" name="target_date" class="form-control form-control-sm"
+                                           value="{{ optional($progress->target_date)->format('Y-m-d') }}">
+                                    <button type="submit" class="btn btn-sm btn-primary">Simpan</button>
+                                </div>
+                                @error('target_date') <small class="text-danger">{{ $message }}</small> @enderror
                             </form>
                         </div>
                     </div>

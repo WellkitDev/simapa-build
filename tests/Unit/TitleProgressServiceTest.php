@@ -311,4 +311,35 @@ class TitleProgressServiceTest extends TestCase
             $this->assertEquals('high', $p->fresh()->priority);
         }
     }
+
+    /** @test */
+    public function set_target_date_stores_and_clears(): void
+    {
+        $p = $this->progress('editing');
+
+        $this->svc->setTargetDate($p, '2026-09-30', $this->user('production'));
+        $this->assertEquals('2026-09-30', $p->fresh()->target_date->toDateString());
+
+        $this->svc->setTargetDate($p, '', $this->user('manager'));
+        $this->assertNull($p->fresh()->target_date);
+    }
+
+    /** @test */
+    public function set_target_date_rejects_unauthorized_actor(): void
+    {
+        $p = $this->progress('editing');
+        $this->expectException(AuthorizationException::class);
+        $this->svc->setTargetDate($p, '2026-09-30', $this->user('marketing'));
+    }
+
+    /** @test */
+    public function group_target_date_sets_on_all_variants(): void
+    {
+        $grp = $this->group('editing', 'editing');
+        $this->svc->setGroupTargetDate($grp, '2026-12-01', $this->user('manager'));
+
+        foreach ($grp as $p) {
+            $this->assertEquals('2026-12-01', $p->fresh()->target_date->toDateString());
+        }
+    }
 }

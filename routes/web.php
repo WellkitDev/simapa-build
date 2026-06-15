@@ -86,6 +86,9 @@ Route::middleware('auth')->group(function () {
         Route::post('manuscript/{id}/reviewed', [ManuscriptTrackerController::class, 'reviewed'])
             ->name('manuscript.reviewed')
             ->middleware('role:manager|superadmin');
+        Route::post('manuscript/{id}/target', [ManuscriptTrackerController::class, 'target'])
+            ->name('manuscript.target')
+            ->middleware('role:production|manager|superadmin');
     });
 
     Route::prefix('payments')->name('payment.')->group(function () {

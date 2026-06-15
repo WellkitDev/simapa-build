@@ -32,6 +32,7 @@
                             <th>Stage</th>
                             <th>Editor</th>
                             <th>Prioritas</th>
+                            <th>Target</th>
                             <th>Update</th>
                             <th>Aksi</th>
                         </tr>
@@ -53,6 +54,14 @@
                                 </td>
                                 <td>{{ optional($p->assignedUser)->name ?? '—' }}</td>
                                 <td><span class="badge bg-{{ $prioBadge[$p->priority] ?? 'secondary' }}">{{ ucfirst($p->priority) }}</span></td>
+                                <td>
+                                    @php $od = $p->target_date && $p->target_date->isPast() && ! in_array($p->status, ['terbit','publish'], true); @endphp
+                                    @if($p->target_date)
+                                        <span class="badge bg-{{ $od ? 'danger' : 'light text-dark border' }}" title="Target terbit/publish">{{ $p->target_date->format('d M Y') }}</span>
+                                    @else
+                                        <span class="text-muted">—</span>
+                                    @endif
+                                </td>
                                 <td><small>{{ optional($p->started_at)->diffForHumans() }}</small></td>
                                 <td>
                                     <a href="{{ route('order.indexJudul.detail', $detail->id) }}" class="btn btn-sm btn-outline-primary">Detail</a>

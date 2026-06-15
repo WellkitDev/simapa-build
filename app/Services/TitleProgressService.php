@@ -119,6 +119,26 @@ class TitleProgressService
         return $progress;
     }
 
+    /** Set/clear target tanggal terbit/publish. Kosong = hapus target. */
+    public function setTargetDate(TitleProgress $progress, ?string $date, User $actor): TitleProgress
+    {
+        if (! $actor->hasAnyRole(['production', 'manager', 'superadmin'])) {
+            throw new AuthorizationException();
+        }
+
+        $value = null;
+        if ($date !== null && trim($date) !== '') {
+            try {
+                $value = \Illuminate\Support\Carbon::createFromFormat('Y-m-d', trim($date))->startOfDay();
+            } catch (\Throwable $e) {
+                throw ValidationException::withMessages(['target_date' => 'Tanggal target tidak valid.']);
+            }
+        }
+
+        $progress->update(['target_date' => $value]);
+        return $progress;
+    }
+
     /**
      * Buat TitleProgress untuk detail baru. Jika sudah ada order lain berjudul sama (grup)
      * yang sedang diproses, warisi status + penugasan grup agar tetap sinkron; jika tidak,
@@ -215,6 +235,15 @@ class TitleProgressService
         DB::transaction(function () use ($progresses, $priority, $actor) {
             foreach (collect($progresses) as $p) {
                 $this->setPriority($p, $priority, $actor);
+            }
+        });
+    }
+
+    public function setGroupTargetDate(iterable $progresses, ?string $date, User $actor): void
+    {
+        DB::transaction(function () use ($progresses, $date, $actor) {
+            foreach (collect($progresses) as $p) {
+                $this->setTargetDate($p, $date, $actor);
             }
         });
     }

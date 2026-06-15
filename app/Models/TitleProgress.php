@@ -15,13 +15,14 @@ class TitleProgress extends Model
     protected $fillable = [
         'order_detail_id', 'status', 'assigned_role',
         'note', 'updated_by', 'started_at',
-        'assigned_user_id', 'priority', 'needs_review',
+        'assigned_user_id', 'priority', 'needs_review', 'target_date',
     ];
 
     protected $dates = ['started_at'];
 
     protected $casts = [
         'needs_review' => 'boolean',
+        'target_date'  => 'date',
     ];
 
     const ARTICLE_STAGES = [

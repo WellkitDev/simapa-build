@@ -241,4 +241,27 @@ class ManuscriptTrackerController extends Controller
         }
         return back()->with('success', 'Ditandai sudah ditinjau.');
     }
+
+    public function target(Request $request, int $id, TitleProgressService $service)
+    {
+        $progress = TitleProgress::with('orderDetail')->findOrFail($id);
+        $group = $this->groupFor($progress);
+
+        if ($redirect = $this->runOrFlash($request, fn () =>
+            $service->setGroupTargetDate($group, $request->input('target_date'), Auth::user())
+        )) {
+            return $redirect;
+        }
+
+        $progress->refresh();
+        if ($request->expectsJson()) {
+            return response()->json([
+                'ok'          => true,
+                'id'          => $progress->id,
+                'target_date' => optional($progress->target_date)->toDateString(),
+                'message'     => 'Target terbit diperbarui.',
+            ]);
+        }
+        return back()->with('success', 'Target terbit diperbarui.');
+    }
 }

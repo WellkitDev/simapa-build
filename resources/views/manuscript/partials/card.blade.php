@@ -5,6 +5,8 @@
     $primary    = $detail->authors->sortBy('pivot.position')->first();
     $service    = optional($detail->scopes->first())->name ?? strtoupper($detail->type);
     $orderCount = $detail->group_order_count ?? 1;
+    $targetWord = in_array($detail->type, ['bk_mandiri', 'bk_kolab'], true) ? 'terbit' : 'publish';
+    $overdue    = $p->target_date && $p->target_date->isPast() && ! in_array($p->status, ['terbit', 'publish'], true);
 @endphp
 <div class="card mb-2 mt-card" data-id="{{ $p->id }}" data-status="{{ $p->status }}">
     <div class="card-body p-2">
@@ -32,6 +34,17 @@
                 <div class="text-truncate" style="font-size:11px">{{ optional($primary)->name ?? '—' }}</div>
                 <div class="text-muted text-truncate" style="font-size:10px">{{ optional($primary)->affiliation ?? '' }}</div>
             </div>
+        </div>
+
+        {{-- Target terbit/publish (kontrol agar tidak ketinggalan) --}}
+        <div class="mt-1" style="font-size:10px">
+            @if($p->target_date)
+                <span class="badge {{ $overdue ? 'bg-danger' : 'bg-light text-dark border' }}" title="Target {{ $targetWord }}">
+                    🎯 Target {{ $targetWord }}: {{ $p->target_date->format('d M Y') }}{{ $overdue ? ' · lewat!' : '' }}
+                </span>
+            @else
+                <span class="text-muted" title="Belum ada target {{ $targetWord }}">🎯 Target {{ $targetWord }}: —</span>
+            @endif
         </div>
 
         <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
@@ -81,6 +94,13 @@
                                     <option value="{{ $pr }}" {{ $p->priority === $pr ? 'selected' : '' }}>{{ ucfirst($pr) }}</option>
                                 @endforeach
                             </select>
+                        </form>
+                    </li>
+                    <li>
+                        <form method="POST" action="{{ route('manuscript.target', $p->id) }}" class="px-2 mt-2">@csrf
+                            <label class="form-label mb-1" style="font-size:11px">Target {{ $targetWord }}</label>
+                            <input type="date" name="target_date" value="{{ optional($p->target_date)->format('Y-m-d') }}"
+                                   class="form-control form-control-sm" onchange="this.form.submit()">
                         </form>
                     </li>
                 </ul>

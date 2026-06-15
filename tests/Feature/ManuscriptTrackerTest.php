@@ -367,4 +367,33 @@ class ManuscriptTrackerTest extends TestCase
 
         $this->assertDatabaseHas('tb_title_progress', ['id' => $p->id, 'needs_review' => true]);
     }
+
+    /** @test */
+    public function target_date_endpoint_sets_all_orders_of_the_title(): void
+    {
+        $progresses = $this->groupOrders('Judul Target Terbit', ['editing', 'editing']);
+        $this->actingAs($this->user('manager'));
+
+        $this->postJson(route('manuscript.target', $progresses[0]->id), ['target_date' => '2026-10-15'])
+            ->assertOk()->assertJson(['ok' => true, 'target_date' => '2026-10-15']);
+
+        foreach ($progresses as $p) {
+            $this->assertDatabaseHas('tb_title_progress', ['id' => $p->id, 'target_date' => '2026-10-15']);
+        }
+    }
+
+    /** @test */
+    public function board_card_shows_target_date(): void
+    {
+        $p = $this->progress('editing');
+        $p->update(['target_date' => '2026-11-20']);
+        $p->orderDetail->update(['title' => 'NASKAH BERTARGET']);
+
+        $this->actingAs($this->user('production'));
+
+        $this->get(route('manuscript.board', ['tipe' => 'buku']))
+            ->assertOk()
+            ->assertSee('NASKAH BERTARGET')
+            ->assertSee('20 Nov 2026'); // format d M Y
+    }
 }
