@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Pages;
 use App\Http\Controllers\Controller;
 use App\Models\OrderDetail;
 use App\Models\TitleProgress;
+use App\Models\TitleProgressLog;
 use App\Models\User;
 use App\Services\TitleProgressService;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -41,7 +42,7 @@ class ManuscriptTrackerController extends Controller
     {
         $bookTypes = ['bk_mandiri', 'bk_kolab'];
         $tipe = $request->query('tipe') === 'artikel' ? 'artikel' : 'buku';
-        $view = $request->query('view') === 'list' ? 'list' : 'board';
+        $view = in_array($request->query('view'), ['list', 'log'], true) ? $request->query('view') : 'board';
 
         $editorFilter = $request->query('editor');
         if ($editorFilter === 'me') {
@@ -78,7 +79,18 @@ class ManuscriptTrackerController extends Controller
             ->distinct('group_key')
             ->count('group_key');
 
-        return view('manuscript.' . $view, compact('groups', 'stages', 'byStatus', 'tipe', 'view', 'editors', 'zones', 'reviewCount'));
+        // View "Log": daftar aktivitas seluruh naskah pada tipe terpilih (DataTable).
+        $logs = null;
+        if ($view === 'log') {
+            $logs = TitleProgressLog::query()
+                ->with(['changedBy', 'titleProgress.orderDetail.order'])
+                ->whereHas('titleProgress.orderDetail', $typeFilter)
+                ->orderByDesc('created_at')
+                ->limit(1000)
+                ->get();
+        }
+
+        return view('manuscript.' . $view, compact('groups', 'stages', 'byStatus', 'tipe', 'view', 'editors', 'zones', 'reviewCount', 'logs'));
     }
 
     /**

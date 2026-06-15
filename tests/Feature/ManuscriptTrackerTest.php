@@ -383,6 +383,24 @@ class ManuscriptTrackerTest extends TestCase
     }
 
     /** @test */
+    public function log_view_lists_activity_in_a_table(): void
+    {
+        $p = $this->progress('editing');
+        $p->orderDetail->update(['title' => 'NASKAH LOG TABEL']);
+        \App\Models\TitleProgressLog::create([
+            'title_progress_id' => $p->id, 'event' => 'priority_changed',
+            'from_value' => 'Normal', 'to_value' => 'High', 'changed_by' => $this->user('manager')->id,
+        ]);
+
+        $this->actingAs($this->user('production'));
+
+        $this->get(route('manuscript.board', ['tipe' => 'buku', 'view' => 'log']))
+            ->assertOk()
+            ->assertSee('NASKAH LOG TABEL')
+            ->assertSee('Ubah prioritas');
+    }
+
+    /** @test */
     public function superadmin_can_clear_log_manager_cannot(): void
     {
         $actor = $this->user('superadmin');

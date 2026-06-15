@@ -48,6 +48,8 @@
                class="btn btn-{{ $view === 'board' ? 'dark' : 'outline-dark' }}">Papan</a>
             <a href="{{ route('manuscript.board', array_merge(request()->query(), ['view' => 'list'])) }}"
                class="btn btn-{{ $view === 'list' ? 'dark' : 'outline-dark' }}">Daftar</a>
+            <a href="{{ route('manuscript.board', array_merge(request()->query(), ['view' => 'log'])) }}"
+               class="btn btn-{{ $view === 'log' ? 'dark' : 'outline-dark' }}">Log</a>
         </div>
     </form>
 </div>
