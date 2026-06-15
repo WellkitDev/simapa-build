@@ -48,18 +48,20 @@ class ManuscriptTrackerController extends Controller
             $editorFilter = (string) Auth::id();
         }
 
+        $typeFilter = fn ($q) => $tipe === 'buku'
+            ? $q->whereIn('type', $bookTypes)
+            : $q->whereNotIn('type', $bookTypes);
+
         $details = OrderDetail::query()
-            ->with(['order.user', 'authors', 'scopes', 'titleProgress.assignedUser'])
+            ->with(['order.user', 'authors', 'scopes', 'titleProgress.assignedUser', 'titleProgress.updatedBy'])
             ->whereHas('titleProgress')
-            ->when(
-                $tipe === 'buku',
-                fn ($q) => $q->whereIn('type', $bookTypes),
-                fn ($q) => $q->whereNotIn('type', $bookTypes)
-            )
+            ->where($typeFilter)
             ->when($editorFilter !== null && $editorFilter !== '', fn ($q) =>
                 $q->whereHas('titleProgress', fn ($t) => $t->where('assigned_user_id', $editorFilter)))
             ->when($request->filled('priority'), fn ($q) =>
                 $q->whereHas('titleProgress', fn ($t) => $t->where('priority', $request->query('priority'))))
+            ->when($request->boolean('review'), fn ($q) =>
+                $q->whereHas('titleProgress', fn ($t) => $t->where('needs_review', true)))
             ->get();
 
         $stages   = $tipe === 'buku' ? TitleProgress::BOOK_STAGES : TitleProgress::ARTICLE_STAGES;
@@ -69,7 +71,14 @@ class ManuscriptTrackerController extends Controller
             ->orderBy('name')->get(['id', 'name']);
         $zones    = $this->buildZones($stages);
 
-        return view('manuscript.' . $view, compact('groups', 'stages', 'byStatus', 'tipe', 'view', 'editors', 'zones'));
+        // Jumlah judul yang perlu ditinjau (untuk tipe terpilih) — penanda bagi manager/superadmin.
+        $reviewCount = OrderDetail::query()
+            ->where($typeFilter)
+            ->whereHas('titleProgress', fn ($t) => $t->where('needs_review', true))
+            ->distinct('group_key')
+            ->count('group_key');
+
+        return view('manuscript.' . $view, compact('groups', 'stages', 'byStatus', 'tipe', 'view', 'editors', 'zones', 'reviewCount'));
     }
 
     /**
@@ -214,5 +223,22 @@ class ManuscriptTrackerController extends Controller
             ]);
         }
         return back()->with('success', 'Prioritas diperbarui.');
+    }
+
+    public function reviewed(Request $request, int $id, TitleProgressService $service)
+    {
+        $progress = TitleProgress::with('orderDetail')->findOrFail($id);
+        $group = $this->groupFor($progress);
+
+        if ($redirect = $this->runOrFlash($request, fn () =>
+            $service->markReviewed($group, Auth::user())
+        )) {
+            return $redirect;
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json(['ok' => true, 'id' => $progress->id, 'message' => 'Ditandai sudah ditinjau.']);
+        }
+        return back()->with('success', 'Ditandai sudah ditinjau.');
     }
 }

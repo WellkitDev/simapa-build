@@ -32,6 +32,17 @@
             @endforeach
         </select>
 
+        @php $rq = request()->query(); unset($rq['review']); @endphp
+        @if(request()->boolean('review'))
+            <a href="{{ route('manuscript.board', $rq) }}" class="btn btn-sm btn-warning">
+                ⚑ Perlu ditinjau @if(($reviewCount ?? 0) > 0)<span class="badge bg-dark ms-1">{{ $reviewCount }}</span>@endif
+            </a>
+        @else
+            <a href="{{ route('manuscript.board', array_merge($rq, ['review' => 1])) }}" class="btn btn-sm btn-outline-warning">
+                ⚑ Perlu ditinjau @if(($reviewCount ?? 0) > 0)<span class="badge bg-warning text-dark ms-1">{{ $reviewCount }}</span>@endif
+            </a>
+        @endif
+
         <div class="btn-group btn-group-sm">
             <a href="{{ route('manuscript.board', array_merge(request()->query(), ['view' => 'board'])) }}"
                class="btn btn-{{ $view === 'board' ? 'dark' : 'outline-dark' }}">Papan</a>

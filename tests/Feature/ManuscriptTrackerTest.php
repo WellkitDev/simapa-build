@@ -321,4 +321,50 @@ class ManuscriptTrackerTest extends TestCase
             ->assertSee('NASKAH PERLU TINJAU')
             ->assertSee('tinjau');
     }
+
+    /** @test */
+    public function review_filter_shows_only_flagged_titles(): void
+    {
+        $flagged = $this->progress('editing');
+        $flagged->update(['needs_review' => true]);
+        $flagged->orderDetail->update(['title' => 'JUDUL DITINJAU']);
+
+        $clean = $this->progress('editing');
+        $clean->orderDetail->update(['title' => 'JUDUL BERSIH']);
+
+        $this->actingAs($this->user('manager'));
+
+        $this->get(route('manuscript.board', ['tipe' => 'buku', 'review' => 1]))
+            ->assertOk()
+            ->assertSee('JUDUL DITINJAU')
+            ->assertDontSee('JUDUL BERSIH');
+    }
+
+    /** @test */
+    public function manager_can_mark_group_reviewed(): void
+    {
+        $progresses = $this->groupOrders('Judul Tinjau Grup', ['editing', 'editing']);
+        foreach ($progresses as $p) {
+            $p->update(['needs_review' => true]);
+        }
+
+        $this->actingAs($this->user('manager'));
+        $this->postJson(route('manuscript.reviewed', $progresses[0]->id))->assertOk();
+
+        foreach ($progresses as $p) {
+            $this->assertDatabaseHas('tb_title_progress', ['id' => $p->id, 'needs_review' => false]);
+        }
+    }
+
+    /** @test */
+    public function production_cannot_mark_reviewed(): void
+    {
+        $p = $this->progress('editing');
+        $p->update(['needs_review' => true]);
+
+        $this->actingAs($this->user('production'));
+        $this->postJson(route('manuscript.reviewed', $p->id))->assertStatus(403);
+
+        $this->assertDatabaseHas('tb_title_progress', ['id' => $p->id, 'needs_review' => true]);
+    }
 }

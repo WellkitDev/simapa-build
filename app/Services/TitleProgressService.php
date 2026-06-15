@@ -218,4 +218,18 @@ class TitleProgressService
             }
         });
     }
+
+    /** Superadmin/manager menandai lompatan sudah ditinjau (bersihkan flag pada seluruh grup). */
+    public function markReviewed(iterable $progresses, User $actor): void
+    {
+        if (! $actor->hasAnyRole(['manager', 'superadmin'])) {
+            throw new AuthorizationException();
+        }
+
+        DB::transaction(function () use ($progresses) {
+            foreach (collect($progresses) as $p) {
+                $p->update(['needs_review' => false]);
+            }
+        });
+    }
 }
