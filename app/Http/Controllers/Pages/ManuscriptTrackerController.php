@@ -264,4 +264,21 @@ class ManuscriptTrackerController extends Controller
         }
         return back()->with('success', 'Target terbit diperbarui.');
     }
+
+    public function clearLog(Request $request, int $id, TitleProgressService $service)
+    {
+        $progress = TitleProgress::with('orderDetail')->findOrFail($id);
+        $group = $this->groupFor($progress);
+
+        if ($redirect = $this->runOrFlash($request, fn () =>
+            $service->clearLogs($group, Auth::user())
+        )) {
+            return $redirect;
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json(['ok' => true, 'id' => $progress->id, 'message' => 'Riwayat dibersihkan.']);
+        }
+        return back()->with('success', 'Riwayat aktivitas dibersihkan.');
+    }
 }

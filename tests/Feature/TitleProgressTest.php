@@ -60,8 +60,9 @@ class TitleProgressTest extends TestCase
 
         $this->assertDatabaseHas('tb_title_progress_logs', [
             'title_progress_id' => $progress->id,
-            'from_status'       => 'menunggu_proses',
-            'to_status'         => 'editing',
+            'event'             => 'status_advanced',
+            'from_value'        => 'Menunggu Proses',
+            'to_value'          => 'Editing',
             'is_correction'     => false,
         ]);
     }
@@ -119,7 +120,8 @@ class TitleProgressTest extends TestCase
         ])->assertRedirect();
 
         $this->assertDatabaseHas('tb_title_progress_logs', [
-            'to_status'     => 'editing',
+            'event'         => 'status_corrected',
+            'to_value'      => 'Editing',
             'is_correction' => true,
         ]);
     }

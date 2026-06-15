@@ -7,12 +7,16 @@
     $orderCount = $detail->group_order_count ?? 1;
     $targetWord = in_array($detail->type, ['bk_mandiri', 'bk_kolab'], true) ? 'terbit' : 'publish';
     $overdue    = $p->target_date && $p->target_date->isPast() && ! in_array($p->status, ['terbit', 'publish'], true);
+    $hasNewLog  = $p->last_log_at && $p->last_log_at->gt(now()->subDays(2));
 @endphp
 <div class="card mb-2 mt-card" data-id="{{ $p->id }}" data-status="{{ $p->status }}">
     <div class="card-body p-2">
         <div class="d-flex justify-content-between align-items-center">
             <span class="text-primary fw-bold" style="font-size:11px">{{ $detail->order->code_order ?? '—' }}</span>
             <div class="d-flex gap-1">
+                @if($hasNewLog)
+                    <span class="badge bg-success" title="Ada aktivitas baru dalam 2 hari terakhir">● log</span>
+                @endif
                 @if($p->needs_review)
                     <span class="badge bg-warning text-dark" title="Lompat tahap oleh non-superadmin — perlu ditinjau superadmin">⚑ tinjau</span>
                 @endif

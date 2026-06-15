@@ -199,33 +199,56 @@
                 </div>
             </div>
 
-            {{-- Log History --}}
+            {{-- Riwayat Aktivitas --}}
+            @php
+                $logs    = $progress->logs->sortByDesc('created_at');
+                $hasNew  = $progress->last_log_at && $progress->last_log_at->gt(now()->subDays(2));
+            @endphp
             <div class="card">
-                <div class="card-header bg-transparent border-bottom">
-                    <h5 class="mb-0">Riwayat Perubahan Status</h5>
+                <div class="card-header bg-transparent border-bottom d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        Riwayat Aktivitas
+                        <span class="badge bg-secondary ms-1">{{ $logs->count() }}</span>
+                        @if($hasNew)<span class="badge bg-success ms-1">● baru</span>@endif
+                    </h5>
+                    @role('superadmin')
+                        @if($logs->isNotEmpty())
+                        <form method="POST" action="{{ route('manuscript.clearLog', $progress->id) }}"
+                              onsubmit="return confirm('Bersihkan seluruh riwayat aktivitas judul ini? Tindakan ini tidak dapat dibatalkan.')">
+                            @csrf
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Bersihkan Riwayat</button>
+                        </form>
+                        @endif
+                    @endrole
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
                         <table class="table table-sm">
                             <thead>
                                 <tr>
-                                    <th>Dari</th><th>Ke</th><th>Diubah Oleh</th>
+                                    <th>Aktivitas</th><th>Perubahan</th><th>Oleh</th>
                                     <th>Tanggal</th><th>Catatan</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @forelse($progress->logs->sortByDesc('created_at') as $log)
+                                @forelse($logs as $log)
                                 <tr>
-                                    <td><span class="badge bg-secondary">{{ Str::title(str_replace('_',' ',$log->from_status)) }}</span></td>
-                                    <td><span class="badge bg-primary">{{ Str::title(str_replace('_',' ',$log->to_status)) }}</span></td>
-                                    <td>{{ $log->changedBy->name ?? '-' }}</td>
-                                    <td><small>{{ $log->created_at->format('d/m/Y H:i') }}</small></td>
                                     <td>
-                                        {{ $log->note ?? '-' }}
-                                        @if($log->is_correction)
-                                            <span class="badge bg-danger ms-1">Koreksi</span>
+                                        <span class="badge bg-light text-dark border">{{ $log->eventLabel() }}</span>
+                                        @if($log->is_correction)<span class="badge bg-danger ms-1">Koreksi</span>@endif
+                                    </td>
+                                    <td>
+                                        @if($log->from_value || $log->to_value)
+                                            <small class="text-muted">{{ $log->from_value ?? '—' }}</small>
+                                            <span class="mx-1">→</span>
+                                            <strong>{{ $log->to_value ?? '—' }}</strong>
+                                        @else
+                                            <small class="text-muted">—</small>
                                         @endif
                                     </td>
+                                    <td>{{ $log->changedBy->name ?? '-' }}</td>
+                                    <td><small>{{ $log->created_at->format('d/m/Y H:i') }}</small></td>
+                                    <td>{{ $log->note ?? '-' }}</td>
                                 </tr>
                                 @empty
                                 <tr><td colspan="5" class="text-center text-muted">Belum ada riwayat.</td></tr>

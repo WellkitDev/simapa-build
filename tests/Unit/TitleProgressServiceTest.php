@@ -54,7 +54,7 @@ class TitleProgressServiceTest extends TestCase
 
         $this->assertEquals('layout', $p->fresh()->status);
         $this->assertDatabaseHas('tb_title_progress_logs', [
-            'title_progress_id' => $p->id, 'to_status' => 'layout', 'is_correction' => false,
+            'title_progress_id' => $p->id, 'event' => 'status_advanced', 'to_value' => 'Layout', 'is_correction' => false,
         ]);
     }
 
@@ -159,7 +159,7 @@ class TitleProgressServiceTest extends TestCase
         $p = $this->progress('isbn');
         $this->svc->changeStatus($p, 'editing', $this->user('superadmin'), 'alasan koreksi');
         $this->assertDatabaseHas('tb_title_progress_logs', [
-            'title_progress_id' => $p->id, 'to_status' => 'editing', 'is_correction' => true,
+            'title_progress_id' => $p->id, 'event' => 'status_corrected', 'to_value' => 'Editing', 'is_correction' => true,
         ]);
     }
 
@@ -348,5 +348,53 @@ class TitleProgressServiceTest extends TestCase
         foreach ($grp as $p) {
             $this->assertEquals('2026-12-01', $p->fresh()->target_date->toDateString());
         }
+    }
+
+    /** @test */
+    public function editor_priority_target_changes_are_logged(): void
+    {
+        $p = $this->progress('editing');
+        $editor  = $this->user('production');
+        $manager = $this->user('manager');
+
+        $this->svc->assignEditor($p, $editor->id, $manager);
+        $this->assertDatabaseHas('tb_title_progress_logs', ['title_progress_id' => $p->id, 'event' => 'editor_assigned']);
+
+        $this->svc->setPriority($p, 'high', $manager);
+        $this->assertDatabaseHas('tb_title_progress_logs', ['title_progress_id' => $p->id, 'event' => 'priority_changed', 'to_value' => 'High']);
+
+        $this->svc->setTargetDate($p, '2026-09-30', $manager);
+        $this->assertDatabaseHas('tb_title_progress_logs', ['title_progress_id' => $p->id, 'event' => 'target_set', 'to_value' => '2026-09-30']);
+
+        $this->assertNotNull($p->fresh()->last_log_at);
+    }
+
+    /** @test */
+    public function no_op_priority_change_is_not_logged(): void
+    {
+        $p = $this->progress('editing');
+        $p->update(['priority' => 'normal']);
+
+        $this->svc->setPriority($p, 'normal', $this->user('manager')); // sama → tak ada log
+        $this->assertEquals(0, $p->logs()->where('event', 'priority_changed')->count());
+    }
+
+    /** @test */
+    public function clear_logs_requires_superadmin_and_empties_history(): void
+    {
+        $p = $this->progress('editing');
+        $this->svc->setPriority($p, 'high', $this->user('manager')); // 1 log
+        $this->assertEquals(1, $p->logs()->count());
+
+        try {
+            $this->svc->clearLogs([$p], $this->user('manager')); // bukan superadmin
+            $this->fail('Mestinya AuthorizationException.');
+        } catch (AuthorizationException $e) {
+            // diharapkan
+        }
+
+        $this->svc->clearLogs([$p->fresh()], $this->user('superadmin'));
+        $this->assertEquals(0, $p->fresh()->logs()->count());
+        $this->assertNull($p->fresh()->last_log_at);
     }
 }

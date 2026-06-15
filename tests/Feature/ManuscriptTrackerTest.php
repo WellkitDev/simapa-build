@@ -383,6 +383,49 @@ class ManuscriptTrackerTest extends TestCase
     }
 
     /** @test */
+    public function superadmin_can_clear_log_manager_cannot(): void
+    {
+        $actor = $this->user('superadmin');
+        $progresses = $this->groupOrders('Judul Clear Log', ['editing', 'editing']);
+        foreach ($progresses as $p) {
+            \App\Models\TitleProgressLog::create([
+                'title_progress_id' => $p->id, 'event' => 'status_advanced',
+                'from_value' => 'Editing', 'to_value' => 'Layout', 'changed_by' => $actor->id,
+            ]);
+        }
+
+        // Manager ditolak oleh middleware role:superadmin.
+        $this->actingAs($this->user('manager'));
+        $this->postJson(route('manuscript.clearLog', $progresses[0]->id))->assertStatus(403);
+        $this->assertDatabaseHas('tb_title_progress_logs', ['title_progress_id' => $progresses[0]->id]);
+
+        // Superadmin membersihkan seluruh grup.
+        $this->actingAs($actor);
+        $this->postJson(route('manuscript.clearLog', $progresses[0]->id))->assertOk();
+        foreach ($progresses as $p) {
+            $this->assertDatabaseMissing('tb_title_progress_logs', ['title_progress_id' => $p->id]);
+        }
+    }
+
+    /** @test */
+    public function title_detail_shows_activity_log_and_clear_button_for_superadmin(): void
+    {
+        $p = $this->progress('editing');
+        \App\Models\TitleProgressLog::create([
+            'title_progress_id' => $p->id, 'event' => 'priority_changed',
+            'from_value' => 'Normal', 'to_value' => 'High', 'changed_by' => $this->user('superadmin')->id,
+        ]);
+
+        $this->actingAs($this->user('superadmin'));
+
+        $this->get(route('order.indexJudul.progress', $p->order_detail_id))
+            ->assertOk()
+            ->assertSee('Riwayat Aktivitas')
+            ->assertSee('Ubah prioritas')      // eventLabel
+            ->assertSee('Bersihkan Riwayat');  // clear button (superadmin)
+    }
+
+    /** @test */
     public function marketing_can_set_target_date(): void
     {
         $p = $this->progress('editing');

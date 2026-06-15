@@ -9,6 +9,7 @@ use App\Models\TitleProgress;
 use App\Models\TitleProgressLog;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class TitleProgressService
@@ -56,16 +57,33 @@ class TitleProgressService
             'needs_review'  => $isCorrection && ! $actor->hasRole('superadmin'),
         ]);
 
+        $this->log(
+            $progress,
+            $isCorrection ? 'status_corrected' : 'status_advanced',
+            Str::title(str_replace('_', ' ', $from)),
+            Str::title(str_replace('_', ' ', $target)),
+            $actor,
+            $note,
+            $isCorrection
+        );
+
+        return $progress;
+    }
+
+    /** Catat satu entri aktivitas + perbarui penanda aktivitas terbaru pada progress. */
+    private function log(TitleProgress $progress, string $event, ?string $from, ?string $to, User $actor, ?string $note = null, bool $isCorrection = false): void
+    {
         TitleProgressLog::create([
             'title_progress_id' => $progress->id,
-            'from_status'       => $from,
-            'to_status'         => $target,
+            'event'             => $event,
+            'from_value'        => $from,
+            'to_value'          => $to,
             'changed_by'        => $actor->id,
             'note'              => $note,
             'is_correction'     => $isCorrection,
         ]);
 
-        return $progress;
+        $progress->update(['last_log_at' => now()]);
     }
 
     /**
@@ -93,6 +111,7 @@ class TitleProgressService
             throw new AuthorizationException();
         }
 
+        $assignee = null;
         if ($userId !== null) {
             $assignee = User::find($userId);
             if (!$assignee || !$assignee->hasAnyRole(['production', 'manager'])) {
@@ -102,7 +121,12 @@ class TitleProgressService
             }
         }
 
-        $progress->update(['assigned_user_id' => $userId]);
+        if ((int) $progress->assigned_user_id !== (int) $userId) {
+            $from = optional(User::find($progress->assigned_user_id))->name ?? '—';
+            $progress->update(['assigned_user_id' => $userId]);
+            $this->log($progress, 'editor_assigned', $from, optional($assignee)->name ?? '—', $actor);
+        }
+
         return $progress;
     }
 
@@ -115,7 +139,12 @@ class TitleProgressService
             throw ValidationException::withMessages(['priority' => 'Prioritas tidak valid.']);
         }
 
-        $progress->update(['priority' => $priority]);
+        if ($progress->priority !== $priority) {
+            $from = ucfirst((string) $progress->priority);
+            $progress->update(['priority' => $priority]);
+            $this->log($progress, 'priority_changed', $from, ucfirst($priority), $actor);
+        }
+
         return $progress;
     }
 
@@ -135,7 +164,13 @@ class TitleProgressService
             }
         }
 
-        $progress->update(['target_date' => $value]);
+        $oldDate = optional($progress->target_date)->toDateString();
+        $newDate = optional($value)->toDateString();
+        if ($oldDate !== $newDate) {
+            $progress->update(['target_date' => $value]);
+            $this->log($progress, 'target_set', $oldDate ?? '—', $newDate ?? '—', $actor);
+        }
+
         return $progress;
     }
 
@@ -255,9 +290,27 @@ class TitleProgressService
             throw new AuthorizationException();
         }
 
+        DB::transaction(function () use ($progresses, $actor) {
+            foreach (collect($progresses) as $p) {
+                if ($p->needs_review) {
+                    $p->update(['needs_review' => false]);
+                    $this->log($p, 'reviewed', null, null, $actor);
+                }
+            }
+        });
+    }
+
+    /** Bersihkan seluruh riwayat aktivitas grup. Hanya superadmin. */
+    public function clearLogs(iterable $progresses, User $actor): void
+    {
+        if (! $actor->hasRole('superadmin')) {
+            throw new AuthorizationException();
+        }
+
         DB::transaction(function () use ($progresses) {
             foreach (collect($progresses) as $p) {
-                $p->update(['needs_review' => false]);
+                $p->logs()->delete();
+                $p->update(['last_log_at' => null]);
             }
         });
     }

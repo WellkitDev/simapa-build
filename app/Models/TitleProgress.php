@@ -15,7 +15,7 @@ class TitleProgress extends Model
     protected $fillable = [
         'order_detail_id', 'status', 'assigned_role',
         'note', 'updated_by', 'started_at',
-        'assigned_user_id', 'priority', 'needs_review', 'target_date',
+        'assigned_user_id', 'priority', 'needs_review', 'target_date', 'last_log_at',
     ];
 
     protected $dates = ['started_at'];
@@ -23,6 +23,7 @@ class TitleProgress extends Model
     protected $casts = [
         'needs_review' => 'boolean',
         'target_date'  => 'date',
+        'last_log_at'  => 'datetime',
     ];
 
     const ARTICLE_STAGES = [
