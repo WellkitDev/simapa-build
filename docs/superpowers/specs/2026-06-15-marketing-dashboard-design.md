@@ -25,7 +25,7 @@ Dibangun di atas data yang ada (Order, Payment, TitleProgress, `target_date`, ac
 - **Belum diproses** = `status = menunggu_proses` (sudah di-order, belum diambil production/admin).
 - **Naskah aktif** = sedang dikerjakan = status **bukan** final **dan bukan** `menunggu_proses`.
 - **Selesai** = status final (`terbit`/`publish`).
-- **Pemasukan** = `Payment` `status = paid`, `amount`, untuk order milik marketing.
+- **Pemasukan** = Σ `amount` dari **setiap** record `Payment` `status = paid` untuk order milik marketing. Karena tiap pembayaran (DP, parsial/cicilan, pelunasan) adalah record `Payment` tersendiri ber-`payment_type`, penjumlahan ini **sudah termasuk DP/parsial** — bukan hanya order lunas. (`status` di `tb_payments` hanya `paid`/`rejected`.)
 
 Marketing-only = `hasRole('marketing')` **dan bukan** `manager`/`superadmin`.
 
@@ -59,6 +59,7 @@ Empat seksi (Blade partial + ApexCharts):
 | Lewat Target | status ∉ final, `target_date < hari ini` |
 | Jatuh Tempo ≤7 hari | status ∉ final, `target_date` dalam 7 hari ke depan |
 | Selesai Bulan Ini | status ∈ final, `started_at` di bulan berjalan |
+| Total Selesai | status ∈ final (semua waktu) |
 
 ### D. Chart Progres
 - **Donut** distribusi naskah-ku per-tahap (aktif, non-final).
@@ -75,7 +76,7 @@ MarketingDashboardService::forUser(User $user): array
 ```
 Mengembalikan: `pemasukan_hari_ini, pemasukan_minggu_ini, pemasukan_tahun_ini, jumlah_order_tahun_ini,
 income_trend{labels,series}, order_trend{labels,series},
-naskah_aktif, belum_diproses, lewat_target, jatuh_tempo_7, selesai_bulan_ini,
+naskah_aktif, belum_diproses, lewat_target, jatuh_tempo_7, selesai_bulan_ini, total_selesai,
 per_stage{labels,series}, completion_trend{labels,series}`.
 
 **Scoping query:**
@@ -135,7 +136,7 @@ Marketing buka Arsip Judul
 | Marketing tanpa order/naskah | semua KPI 0; chart kosong (series kosong aman di ApexCharts); empty state ramah |
 | Naskah tanpa `target_date` | dikecualikan dari lewat-target & jatuh-tempo; tetap dihitung di aktif/belum-diproses/selesai |
 | User marketing + role lain (mis. manager) | bukan marketing-only → dashboard generik + progres global (tidak dapat dashboard marketing) |
-| Payment tanpa `paid_at` (belum lunas) | tidak masuk pemasukan (hanya `status=paid`) |
+| Payment `status=rejected` | tidak masuk pemasukan (hanya `status=paid` dihitung — termasuk DP/parsial/pelunasan) |
 | Arsip Judul grup tanpa target | kolom Target tampil "—", tanpa badge overdue |
 
 ---
@@ -144,8 +145,9 @@ Marketing buka Arsip Judul
 
 **Unit — `MarketingDashboardServiceTest`:**
 - pemasukan hari ini/minggu/tahun hanya menjumlah Payment paid milik order marketing itu (bukan marketing lain).
+- pemasukan **menjumlah beberapa Payment paid pada satu order** (mis. DP + pelunasan) — memastikan DP/parsial ikut terhitung.
 - jumlah_order_tahun_ini hanya order miliknya, tahun berjalan.
-- `belum_diproses` = hanya `menunggu_proses`; `naskah_aktif` mengecualikan final & menunggu; `selesai_bulan_ini` = final di bulan ini.
+- `belum_diproses` = hanya `menunggu_proses`; `naskah_aktif` mengecualikan final & menunggu; `selesai_bulan_ini` = final di bulan ini; `total_selesai` = semua final lintas waktu.
 - `lewat_target` = non-final & target < hari ini (due-today TIDAK overdue, konsisten dengan board/KPI produksi).
 - scoping: naskah/pembayaran milik marketing lain tidak ikut terhitung.
 
