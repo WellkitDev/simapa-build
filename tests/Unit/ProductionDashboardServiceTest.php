@@ -64,4 +64,16 @@ class ProductionDashboardServiceTest extends TestCase
         $g = $this->svc->global();
         $this->assertEquals(2, $g['total_in_production']);
     }
+
+    /** @test */
+    public function for_user_counts_due_soon_within_7_days(): void
+    {
+        $me = User::factory()->create();
+        $me->assignRole('production');
+
+        $this->progress(['assigned_user_id' => $me->id, 'status' => 'editing', 'target_date' => now()->addDays(3)->toDateString()]);  // jatuh tempo ≤7
+        $this->progress(['assigned_user_id' => $me->id, 'status' => 'editing', 'target_date' => now()->addDays(10)->toDateString()]); // di luar 7 hari
+
+        $this->assertEquals(1, $this->svc->forUser($me)['jatuh_tempo_7']);
+    }
 }

@@ -54,7 +54,7 @@
                                 <td>{{ optional($p->assignedUser)->name ?? '—' }}</td>
                                 <td><span class="badge bg-{{ $prioBadge[$p->priority] ?? 'secondary' }}">{{ ucfirst($p->priority) }}</span></td>
                                 <td>
-                                    @php $od = $p->target_date && $p->target_date->isPast() && ! in_array($p->status, ['terbit','publish'], true); @endphp
+                                    @php $od = $p->target_date && $p->target_date->lt(today()) && ! in_array($p->status, ['terbit','publish'], true); @endphp
                                     @if($p->target_date)
                                         <span class="badge bg-{{ $od ? 'danger' : 'light text-dark border' }}" title="Target terbit/publish">{{ $p->target_date->format('d M Y') }}</span>
                                     @else
@@ -86,7 +86,7 @@
     $(function () {
         var table = $(".datatable").DataTable({
             pageLength: 10,
-            order: [[1, "asc"]],
+            order: [], // pertahankan urutan server (overdue → prioritas → target)
             // Kolom No (index 0) tidak ikut diurut/dicari; dinomori ulang via event di bawah.
             columnDefs: [
                 { targets: 0, orderable: false, searchable: false }

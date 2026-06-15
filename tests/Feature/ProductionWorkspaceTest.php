@@ -117,4 +117,22 @@ class ProductionWorkspaceTest extends TestCase
             ->assertDontSee('Antrian Saya')      // bukan dashboard produksi
             ->assertDontSee('Progres Naskah');   // bukan seksi global manager
     }
+
+    /** @test */
+    public function board_sorts_overdue_before_non_overdue_in_same_column(): void
+    {
+        // dua naskah di kolom 'editing': satu overdue+high, satu normal tanpa target
+        $this->progress(['status' => 'editing', 'priority' => 'high', 'target_date' => now()->subDays(3)->toDateString(), 'title' => 'NASKAH OVERDUE']);
+        $this->progress(['status' => 'editing', 'priority' => 'normal', 'title' => 'NASKAH BIASA']);
+
+        $this->actingAs($this->user('manager'));
+        $content = $this->get(route('manuscript.board', ['tipe' => 'buku', 'scope' => 'all']))
+            ->assertOk()->getContent();
+
+        $this->assertLessThan(
+            strpos($content, 'NASKAH BIASA'),
+            strpos($content, 'NASKAH OVERDUE'),
+            'Naskah overdue mestinya tampil sebelum naskah biasa di kolom yang sama.'
+        );
+    }
 }

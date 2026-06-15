@@ -79,7 +79,7 @@ class ManuscriptTrackerController extends Controller
         $prioRank = ['high' => 0, 'normal' => 1, 'low' => 2];
         $groups   = $groups->sortBy(function ($g) use ($prioRank) {
             $p = $g->titleProgress;
-            $overdue = $p->target_date && $p->target_date->isPast() && ! TitleProgress::isFinal($p->status) ? 0 : 1;
+            $overdue = $p->target_date && $p->target_date->lt(today()) && ! TitleProgress::isFinal($p->status) ? 0 : 1;
             $target  = optional($p->target_date)->timestamp ?? PHP_INT_MAX;
             return [$overdue, $prioRank[$p->priority] ?? 1, $target];
         })->values();

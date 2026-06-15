@@ -88,4 +88,15 @@ class PerformanceServiceTest extends TestCase
         $r = $this->svc->forEditor($ed, 30);
         $this->assertEquals(2, $r['active_queue']);
     }
+
+    /** @test */
+    public function completion_exactly_on_target_counts_as_on_time(): void
+    {
+        $ed = $this->editor();
+        $this->progress(['assigned_user_id' => $ed->id, 'status' => 'terbit', 'started_at' => '2026-06-15', 'target_date' => '2026-06-15']);
+
+        $r = $this->svc->forEditor($ed, 3650);
+        $this->assertEquals(1, $r['on_time']);
+        $this->assertEquals(100.0, $r['on_time_rate']);
+    }
 }

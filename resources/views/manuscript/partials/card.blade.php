@@ -6,7 +6,7 @@
     $service    = optional($detail->scopes->first())->name ?? strtoupper($detail->type);
     $orderCount = $detail->group_order_count ?? 1;
     $targetWord = in_array($detail->type, ['bk_mandiri', 'bk_kolab'], true) ? 'terbit' : 'publish';
-    $overdue    = $p->target_date && $p->target_date->isPast() && ! in_array($p->status, ['terbit', 'publish'], true);
+    $overdue    = $p->target_date && $p->target_date->lt(today()) && ! in_array($p->status, ['terbit', 'publish'], true);
     $hasNewLog  = $p->last_log_at && $p->last_log_at->gt(now()->subDays(2));
 @endphp
 <div class="card mb-2 mt-card" data-id="{{ $p->id }}" data-status="{{ $p->status }}">
