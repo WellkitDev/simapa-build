@@ -53,6 +53,19 @@ class TitleProgress extends Model
 
     const PRIORITIES = ['low', 'normal', 'high'];
 
+    const FINAL_STAGES = ['terbit', 'publish'];
+
+    /** Daftar status yang handler-nya production (diturunkan dari STAGE_HANDLER). */
+    public static function productionStages(): array
+    {
+        return array_keys(array_filter(self::STAGE_HANDLER, fn ($role) => $role === 'production'));
+    }
+
+    public static function isFinal(string $status): bool
+    {
+        return in_array($status, self::FINAL_STAGES, true);
+    }
+
     public function orderDetail()
     {
         return $this->belongsTo(OrderDetail::class);
