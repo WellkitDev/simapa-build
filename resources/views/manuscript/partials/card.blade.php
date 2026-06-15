@@ -11,6 +11,9 @@
         <div class="d-flex justify-content-between align-items-center">
             <span class="text-primary fw-bold" style="font-size:11px">{{ $detail->order->code_order ?? '—' }}</span>
             <div class="d-flex gap-1">
+                @if($p->needs_review)
+                    <span class="badge bg-warning text-dark" title="Lompat tahap oleh non-superadmin — perlu ditinjau superadmin">⚑ tinjau</span>
+                @endif
                 @if($orderCount > 1)
                     <span class="badge bg-secondary" title="Jumlah order untuk judul ini">{{ $orderCount }} order</span>
                 @endif

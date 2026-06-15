@@ -279,4 +279,46 @@ class ManuscriptTrackerTest extends TestCase
             $this->assertDatabaseHas('tb_title_progress', ['id' => $p->id, 'assigned_user_id' => $editor->id]);
         }
     }
+
+    /** @test */
+    public function production_jump_with_note_sets_review_flag(): void
+    {
+        $p = $this->progress('editing'); // handler production
+        $this->actingAs($this->user('production'));
+
+        // Lompat editing → isbn (skip layout/proofreading) dengan catatan.
+        $this->postJson(route('manuscript.move', $p->id), ['status' => 'isbn', 'note' => 'lompat oke'])
+            ->assertOk()->assertJson(['ok' => true, 'status' => 'isbn']);
+
+        $this->assertDatabaseHas('tb_title_progress', [
+            'id' => $p->id, 'status' => 'isbn', 'needs_review' => true,
+        ]);
+    }
+
+    /** @test */
+    public function production_jump_without_note_is_rejected(): void
+    {
+        $p = $this->progress('editing');
+        $this->actingAs($this->user('production'));
+
+        $this->postJson(route('manuscript.move', $p->id), ['status' => 'isbn'])
+            ->assertStatus(422);
+
+        $this->assertDatabaseHas('tb_title_progress', ['id' => $p->id, 'status' => 'editing']);
+    }
+
+    /** @test */
+    public function board_shows_review_badge_when_flagged(): void
+    {
+        $p = $this->progress('editing');
+        $p->update(['needs_review' => true]);
+        $p->orderDetail->update(['title' => 'NASKAH PERLU TINJAU']);
+
+        $this->actingAs($this->user('production'));
+
+        $this->get(route('manuscript.board', ['tipe' => 'buku']))
+            ->assertOk()
+            ->assertSee('NASKAH PERLU TINJAU')
+            ->assertSee('tinjau');
+    }
 }

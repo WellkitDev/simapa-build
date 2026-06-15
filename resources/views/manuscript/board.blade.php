@@ -48,6 +48,31 @@
         </div>
     </div>
 </div>
+
+{{-- Modal catatan untuk koreksi/lompat tahap --}}
+<div class="modal fade" id="mtNoteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Koreksi / Lompat Tahap</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-2" style="font-size:13px">
+                    Pemindahan ini <strong>melompati atau memundurkan</strong> urutan normal.
+                    Wajib beri catatan alasannya.
+                </p>
+                <div id="mtNoteTarget" class="mb-2 fw-semibold text-primary" style="font-size:13px"></div>
+                <textarea id="mtNoteText" class="form-control" rows="3" placeholder="Catatan / alasan (wajib)"></textarea>
+                <div id="mtNoteErr" class="text-danger mt-1" style="font-size:12px; display:none">Catatan wajib diisi.</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">Batal</button>
+                <button type="button" class="btn btn-sm btn-primary" id="mtNoteSubmit">Terapkan</button>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
 
 @push('plugin-scripts')
@@ -57,8 +82,13 @@
 @push('custom-scripts')
 <script>
 (function () {
-    const token = document.querySelector('meta[name="_token"]').getAttribute('content');
-    const base  = "{{ url('management/manuscript') }}";
+    const token  = document.querySelector('meta[name="_token"]').getAttribute('content');
+    const base   = "{{ url('management/manuscript') }}";
+    const stages = @json($stages);
+
+    const modalEl = document.getElementById('mtNoteModal');
+    const noteModal = (modalEl && window.bootstrap) ? new bootstrap.Modal(modalEl) : null;
+    let pending = null; // { item, fromCol, oldIndex, id, target }
 
     function toast(msg, ok) {
         const el = document.createElement('div');
@@ -77,42 +107,71 @@
         });
     }
 
+    function revert(p) {
+        const ref = p.fromCol.children[p.oldIndex] || null;
+        p.fromCol.insertBefore(p.item, ref);
+    }
+
+    function sendMove(p, note) {
+        fetch(base + '/' + p.id + '/move', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': token,
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: JSON.stringify({ status: p.target, note: note }),
+        })
+        .then(async (res) => {
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.message || 'Gagal memindahkan naskah.');
+            p.item.setAttribute('data-status', p.target);
+            toast(data.message || 'Naskah dipindahkan.', true);
+            refreshCounts();
+        })
+        .catch((err) => { revert(p); toast(err.message, false); });
+    }
+
+    if (noteModal) {
+        document.getElementById('mtNoteSubmit').addEventListener('click', () => {
+            const txt = document.getElementById('mtNoteText').value.trim();
+            const err = document.getElementById('mtNoteErr');
+            if (!txt) { err.style.display = 'block'; return; }
+            err.style.display = 'none';
+            const p = pending; pending = null; // tandai sudah diproses agar tidak di-revert saat modal tutup
+            noteModal.hide();
+            sendMove(p, txt);
+        });
+        modalEl.addEventListener('hidden.bs.modal', () => {
+            if (pending) { revert(pending); pending = null; } // ditutup tanpa Terapkan → batal
+        });
+    }
+
     document.querySelectorAll('[data-column]').forEach((col) => {
         new Sortable(col, {
             group: 'manuscript',
             animation: 150,
             ghostClass: 'opacity-50',
             onEnd: function (evt) {
-                const item = evt.item;
-                const toCol = evt.to;
-                const fromCol = evt.from;
+                const item = evt.item, toCol = evt.to, fromCol = evt.from;
                 if (toCol === fromCol) return;
 
                 const target = toCol.getAttribute('data-status');
-                const id = item.getAttribute('data-id');
+                const source = fromCol.getAttribute('data-status');
+                const p = { item, fromCol, oldIndex: evt.oldIndex, id: item.getAttribute('data-id'), target };
 
-                fetch(base + '/' + id + '/move', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': token,
-                        'X-Requested-With': 'XMLHttpRequest',
-                    },
-                    body: JSON.stringify({ status: target }),
-                })
-                .then(async (res) => {
-                    const data = await res.json().catch(() => ({}));
-                    if (!res.ok) throw new Error(data.message || 'Gagal memindahkan naskah.');
-                    item.setAttribute('data-status', target);
-                    toast(data.message || 'Naskah dipindahkan.', true);
-                    refreshCounts();
-                })
-                .catch((err) => {
-                    const ref = fromCol.children[evt.oldIndex] || null;
-                    fromCol.insertBefore(item, ref);
-                    toast(err.message, false);
-                });
+                const isCorrection = (stages.indexOf(target) !== stages.indexOf(source) + 1);
+
+                if (!isCorrection) { sendMove(p, null); return; }
+
+                // Lompat/mundur → minta catatan wajib.
+                if (!noteModal) { revert(p); toast('Lompat tahap perlu catatan — gunakan halaman detail.', false); return; }
+                pending = p;
+                document.getElementById('mtNoteText').value = '';
+                document.getElementById('mtNoteErr').style.display = 'none';
+                document.getElementById('mtNoteTarget').textContent = 'Pindah ke: ' + target.replace(/_/g, ' ');
+                noteModal.show();
             },
         });
     });

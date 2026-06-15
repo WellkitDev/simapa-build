@@ -42,6 +42,7 @@
                                 <td>
                                     <span class="badge bg-{{ $statusBadge[$p->status] ?? 'secondary' }}">{{ Str::title(str_replace('_', ' ', $p->status)) }}</span>
                                     @if($detail->group_is_mixed ?? false)<span class="badge bg-light text-muted">beragam</span>@endif
+                                    @if($p->needs_review)<span class="badge bg-warning text-dark" title="Perlu ditinjau superadmin">⚑ tinjau</span>@endif
                                 </td>
                                 <td>{{ optional($p->assignedUser)->name ?? '—' }}</td>
                                 <td><span class="badge bg-{{ $prioBadge[$p->priority] ?? 'secondary' }}">{{ ucfirst($p->priority) }}</span></td>
