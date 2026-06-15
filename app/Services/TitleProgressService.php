@@ -33,10 +33,10 @@ class TitleProgressService
         $current      = $progress->status;
         $isCorrection = ($target !== $next);
 
-        $this->authorizeChange($actor, $current, $isCorrection);
+        $this->authorizeChange($actor, $current);
 
         if ($isCorrection && trim((string) $note) === '') {
-            throw ValidationException::withMessages(['note' => 'Catatan wajib diisi untuk koreksi status.']);
+            throw ValidationException::withMessages(['note' => 'Catatan wajib diisi untuk koreksi/lompat status.']);
         }
 
         return DB::transaction(fn () => $this->applyStatus($progress, $current, $target, $actor, $note, $isCorrection));
@@ -51,6 +51,9 @@ class TitleProgressService
             'note'          => $note,
             'updated_by'    => $actor->id,
             'started_at'    => now(),
+            // Koreksi/lompat oleh non-superadmin ditandai untuk ditinjau; aksi superadmin
+            // atau langkah maju biasa membersihkan tanda.
+            'needs_review'  => $isCorrection && ! $actor->hasRole('superadmin'),
         ]);
 
         TitleProgressLog::create([
@@ -65,19 +68,21 @@ class TitleProgressService
         return $progress;
     }
 
-    private function authorizeChange(User $actor, string $current, bool $isCorrection): void
+    /**
+     * Gerbang role untuk memindahkan kartu. Sama untuk maju maupun koreksi/lompat —
+     * koreksi oleh non-superadmin diizinkan tetapi wajib catatan & ditandai perlu ditinjau
+     * (lihat changeStatus/changeGroupStatus + applyStatus).
+     */
+    private function authorizeChange(User $actor, string $current): void
     {
         if ($actor->hasRole('superadmin')) {
             return; // bebas: maju, mundur, lompat
         }
-        if ($isCorrection) {
-            throw new AuthorizationException('Hanya superadmin yang dapat melakukan koreksi.');
-        }
         if ($actor->hasRole('manager')) {
-            return; // maju stage apa pun
+            return; // oversight: stage apa pun
         }
         if ($actor->hasRole('production') && TitleProgress::getHandlerForStatus($current) === 'production') {
-            return; // maju stage yang sedang jadi domain production
+            return; // hanya kartu yang sedang jadi domain production
         }
         throw new AuthorizationException('Anda tidak berhak memindahkan naskah pada tahap ini.');
     }
@@ -177,10 +182,10 @@ class TitleProgressService
         }
 
         $isCorrection = ($target !== $next);
-        $this->authorizeChange($actor, $canonical, $isCorrection);
+        $this->authorizeChange($actor, $canonical);
 
         if ($isCorrection && trim((string) $note) === '') {
-            throw ValidationException::withMessages(['note' => 'Catatan wajib diisi untuk koreksi status.']);
+            throw ValidationException::withMessages(['note' => 'Catatan wajib diisi untuk koreksi/lompat status.']);
         }
 
         $targetIdx = array_search($target, $stages, true);

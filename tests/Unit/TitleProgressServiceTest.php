@@ -75,11 +75,21 @@ class TitleProgressServiceTest extends TestCase
     }
 
     /** @test */
-    public function production_cannot_make_correction(): void
+    public function production_correction_requires_note_and_flags_review(): void
     {
-        $p = $this->progress('layout');
-        $this->expectException(AuthorizationException::class);
-        $this->svc->changeStatus($p, 'editing', $this->user('production')); // mundur
+        $p = $this->progress('layout'); // handler production (kartu domain mereka)
+
+        try {
+            $this->svc->changeStatus($p, 'editing', $this->user('production')); // mundur tanpa catatan
+            $this->fail('Mestinya ValidationException karena catatan kosong.');
+        } catch (ValidationException $e) {
+            // diharapkan
+        }
+
+        $this->svc->changeStatus($p->fresh(), 'editing', $this->user('production'), 'lompat dengan alasan');
+        $p->refresh();
+        $this->assertEquals('editing', $p->status);
+        $this->assertTrue($p->needs_review);
     }
 
     /** @test */
@@ -99,11 +109,21 @@ class TitleProgressServiceTest extends TestCase
     }
 
     /** @test */
-    public function manager_cannot_make_correction(): void
+    public function manager_correction_requires_note_and_flags_review(): void
     {
         $p = $this->progress('layout');
-        $this->expectException(AuthorizationException::class);
-        $this->svc->changeStatus($p, 'editing', $this->user('manager'));
+
+        try {
+            $this->svc->changeStatus($p, 'editing', $this->user('manager'));
+            $this->fail('Mestinya ValidationException karena catatan kosong.');
+        } catch (ValidationException $e) {
+            // diharapkan
+        }
+
+        $this->svc->changeStatus($p->fresh(), 'editing', $this->user('manager'), 'koreksi manager');
+        $p->refresh();
+        $this->assertEquals('editing', $p->status);
+        $this->assertTrue($p->needs_review);
     }
 
     /** @test */
@@ -112,6 +132,25 @@ class TitleProgressServiceTest extends TestCase
         $p = $this->progress('isbn');
         $this->expectException(ValidationException::class);
         $this->svc->changeStatus($p, 'editing', $this->user('superadmin'), null);
+    }
+
+    /** @test */
+    public function superadmin_correction_does_not_flag_review(): void
+    {
+        $p = $this->progress('isbn');
+        $this->svc->changeStatus($p, 'editing', $this->user('superadmin'), 'koreksi super');
+        $this->assertFalse($p->fresh()->needs_review);
+    }
+
+    /** @test */
+    public function normal_advance_clears_review_flag(): void
+    {
+        $p = $this->progress('layout');
+        $this->svc->changeStatus($p, 'editing', $this->user('production'), 'lompat'); // koreksi → flag
+        $this->assertTrue($p->fresh()->needs_review);
+
+        $this->svc->changeStatus($p->fresh(), 'layout', $this->user('production')); // maju normal → bersih
+        $this->assertFalse($p->fresh()->needs_review);
     }
 
     /** @test */

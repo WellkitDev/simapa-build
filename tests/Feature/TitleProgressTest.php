@@ -67,7 +67,7 @@ class TitleProgressTest extends TestCase
     }
 
     /** @test */
-    public function manager_cannot_make_correction_jump(): void
+    public function manager_jump_requires_note_then_succeeds_and_flags_review(): void
     {
         $manager = User::factory()->create();
         $manager->assignRole('manager');
@@ -83,12 +83,17 @@ class TitleProgressTest extends TestCase
 
         $this->actingAs($manager);
 
-        $this->post(route('title.progress.update', $progress->id), [
-            'status' => 'terbit',
-            'note'   => '',
-        ])->assertStatus(403);
-
+        // Lompat tanpa catatan → ditolak, status tak berubah.
+        $this->post(route('title.progress.update', $progress->id), ['status' => 'terbit', 'note' => ''])
+            ->assertSessionHasErrors('note');
         $this->assertDatabaseHas('tb_title_progress', ['id' => $progress->id, 'status' => 'menunggu_proses']);
+
+        // Lompat dengan catatan → berhasil, ditandai perlu ditinjau.
+        $this->post(route('title.progress.update', $progress->id), ['status' => 'terbit', 'note' => 'lompat dengan alasan'])
+            ->assertRedirect();
+        $this->assertDatabaseHas('tb_title_progress', [
+            'id' => $progress->id, 'status' => 'terbit', 'needs_review' => true,
+        ]);
     }
 
     /** @test */
