@@ -56,7 +56,7 @@
                 <li class="nav-item {{ active_class(['management/manuscript']) }}">
                     <a href="{{ route('manuscript.board') }}" class="nav-link">
                         <i class="link-icon" data-feather="trello"></i>
-                        <span class="link-title">Manuscript Tracker</span>
+                        <span class="link-title">{{ (auth()->user()->hasRole('production') && ! auth()->user()->hasAnyRole(['manager','superadmin'])) ? 'Meja Kerja Saya' : 'Manuscript Tracker' }}</span>
                     </a>
                 </li>
             @endrole

@@ -44,6 +44,13 @@
         @endif
 
         <div class="btn-group btn-group-sm">
+            <a href="{{ route('manuscript.board', array_merge(request()->query(), ['scope' => 'mine'])) }}"
+               class="btn btn-{{ ($scope ?? 'all') === 'mine' ? 'success' : 'outline-success' }}">Meja Saya</a>
+            <a href="{{ route('manuscript.board', array_merge(request()->query(), ['scope' => 'all'])) }}"
+               class="btn btn-{{ ($scope ?? 'all') === 'all' ? 'success' : 'outline-success' }}">Semua</a>
+        </div>
+
+        <div class="btn-group btn-group-sm">
             <a href="{{ route('manuscript.board', array_merge(request()->query(), ['view' => 'board'])) }}"
                class="btn btn-{{ $view === 'board' ? 'dark' : 'outline-dark' }}">Papan</a>
             <a href="{{ route('manuscript.board', array_merge(request()->query(), ['view' => 'list'])) }}"

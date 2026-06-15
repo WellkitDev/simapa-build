@@ -69,4 +69,17 @@ class ProductionWorkspaceTest extends TestCase
             ->assertOk()
             ->assertDontSee('PUNYA EDITOR LAIN');
     }
+
+    /** @test */
+    public function ambil_self_assigns_unclaimed_naskah(): void
+    {
+        $me = $this->user('production');
+        $p  = $this->progress(['assigned_user_id' => null, 'status' => 'editing']);
+
+        $this->actingAs($me);
+        $this->post(route('manuscript.assign', $p->id), ['assigned_user_id' => $me->id])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('tb_title_progress', ['id' => $p->id, 'assigned_user_id' => $me->id]);
+    }
 }

@@ -61,6 +61,12 @@
             </small>
         </div>
 
+        @if(is_null($p->assigned_user_id))
+            <form method="POST" action="{{ route('manuscript.assign', $p->id) }}" class="mt-2">@csrf
+                <input type="hidden" name="assigned_user_id" value="{{ auth()->id() }}">
+                <button type="submit" class="btn btn-sm btn-success w-100 py-0" style="font-size:11px">+ Ambil naskah ini</button>
+            </form>
+        @endif
         <div class="d-flex justify-content-between align-items-center mt-1">
             <small class="text-muted text-truncate" style="max-width:140px">
                 Editor: <strong>{{ optional($p->assignedUser)->name ?? 'Belum' }}</strong>
