@@ -106,4 +106,15 @@ class ProductionWorkspaceTest extends TestCase
             ->assertSee('Progres Naskah')        // seksi global
             ->assertSee('total payment');         // finansial tetap ada
     }
+
+    /** @test */
+    public function marketing_dashboard_stays_financial_only(): void
+    {
+        $this->actingAs($this->user('marketing'));
+        $this->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('total payment')         // finansial
+            ->assertDontSee('Antrian Saya')      // bukan dashboard produksi
+            ->assertDontSee('Progres Naskah');   // bukan seksi global manager
+    }
 }
