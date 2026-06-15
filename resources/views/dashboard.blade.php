@@ -5,6 +5,9 @@
 @endpush
 
 @section('content')
+@if(($dashboardView ?? 'financial') === 'production')
+    @include('dashboard.partials.production')
+@else
     <div class="d-flex justify-content-between align-items-center flex-wrap grid-margin">
         <div>
             <h4 class="mb-3 mb-md-0">Welcome to Dashboard</h4>
@@ -293,6 +296,10 @@
             </div>
         </div>
     </div> <!-- row -->
+    @hasanyrole('manager|superadmin')
+        @include('dashboard.partials.progress-global')
+    @endhasanyrole
+@endif
 @endsection
 
 @push('plugin-scripts')
@@ -301,6 +308,7 @@
 @endpush
 
 @push('custom-scripts')
+@if(($dashboardView ?? 'financial') !== 'production')
     {{-- <script src="{{ asset('assets/js/dashboard.js') }}"></script> --}}
     <script>
         $(function() {
@@ -358,4 +366,5 @@
             // ... teruskan untuk chart lainnya
         });
     </script>
+@endif
 @endpush

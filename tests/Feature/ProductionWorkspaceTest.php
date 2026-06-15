@@ -82,4 +82,28 @@ class ProductionWorkspaceTest extends TestCase
 
         $this->assertDatabaseHas('tb_title_progress', ['id' => $p->id, 'assigned_user_id' => $me->id]);
     }
+
+    /** @test */
+    public function production_dashboard_shows_production_kpis_not_financial(): void
+    {
+        $me = $this->user('production');
+        $this->progress(['assigned_user_id' => $me->id, 'status' => 'editing']);
+
+        $this->actingAs($me);
+        $this->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Antrian Saya')          // KPI produksi
+            ->assertSee('Performa Saya')          // widget performa
+            ->assertDontSee('total payment');     // blok finansial tidak ada untuk production
+    }
+
+    /** @test */
+    public function manager_dashboard_shows_global_progress_section(): void
+    {
+        $this->actingAs($this->user('manager'));
+        $this->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Progres Naskah')        // seksi global
+            ->assertSee('total payment');         // finansial tetap ada
+    }
 }

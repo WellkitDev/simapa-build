@@ -9,6 +9,8 @@ use Illuminate\Http\Request;
 use App\Models\PaymentApproval;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use App\Services\ProductionDashboardService;
+use App\Services\PerformanceService;
 
 class DashboardController extends Controller
 {
@@ -22,6 +24,17 @@ class DashboardController extends Controller
         // Filter dasar Marketing
         $isMarketing = Auth::user()->hasRole('marketing');
         $userId = Auth::id();
+
+        $user = Auth::user();
+        $isProductionOnly = $user->hasRole('production') && ! $user->hasAnyRole(['manager', 'superadmin', 'marketing']);
+
+        if ($isProductionOnly) {
+            return view('dashboard', [
+                'dashboardView' => 'production',
+                'prod' => app(ProductionDashboardService::class)->forUser($user),
+                'perf' => app(PerformanceService::class)->forEditor($user),
+            ]);
+        }
 
         // 1. Rentang waktu 14 hari terakhir
         $days = collect(range(29, 0))->map(function($i) {
@@ -101,7 +114,15 @@ class DashboardController extends Controller
             'series_reject'  => $seriesReject->values()->all(),
         ];
 
-        return view('dashboard', compact('data'));
+        $dashboardView = 'financial';
+        $global  = null;
+        $editors = collect();
+        if ($user->hasAnyRole(['manager', 'superadmin'])) {
+            $global  = app(ProductionDashboardService::class)->global();
+            $editors = app(PerformanceService::class)->allEditors();
+        }
+
+        return view('dashboard', compact('data', 'dashboardView', 'global', 'editors'));
     }
 
     /**
