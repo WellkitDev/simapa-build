@@ -11,10 +11,9 @@
         'publish' => '#22C55E', 'terbit' => '#22C55E',
     ];
 @endphp
-<div class="page-content">
-    @include('manuscript.partials.toolbar')
+@include('manuscript.partials.toolbar')
 
-    <div style="overflow-x:auto">
+<div style="overflow-x:auto">
         <div class="d-flex gap-4 pb-2" style="min-width:max-content; align-items:flex-start">
             @foreach($zones as $zone)
                 <div class="manuscript-zone" style="flex-shrink:0; padding:12px 14px; border-radius:14px;
@@ -47,7 +46,6 @@
             @endforeach
         </div>
     </div>
-</div>
 
 {{-- Modal catatan untuk koreksi/lompat tahap --}}
 <div class="modal fade" id="mtNoteModal" tabindex="-1" aria-hidden="true">

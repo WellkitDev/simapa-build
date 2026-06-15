@@ -17,10 +17,9 @@
     ];
     $prioBadge = ['high' => 'danger', 'normal' => 'secondary', 'low' => 'info'];
 @endphp
-<div class="page-content">
-    @include('manuscript.partials.toolbar')
+@include('manuscript.partials.toolbar')
 
-    <div class="card overflow-hidden">
+<div class="card overflow-hidden">
         <div class="card-body">
             <div class="table-responsive">
                 <table class="table table-centered datatable dt-responsive nowrap" style="width:100%">
@@ -73,7 +72,6 @@
             </div>
         </div>
     </div>
-</div>
 @endsection
 
 @push('plugin-scripts')

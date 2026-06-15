@@ -2,9 +2,8 @@
 @section('title', 'Detail Judul - SiMAPA')
 
 @section('content')
-<div class="page-content">
-    <div class="row">
-        <div class="col-md-12">
+<div class="row">
+    <div class="col-md-12">
 
             @php
                 $statusColors = [
@@ -110,7 +109,6 @@
                 </div>
             </div>
 
-        </div>
     </div>
 </div>
 @endsection
