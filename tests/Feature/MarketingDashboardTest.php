@@ -58,4 +58,23 @@ class MarketingDashboardTest extends TestCase
             ->assertSee('Progres Naskah')         // seksi global
             ->assertDontSee('Ringkasan Pemasukan'); // bukan dashboard marketing
     }
+
+    /** @test */
+    public function arsip_judul_shows_target_column(): void
+    {
+        $me = $this->user('marketing');
+        $order = Order::factory()->create(['user_id' => $me->id]);
+        $detail = OrderDetail::factory()->create(['order_id' => $order->id, 'type' => 'bk_mandiri', 'title' => 'NASKAH BERTARGET']);
+        TitleProgress::create([
+            'order_detail_id' => $detail->id, 'status' => 'editing', 'assigned_role' => 'production',
+            'started_at' => now(), 'target_date' => now()->subDay()->toDateString(),
+        ]);
+
+        $this->actingAs($me);
+        $this->get(route('order.book.indexJudul'))
+            ->assertOk()
+            ->assertSee('NASKAH BERTARGET')
+            ->assertSee('Target')      // header kolom
+            ->assertSee('lewat');      // badge overdue (target kemarin, belum final)
+    }
 }

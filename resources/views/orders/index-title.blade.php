@@ -28,6 +28,7 @@
                                 <th>Status Progres</th>
                                 <th>Handler</th>
                                 <th>Update Terakhir</th>
+                                <th>Target</th>
                                 <th>Aksi</th>
                             </tr>
                         </thead>
@@ -57,6 +58,15 @@
                                 </td>
                                 <td><small class="text-muted text-capitalize">{{ $row->handler ?? '-' }}</small></td>
                                 <td><small>{{ $row->last_update ? \Carbon\Carbon::parse($row->last_update)->diffForHumans() : '-' }}</small></td>
+                                <td>
+                                    @if($row->target_date)
+                                        <span class="badge bg-{{ $row->is_overdue ? 'danger' : 'light text-dark border' }}">
+                                            {{ \Carbon\Carbon::parse($row->target_date)->format('d M Y') }}{{ $row->is_overdue ? ' · lewat' : '' }}
+                                        </span>
+                                    @else
+                                        <span class="text-muted">—</span>
+                                    @endif
+                                </td>
                                 <td>
                                     <a href="{{ route('order.indexJudul.detail', $row->detail_id_repr) }}"
                                         class="btn btn-sm btn-primary">Detail</a>

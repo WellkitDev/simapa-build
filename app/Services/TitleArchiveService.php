@@ -85,6 +85,10 @@ class TitleArchiveService
             'handler'           => TitleProgress::getHandlerForStatus($bottleneck),
             'last_update'       => $details->map(fn (OrderDetail $d) => $this->lastUpdateOf($d))->max(),
             'is_mixed'          => $statuses->unique()->count() > 1,
+            'target_date'       => optional($repr->titleProgress)->target_date,
+            'is_overdue'        => optional($repr->titleProgress)->target_date
+                                    && $repr->titleProgress->target_date->lt(today())
+                                    && ! TitleProgress::isFinal($bottleneck),
         ];
     }
 
