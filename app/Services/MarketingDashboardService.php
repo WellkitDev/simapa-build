@@ -92,6 +92,7 @@ class MarketingDashboardService
     private function completionTrend(int $uid): array
     {
         $days = collect(range(29, 0))->map(fn ($i) => Carbon::now()->subDays($i)->format('Y-m-d'));
+        // to_value is title-cased by TitleProgressService::log() (e.g. 'Terbit'/'Publish')
         $byDate = TitleProgressLog::whereIn('to_value', ['Terbit', 'Publish'])
             ->whereHas('titleProgress.orderDetail.order', fn ($q) => $q->where('user_id', $uid))
             ->where('created_at', '>=', Carbon::now()->subDays(29)->startOfDay())

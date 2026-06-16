@@ -94,4 +94,21 @@ class MarketingDashboardServiceTest extends TestCase
         $this->assertEquals(1, $d['selesai_bulan_ini']);  // terbit bulan ini
         $this->assertEquals(2, $d['total_selesai']);      // terbit + publish
     }
+
+    /** @test */
+    public function jatuh_tempo_7_counts_today_through_7_days_inclusive_and_excludes_overdue(): void
+    {
+        $mkt = $this->marketing();
+        $o = $this->orderFor($mkt);
+        $this->naskah($o, 'editing', ['target_date' => now()->toDateString()]);            // hari ini → masuk
+        $this->naskah($o, 'editing', ['target_date' => now()->addDays(7)->toDateString()]); // batas atas → masuk
+        $this->naskah($o, 'editing', ['target_date' => now()->addDays(8)->toDateString()]); // di luar 7 hari → tidak
+        $this->naskah($o, 'editing', ['target_date' => now()->subDay()->toDateString()]);   // overdue → bukan jatuh tempo
+        $this->naskah($o, 'terbit',  ['target_date' => now()->addDays(2)->toDateString()]);  // final → tidak
+
+        $d = $this->svc->forUser($mkt);
+
+        $this->assertEquals(2, $d['jatuh_tempo_7']);
+        $this->assertEquals(1, $d['lewat_target']);  // the overdue one
+    }
 }
