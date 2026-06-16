@@ -44,7 +44,7 @@ class MarketingDashboardService
             'selesai_bulan_ini' => (clone $prog())->whereIn('status', TitleProgress::FINAL_STAGES)->whereYear('started_at', $today->year)->whereMonth('started_at', $today->month)->count(),
             'total_selesai'     => (clone $prog())->whereIn('status', TitleProgress::FINAL_STAGES)->count(),
             'per_stage'         => $this->stageChart(
-                                    (clone $prog())->whereNotIn('status', TitleProgress::FINAL_STAGES)->get(['status'])->groupBy('status')->map->count()
+                                    (clone $prog())->whereNotIn('status', TitleProgress::FINAL_STAGES)->where('status', '!=', 'menunggu_proses')->get(['status'])->groupBy('status')->map->count()
                                    ),
             'completion_trend'  => $this->completionTrend($uid),
         ];

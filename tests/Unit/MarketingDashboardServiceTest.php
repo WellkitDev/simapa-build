@@ -93,6 +93,10 @@ class MarketingDashboardServiceTest extends TestCase
         $this->assertEquals(1, $d['lewat_target']);
         $this->assertEquals(1, $d['selesai_bulan_ini']);  // terbit bulan ini
         $this->assertEquals(2, $d['total_selesai']);      // terbit + publish
+
+        // donut per-tahap = naskah aktif (kecuali menunggu_proses & final)
+        $this->assertEqualsCanonicalizing(['Editing', 'Layout'], $d['per_stage']['labels']);
+        $this->assertEquals($d['naskah_aktif'], array_sum($d['per_stage']['series']));
     }
 
     /** @test */
