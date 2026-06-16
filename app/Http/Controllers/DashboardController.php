@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use App\Services\ProductionDashboardService;
 use App\Services\PerformanceService;
+use App\Services\MarketingDashboardService;
 
 class DashboardController extends Controller
 {
@@ -33,6 +34,15 @@ class DashboardController extends Controller
                 'dashboardView' => 'production',
                 'prod' => app(ProductionDashboardService::class)->forUser($user),
                 'perf' => app(PerformanceService::class)->forEditor($user),
+            ]);
+        }
+
+        $isMarketingOnly = $user->hasRole('marketing') && ! $user->hasAnyRole(['manager', 'superadmin']);
+
+        if ($isMarketingOnly) {
+            return view('dashboard', [
+                'dashboardView' => 'marketing',
+                'mkt' => app(MarketingDashboardService::class)->forUser($user),
             ]);
         }
 

@@ -108,14 +108,15 @@ class ProductionWorkspaceTest extends TestCase
     }
 
     /** @test */
-    public function marketing_dashboard_stays_financial_only(): void
+    public function marketing_dashboard_shows_marketing_view_not_generic_or_production(): void
     {
         $this->actingAs($this->user('marketing'));
         $this->get(route('dashboard'))
             ->assertOk()
-            ->assertSee('total payment')         // finansial
-            ->assertDontSee('Antrian Saya')      // bukan dashboard produksi
-            ->assertDontSee('Progres Naskah');   // bukan seksi global manager
+            ->assertSee('Ringkasan Pemasukan')   // dashboard marketing
+            ->assertSee('Progres Naskah Saya')   // progres scoped marketing
+            ->assertDontSee('total payment')     // bukan finansial generik
+            ->assertDontSee('Antrian Saya');     // bukan dashboard produksi
     }
 
     /** @test */

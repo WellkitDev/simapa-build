@@ -7,6 +7,8 @@
 @section('content')
 @if(($dashboardView ?? 'financial') === 'production')
     @include('dashboard.partials.production')
+@elseif(($dashboardView ?? 'financial') === 'marketing')
+    @include('dashboard.partials.marketing')
 @else
     <div class="d-flex justify-content-between align-items-center flex-wrap grid-margin">
         <div>
@@ -308,7 +310,7 @@
 @endpush
 
 @push('custom-scripts')
-@if(($dashboardView ?? 'financial') !== 'production')
+@if(($dashboardView ?? 'financial') === 'financial')
     {{-- <script src="{{ asset('assets/js/dashboard.js') }}"></script> --}}
     <script>
         $(function() {
