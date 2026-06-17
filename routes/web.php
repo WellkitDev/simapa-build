@@ -125,6 +125,20 @@ Route::middleware('auth')->group(function () {
         Route::get('{id}/pdf', [InvoiceController::class, 'pdf'])->name('pdf');
     });
 
+    Route::prefix('tagihan')->name('tagihan.')->group(function () {
+        Route::get('',                [\App\Http\Controllers\Pages\TagihanController::class, 'index'])->name('index');
+        Route::get('create',          [\App\Http\Controllers\Pages\TagihanController::class, 'create'])->name('create');
+        Route::post('',               [\App\Http\Controllers\Pages\TagihanController::class, 'store'])->name('store');
+        Route::get('{id}',            [\App\Http\Controllers\Pages\TagihanController::class, 'show'])->name('show');
+        Route::get('{id}/edit',       [\App\Http\Controllers\Pages\TagihanController::class, 'edit'])->name('edit');
+        Route::put('{id}',            [\App\Http\Controllers\Pages\TagihanController::class, 'update'])->name('update');
+        Route::post('{id}/approve',   [\App\Http\Controllers\Pages\TagihanController::class, 'approve'])->name('approve');
+        Route::post('{id}/reject',    [\App\Http\Controllers\Pages\TagihanController::class, 'reject'])->name('reject');
+        Route::post('{id}/cancel',    [\App\Http\Controllers\Pages\TagihanController::class, 'cancel'])->name('cancel');
+        Route::get('{id}/pdf',        [\App\Http\Controllers\Pages\TagihanController::class, 'pdf'])->name('pdf');
+        Route::get('{id}/buat-order', [\App\Http\Controllers\Pages\TagihanController::class, 'buatOrder'])->name('buatOrder');
+    });
+
     Route::prefix('income')->name('income.')->group(function () {
         Route::get('order', [IncomeController::class, 'indexOrderIncome'])->name('order');
         Route::get('payment', [IncomeController::class, 'indexPaymentIncome'])->name('payment');
