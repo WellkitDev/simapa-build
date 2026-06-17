@@ -66,7 +66,7 @@
                     <button class="btn btn-danger w-100">Tolak</button>
                 </form>
             @endif
-            @if(in_array($tagihan->status, ['diajukan','disetujui']) && ($isOwner || $isSuperadmin))
+            @if(in_array($tagihan->status, ['diajukan','disetujui']) && ($isOwner || auth()->user()->hasAnyRole(['manager','superadmin'])))
                 <form method="POST" action="{{ route('tagihan.cancel', $tagihan->id) }}" class="mt-2">@csrf
                     <button class="btn btn-outline-dark w-100">Batalkan</button>
                 </form>
