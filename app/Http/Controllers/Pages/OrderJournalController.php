@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Pages;
 use App\Models\Order;
 use App\Models\Scope;
 use App\Models\Author;
+use App\Models\Tagihan;
+use App\Models\TagihanLog;
 use App\Models\OrderDetail;
 use Illuminate\Support\Str;
 use App\Models\OrderContact;
@@ -145,6 +147,29 @@ class OrderJournalController extends Controller
                 ]);
                 return $order;
             });
+
+            // Link-back: jika order dibuat dari tagihan, tandai tagihan jadi_order.
+            if ($request->filled('from_tagihan')) {
+                $t = \App\Models\Tagihan::where('id', $request->integer('from_tagihan'))
+                    ->where('created_by', Auth::id())
+                    ->where('status', 'disetujui')
+                    ->first();
+                if ($t) {
+                    $t->update([
+                        'status'     => 'jadi_order',
+                        'order_id'   => $newOrder->id,
+                        'order_code' => $newOrder->code_order,
+                    ]);
+                    \App\Models\TagihanLog::create([
+                        'tagihan_id'  => $t->id,
+                        'from_status' => 'disetujui',
+                        'to_status'   => 'jadi_order',
+                        'changed_by'  => Auth::id(),
+                        'note'        => 'Order ' . $newOrder->code_order . ' dibuat dari tagihan.',
+                    ]);
+                }
+            }
+
             return redirect()
                 ->route('payment.create', ['code_order' => $newOrder->code_order])
                 ->with('success', 'Order berhasil dibuat');

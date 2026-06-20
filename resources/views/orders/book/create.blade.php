@@ -11,6 +11,7 @@
 
         <form method="POST" action="{{ route('order.book.store') }}" enctype="multipart/form-data">
             @csrf
+            @if(!empty($fromTagihan))<input type="hidden" name="from_tagihan" value="{{ $fromTagihan }}">@endif
 
             <!-- Section 1: Informasi Dasar Order -->
             <div class="card mb-4 shadow-sm">
@@ -37,7 +38,7 @@
 
                     <div class="mb-3">
                         <label class="form-label">Judul <span class="text-danger">*</span></label>
-                        <input type="text" name="title" class="form-control" required>
+                        <input type="text" name="title" class="form-control" required value="{{ old('title', $prefill['title'] ?? '') }}">
                     </div>
 
                     <div class="row">
@@ -137,23 +138,23 @@
                         <div class="col-md-6 sm-12 mb-3">
                             <label class="form-label">Total Biaya (Rp) <span class="text-danger">*</span></label>
                             <input type="number" name="cost_amount" class="form-control" required min="0"
-                                step="1000">
+                                step="1000" value="{{ old('cost_amount', $prefill['cost_amount'] ?? '') }}">
                         </div>
                     </div>
                     <div class="row">
 
                         <div class="col-md-6 sm-12 mb-3">
                             <label class="form-label">Kontak Person <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" name="contact_phone" value="" required>
+                            <input type="text" class="form-control" name="contact_phone" value="{{ old('contact_phone', $prefill['contact_phone'] ?? '') }}" required>
                         </div>
                         <div class="col-md-6 sm-12 mb-3">
                             <label class="form-label">Email <span class="text-danger">*</span></label>
-                            <input type="email" class="form-control" name="contact_email" value="" required>
+                            <input type="email" class="form-control" name="contact_email" value="{{ old('contact_email', $prefill['contact_email'] ?? '') }}" required>
                         </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Catatan Tambahan</label>
-                        <textarea name="note" class="form-control" rows="3"></textarea>
+                        <textarea name="note" class="form-control" rows="3">{{ old('note', $prefill['note'] ?? '') }}</textarea>
                     </div>
                 </div>
             </div>

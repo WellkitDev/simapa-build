@@ -161,4 +161,43 @@ class TagihanLifecycleTest extends TestCase
         $resp = $this->get(route('tagihan.pdf', $disetujui->id))->assertOk();
         $this->assertEquals('application/pdf', $resp->headers->get('content-type'));
     }
+
+    /** @test */
+    public function buat_order_redirects_to_book_create_with_prefill_param(): void
+    {
+        $owner = $this->user('marketing');
+        $t = Tagihan::factory()->create([
+            'created_by' => $owner->id, 'status' => 'disetujui',
+            'type' => 'buku', 'title' => 'JUDUL TAGIHAN', 'client_email' => 'a@b.id',
+        ]);
+
+        $this->actingAs($owner);
+        $this->get(route('tagihan.buatOrder', $t->id))
+            ->assertRedirect(route('order.book.create', ['from_tagihan' => $t->id]));
+
+        $this->get(route('order.book.create', ['from_tagihan' => $t->id]))
+            ->assertOk()
+            ->assertSee('JUDUL TAGIHAN', false)
+            ->assertSee('a@b.id', false);
+    }
+
+    /** @test */
+    public function buat_order_blocked_when_not_disetujui(): void
+    {
+        $owner = $this->user('marketing');
+        $t = Tagihan::factory()->create(['created_by' => $owner->id, 'status' => 'diajukan']);
+        $this->actingAs($owner);
+        $this->get(route('tagihan.buatOrder', $t->id))->assertRedirect();
+        $this->assertEquals('diajukan', $t->fresh()->status);
+    }
+
+    /** @test */
+    public function approved_tagihan_not_counted_as_income_until_order(): void
+    {
+        $owner = $this->user('marketing');
+        Tagihan::factory()->create(['created_by' => $owner->id, 'status' => 'disetujui', 'amount' => 5000000]);
+
+        $svc = app(\App\Services\MarketingDashboardService::class)->forUser($owner);
+        $this->assertEquals(0, $svc['pemasukan_tahun_ini']);
+    }
 }
