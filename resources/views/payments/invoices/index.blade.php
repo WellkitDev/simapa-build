@@ -13,7 +13,6 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-baseline mb-3">
                     <h6 class="card-title mb-0">Daftar Invoice</h6>
-                    <a href="{{ route('invoice.create') }}" class="btn btn-sm btn-primary">+ Buat Invoice</a>
                 </div>
 
                 {{-- Filter --}}
@@ -50,7 +49,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @forelse($invoices as $inv)
+                            @foreach($invoices as $inv)
                             @php
                                 $statusColors = [
                                     'draft'       => 'secondary',
@@ -88,14 +87,15 @@
                                 <td><small>{{ $inv->due_at ? $inv->due_at->format('d/m/Y') : '-' }}</small></td>
                                 <td>
                                     <a href="{{ route('invoice.show', $inv->id) }}" class="btn btn-xs btn-primary">Detail</a>
+                                    @if(in_array($inv->status, ['diterbitkan','lunas']))
+                                        <a href="{{ route('invoice.pdf', $inv->id) }}" target="_blank" class="btn btn-xs btn-outline-secondary">Download</a>
+                                    @endif
                                     @hasanyrole('manager|superadmin')
                                         <a href="{{ route('invoice.edit', $inv->id) }}" class="btn btn-xs btn-outline-secondary">Edit</a>
                                     @endhasanyrole
                                 </td>
                             </tr>
-                            @empty
-                            <tr><td colspan="7" class="text-center text-muted">Belum ada invoice.</td></tr>
-                            @endforelse
+                            @endforeach
                         </tbody>
                     </table>
                 </div>
@@ -116,7 +116,12 @@
 @push('custom-scripts')
 <script>
     $(function() {
-        $(".datatable").DataTable({ pageLength: 25, searching: false, ordering: false });
+        $(".datatable").DataTable({
+            pageLength: 25,
+            responsive: true,
+            columnDefs: [{ orderable: false, targets: 6 }],
+            language: { emptyTable: "Belum ada invoice." }
+        });
     });
 </script>
 @endpush

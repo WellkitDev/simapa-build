@@ -27,46 +27,6 @@ class InvoiceController extends Controller
         return view('payments.invoices.index', compact('invoices'));
     }
 
-    public function create()
-    {
-        $orders   = Order::with('details')->latest()->get();
-        $payments = Payment::with('order')->where('status', 'paid')->get();
-        return view('payments.invoices.create', compact('orders', 'payments'));
-    }
-
-    public function store(Request $request)
-    {
-        $data = $request->validate([
-            'order_id'   => 'required|exists:tb_orders,id',
-            'type'       => 'required|in:proforma,regular',
-            'invoice_no' => 'required|string|max:100|unique:tb_invoices,invoice_no',
-            'issued_at'  => 'required|date',
-            'due_at'     => 'required|date|after_or_equal:issued_at',
-            'note'       => 'nullable|string',
-            'payment_id' => 'nullable|exists:tb_payments,id',
-        ]);
-
-        $invoiceId = DB::transaction(function () use ($data) {
-            $invoice = Invoice::create([
-                ...$data,
-                'status' => 'draft',
-            ]);
-
-            InvoiceLog::create([
-                'invoice_id'  => $invoice->id,
-                'from_status' => '',
-                'to_status'   => 'draft',
-                'changed_by'  => Auth::id(),
-                'note'        => 'Invoice dibuat.',
-            ]);
-
-            return $invoice->id;
-        });
-
-        return redirect()->route('invoice.show', $invoiceId)
-            ->with('success', 'Invoice berhasil dibuat.');
-    }
-
     public function show(int $id)
     {
         $invoice = Invoice::with([

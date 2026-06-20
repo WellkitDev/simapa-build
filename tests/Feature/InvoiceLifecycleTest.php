@@ -35,26 +35,6 @@ class InvoiceLifecycleTest extends TestCase
     }
 
     /** @test */
-    public function marketing_can_create_proforma_invoice(): void
-    {
-        $this->actingAs($this->marketing);
-
-        $this->post(route('invoice.store'), [
-            'order_id'   => $this->order->id,
-            'type'       => 'proforma',
-            'invoice_no' => 'PRF-001',
-            'issued_at'  => now()->toDateString(),
-            'due_at'     => now()->addDays(14)->toDateString(),
-            'note'       => 'Tagihan awal',
-        ])->assertRedirect();
-
-        $this->assertDatabaseHas('tb_invoices', [
-            'type'   => 'proforma',
-            'status' => 'draft',
-        ]);
-    }
-
-    /** @test */
     public function marketing_cannot_edit_invoice(): void
     {
         $invoice = Invoice::factory()->create([

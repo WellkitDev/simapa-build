@@ -113,8 +113,6 @@ Route::middleware('auth')->group(function () {
 
     Route::prefix('invoices')->name('invoice.')->group(function () {
         Route::get('',             [InvoiceController::class, 'index'])->name('index');
-        Route::get('create',       [InvoiceController::class, 'create'])->name('create');
-        Route::post('',            [InvoiceController::class, 'store'])->name('store');
         Route::get('{id}',         [InvoiceController::class, 'show'])->name('show');
         Route::get('{id}/edit',    [InvoiceController::class, 'edit'])->name('edit');
         Route::put('{id}',         [InvoiceController::class, 'update'])->name('update');
