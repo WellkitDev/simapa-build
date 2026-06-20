@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use Tests\TestCase;
 use App\Models\User;
 use App\Models\Tagihan;
+use App\Services\GoogleDriveService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
 
@@ -18,6 +19,8 @@ class TagihanLifecycleTest extends TestCase
         foreach (['marketing', 'manager', 'superadmin', 'production'] as $r) {
             Role::create(['name' => $r, 'guard_name' => 'web']);
         }
+        // OrderBookController constructor injects GoogleDriveService — avoid real API calls.
+        $this->mock(GoogleDriveService::class);
     }
 
     private function user(string $role): User
@@ -199,5 +202,59 @@ class TagihanLifecycleTest extends TestCase
 
         $svc = app(\App\Services\MarketingDashboardService::class)->forUser($owner);
         $this->assertEquals(0, $svc['pemasukan_tahun_ini']);
+    }
+
+    /** @test */
+    public function creating_book_order_from_tagihan_marks_it_jadi_order(): void
+    {
+        $owner = $this->user('marketing');
+        $t = \App\Models\Tagihan::factory()->create([
+            'created_by' => $owner->id, 'status' => 'disetujui', 'type' => 'buku', 'title' => 'Dari Tagihan',
+        ]);
+
+        $payload = [
+            'type' => 'bk_mandiri', 'title' => 'Dari Tagihan', 'naskah_type' => 'mandiri',
+            'publication_type' => 'regular', 'issued_at' => now()->toDateString(), 'cost_amount' => 1500000,
+            'contact_phone' => '0811', 'contact_email' => 'klien@x.id',
+            'authors' => [['name' => 'Penulis', 'position' => 1]],
+            'from_tagihan' => $t->id,
+        ];
+
+        $this->actingAs($owner);
+        $this->post(route('order.book.store'), $payload)->assertRedirect();
+
+        $t->refresh();
+        $this->assertEquals('jadi_order', $t->status);
+        $this->assertNotNull($t->order_id);
+        $this->assertNotNull($t->order_code);
+        $this->assertDatabaseHas('tb_tagihan_logs', ['tagihan_id' => $t->id, 'to_status' => 'jadi_order']);
+    }
+
+    /** @test */
+    public function creating_journal_order_from_tagihan_marks_it_jadi_order(): void
+    {
+        $owner = $this->user('marketing');
+        $t = \App\Models\Tagihan::factory()->create([
+            'created_by' => $owner->id, 'status' => 'disetujui', 'type' => 'jurnal', 'title' => 'Dari Tagihan Jurnal',
+        ]);
+
+        $payload = [
+            'type' => 'at_mandiri', 'title' => 'Dari Tagihan Jurnal', 'naskah_type' => 'mandiri',
+            'indexation' => 'sinta 2',
+            'publication_type' => 'regular', 'issued_at' => now()->toDateString(), 'cost_amount' => 2000000,
+            'contact_phone' => '0812', 'contact_email' => 'jurnal@x.id',
+            'scope_id' => '',
+            'authors' => [['name' => 'Penulis Jurnal', 'position' => 1]],
+            'from_tagihan' => $t->id,
+        ];
+
+        $this->actingAs($owner);
+        $this->post(route('order.journal.store'), $payload)->assertRedirect();
+
+        $t->refresh();
+        $this->assertEquals('jadi_order', $t->status);
+        $this->assertNotNull($t->order_id);
+        $this->assertNotNull($t->order_code);
+        $this->assertDatabaseHas('tb_tagihan_logs', ['tagihan_id' => $t->id, 'to_status' => 'jadi_order']);
     }
 }

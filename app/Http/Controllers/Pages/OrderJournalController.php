@@ -29,11 +29,31 @@ class OrderJournalController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function create()
+    public function create(Request $request)
     {
         //
         $scopes = Scope::all();
-        return view('orders.journal.create', \compact('scopes'));
+
+        $prefill = [];
+        $fromTagihan = null;
+        if ($request->filled('from_tagihan')) {
+            $t = \App\Models\Tagihan::where('id', $request->integer('from_tagihan'))
+                ->where('created_by', Auth::id())
+                ->where('status', 'disetujui')
+                ->first();
+            if ($t) {
+                $fromTagihan = $t->id;
+                $prefill = [
+                    'title'         => $t->title,
+                    'contact_email' => $t->client_email,
+                    'contact_phone' => $t->client_phone,
+                    'cost_amount'   => $t->amount,
+                    'note'          => $t->note,
+                ];
+            }
+        }
+
+        return view('orders.journal.create', \compact('scopes', 'prefill', 'fromTagihan'));
     }
 
     /**
@@ -149,25 +169,29 @@ class OrderJournalController extends Controller
             });
 
             // Link-back: jika order dibuat dari tagihan, tandai tagihan jadi_order.
-            if ($request->filled('from_tagihan')) {
-                $t = \App\Models\Tagihan::where('id', $request->integer('from_tagihan'))
-                    ->where('created_by', Auth::id())
-                    ->where('status', 'disetujui')
-                    ->first();
-                if ($t) {
-                    $t->update([
-                        'status'     => 'jadi_order',
-                        'order_id'   => $newOrder->id,
-                        'order_code' => $newOrder->code_order,
-                    ]);
-                    \App\Models\TagihanLog::create([
-                        'tagihan_id'  => $t->id,
-                        'from_status' => 'disetujui',
-                        'to_status'   => 'jadi_order',
-                        'changed_by'  => Auth::id(),
-                        'note'        => 'Order ' . $newOrder->code_order . ' dibuat dari tagihan.',
-                    ]);
+            try {
+                if ($request->filled('from_tagihan')) {
+                    $t = \App\Models\Tagihan::where('id', $request->integer('from_tagihan'))
+                        ->where('created_by', Auth::id())
+                        ->where('status', 'disetujui')
+                        ->first();
+                    if ($t) {
+                        $t->update([
+                            'status'     => 'jadi_order',
+                            'order_id'   => $newOrder->id,
+                            'order_code' => $newOrder->code_order,
+                        ]);
+                        \App\Models\TagihanLog::create([
+                            'tagihan_id'  => $t->id,
+                            'from_status' => 'disetujui',
+                            'to_status'   => 'jadi_order',
+                            'changed_by'  => Auth::id(),
+                            'note'        => 'Order ' . $newOrder->code_order . ' dibuat dari tagihan.',
+                        ]);
+                    }
                 }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Tagihan link-back failed: ' . $e->getMessage());
             }
 
             return redirect()
