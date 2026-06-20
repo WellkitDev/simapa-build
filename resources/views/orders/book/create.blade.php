@@ -11,7 +11,8 @@
 
         <form method="POST" action="{{ route('order.book.store') }}" enctype="multipart/form-data">
             @csrf
-            @if(!empty($fromTagihan))<input type="hidden" name="from_tagihan" value="{{ $fromTagihan }}">@endif
+            @php($ft = old('from_tagihan', $fromTagihan ?? null))
+            @if(!empty($ft))<input type="hidden" name="from_tagihan" value="{{ $ft }}">@endif
 
             <!-- Section 1: Informasi Dasar Order -->
             <div class="card mb-4 shadow-sm">
