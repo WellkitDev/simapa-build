@@ -33,4 +33,18 @@ class Payment extends Model
     {
         return $this->hasOne(PaymentApproval::class);
     }
+
+    /** Pembayaran yang dianggap "uang masuk" (di-set bersamaan approval saat approve). */
+    public function scopeApproved($query)
+    {
+        return $query->where('status', 'paid');
+    }
+
+    /** Scope ke order milik $user (marketing). Bila null → tanpa filter (manager/superadmin). */
+    public function scopeForOrdersOf($query, ?User $user)
+    {
+        return $user
+            ? $query->whereHas('order', fn ($o) => $o->where('user_id', $user->id))
+            : $query;
+    }
 }
