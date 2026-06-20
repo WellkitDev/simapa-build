@@ -18,6 +18,37 @@
             </li>
 
             @role(['superadmin', 'manager', 'marketing'])
+                <li class="nav-item nav-category">Pembayaran</li>
+                <li class="nav-item {{ request()->routeIs('tagihan.*') ? 'active' : '' }}">
+                    <a href="{{ route('tagihan.index') }}" class="nav-link">
+                        <i class="link-icon" data-feather="file-plus"></i>
+                        <span class="link-title">Tagihan</span>
+                    </a>
+                </li>
+                <li class="nav-item {{ request()->routeIs('invoice.*') ? 'active' : '' }}">
+                    <a href="{{ route('invoice.index') }}" class="nav-link">
+                        <i class="link-icon" data-feather="file-text"></i>
+                        <span class="link-title">Invoice</span>
+                    </a>
+                </li>
+                <li class="nav-item {{ active_class(['payments/*']) }}">
+                    <a class="nav-link" data-bs-toggle="collapse" href="#menuPayment" role="button"
+                        aria-expanded="{{ is_active_route(['payments/*']) }}" aria-controls="menuPayment">
+                        <i class="link-icon" data-feather="credit-card"></i>
+                        <span class="link-title">Pembayaran</span>
+                        <i class="link-arrow" data-feather="chevron-down"></i>
+                    </a>
+                    <div class="collapse {{ show_class(['payments/*']) }}" id="menuPayment">
+                        <ul class="nav sub-menu">
+                            <li class="nav-item"><a href="{{ route('payment.dp.index') }}" class="nav-link">DP/Pembayaran</a></li>
+                            <li class="nav-item"><a href="{{ route('payment.fp.index') }}" class="nav-link">Pelunasan</a></li>
+                            <li class="nav-item"><a href="{{ route('payment.index') }}" class="nav-link">Disetujui</a></li>
+                        </ul>
+                    </div>
+                </li>
+            @endrole
+
+            @role(['superadmin', 'manager', 'marketing'])
                 <li class="nav-item nav-category">Order &amp; Naskah</li>
                 <li class="nav-item {{ active_class(['order/*']) }}">
                     <a class="nav-link" data-bs-toggle="collapse" href="#menuOrder" role="button"
@@ -60,35 +91,6 @@
                     </a>
                 </li>
             @endrole
-
-            <li class="nav-item nav-category">Pembayaran</li>
-            <li class="nav-item {{ active_class(['payments/*']) }}">
-                <a class="nav-link" data-bs-toggle="collapse" href="#menuPayment" role="button"
-                    aria-expanded="{{ is_active_route(['payments/*']) }}" aria-controls="menuPayment">
-                    <i class="link-icon" data-feather="credit-card"></i>
-                    <span class="link-title">Pembayaran</span>
-                    <i class="link-arrow" data-feather="chevron-down"></i>
-                </a>
-                <div class="collapse {{ show_class(['payments/*']) }}" id="menuPayment">
-                    <ul class="nav sub-menu">
-                        <li class="nav-item">
-                            <a href="{{ route('payment.dp.index') }}" class="nav-link">DP / Tagihan</a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="{{ route('payment.fp.index') }}" class="nav-link">Pelunasan</a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="{{ route('payment.index') }}" class="nav-link">Disetujui</a>
-                        </li>
-                    </ul>
-                </div>
-            </li>
-            <li class="nav-item {{ request()->routeIs('invoice.*') ? 'active' : '' }}">
-                <a href="{{ route('invoice.index') }}" class="nav-link">
-                    <i class="link-icon" data-feather="file-text"></i>
-                    <span class="link-title">Invoice</span>
-                </a>
-            </li>
 
             <li class="nav-item nav-category">Laporan</li>
             <li class="nav-item {{ active_class(['income/*']) }}">
