@@ -102,10 +102,9 @@
                 </a>
                 <div class="collapse {{ show_class(['income/*']) }}" id="menuIncome">
                     <ul class="nav sub-menu">
-                        <li class="nav-item"><a href="{{ route('income.order') }}" class="nav-link">Order</a></li>
-                        <li class="nav-item"><a href="{{ route('income.payment') }}" class="nav-link">Payment</a></li>
-                        <li class="nav-item"><a href="{{ route('income.pending') }}" class="nav-link">Pending</a></li>
-                        <li class="nav-item"><a href="{{ route('income.lunas') }}" class="nav-link">Lunas</a></li>
+                        <li class="nav-item"><a href="{{ route('income.pemasukan') }}" class="nav-link">Pemasukan</a></li>
+                        <li class="nav-item"><a href="{{ route('income.piutang') }}" class="nav-link">Piutang</a></li>
+                        <li class="nav-item"><a href="{{ route('income.lunas') }}" class="nav-link">Order Selesai</a></li>
                     </ul>
                 </div>
             </li>

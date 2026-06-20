@@ -138,10 +138,15 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::prefix('income')->name('income.')->group(function () {
-        Route::get('order', [IncomeController::class, 'indexOrderIncome'])->name('order');
-        Route::get('payment', [IncomeController::class, 'indexPaymentIncome'])->name('payment');
-        Route::get('pending', [IncomeController::class, 'incomeReport'])->name('pending');
-        Route::get('full-payment', [IncomeController::class, 'incomeLunas'])->name('lunas');
+        Route::get('pemasukan',     [IncomeController::class, 'pemasukan'])->name('pemasukan');
+        Route::get('pemasukan/pdf', [IncomeController::class, 'pemasukanPdf'])->name('pemasukan.pdf');
+        Route::get('pemasukan/csv', [IncomeController::class, 'pemasukanCsv'])->name('pemasukan.csv');
+        Route::get('piutang',       [IncomeController::class, 'piutang'])->name('piutang');
+        Route::get('piutang/pdf',   [IncomeController::class, 'piutangPdf'])->name('piutang.pdf');
+        Route::get('piutang/csv',   [IncomeController::class, 'piutangCsv'])->name('piutang.csv');
+        Route::get('lunas',         [IncomeController::class, 'lunas'])->name('lunas');
+        Route::get('lunas/pdf',     [IncomeController::class, 'lunasPdf'])->name('lunas.pdf');
+        Route::get('lunas/csv',     [IncomeController::class, 'lunasCsv'])->name('lunas.csv');
     });
     
     //Route User management
