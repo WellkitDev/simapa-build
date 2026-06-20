@@ -148,4 +148,17 @@ class TagihanLifecycleTest extends TestCase
         $this->actingAs($owner);
         $this->get(route('tagihan.edit', $t->id))->assertStatus(403);
     }
+
+    /** @test */
+    public function pdf_downloadable_only_after_approved_by_owner(): void
+    {
+        $owner = $this->user('marketing');
+        $diajukan = Tagihan::factory()->create(['created_by' => $owner->id, 'status' => 'diajukan']);
+        $disetujui = Tagihan::factory()->create(['created_by' => $owner->id, 'status' => 'disetujui']);
+
+        $this->actingAs($owner);
+        $this->get(route('tagihan.pdf', $diajukan->id))->assertStatus(403);
+        $resp = $this->get(route('tagihan.pdf', $disetujui->id))->assertOk();
+        $this->assertEquals('application/pdf', $resp->headers->get('content-type'));
+    }
 }
