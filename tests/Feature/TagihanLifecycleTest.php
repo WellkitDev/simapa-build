@@ -91,4 +91,61 @@ class TagihanLifecycleTest extends TestCase
         $this->get(route('tagihan.index'))->assertStatus(403);
         $this->post(route('tagihan.store'), $this->validPayload())->assertStatus(403);
     }
+
+    /** @test */
+    public function superadmin_approves_tagihan_sets_disetujui_with_log(): void
+    {
+        $t = Tagihan::factory()->create(['status' => 'diajukan']);
+        $this->actingAs($this->user('superadmin'));
+
+        $this->post(route('tagihan.approve', $t->id))->assertRedirect();
+
+        $this->assertDatabaseHas('tb_tagihan', ['id' => $t->id, 'status' => 'disetujui']);
+        $this->assertDatabaseHas('tb_tagihan_logs', ['tagihan_id' => $t->id, 'to_status' => 'disetujui']);
+        $this->assertNotNull($t->fresh()->approved_at);
+    }
+
+    /** @test */
+    public function marketing_cannot_approve_tagihan(): void
+    {
+        $t = Tagihan::factory()->create(['status' => 'diajukan']);
+        $this->actingAs($this->user('marketing'));
+        $this->post(route('tagihan.approve', $t->id))->assertStatus(403);
+    }
+
+    /** @test */
+    public function superadmin_rejects_with_note_then_owner_resubmits(): void
+    {
+        $owner = $this->user('marketing');
+        $t = Tagihan::factory()->create(['created_by' => $owner->id, 'status' => 'diajukan']);
+
+        $this->actingAs($this->user('superadmin'));
+        $this->post(route('tagihan.reject', $t->id), ['note' => 'Nominal salah'])->assertRedirect();
+        $this->assertDatabaseHas('tb_tagihan', ['id' => $t->id, 'status' => 'ditolak', 'reject_note' => 'Nominal salah']);
+
+        // owner edit & ajukan ulang
+        $this->actingAs($owner);
+        $this->put(route('tagihan.update', $t->id), $this->validPayload(['amount' => 3000000]))->assertRedirect();
+        $this->assertDatabaseHas('tb_tagihan', ['id' => $t->id, 'status' => 'diajukan', 'amount' => 3000000]);
+    }
+
+    /** @test */
+    public function owner_can_cancel_tagihan(): void
+    {
+        $owner = $this->user('marketing');
+        $t = Tagihan::factory()->create(['created_by' => $owner->id, 'status' => 'disetujui']);
+
+        $this->actingAs($owner);
+        $this->post(route('tagihan.cancel', $t->id))->assertRedirect();
+        $this->assertDatabaseHas('tb_tagihan', ['id' => $t->id, 'status' => 'dibatalkan']);
+    }
+
+    /** @test */
+    public function cannot_edit_tagihan_after_approved(): void
+    {
+        $owner = $this->user('marketing');
+        $t = Tagihan::factory()->create(['created_by' => $owner->id, 'status' => 'disetujui']);
+        $this->actingAs($owner);
+        $this->get(route('tagihan.edit', $t->id))->assertStatus(403);
+    }
 }
