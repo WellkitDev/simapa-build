@@ -15,7 +15,7 @@ class TagihanController extends Controller
 {
     public function index()
     {
-        $tagihan = Tagihan::with('creator')
+        $tagihan = Tagihan::query()
             ->when($this->marketingOnly(), fn ($q) => $q->where('created_by', Auth::id()))
             ->latest()
             ->get();
@@ -80,6 +80,7 @@ class TagihanController extends Controller
     {
         abort_unless(Auth::user()->hasRole('superadmin'), 403);
         $tagihan = Tagihan::findOrFail($id);
+        abort_unless($tagihan->status === 'diajukan', 422, 'Tagihan tidak dalam status diajukan.');
         $from = $tagihan->status;
 
         DB::transaction(function () use ($tagihan, $from) {
@@ -95,6 +96,7 @@ class TagihanController extends Controller
         abort_unless(Auth::user()->hasRole('superadmin'), 403);
         $request->validate(['note' => 'required|string']);
         $tagihan = Tagihan::findOrFail($id);
+        abort_unless($tagihan->status === 'diajukan', 422, 'Tagihan tidak dalam status diajukan.');
         $from = $tagihan->status;
 
         DB::transaction(function () use ($tagihan, $from, $request) {
@@ -109,6 +111,7 @@ class TagihanController extends Controller
     {
         $tagihan = $this->scopedQuery()->findOrFail($id);
         abort_unless($this->canManage($tagihan), 403);
+        abort_unless(in_array($tagihan->status, ['diajukan', 'disetujui']), 422, 'Tagihan tidak bisa dibatalkan pada status ini.');
         $from = $tagihan->status;
 
         DB::transaction(function () use ($tagihan, $from) {

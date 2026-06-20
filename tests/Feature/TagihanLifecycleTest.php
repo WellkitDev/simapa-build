@@ -83,4 +83,12 @@ class TagihanLifecycleTest extends TestCase
         $this->actingAs($this->user('manager'));
         $this->get(route('tagihan.index'))->assertOk()->assertSee('TAGIHAN MARKETING');
     }
+
+    /** @test */
+    public function production_cannot_access_or_create_tagihan(): void
+    {
+        $this->actingAs($this->user('production'));
+        $this->get(route('tagihan.index'))->assertStatus(403);
+        $this->post(route('tagihan.store'), $this->validPayload())->assertStatus(403);
+    }
 }

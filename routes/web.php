@@ -125,7 +125,7 @@ Route::middleware('auth')->group(function () {
         Route::get('{id}/pdf', [InvoiceController::class, 'pdf'])->name('pdf');
     });
 
-    Route::prefix('tagihan')->name('tagihan.')->group(function () {
+    Route::prefix('tagihan')->name('tagihan.')->middleware('role:marketing|manager|superadmin')->group(function () {
         Route::get('',                [\App\Http\Controllers\Pages\TagihanController::class, 'index'])->name('index');
         Route::get('create',          [\App\Http\Controllers\Pages\TagihanController::class, 'create'])->name('create');
         Route::post('',               [\App\Http\Controllers\Pages\TagihanController::class, 'store'])->name('store');
