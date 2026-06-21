@@ -6,17 +6,24 @@
 <div class="row">
     @php
         $g = [
-            ['Total dalam Produksi', $global['total_in_production'], 'primary'],
-            ['Lewat Target', $global['lewat_target'], 'danger'],
-            ['Jatuh Tempo ≤7 hari', $global['jatuh_tempo_7'], 'warning'],
-            ['Selesai Bulan Ini', $global['selesai_bulan_ini'], 'success'],
+            ['Total dalam Produksi', $global['total_in_production'], 'primary', 'layers'],
+            ['Lewat Target', $global['lewat_target'], 'danger', 'alert-triangle'],
+            ['Jatuh Tempo ≤7 hari', $global['jatuh_tempo_7'], 'warning', 'clock'],
+            ['Selesai Bulan Ini', $global['selesai_bulan_ini'], 'success', 'check-circle'],
         ];
     @endphp
-    @foreach($g as [$label, $val, $tone])
+    @foreach($g as [$label, $val, $tone, $icon])
         <div class="col-md-3 grid-margin stretch-card">
             <div class="card"><div class="card-body">
-                <h6 class="card-title mb-0">{{ $label }}</h6>
-                <h3 class="mt-2 mb-0 text-{{ $tone }}">{{ $val }}</h3>
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="card-title mb-0">{{ $label }}</h6>
+                        <h3 class="mt-2 mb-0 text-{{ $tone }}">{{ $val }}</h3>
+                    </div>
+                    <div class="bg-{{ $tone }} bg-opacity-10 rounded p-2">
+                        <i data-feather="{{ $icon }}" class="text-{{ $tone }}"></i>
+                    </div>
+                </div>
             </div></div>
         </div>
     @endforeach
@@ -76,13 +83,22 @@
             series: @json($global['per_stage']['series']),
             labels: @json($global['per_stage']['labels']),
             legend: { position: 'bottom' },
+            dataLabels: { enabled: true, formatter: function (v) { return Math.round(v) + '%'; } },
+            plotOptions: { pie: { donut: { labels: { show: true, total: { show: true, label: 'Dalam Produksi' } } } } },
         }).render();
 
         new ApexCharts(document.querySelector("#globalTrendChart"), {
             chart: { type: 'area', height: 260, toolbar: { show: false } },
             series: [{ name: 'Selesai', data: @json($global['completion_trend']['series']) }],
-            xaxis: { categories: @json($global['completion_trend']['labels']), labels: { rotate: -45, style: { fontSize: '9px' } } },
+            xaxis: {
+                categories: @json($global['completion_trend']['labels']),
+                tickAmount: 10, tickPlacement: 'on',
+                labels: { rotate: -45, hideOverlappingLabels: true, style: { fontSize: '11px' } },
+                axisTicks: { show: false },
+            },
             dataLabels: { enabled: false }, stroke: { curve: 'smooth', width: 2 }, colors: ['#05a34a'],
+            fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.1 } },
+            grid: { borderColor: '#f1f1f1', strokeDashArray: 4 },
         }).render();
 
         $(".datatable").DataTable({ pageLength: 10, searching: true, ordering: true });

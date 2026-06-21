@@ -49,14 +49,17 @@ class MarketingDashboardTest extends TestCase
     }
 
     /** @test */
-    public function manager_dashboard_unchanged_generic_plus_global(): void
+    public function manager_dashboard_shows_cleaned_generic_plus_global(): void
     {
         $this->actingAs($this->user('manager'));
         $this->get(route('dashboard'))
             ->assertOk()
-            ->assertSee('total payment')          // generik tetap
-            ->assertSee('Progres Naskah')         // seksi global
-            ->assertDontSee('Ringkasan Pemasukan'); // bukan dashboard marketing
+            ->assertSee('Total Pembayaran')          // judul kartu dirapikan
+            ->assertSee('Menunggu Persetujuan')      // typo "Panding" diganti
+            ->assertSee('Progres Naskah')            // seksi global
+            ->assertDontSee('Ringkasan Pemasukan')   // bukan dashboard marketing
+            ->assertDontSee('+3.3%')                 // angka tren palsu template dihapus
+            ->assertDontSee('Total Panding Approved'); // typo lama hilang
     }
 
     /** @test */

@@ -104,7 +104,7 @@ class ProductionWorkspaceTest extends TestCase
         $this->get(route('dashboard'))
             ->assertOk()
             ->assertSee('Progres Naskah')        // seksi global
-            ->assertSee('total payment');         // finansial tetap ada
+            ->assertSee('Total Pembayaran');      // kartu finansial (judul dirapikan)
     }
 
     /** @test */
@@ -115,7 +115,7 @@ class ProductionWorkspaceTest extends TestCase
             ->assertOk()
             ->assertSee('Ringkasan Pemasukan')   // dashboard marketing
             ->assertSee('Progres Naskah Saya')   // progres scoped marketing
-            ->assertDontSee('total payment')     // bukan finansial generik
+            ->assertDontSee('Total Pembayaran')  // bukan finansial generik
             ->assertDontSee('Antrian Saya');     // bukan dashboard produksi
     }
 
