@@ -77,4 +77,28 @@ class MarketingDashboardTest extends TestCase
             ->assertSee('Target')      // header kolom
             ->assertSee('lewat');      // badge overdue (target kemarin, belum final)
     }
+
+    /** @test */
+    public function marketing_dashboard_shows_new_kpis_and_deadline_table(): void
+    {
+        $me = $this->user('marketing');
+        $order = Order::factory()->create(['user_id' => $me->id]);
+        $detail = OrderDetail::factory()->create([
+            'order_id' => $order->id, 'type' => 'bk_mandiri', 'title' => 'NASKAH DEADLINE',
+        ]);
+        TitleProgress::create([
+            'order_detail_id' => $detail->id, 'status' => 'editing', 'assigned_role' => 'production',
+            'started_at' => now(), 'target_date' => now()->subDay()->toDateString(),
+        ]);
+
+        $this->actingAs($me);
+        $this->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Total Piutang')
+            ->assertSee('Rata-rata Nilai Order')
+            ->assertSee('Naskah Mendekati Deadline')
+            ->assertSee('Lewat target')          // label tab
+            ->assertSee('NASKAH DEADLINE')        // baris naskah overdue
+            ->assertSee('Lewat 1 hari');          // badge sisa hari
+    }
 }
