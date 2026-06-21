@@ -38,6 +38,8 @@ Pendekatan: **server-render + DataTables/ApexCharts sisi-klien** (tanpa endpoint
 
 Delta = panah naik (hijau) / turun (merah) + persentase. Jika pembanding 0, tampilkan tanpa persentase (mis. "baru").
 
+**Perbandingan setara (hindari apples-to-oranges):** delta membandingkan periode berjalan **sampai hari ini** dengan **rentang yang sama** pada periode sebelumnya — bukan periode penuh. Contoh: "Minggu Ini" = Senin s.d. hari ini dibanding Senin–(hari yang sama) minggu lalu; "Tahun Ini" = 1 Jan s.d. hari ini dibanding 1 Jan–(tanggal yang sama) tahun lalu.
+
 **2 KPI baru:**
 - **Total Piutang** — sisa tagihan order marketing yang belum lunas. Sumber: pakai ulang `FinancialReportService::piutang($user)['kpi']['sisa']` (definisi identik dengan Laporan Keuangan → konsisten). `MarketingDashboardService` meng-inject `FinancialReportService`.
 - **Rata-rata Nilai Order** (tahun ini) — `Σ orderDetail.cost_amount ÷ jumlah order tahun ini`. Bila jumlah order 0 → tampilkan Rp 0.
