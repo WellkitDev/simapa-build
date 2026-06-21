@@ -1,0 +1,143 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Payment;
+use App\Models\Tagihan;
+use App\Models\TitleProgress;
+use App\Models\User;
+use App\Notifications\DatabaseNotification;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Str;
+
+class Notifier
+{
+    public function paymentSubmitted(Payment $payment, User $actor): void
+    {
+        $payment->loadMissing('order.user');
+        $this->send($this->roleUsers(['manager', 'superadmin'], $actor), [
+            'category' => 'payment',
+            'title'    => 'Pembayaran menunggu persetujuan',
+            'message'  => 'Rp ' . $this->rp($payment->amount) . ' dari ' . ($payment->order?->user?->name ?? '—'),
+            'url'      => route('payment.index'),
+            'icon'     => 'credit-card',
+        ]);
+    }
+
+    public function paymentApproved(Payment $payment, User $actor): void
+    {
+        $payment->loadMissing('order.user');
+        $this->toOwner($payment->order?->user, $actor, [
+            'category' => 'payment',
+            'title'    => 'Pembayaran disetujui',
+            'message'  => 'Rp ' . $this->rp($payment->amount),
+            'url'      => route('payment.index'),
+            'icon'     => 'check-circle',
+        ]);
+    }
+
+    public function paymentRejected(Payment $payment, User $actor): void
+    {
+        $payment->loadMissing('order.user');
+        $this->toOwner($payment->order?->user, $actor, [
+            'category' => 'payment',
+            'title'    => 'Pembayaran ditolak',
+            'message'  => 'Rp ' . $this->rp($payment->amount),
+            'url'      => route('payment.index'),
+            'icon'     => 'x-circle',
+        ]);
+    }
+
+    public function tagihanSubmitted(Tagihan $tagihan, User $actor): void
+    {
+        $this->send($this->roleUsers(['superadmin'], $actor), [
+            'category' => 'tagihan',
+            'title'    => 'Tagihan menunggu persetujuan',
+            'message'  => $tagihan->title . ' • Rp ' . $this->rp($tagihan->amount),
+            'url'      => route('tagihan.show', $tagihan->id),
+            'icon'     => 'file-text',
+        ]);
+    }
+
+    public function tagihanApproved(Tagihan $tagihan, User $actor): void
+    {
+        $tagihan->loadMissing('creator');
+        $this->toOwner($tagihan->creator, $actor, [
+            'category' => 'tagihan',
+            'title'    => 'Tagihan disetujui',
+            'message'  => $tagihan->title,
+            'url'      => route('tagihan.show', $tagihan->id),
+            'icon'     => 'check-circle',
+        ]);
+    }
+
+    public function tagihanRejected(Tagihan $tagihan, User $actor): void
+    {
+        $tagihan->loadMissing('creator');
+        $this->toOwner($tagihan->creator, $actor, [
+            'category' => 'tagihan',
+            'title'    => 'Tagihan ditolak',
+            'message'  => $tagihan->title . ($tagihan->reject_note ? ' — ' . $tagihan->reject_note : ''),
+            'url'      => route('tagihan.show', $tagihan->id),
+            'icon'     => 'x-circle',
+        ]);
+    }
+
+    public function naskahStageChanged(TitleProgress $progress, User $actor, string $from, string $to): void
+    {
+        $progress->loadMissing('orderDetail.order.user');
+        $tahap = Str::title(str_replace('_', ' ', $to));
+        $this->toOwner($progress->orderDetail?->order?->user, $actor, [
+            'category' => 'naskah',
+            'title'    => 'Naskah maju ke ' . $tahap,
+            'message'  => $progress->orderDetail?->title ?? 'Naskah',
+            'url'      => route('order.indexJudul.progress', $progress->order_detail_id),
+            'icon'     => 'book-open',
+        ]);
+    }
+
+    public function naskahNeedsReview(TitleProgress $progress, User $actor): void
+    {
+        $progress->loadMissing('orderDetail');
+        $this->send($this->roleUsers(['manager', 'superadmin'], $actor), [
+            'category' => 'naskah',
+            'title'    => 'Naskah perlu ditinjau',
+            'message'  => $progress->orderDetail?->title ?? 'Naskah',
+            'url'      => route('order.indexJudul.progress', $progress->order_detail_id),
+            'icon'     => 'alert-triangle',
+        ]);
+    }
+
+    private function rp(int|string|null $amount): string
+    {
+        return number_format((int) $amount, 0, ',', '.');
+    }
+
+    /** Users dengan salah satu role, kecuali aktor. */
+    private function roleUsers(array $roles, User $actor): Collection
+    {
+        return User::role($roles)->get()->reject(fn (User $u) => $u->id === $actor->id)->values();
+    }
+
+    private function toOwner(?User $owner, User $actor, array $payload): void
+    {
+        if (! $owner || $owner->id === $actor->id) {
+            return;
+        }
+        $this->send(collect([$owner]), $payload);
+    }
+
+    private function send(Collection $recipients, array $payload): void
+    {
+        if ($recipients->isEmpty()) {
+            return;
+        }
+        try {
+            Notification::send($recipients, new DatabaseNotification($payload));
+        } catch (\Throwable $e) {
+            Log::warning('Notifier gagal mengirim notifikasi: ' . $e->getMessage());
+        }
+    }
+}
