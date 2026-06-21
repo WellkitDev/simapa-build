@@ -49,6 +49,46 @@ class MarketingDashboardService
         ];
     }
 
+    /** Baris tabel naskah aktif mendekati/lewat deadline (ter-scope order marketing). */
+    public function deadlineRows(User $user): \Illuminate\Support\Collection
+    {
+        $today = Carbon::today();
+
+        return TitleProgress::query()
+            ->whereNotIn('status', TitleProgress::FINAL_STAGES)
+            ->whereNotNull('target_date')
+            ->whereHas('orderDetail.order', fn ($q) => $q->where('user_id', $user->id))
+            ->with('orderDetail.order')
+            ->get()
+            ->map(function (TitleProgress $tp) use ($today) {
+                $target  = Carbon::parse($tp->target_date)->startOfDay();
+                $overdue = $target->lt($today);
+                $days    = $today->diffInDays($target);     // absolut (>= 0)
+                $signed  = $overdue ? -$days : $days;       // negatif bila lewat
+                $isD7    = ! $overdue && $target->lte($today->copy()->addDays(7));
+                $isMonth = ! $overdue && $target->lte($today->copy()->endOfMonth());
+
+                return [
+                    'id'           => $tp->id,
+                    'title'        => $tp->orderDetail->title,
+                    'code_order'   => $tp->orderDetail->order->code_order,
+                    'stage'        => Str::title(str_replace('_', ' ', $tp->status)),
+                    'target_date'  => $target->format('Y-m-d'),
+                    'target_label' => $target->format('d M Y'),
+                    'days'         => $signed,
+                    'days_label'   => $overdue
+                        ? 'Lewat ' . $days . ' hari'
+                        : ($days === 0 ? 'Hari ini' : $days . ' hari lagi'),
+                    'priority'     => $tp->priority,
+                    'overdue'      => $overdue ? 1 : 0,
+                    'd7'           => $isD7 ? 1 : 0,
+                    'month'        => $isMonth ? 1 : 0,
+                ];
+            })
+            ->sortBy('days')
+            ->values();
+    }
+
     private function stageChart($perStage): array
     {
         return [

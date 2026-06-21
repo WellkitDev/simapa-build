@@ -115,4 +115,30 @@ class MarketingDashboardServiceTest extends TestCase
         $this->assertEquals(2, $d['jatuh_tempo_7']);
         $this->assertEquals(1, $d['lewat_target']);  // the overdue one
     }
+
+    /** @test */
+    public function deadline_rows_are_scoped_flagged_and_sorted(): void
+    {
+        $mkt = $this->marketing();
+        $o = $this->orderFor($mkt);
+        $this->naskah($o, 'editing',      ['target_date' => now()->subDays(3)->toDateString()]); // overdue
+        $this->naskah($o, 'layout',       ['target_date' => now()->addDays(5)->toDateString()]); // d7 + month
+        $this->naskah($o, 'proofreading', ['target_date' => now()->endOfMonth()->toDateString()]); // month
+        $this->naskah($o, 'isbn',         ['target_date' => now()->addMonth()->toDateString()]);  // tidak ada flag
+        $this->naskah($o, 'editing');                                                              // tanpa target → keluar
+        $this->naskah($o, 'terbit',       ['target_date' => now()->addDay()->toDateString()]);     // final → keluar
+        $this->naskah($this->orderFor($this->marketing()), 'editing', ['target_date' => now()->toDateString()]); // marketing lain → keluar
+
+        $rows = $this->svc->deadlineRows($mkt);
+
+        $this->assertCount(4, $rows);                               // scoping + exclusion
+        $this->assertSame(1, $rows->first()['overdue']);           // overdue paling atas (sort)
+        $this->assertSame(1, $rows->firstWhere('stage', 'Layout')['d7']);        // +5 hari selalu <= 7
+        $this->assertSame(1, $rows->firstWhere('stage', 'Proofreading')['month']); // akhir bulan ini → selalu month
+        $this->assertSame(0, $rows->firstWhere('stage', 'Isbn')['month']);       // +1 bulan → bukan bulan ini
+        $this->assertSame(0, $rows->firstWhere('stage', 'Isbn')['d7']);
+        $this->assertSame('Lewat 3 hari', $rows->first()['days_label']);
+        // Catatan: flag 'month' untuk row 'Layout' (+5 hari) sengaja TIDAK di-assert —
+        // dekat akhir bulan +5 hari bisa jatuh ke bulan depan (sensitif tanggal jalan test).
+    }
 }
