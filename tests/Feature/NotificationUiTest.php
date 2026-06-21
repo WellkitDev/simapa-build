@@ -86,4 +86,15 @@ class NotificationUiTest extends TestCase
 
         $this->assertSame(0, $u->fresh()->unreadNotifications()->count());
     }
+
+    /** @test */
+    public function cannot_read_another_users_notification(): void
+    {
+        $me = $this->user('marketing');
+        $other = $this->user('marketing');
+        $this->notify($other);
+        $id = $other->notifications()->first()->id;
+
+        $this->actingAs($me)->post(route('notifications.read', $id))->assertNotFound();
+    }
 }
