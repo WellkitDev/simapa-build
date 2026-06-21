@@ -40,7 +40,14 @@ class TitleProgressService
             throw ValidationException::withMessages(['note' => 'Catatan wajib diisi untuk koreksi/lompat status.']);
         }
 
-        return DB::transaction(fn () => $this->applyStatus($progress, $current, $target, $actor, $note, $isCorrection));
+        $result = DB::transaction(fn () => $this->applyStatus($progress, $current, $target, $actor, $note, $isCorrection));
+
+        app(Notifier::class)->naskahStageChanged($result, $actor, $current, $target);
+        if ($result->needs_review) {
+            app(Notifier::class)->naskahNeedsReview($result, $actor);
+        }
+
+        return $result;
     }
 
     /** Tulis perubahan status + log untuk satu progress (tanpa validasi — pemanggil yang memvalidasi). */
@@ -245,15 +252,25 @@ class TitleProgressService
 
         $targetIdx = array_search($target, $stages, true);
 
-        DB::transaction(function () use ($progresses, $stages, $target, $targetIdx, $actor, $note, $isCorrection) {
+        $changed = [];
+        DB::transaction(function () use ($progresses, $stages, $target, $targetIdx, $actor, $note, $isCorrection, &$changed) {
             foreach ($progresses as $p) {
                 $idx = array_search($p->status, $stages, true);
                 // Maju: hanya varian di belakang target. Koreksi: seluruh varian.
                 if (($isCorrection || $idx < $targetIdx) && $p->status !== $target) {
-                    $this->applyStatus($p, $p->status, $target, $actor, $note, $isCorrection);
+                    $from = $p->status;
+                    $this->applyStatus($p, $from, $target, $actor, $note, $isCorrection);
+                    $changed[] = [$p, $from];
                 }
             }
         });
+
+        foreach ($changed as [$p, $from]) {
+            app(Notifier::class)->naskahStageChanged($p, $actor, $from, $target);
+            if ($p->needs_review) {
+                app(Notifier::class)->naskahNeedsReview($p, $actor);
+            }
+        }
     }
 
     public function assignGroup(iterable $progresses, ?int $userId, User $actor): void

@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use App\Services\Notifier;
 
 class TagihanController extends Controller
 {
@@ -43,6 +44,7 @@ class TagihanController extends Controller
             return $tagihan->id;
         });
 
+        app(Notifier::class)->tagihanSubmitted(Tagihan::find($id), Auth::user());
         return redirect()->route('tagihan.show', $id)->with('success', 'Tagihan dibuat & diajukan.');
     }
 
@@ -65,7 +67,8 @@ class TagihanController extends Controller
         abort_unless($tagihan->isEditable() && $this->canManage($tagihan), 403);
 
         $data = $this->validateData($request);
-        DB::transaction(function () use ($tagihan, $data) {
+        $resubmit = false;
+        DB::transaction(function () use ($tagihan, $data, &$resubmit) {
             $resubmit = $tagihan->status === 'ditolak';
             $tagihan->update([...$data, 'status' => $resubmit ? 'diajukan' : $tagihan->status]);
             if ($resubmit) {
@@ -73,6 +76,9 @@ class TagihanController extends Controller
             }
         });
 
+        if ($resubmit) {
+            app(Notifier::class)->tagihanSubmitted($tagihan, Auth::user());
+        }
         return redirect()->route('tagihan.show', $tagihan->id)->with('success', 'Tagihan diperbarui.');
     }
 
@@ -88,6 +94,7 @@ class TagihanController extends Controller
             $this->log($tagihan, $from, 'disetujui', 'Tagihan disetujui.');
         });
 
+        app(Notifier::class)->tagihanApproved($tagihan, Auth::user());
         return back()->with('success', 'Tagihan disetujui.');
     }
 
@@ -104,6 +111,7 @@ class TagihanController extends Controller
             $this->log($tagihan, $from, 'ditolak', $request->note);
         });
 
+        app(Notifier::class)->tagihanRejected($tagihan, Auth::user());
         return back()->with('warning', 'Tagihan ditolak.');
     }
 

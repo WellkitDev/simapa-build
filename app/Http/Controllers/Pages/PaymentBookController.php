@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
 use App\Services\GoogleDriveService;
 use Illuminate\Support\Facades\Auth;
+use App\Services\Notifier;
 
 class PaymentBookController extends Controller
 {
@@ -125,7 +126,8 @@ class PaymentBookController extends Controller
         $emailRequested = $request->boolean('send_invoice_email');
 
         try {
-            $invoiceId = DB::transaction(function () use ($validate, $order, $strukUrl, $emailRequested) {
+            $payment = null;
+            $invoiceId = DB::transaction(function () use ($validate, $order, $strukUrl, $emailRequested, &$payment) {
                 $payment = Payment::create([
                     'order_id'     => $order->id,
                     'payment_type' => $validate['status'],
@@ -169,6 +171,7 @@ class PaymentBookController extends Controller
 
                 return $invoice->id;
             });
+            app(Notifier::class)->paymentSubmitted($payment, Auth::user());
             return redirect()->route('order.book.create')
                 ->with('success', 'Pembayaran berhasil diajukan, menunggu approval');
         } catch (\Exception $e) {
@@ -293,6 +296,7 @@ class PaymentBookController extends Controller
                 SendInvoiceJob::dispatch($invoiceToEmail);
             }
 
+            app(Notifier::class)->paymentApproved($payment, Auth::user());
             return redirect()->route('payment.index')->with('success', 'Pembayaran berhasil disetujui.');
         } catch (\Exception $e) {
             return back()->with('error', 'Gagal memproses approval: ' . $e->getMessage());
@@ -304,30 +308,24 @@ class PaymentBookController extends Controller
         // Validasi input note jika dikirim dari modal/form
 
         try {
-            DB::transaction(function () use ($id) {
-                // Gunakan with('approval') agar lebih efisien
-                $payment = Payment::with('approval')->findOrFail($id);
+            $payment = Payment::with('approval', 'order.user')->findOrFail($id);
 
-                // 1. Update status di tb_payments menjadi 'failed' atau 'rejected'
-                // Sesuaikan dengan enum/string yang Anda gunakan di database
+            DB::transaction(function () use ($payment) {
                 $payment->update(['status' => 'rejected']);
 
-                // 2. Update status di tb_payment_approvals
-                // Pastikan menggunakan updateOrCreate jika ada kemungkinan data approval belum terbuat
                 $payment->approval()->update([
                     'status'      => 'rejected',
-                    'note'        => 'Data tidak valid', // Alasan dari input user
+                    'note'        => 'Data tidak valid',
                     'approved_by' => auth()->id(),
-                    'approved_at' => now()
+                    'approved_at' => now(),
                 ]);
 
-                // 3. Optional: Jika pembayaran ditolak, pastikan status Order tetap 'pending'
-                // atau kembali ke status sebelumnya (tidak menjadi 'lunas')
                 if ($payment->order) {
                     $payment->order->update(['status' => 'pending']);
                 }
             });
 
+            app(Notifier::class)->paymentRejected($payment, Auth::user());
             return redirect()->route('payment.index')->with('warning', 'Pembayaran telah ditolak.');
 
         } catch (\Exception $e) {
