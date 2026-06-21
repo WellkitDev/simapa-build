@@ -154,10 +154,11 @@ class MarketingDashboardServiceTest extends TestCase
 
         $this->assertSame(600000, $d['total_piutang']);    // 1.000.000 - 400.000
         $this->assertSame(1000000, $d['rata_rata_order']); // 1 order, cost 1.000.000
+        $this->assertSame(1, $d['jumlah_order_bulan_ini']);  // order ordered_at = now() → bulan ini
 
         foreach ([
             'pemasukan_hari_ini_delta', 'pemasukan_minggu_ini_delta',
-            'pemasukan_tahun_ini_delta', 'jumlah_order_delta',
+            'pemasukan_tahun_ini_delta', 'jumlah_order_delta', 'jumlah_order_bulan_ini_delta',
         ] as $key) {
             $this->assertArrayHasKey($key, $d);
             $this->assertArrayHasKey('dir', $d[$key]);

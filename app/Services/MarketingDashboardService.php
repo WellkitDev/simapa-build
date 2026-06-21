@@ -29,13 +29,15 @@ class MarketingDashboardService
         $incHari   = (int) $income()->whereDate('paid_at', $today)->sum('amount');
         $incMinggu = (int) $income()->whereBetween('paid_at', [$today->copy()->startOfWeek(), $today->copy()->endOfWeek()])->sum('amount');
         $incTahun  = (int) $income()->whereYear('paid_at', $today->year)->sum('amount');
-        $jmlOrder  = Order::where('user_id', $uid)->whereYear('ordered_at', $today->year)->count();
+        $jmlOrder    = Order::where('user_id', $uid)->whereYear('ordered_at', $today->year)->count();
+        $jmlOrderBln = Order::where('user_id', $uid)->whereYear('ordered_at', $today->year)->whereMonth('ordered_at', $today->month)->count();
 
         // Pembanding setara (period-to-date pada periode sebelumnya).
-        $incHariPrev   = (int) $income()->whereDate('paid_at', $today->copy()->subDay())->sum('amount');
-        $incMingguPrev = (int) $income()->whereBetween('paid_at', [$today->copy()->startOfWeek()->subWeek(), $today->copy()->endOfDay()->subWeek()])->sum('amount');
-        $incTahunPrev  = (int) $income()->whereBetween('paid_at', [$today->copy()->startOfYear()->subYear(), $today->copy()->endOfDay()->subYear()])->sum('amount');
-        $jmlOrderPrev  = Order::where('user_id', $uid)->whereBetween('ordered_at', [$today->copy()->startOfYear()->subYear(), $today->copy()->endOfDay()->subYear()])->count();
+        $incHariPrev    = (int) $income()->whereDate('paid_at', $today->copy()->subDay())->sum('amount');
+        $incMingguPrev  = (int) $income()->whereBetween('paid_at', [$today->copy()->startOfWeek()->subWeek(), $today->copy()->endOfDay()->subWeek()])->sum('amount');
+        $incTahunPrev   = (int) $income()->whereBetween('paid_at', [$today->copy()->startOfYear()->subYear(), $today->copy()->endOfDay()->subYear()])->sum('amount');
+        $jmlOrderPrev   = Order::where('user_id', $uid)->whereBetween('ordered_at', [$today->copy()->startOfYear()->subYear(), $today->copy()->endOfDay()->subYear()])->count();
+        $jmlOrderBlnPrev = Order::where('user_id', $uid)->whereBetween('ordered_at', [$today->copy()->startOfMonth()->subMonthNoOverflow(), $today->copy()->endOfDay()->subMonthNoOverflow()])->count();
 
         return [
             // Pemasukan (tiap Payment paid dihitung — termasuk DP/parsial/pelunasan)
@@ -43,12 +45,14 @@ class MarketingDashboardService
             'pemasukan_minggu_ini'   => $incMinggu,
             'pemasukan_tahun_ini'    => $incTahun,
             'jumlah_order_tahun_ini' => $jmlOrder,
+            'jumlah_order_bulan_ini' => $jmlOrderBln,
 
             // Indikator delta vs periode sebelumnya (period-to-date setara)
-            'pemasukan_hari_ini_delta'   => $this->delta($incHari, $incHariPrev),
-            'pemasukan_minggu_ini_delta' => $this->delta($incMinggu, $incMingguPrev),
-            'pemasukan_tahun_ini_delta'  => $this->delta($incTahun, $incTahunPrev),
-            'jumlah_order_delta'         => $this->delta($jmlOrder, $jmlOrderPrev),
+            'pemasukan_hari_ini_delta'     => $this->delta($incHari, $incHariPrev),
+            'pemasukan_minggu_ini_delta'   => $this->delta($incMinggu, $incMingguPrev),
+            'pemasukan_tahun_ini_delta'    => $this->delta($incTahun, $incTahunPrev),
+            'jumlah_order_delta'           => $this->delta($jmlOrder, $jmlOrderPrev),
+            'jumlah_order_bulan_ini_delta' => $this->delta($jmlOrderBln, $jmlOrderBlnPrev),
 
             // KPI baru
             'total_piutang'   => (int) ((new FinancialReportService())->piutang($user)['kpi']['sisa']),

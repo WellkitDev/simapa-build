@@ -18,7 +18,7 @@
         ];
     @endphp
     @foreach($income as [$label, $val, $tone, $icon, $delta])
-        <div class="col-md-3 grid-margin stretch-card">
+        <div class="col-md-4 grid-margin stretch-card">
             <div class="card"><div class="card-body">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
@@ -33,6 +33,24 @@
             </div></div>
         </div>
     @endforeach
+</div>
+
+<h6 class="text-muted mb-2 mt-2">Statistik Order &amp; Tagihan</h6>
+<div class="row">
+    <div class="col-md-3 grid-margin stretch-card">
+        <div class="card"><div class="card-body">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h6 class="card-title mb-0">Jumlah Order (bulan ini)</h6>
+                    <h4 class="mt-2 mb-0 text-primary">{{ $mkt['jumlah_order_bulan_ini'] }}</h4>
+                </div>
+                <div class="bg-primary bg-opacity-10 rounded p-2">
+                    <i data-feather="shopping-cart" class="text-primary"></i>
+                </div>
+            </div>
+            @include('dashboard.partials.delta', ['delta' => $mkt['jumlah_order_bulan_ini_delta']])
+        </div></div>
+    </div>
     <div class="col-md-3 grid-margin stretch-card">
         <div class="card"><div class="card-body">
             <div class="d-flex justify-content-between align-items-start">
@@ -47,21 +65,32 @@
             @include('dashboard.partials.delta', ['delta' => $mkt['jumlah_order_delta']])
         </div></div>
     </div>
-</div>
-
-<div class="row">
     <div class="col-md-3 grid-margin stretch-card">
         <div class="card"><div class="card-body">
-            <h6 class="card-title mb-0">Total Piutang</h6>
-            <h4 class="mt-2 mb-0 text-warning">Rp {{ number_format($mkt['total_piutang'], 0, ',', '.') }}</h4>
-            <small class="text-muted">Sisa tagihan order belum lunas</small>
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h6 class="card-title mb-0">Total Piutang</h6>
+                    <h4 class="mt-2 mb-0 text-warning">Rp {{ number_format($mkt['total_piutang'], 0, ',', '.') }}</h4>
+                </div>
+                <div class="bg-warning bg-opacity-10 rounded p-2">
+                    <i data-feather="alert-circle" class="text-warning"></i>
+                </div>
+            </div>
+            <small class="text-muted mt-2 d-block">Sisa tagihan order belum lunas</small>
         </div></div>
     </div>
     <div class="col-md-3 grid-margin stretch-card">
         <div class="card"><div class="card-body">
-            <h6 class="card-title mb-0">Rata-rata Nilai Order</h6>
-            <h4 class="mt-2 mb-0 text-dark">Rp {{ number_format($mkt['rata_rata_order'], 0, ',', '.') }}</h4>
-            <small class="text-muted">Tahun ini</small>
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h6 class="card-title mb-0">Rata-rata Nilai Order</h6>
+                    <h4 class="mt-2 mb-0 text-dark">Rp {{ number_format($mkt['rata_rata_order'], 0, ',', '.') }}</h4>
+                </div>
+                <div class="bg-info bg-opacity-10 rounded p-2">
+                    <i data-feather="bar-chart-2" class="text-info"></i>
+                </div>
+            </div>
+            <small class="text-muted mt-2 d-block">Tahun ini</small>
         </div></div>
     </div>
 </div>
@@ -183,14 +212,24 @@
             ord: { labels: @json($mkt['order_trend']['labels']),  series: @json($mkt['order_trend']['series']) },
         };
         function slice(o, n) { return { labels: o.labels.slice(-n), series: o.series.slice(-n) }; }
+        // Batasi jumlah label sumbu-X biar tidak "semut" di rentang panjang.
+        function tickFor(n) { return n <= 14 ? n : (n <= 31 ? 10 : 12); }
         function areaOpts(name, d, color, isCurrency) {
             return {
                 chart: { type: 'area', height: 240, toolbar: { show: false } },
                 series: [{ name: name, data: d.series }],
-                xaxis: { categories: d.labels, labels: { rotate: -45, style: { fontSize: '9px' } } },
+                xaxis: {
+                    categories: d.labels,
+                    tickAmount: tickFor(d.series.length),
+                    tickPlacement: 'on',
+                    labels: { rotate: -45, rotateAlways: false, hideOverlappingLabels: true, trim: false, style: { fontSize: '11px' } },
+                    axisTicks: { show: false },
+                },
+                yaxis: { labels: { formatter: function (v) { return isCurrency ? v.toLocaleString('id-ID') : Math.round(v); } } },
                 dataLabels: { enabled: false }, stroke: { curve: 'smooth', width: 2 }, colors: [color],
                 fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.1 } },
-                markers: { size: 0, hover: { size: 4 } },
+                markers: { size: 0, hover: { size: 5 } },
+                grid: { borderColor: '#f1f1f1', strokeDashArray: 4, padding: { left: 8, right: 8 } },
                 tooltip: isCurrency ? { y: { formatter: function (v) { return 'Rp ' + v.toLocaleString('id-ID'); } } } : {},
             };
         }
@@ -203,8 +242,8 @@
             btn.addEventListener('click', function () {
                 var n = +this.dataset.range;
                 var si = slice(full.inc, n), so = slice(full.ord, n);
-                incChart.updateOptions({ xaxis: { categories: si.labels }, series: [{ data: si.series }] });
-                ordChart.updateOptions({ xaxis: { categories: so.labels }, series: [{ data: so.series }] });
+                incChart.updateOptions({ xaxis: { categories: si.labels, tickAmount: tickFor(si.series.length) }, series: [{ data: si.series }] });
+                ordChart.updateOptions({ xaxis: { categories: so.labels, tickAmount: tickFor(so.series.length) }, series: [{ data: so.series }] });
                 document.querySelectorAll('#mktRangeToggle [data-range]').forEach(function (b) {
                     b.classList.remove('btn-primary', 'active'); b.classList.add('btn-outline-primary');
                 });

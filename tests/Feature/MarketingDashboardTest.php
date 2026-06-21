@@ -94,6 +94,8 @@ class MarketingDashboardTest extends TestCase
         $this->actingAs($me);
         $this->get(route('dashboard'))
             ->assertOk()
+            ->assertSee('Jumlah Order (bulan ini)')
+            ->assertSee('Jumlah Order (tahun ini)')
             ->assertSee('Total Piutang')
             ->assertSee('Rata-rata Nilai Order')
             ->assertSee('Naskah Mendekati Deadline')
