@@ -90,4 +90,24 @@ class FinancialReportTest extends TestCase
         $this->assertTrue(\Illuminate\Support\Facades\Route::has('income.pemasukan'));
         $this->assertTrue(\Illuminate\Support\Facades\Route::has('income.piutang'));
     }
+
+    /** @test */
+    public function exports_return_correct_content_types(): void
+    {
+        $me = $this->user('marketing');
+        $this->orderWithPayment($me, 'ORD-EXP', 5000000, 2000000);
+        $this->actingAs($me);
+
+        $pdf = $this->get(route('income.pemasukan.pdf'))->assertOk();
+        $this->assertStringContainsString('application/pdf', $pdf->headers->get('content-type'));
+
+        $csv = $this->get(route('income.pemasukan.csv'))->assertOk();
+        $this->assertStringContainsString('text/csv', $csv->headers->get('content-type'));
+        $this->assertStringContainsString('ORD-EXP', $csv->streamedContent());
+
+        $this->get(route('income.piutang.pdf'))->assertOk();
+        $this->get(route('income.piutang.csv'))->assertOk();
+        $this->get(route('income.lunas.pdf'))->assertOk();
+        $this->get(route('income.lunas.csv'))->assertOk();
+    }
 }
