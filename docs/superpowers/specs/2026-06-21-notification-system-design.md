@@ -64,16 +64,18 @@ Satu method publik per event. Tiap method: resolusi penerima (kecuali aktor) →
 | `tagihanSubmitted(Tagihan, User $actor)` | TagihanController::store & update (resubmit) | role `superadmin` |
 | `tagihanApproved(Tagihan, User $actor)` | TagihanController::approve | pembuat (`tagihan.creator`, `created_by`) |
 | `tagihanRejected(Tagihan, User $actor)` | TagihanController::reject | pembuat (sertakan `reject_note` di message) |
-| `naskahStageChanged(TitleProgress, User $actor, string $from, string $to)` | TitleProgressService::changeStatus | pemilik order (`progress.orderDetail.order.user`) |
-| `naskahNeedsReview(TitleProgress, User $actor)` | TitleProgressService::changeStatus (saat `needs_review` di-set) | role `manager` + `superadmin` |
+| `naskahStageChanged(TitleProgress, User $actor, string $from, string $to)` | TitleProgressService::changeStatus **dan** changeGroupStatus (papan Manuscript pakai group) | pemilik order (`progress.orderDetail.order.user`) |
+| `naskahNeedsReview(TitleProgress, User $actor)` | sama (saat `needs_review` di-set per progress) | role `manager` + `superadmin` |
 
-**Resolusi penerima:** lookup role via Spatie `User::role([...])->where('is_active', true)->get()`; selalu buang aktor (`->reject(fn ($u) => $u->id === $actor->id)`) dan buang duplikat. Bila penerima kosong, tidak mengirim apa pun (no-op).
+**Resolusi penerima:** lookup role via Spatie `User::role([...])->get()`; selalu buang aktor (`->reject(fn ($u) => $u->id === $actor->id)`). Bila penerima kosong, tidak mengirim apa pun (no-op). (Tidak memfilter `is_active` — kolom itu tidak selalu terisi dan bukan kebutuhan inti; bisa ditambah belakangan.)
 
 **Contoh payload** (paymentApproved): `category=payment`, `title="Pembayaran disetujui"`, `message="INV {no} • Rp {amount}"`, `url=route('payment.index')` (tidak ada route detail pembayaran tunggal, jadi mengarah ke daftar Pembayaran Disetujui), `icon="credit-card"`. Naskah: `url=route('order.indexJudul.progress', $progress->order_detail_id)`, `icon="book-open"`. Tagihan: `url=route('tagihan.show', $tagihan->id)`, `icon="file-text"`.
 
 ### 3.4 Wiring titik picu
 
-Panggilan `Notifier` satu baris ditempatkan **setelah** blok `DB::transaction(...)` commit di tiap titik (sehingga notifikasi tidak ikut di-rollback). `TitleProgressService::changeStatus` memanggil `naskahStageChanged` (dan `naskahNeedsReview` bila menandai review) setelah perubahan tersimpan. Aktor diambil dari user yang sedang login / parameter `$user` yang sudah diterima method tersebut.
+Panggilan `Notifier` satu baris ditempatkan **setelah** blok `DB::transaction(...)` commit di tiap titik (sehingga notifikasi tidak ikut di-rollback) — **bukan** `DB::afterCommit` (callback afterCommit tidak jalan di bawah `RefreshDatabase` yang membungkus tiap test dalam transaksi).
+
+`TitleProgressService` dipanggil lewat dua jalur: `changeStatus` (single — dari Arsip Judul) dan `changeGroupStatus` (group — dari papan Manuscript produksi). Keduanya menjalankan `applyStatus` di dalam transaksi. Wiring: setelah transaksi masing-masing method commit, kirim `naskahStageChanged` untuk tiap progress yang benar-benar berubah (group: kumpulkan progress yang berubah + status asalnya, lalu notifikasi per pemilik), dan `naskahNeedsReview` bila progress tsb `needs_review`. Notifier dipanggil via `app(Notifier::class)` di dalam service (tanpa mengubah konstruktor service, agar `new TitleProgressService()` di test lama tetap jalan). Aktor = `$actor` yang sudah diterima method.
 
 ### 3.5 UI
 
