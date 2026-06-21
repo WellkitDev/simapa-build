@@ -115,7 +115,7 @@ class MarketingDashboardService
                 $isMonth = ! $overdue && $target->lte($today->copy()->endOfMonth());
 
                 return [
-                    'id'           => $tp->id,
+                    'order_detail_id' => $tp->order_detail_id,
                     'title'        => $tp->orderDetail->title,
                     'code_order'   => $tp->orderDetail->order->code_order,
                     'stage'        => Str::title(str_replace('_', ' ', $tp->status)),

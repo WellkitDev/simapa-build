@@ -148,7 +148,7 @@
                         @foreach($mkt['deadline_rows'] as $r)
                             <tr data-overdue="{{ $r['overdue'] }}" data-d7="{{ $r['d7'] }}" data-month="{{ $r['month'] }}">
                                 <td>{{ $r['title'] }}</td>
-                                <td><a href="{{ route('order.indexJudul.progress', $r['id']) }}">{{ $r['code_order'] }}</a></td>
+                                <td><a href="{{ route('order.indexJudul.progress', $r['order_detail_id']) }}">{{ $r['code_order'] }}</a></td>
                                 <td><span class="badge bg-secondary">{{ $r['stage'] }}</span></td>
                                 <td data-order="{{ $r['target_date'] }}">{{ $r['target_label'] }}</td>
                                 <td data-order="{{ $r['days'] }}">

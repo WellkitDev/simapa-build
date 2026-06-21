@@ -99,6 +99,7 @@ class MarketingDashboardTest extends TestCase
             ->assertSee('Naskah Mendekati Deadline')
             ->assertSee('Lewat target')          // label tab
             ->assertSee('NASKAH DEADLINE')        // baris naskah overdue
-            ->assertSee('Lewat 1 hari');          // badge sisa hari
+            ->assertSee('Lewat 1 hari')           // badge sisa hari
+            ->assertSee(route('order.indexJudul.progress', $detail->id)); // link pakai order_detail_id, bukan title_progress id
     }
 }
