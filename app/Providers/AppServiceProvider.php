@@ -23,8 +23,20 @@ class AppServiceProvider extends ServiceProvider
 
         \Illuminate\Support\Facades\View::composer('layouts.partials.notifications', function ($view) {
             $user = \Illuminate\Support\Facades\Auth::user();
-            $view->with('navUnread', $user ? $user->unreadNotifications()->count() : 0);
-            $view->with('navRecent', $user ? $user->notifications()->latest()->take(7)->get() : collect());
+            $unread = 0;
+            $recent = collect();
+            // Lonceng tampil di setiap halaman terautentikasi; jangan biarkan kegagalan
+            // query notifikasi (mis. migrasi belum jalan) menjatuhkan seluruh halaman.
+            if ($user) {
+                try {
+                    $unread = $user->unreadNotifications()->count();
+                    $recent = $user->notifications()->latest()->take(7)->get();
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning('Gagal memuat notifikasi navbar: ' . $e->getMessage());
+                }
+            }
+            $view->with('navUnread', $unread);
+            $view->with('navRecent', $recent);
         });
     }
 }
