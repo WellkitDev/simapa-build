@@ -110,4 +110,18 @@ class FinancialReportTest extends TestCase
         $this->get(route('income.lunas.pdf'))->assertOk();
         $this->get(route('income.lunas.csv'))->assertOk();
     }
+
+    /** @test */
+    public function laporan_pemasukan_matches_dashboard_income(): void
+    {
+        $me = $this->user('marketing');
+        $this->orderWithPayment($me, 'ORD-A', 5000000, 2000000);
+        $this->orderWithPayment($me, 'ORD-B', 3000000, 3000000, 'lunas');
+
+        $fr   = app(\App\Services\FinancialReportService::class)->pemasukan($me);
+        $dash = app(\App\Services\MarketingDashboardService::class)->forUser($me);
+
+        $this->assertEquals($dash['pemasukan_tahun_ini'], $fr['kpi']['total']);
+        $this->assertEquals(5000000, $fr['kpi']['total']); // 2jt + 3jt, by paid_at tahun ini
+    }
 }

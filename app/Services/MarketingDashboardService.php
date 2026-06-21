@@ -19,9 +19,8 @@ class MarketingDashboardService
         $uid   = $user->id;
         $today = Carbon::today();
 
-        $income = fn () => Payment::query()
-            ->where('status', 'paid')
-            ->whereHas('order', fn ($q) => $q->where('user_id', $uid));
+        // Definisi kanonik (sama dengan FinancialReportService): uang masuk = Payment status paid, scoped order user.
+        $income = fn () => Payment::approved()->forOrdersOf($user);
 
         $prog = fn () => TitleProgress::query()
             ->whereHas('orderDetail.order', fn ($q) => $q->where('user_id', $uid));
