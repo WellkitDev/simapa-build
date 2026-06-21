@@ -92,8 +92,10 @@ Perubahan di `routes/web.php`:
 | `payment.approve`, `payment.reject` | `role:manager|superadmin` |
 | Grup `payments` (prefix `payments`) | `role:marketing|manager|superadmin` |
 | Grup `invoices` (prefix `invoices`) | `role:marketing|manager|superadmin` |
-| `invoice.update`, `invoice.updateStatus`, `invoice.cancel`, `invoice.refund` | `role:manager|superadmin` |
-| Grup order: `order.book.*` & `order.journal.*` (prefix `order`) dan `management` order/title index+detail (`order.book.index`, `order.book.indexJudul`, `indexJudul.detail`, `indexJudul.progress`) | `role:marketing|manager|superadmin` |
+| `invoice.edit`, `invoice.update`, `invoice.updateStatus`, `invoice.cancel`, `invoice.refund` | `role:manager|superadmin` |
+| Listing & buat/ubah order: `order.book.create/store/edit/update`, `order.journal.create/store`, `order.book.index` (Daftar Order), `order.book.indexJudul` (Arsip Judul) | `role:marketing|manager|superadmin` (per-route) |
+
+**Sengaja TIDAK digate (tetap auth-only) — read-only & dipakai produksi:** `order.book.show`, `order.journal.show`, `order.indexJudul.detail`, `order.indexJudul.progress`. Papan **Manuscript** (view produksi) menaut ke `order.indexJudul.detail`, dan halaman detail judul menaut ke `order.book.show`; gating route ini akan mematahkan navigasi produksi (403). Route-nya read-only sehingga aman dibuka untuk semua user terautentikasi.
 
 **Tidak diubah:** `tagihan.*` & `income.*` (sudah `role:marketing|manager|superadmin`), `user-management` (`can:access-usermanagement`), `manuscript.*` & `title.progress.*` (sudah dijaga). Aksi yang lebih ketat (approve/reject pembayaran, mutasi invoice) ditambahkan **di atas** gating grup, sehingga marketing boleh masuk grup tapi tetap ditolak pada aksi admin.
 
