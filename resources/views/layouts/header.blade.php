@@ -4,6 +4,7 @@
     </a>
     <div class="navbar-content">
         <ul class="navbar-nav">
+            @include('layouts.partials.notifications')
             <li class="nav-item dropdown">
                 <a class="nav-link dropdown-toggle" href="#" id="profileDropdown" role="button"
                     data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">

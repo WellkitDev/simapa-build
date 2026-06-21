@@ -13,6 +13,7 @@ use App\Http\Controllers\Pages\OrderJournalController;
 use App\Http\Controllers\Pages\TitleProgressController;
 use App\Http\Controllers\Pages\ManuscriptTrackerController;
 use App\Http\Controllers\Pages\InvoiceController;
+use App\Http\Controllers\NotificationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -40,6 +41,11 @@ Route::middleware('auth')->group(function () {
         ->name('profile.image')
         ->where('fileId', '[a-zA-Z0-9_-]+');
     });
+
+    //notifications
+    Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('notifications/{id}/read', [NotificationController::class, 'read'])->name('notifications.read');
+    Route::post('notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.readAll');
 
     //Order book
     Route::prefix('order')->name('order.')->group(function () {
