@@ -124,4 +124,13 @@ class FinancialReportTest extends TestCase
         $this->assertEquals($dash['pemasukan_tahun_ini'], $fr['kpi']['total']);
         $this->assertEquals(5000000, $fr['kpi']['total']); // 2jt + 3jt, by paid_at tahun ini
     }
+
+    /** @test */
+    public function production_cannot_access_financial_reports(): void
+    {
+        $this->actingAs($this->user('production'));
+        $this->get(route('income.pemasukan'))->assertStatus(403);
+        $this->get(route('income.piutang'))->assertStatus(403);
+        $this->get(route('income.lunas'))->assertStatus(403);
+    }
 }

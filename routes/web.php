@@ -137,7 +137,7 @@ Route::middleware('auth')->group(function () {
         Route::get('{id}/buat-order', [\App\Http\Controllers\Pages\TagihanController::class, 'buatOrder'])->name('buatOrder');
     });
 
-    Route::prefix('income')->name('income.')->group(function () {
+    Route::prefix('income')->name('income.')->middleware('role:marketing|manager|superadmin')->group(function () {
         Route::get('pemasukan',     [IncomeController::class, 'pemasukan'])->name('pemasukan');
         Route::get('pemasukan/pdf', [IncomeController::class, 'pemasukanPdf'])->name('pemasukan.pdf');
         Route::get('pemasukan/csv', [IncomeController::class, 'pemasukanCsv'])->name('pemasukan.csv');

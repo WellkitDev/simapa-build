@@ -97,6 +97,7 @@ class IncomeController extends Controller
     {
         return response()->streamDownload(function () use ($headers, $rows) {
             $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM agar Excel mengenali encoding (nama dgn aksen rapi)
             fputcsv($out, $headers);
             foreach ($rows as $row) {
                 fputcsv($out, $row);

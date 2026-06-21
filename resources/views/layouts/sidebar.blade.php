@@ -92,22 +92,24 @@
                 </li>
             @endrole
 
-            <li class="nav-item nav-category">Laporan</li>
-            <li class="nav-item {{ active_class(['income/*']) }}">
-                <a class="nav-link" data-bs-toggle="collapse" href="#menuIncome" role="button"
-                    aria-expanded="{{ is_active_route(['income/*']) }}" aria-controls="menuIncome">
-                    <i class="link-icon" data-feather="bar-chart-2"></i>
-                    <span class="link-title">Pendapatan</span>
-                    <i class="link-arrow" data-feather="chevron-down"></i>
-                </a>
-                <div class="collapse {{ show_class(['income/*']) }}" id="menuIncome">
-                    <ul class="nav sub-menu">
-                        <li class="nav-item"><a href="{{ route('income.pemasukan') }}" class="nav-link">Pemasukan</a></li>
-                        <li class="nav-item"><a href="{{ route('income.piutang') }}" class="nav-link">Piutang</a></li>
-                        <li class="nav-item"><a href="{{ route('income.lunas') }}" class="nav-link">Order Selesai</a></li>
-                    </ul>
-                </div>
-            </li>
+            @role(['superadmin', 'manager', 'marketing'])
+                <li class="nav-item nav-category">Laporan</li>
+                <li class="nav-item {{ active_class(['income/*']) }}">
+                    <a class="nav-link" data-bs-toggle="collapse" href="#menuIncome" role="button"
+                        aria-expanded="{{ is_active_route(['income/*']) }}" aria-controls="menuIncome">
+                        <i class="link-icon" data-feather="bar-chart-2"></i>
+                        <span class="link-title">Keuangan</span>
+                        <i class="link-arrow" data-feather="chevron-down"></i>
+                    </a>
+                    <div class="collapse {{ show_class(['income/*']) }}" id="menuIncome">
+                        <ul class="nav sub-menu">
+                            <li class="nav-item"><a href="{{ route('income.pemasukan') }}" class="nav-link">Pemasukan</a></li>
+                            <li class="nav-item"><a href="{{ route('income.piutang') }}" class="nav-link">Piutang</a></li>
+                            <li class="nav-item"><a href="{{ route('income.lunas') }}" class="nav-link">Order Selesai</a></li>
+                        </ul>
+                    </div>
+                </li>
+            @endrole
 
             <li class="nav-item nav-category">Akun</li>
             @role(['superadmin', 'manager'])
