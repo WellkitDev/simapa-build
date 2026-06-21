@@ -141,4 +141,37 @@ class MarketingDashboardServiceTest extends TestCase
         // Catatan: flag 'month' untuk row 'Layout' (+5 hari) sengaja TIDAK di-assert —
         // dekat akhir bulan +5 hari bisa jatuh ke bulan depan (sensitif tanggal jalan test).
     }
+
+    /** @test */
+    public function exposes_new_kpis_and_delta_keys(): void
+    {
+        $mkt = $this->marketing();
+        $o = $this->orderFor($mkt, ['status' => 'pending']);
+        OrderDetail::factory()->create(['order_id' => $o->id, 'cost_amount' => 1000000]);
+        $this->paid($o, 400000, 'dp'); // approved 400rb → sisa piutang 600rb
+
+        $d = $this->svc->forUser($mkt);
+
+        $this->assertSame(600000, $d['total_piutang']);    // 1.000.000 - 400.000
+        $this->assertSame(1000000, $d['rata_rata_order']); // 1 order, cost 1.000.000
+
+        foreach ([
+            'pemasukan_hari_ini_delta', 'pemasukan_minggu_ini_delta',
+            'pemasukan_tahun_ini_delta', 'jumlah_order_delta',
+        ] as $key) {
+            $this->assertArrayHasKey($key, $d);
+            $this->assertArrayHasKey('dir', $d[$key]);
+        }
+
+        $this->assertArrayHasKey('deadline_rows', $d);
+        $this->assertCount(90, $d['income_trend']['series']); // tren diperpanjang ke 90 hari
+    }
+
+    /** @test */
+    public function average_order_value_is_zero_without_orders(): void
+    {
+        $d = $this->svc->forUser($this->marketing());
+        $this->assertSame(0, $d['rata_rata_order']);
+        $this->assertSame(0, $d['total_piutang']);
+    }
 }
