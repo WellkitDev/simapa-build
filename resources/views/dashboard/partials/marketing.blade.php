@@ -35,29 +35,32 @@
     @endforeach
 </div>
 
-<h6 class="text-muted mb-2 mt-2">Target Bulan Ini</h6>
+<h6 class="text-muted mb-2 mt-2">Target Berjalan</h6>
 <div class="row">
     <div class="col-12 grid-margin stretch-card">
         <div class="card"><div class="card-body">
-            @if($mkt['target']['has_target'])
+            @if($mkt['target'])
                 @php
                     $t = $mkt['target'];
                     $tcls = $t['capaian_persen'] >= 100 ? 'bg-success' : ($t['capaian_persen'] >= 75 ? 'bg-warning' : 'bg-danger');
                 @endphp
-                <div class="d-flex justify-content-between align-items-center mb-1">
-                    <span>Capaian: <strong>{{ $t['capaian_persen'] }}%</strong></span>
-                    <span class="text-muted">Komisi diperoleh: <strong class="text-success">Rp {{ number_format($t['komisi'], 0, ',', '.') }}</strong></span>
+                <div class="d-flex justify-content-between align-items-center mb-1 flex-wrap">
+                    <span>Capaian: <strong>{{ $t['capaian_persen'] }}%</strong>
+                        <span class="badge bg-info ms-1">Aktif</span></span>
+                    <span class="text-muted">Periode: <strong>{{ \Illuminate\Support\Carbon::parse($t['start_date'])->format('d M') }} – {{ \Illuminate\Support\Carbon::parse($t['end_date'])->format('d M Y') }}</strong></span>
                 </div>
                 <div class="progress mb-3" style="height:18px">
                     <div class="progress-bar {{ $tcls }}" role="progressbar" style="width: {{ min($t['capaian_persen'], 100) }}%">{{ $t['capaian_persen'] }}%</div>
                 </div>
                 <div class="row text-center">
-                    <div class="col-md-4"><small class="text-muted d-block">Target</small><strong>Rp {{ number_format($t['target'], 0, ',', '.') }}</strong></div>
-                    <div class="col-md-4"><small class="text-muted d-block">Realisasi</small><strong class="text-primary">Rp {{ number_format($t['realisasi'], 0, ',', '.') }}</strong></div>
-                    <div class="col-md-4"><small class="text-muted d-block">Sisa</small><strong class="{{ $t['sisa'] > 0 ? 'text-danger' : 'text-success' }}">Rp {{ number_format($t['sisa'], 0, ',', '.') }}</strong></div>
+                    <div class="col-md-3"><small class="text-muted d-block">Target</small><strong>Rp {{ number_format($t['target'], 0, ',', '.') }}</strong></div>
+                    <div class="col-md-3"><small class="text-muted d-block">Realisasi</small><strong class="text-primary">Rp {{ number_format($t['realisasi'], 0, ',', '.') }}</strong></div>
+                    <div class="col-md-3"><small class="text-muted d-block">Sisa</small><strong class="{{ $t['sisa'] > 0 ? 'text-danger' : 'text-success' }}">Rp {{ number_format($t['sisa'], 0, ',', '.') }}</strong></div>
+                    <div class="col-md-3"><small class="text-muted d-block">Komisi</small><strong class="text-success">Rp {{ number_format($t['komisi'], 0, ',', '.') }}</strong></div>
                 </div>
+                <div class="text-end mt-2"><a href="{{ route('marketing-target.me') }}" class="small">Lihat semua target →</a></div>
             @else
-                <p class="text-muted mb-0">Target belum ditetapkan untuk bulan ini.</p>
+                <p class="text-muted mb-0">Tidak ada target berjalan saat ini. <a href="{{ route('marketing-target.me') }}" class="small">Lihat riwayat target →</a></p>
             @endif
         </div></div>
     </div>

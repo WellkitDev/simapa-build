@@ -33,120 +33,118 @@ class MarketingTargetServiceTest extends TestCase
         return $u;
     }
 
-    private function paidThisMonth(User $u, int $amount): void
+    private function user_superadmin(): User
+    {
+        $u = User::factory()->create();
+        $u->assignRole('superadmin');
+        return $u;
+    }
+
+    private function paidOn(User $u, int $amount, $date): void
     {
         $order = Order::factory()->create(['user_id' => $u->id]);
-        Payment::create(['order_id' => $order->id, 'payment_type' => 'dp', 'amount' => $amount, 'paid_at' => now(), 'status' => 'paid']);
+        Payment::create(['order_id' => $order->id, 'payment_type' => 'dp', 'amount' => $amount, 'paid_at' => $date, 'status' => 'paid']);
     }
 
-    private function setTarget(User $u, int $target, float $rate): void
+    private function target(User $u, array $attrs = []): MarketingTarget
     {
-        MarketingTarget::create([
-            'user_id' => $u->id, 'year' => now()->year, 'month' => now()->month,
-            'target_amount' => $target, 'commission_rate' => $rate,
-        ]);
-    }
-
-    /** @test */
-    public function progress_full_achievement_with_commission(): void
-    {
-        $u = $this->marketing();
-        $this->setTarget($u, 10000000, 5);
-        $this->paidThisMonth($u, 10000000);
-
-        $p = $this->svc->progressFor($u, now()->year, now()->month);
-
-        $this->assertTrue($p['has_target']);
-        $this->assertSame(10000000, $p['target']);
-        $this->assertSame(10000000, $p['realisasi']);
-        $this->assertSame(100.0, $p['capaian_persen']);
-        $this->assertSame(500000, $p['komisi']);
-        $this->assertSame(0, $p['sisa']);
+        return MarketingTarget::create(array_merge([
+            'user_id' => $u->id,
+            'start_date' => now()->startOfMonth()->toDateString(),
+            'end_date' => now()->endOfMonth()->toDateString(),
+            'target_amount' => 10000000, 'commission_rate' => 5,
+        ], $attrs));
     }
 
     /** @test */
-    public function progress_partial_achievement(): void
+    public function progress_uses_date_range_and_derives_status_and_commission(): void
     {
         $u = $this->marketing();
-        $this->setTarget($u, 10000000, 5);
-        $this->paidThisMonth($u, 6000000);
+        $t = $this->target($u);
+        $this->paidOn($u, 6000000, now());
+        $this->paidOn($u, 9000000, now()->subMonths(2));
 
-        $p = $this->svc->progressFor($u, now()->year, now()->month);
+        $p = $this->svc->progressFor($t);
 
+        $this->assertSame(6000000, $p['realisasi']);
         $this->assertSame(60.0, $p['capaian_persen']);
-        $this->assertSame(4000000, $p['sisa']);
         $this->assertSame(300000, $p['komisi']);
+        $this->assertSame(4000000, $p['sisa']);
+        $this->assertSame('aktif', $p['status']);
+        $this->assertFalse($p['commission_paid']);
+        $this->assertFalse($p['tertunggak']);
     }
 
     /** @test */
-    public function progress_without_target_is_safe(): void
+    public function expired_and_overdue_flags(): void
     {
         $u = $this->marketing();
-        $this->paidThisMonth($u, 2000000);
+        $t = $this->target($u, ['start_date' => now()->subDays(40)->toDateString(), 'end_date' => now()->subDays(10)->toDateString()]);
 
-        $p = $this->svc->progressFor($u, now()->year, now()->month);
+        $p = $this->svc->progressFor($t);
 
-        $this->assertFalse($p['has_target']);
-        $this->assertSame(0, $p['target']);
-        $this->assertSame(0.0, $p['rate']);
-        $this->assertSame(0, $p['komisi']);
-        $this->assertSame(2000000, $p['realisasi']);
-        $this->assertSame(0.0, $p['capaian_persen']);
+        $this->assertSame('berakhir', $p['status']);
+        $this->assertTrue($p['tertunggak']);
     }
 
     /** @test */
-    public function realisasi_scoped_to_marketing_and_month(): void
+    public function paid_commission_is_not_overdue(): void
     {
         $u = $this->marketing();
+        $t = $this->target($u, [
+            'start_date' => now()->subDays(40)->toDateString(), 'end_date' => now()->subDays(10)->toDateString(),
+            'commission_paid' => true,
+        ]);
+
+        $p = $this->svc->progressFor($t);
+        $this->assertTrue($p['commission_paid']);
+        $this->assertFalse($p['tertunggak']);
+    }
+
+    /** @test */
+    public function current_for_marketing_picks_active_target(): void
+    {
+        $u = $this->marketing();
+        $this->target($u, ['start_date' => now()->subMonths(2)->toDateString(), 'end_date' => now()->subMonth()->toDateString()]);
+        $active = $this->target($u);
+
+        $cur = $this->svc->currentForMarketing($u);
+        $this->assertNotNull($cur);
+        $this->assertSame($active->id, $cur['id']);
+
         $other = $this->marketing();
-        $this->paidThisMonth($u, 1000000);
-        $this->paidThisMonth($other, 9999999);
-        $order = Order::factory()->create(['user_id' => $u->id]);
-        Payment::create(['order_id' => $order->id, 'payment_type' => 'dp', 'amount' => 5000000, 'paid_at' => now()->subMonthNoOverflow(), 'status' => 'paid']);
-
-        $p = $this->svc->progressFor($u, now()->year, now()->month);
-        $this->assertSame(1000000, $p['realisasi']);
+        $this->assertNull($this->svc->currentForMarketing($other));
     }
 
     /** @test */
-    public function monthly_overview_lists_all_marketing_with_realisasi(): void
+    public function create_target_individual_and_all(): void
     {
         $a = $this->marketing();
         $b = $this->marketing();
-        $this->setTarget($a, 5000000, 10);
-        $this->paidThisMonth($a, 2000000);
+        $actor = $this->user_superadmin();
 
-        $rows = $this->svc->monthlyOverview(now()->year, now()->month);
+        $this->svc->createTarget('individual', [$a->id], 5000000, 4, now()->toDateString(), now()->addMonth()->toDateString(), $actor);
+        $this->assertSame(1, MarketingTarget::where('user_id', $a->id)->count());
+        $this->assertNull(MarketingTarget::where('user_id', $a->id)->first()->batch_id);
 
-        $this->assertCount(2, $rows);
-        $rowA = $rows->firstWhere('user_id', $a->id);
-        $this->assertSame(5000000, $rowA['target']);
-        $this->assertSame(2000000, $rowA['realisasi']);
-        $this->assertSame(200000, $rowA['komisi']);
-        $rowB = $rows->firstWhere('user_id', $b->id);
-        $this->assertFalse($rowB['has_target']);
-        $this->assertSame(0, $rowB['realisasi']);
+        $this->svc->createTarget('all', [], 7000000, 6, now()->toDateString(), now()->addMonth()->toDateString(), $actor);
+        $batch = MarketingTarget::whereNotNull('batch_id')->pluck('batch_id')->unique();
+        $this->assertCount(1, $batch);
+        $this->assertSame(2, MarketingTarget::whereNotNull('batch_id')->count());
     }
 
     /** @test */
-    public function upsert_many_creates_then_updates(): void
+    public function mark_commission_paid_sets_fields(): void
     {
         $u = $this->marketing();
-        $actor = $this->marketing();
+        $t = $this->target($u);
+        $actor = $this->user_superadmin();
 
-        $this->svc->upsertMany(now()->year, now()->month, [
-            ['user_id' => $u->id, 'target' => 7000000, 'rate' => 5],
-        ], $actor);
+        $this->svc->markCommissionPaid($t, $actor);
 
-        $this->assertDatabaseHas('tb_marketing_targets', [
-            'user_id' => $u->id, 'year' => now()->year, 'month' => now()->month, 'target_amount' => 7000000,
-        ]);
-
-        $this->svc->upsertMany(now()->year, now()->month, [
-            ['user_id' => $u->id, 'target' => 8000000, 'rate' => 7],
-        ], $actor);
-
-        $this->assertSame(1, MarketingTarget::where('user_id', $u->id)->count());
-        $this->assertSame(8000000, (int) MarketingTarget::where('user_id', $u->id)->first()->target_amount);
+        $t->refresh();
+        $this->assertTrue($t->commission_paid);
+        $this->assertNotNull($t->commission_paid_at);
+        $this->assertSame($actor->id, $t->commission_paid_by);
     }
 }
