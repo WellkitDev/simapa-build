@@ -1,4 +1,4 @@
-@php $iconMap = ['payment' => 'credit-card', 'tagihan' => 'file-text', 'naskah' => 'book-open']; @endphp
+@php $iconMap = ['payment' => 'credit-card', 'tagihan' => 'file-text', 'naskah' => 'book-open', 'target' => 'target']; @endphp
 <li class="nav-item dropdown">
     <a class="nav-link dropdown-toggle position-relative" href="#" id="notifDropdown" role="button"
         data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">

@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use Tests\TestCase;
+use App\Models\MarketingTarget;
 use App\Models\User;
 use App\Models\Order;
 use App\Models\Payment;
@@ -110,5 +111,38 @@ class NotifierTest extends TestCase
         $marketing = $this->user('marketing'); // tak ada manager/superadmin
         $this->notifier->paymentSubmitted($this->payment($marketing), $marketing);
         Notification::assertNothingSent();
+    }
+
+    /** @test */
+    public function target_assigned_notifies_marketing_not_actor(): void
+    {
+        Notification::fake();
+        $mkt   = $this->user('marketing');
+        $actor = $this->user('superadmin');
+        $target = MarketingTarget::create([
+            'user_id' => $mkt->id, 'start_date' => now()->toDateString(), 'end_date' => now()->addMonth()->toDateString(),
+            'target_amount' => 10000000, 'commission_rate' => 5,
+        ]);
+
+        $this->notifier->targetAssigned($target, $actor);
+
+        Notification::assertSentTo($mkt, DatabaseNotification::class, fn ($n) => $n->payload['category'] === 'target');
+        Notification::assertNotSentTo($actor, DatabaseNotification::class);
+    }
+
+    /** @test */
+    public function commission_paid_notifies_marketing(): void
+    {
+        Notification::fake();
+        $mkt   = $this->user('marketing');
+        $actor = $this->user('superadmin');
+        $target = MarketingTarget::create([
+            'user_id' => $mkt->id, 'start_date' => now()->subMonth()->toDateString(), 'end_date' => now()->subDay()->toDateString(),
+            'target_amount' => 10000000, 'commission_rate' => 5, 'commission_paid' => true,
+        ]);
+
+        $this->notifier->commissionPaid($target, $actor);
+
+        Notification::assertSentTo($mkt, DatabaseNotification::class, fn ($n) => $n->payload['category'] === 'target');
     }
 }

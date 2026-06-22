@@ -18,6 +18,12 @@ class MarketingTargetController extends Controller
         return view('marketing-target.index', compact('rows', 'year', 'month'));
     }
 
+    public function me(MarketingTargetService $service)
+    {
+        $rows = $service->listForMarketing(Auth::user());
+        return view('target.me', compact('rows'));
+    }
+
     public function save(Request $request, MarketingTargetService $service)
     {
         $data = $request->validate([

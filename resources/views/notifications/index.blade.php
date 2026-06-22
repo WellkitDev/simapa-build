@@ -2,7 +2,7 @@
 @section('title', 'Notifikasi - SiMAPA')
 
 @section('content')
-@php $iconMap = ['payment' => 'credit-card', 'tagihan' => 'file-text', 'naskah' => 'book-open']; @endphp
+@php $iconMap = ['payment' => 'credit-card', 'tagihan' => 'file-text', 'naskah' => 'book-open', 'target' => 'target']; @endphp
 <div class="row">
     <div class="col-12 grid-margin stretch-card">
         <div class="card"><div class="card-body">

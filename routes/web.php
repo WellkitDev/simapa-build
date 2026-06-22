@@ -161,6 +161,10 @@ Route::middleware('auth')->group(function () {
         Route::post('marketing-target', [MarketingTargetController::class, 'save'])->name('marketing-target.save');
     });
 
+    Route::get('target', [MarketingTargetController::class, 'me'])
+        ->name('marketing-target.me')
+        ->middleware('role:marketing|manager|superadmin');
+
     //Route User management
     Route::prefix('user-management')->group(function() {
         Route::get('', [ManagementUserController::class, 'index'])->name('user.management');

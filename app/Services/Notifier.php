@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\MarketingTarget;
 use App\Models\Payment;
 use App\Models\Tagihan;
 use App\Models\TitleProgress;
@@ -95,6 +96,31 @@ class Notifier
             'message'  => $progress->orderDetail?->title ?? 'Naskah',
             'url'      => route('order.indexJudul.progress', $progress->order_detail_id),
             'icon'     => 'book-open',
+        ]);
+    }
+
+    public function targetAssigned(MarketingTarget $target, User $actor): void
+    {
+        $target->loadMissing('user');
+        $this->toOwner($target->user, $actor, [
+            'category' => 'target',
+            'title'    => 'Target baru ditetapkan',
+            'message'  => 'Periode ' . $target->start_date->format('d M') . ' – ' . $target->end_date->format('d M Y')
+                          . ' • Target Rp ' . $this->rp($target->target_amount),
+            'url'      => route('marketing-target.me'),
+            'icon'     => 'target',
+        ]);
+    }
+
+    public function commissionPaid(MarketingTarget $target, User $actor): void
+    {
+        $target->loadMissing('user');
+        $this->toOwner($target->user, $actor, [
+            'category' => 'target',
+            'title'    => 'Komisi target ditandai dibayar',
+            'message'  => 'Periode ' . $target->start_date->format('d M') . ' – ' . $target->end_date->format('d M Y'),
+            'url'      => route('marketing-target.me'),
+            'icon'     => 'check-circle',
         ]);
     }
 
