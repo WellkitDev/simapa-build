@@ -19,7 +19,7 @@ class MarketingTarget extends Model
         'year'            => 'integer',
         'month'           => 'integer',
         'target_amount'   => 'integer',
-        'commission_rate' => 'float',
+        'commission_rate' => 'decimal:2',
     ];
 
     public function user()

@@ -13,7 +13,7 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
             $table->smallInteger('year');
             $table->unsignedTinyInteger('month');
-            $table->unsignedBigInteger('target_amount')->default(0);
+            $table->decimal('target_amount', 15, 0)->default(0);
             $table->decimal('commission_rate', 5, 2)->default(0);
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
