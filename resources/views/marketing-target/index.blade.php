@@ -11,12 +11,12 @@
             <div class="d-flex justify-content-between align-items-center flex-wrap mb-3">
                 <h6 class="card-title mb-0">Target Marketing — {{ $bulanNama[$month] }} {{ $year }}</h6>
                 <form method="GET" class="d-flex" style="gap:.5rem">
-                    <select name="month" class="form-control form-control-sm" style="width:auto" onchange="this.form.submit()">
+                    <select name="month" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()">
                         @foreach($bulanNama as $m => $nm)
                             <option value="{{ $m }}" {{ $m == $month ? 'selected' : '' }}>{{ $nm }}</option>
                         @endforeach
                     </select>
-                    <select name="year" class="form-control form-control-sm" style="width:auto" onchange="this.form.submit()">
+                    <select name="year" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()">
                         @for($y = now()->year - 1; $y <= now()->year + 1; $y++)
                             <option value="{{ $y }}" {{ $y == $year ? 'selected' : '' }}>{{ $y }}</option>
                         @endfor
@@ -42,7 +42,7 @@
                         </thead>
                         <tbody>
                             @forelse($rows as $r)
-                                @php $cls = $r['capaian_persen'] >= 100 ? 'bg-success' : ($r['capaian_persen'] >= 75 ? 'bg-warning' : 'bg-danger'); @endphp
+                                @php $cls = $r['capaian_persen'] >= 100 ? 'bg-success' : ($r['capaian_persen'] >= 75 ? 'bg-warning text-dark' : 'bg-danger'); @endphp
                                 <tr>
                                     <td>{{ $r['name'] }}</td>
                                     <td><input type="number" min="0" step="1000" name="targets[{{ $r['user_id'] }}][target]" value="{{ $r['has_target'] ? $r['target'] : '' }}" class="form-control form-control-sm" placeholder="0"></td>
