@@ -54,7 +54,7 @@
                 <div class="row text-center">
                     <div class="col-md-4"><small class="text-muted d-block">Target</small><strong>Rp {{ number_format($t['target'], 0, ',', '.') }}</strong></div>
                     <div class="col-md-4"><small class="text-muted d-block">Realisasi</small><strong class="text-primary">Rp {{ number_format($t['realisasi'], 0, ',', '.') }}</strong></div>
-                    <div class="col-md-4"><small class="text-muted d-block">Sisa</small><strong class="text-danger">Rp {{ number_format($t['sisa'], 0, ',', '.') }}</strong></div>
+                    <div class="col-md-4"><small class="text-muted d-block">Sisa</small><strong class="{{ $t['sisa'] > 0 ? 'text-danger' : 'text-success' }}">Rp {{ number_format($t['sisa'], 0, ',', '.') }}</strong></div>
                 </div>
             @else
                 <p class="text-muted mb-0">Target belum ditetapkan untuk bulan ini.</p>
