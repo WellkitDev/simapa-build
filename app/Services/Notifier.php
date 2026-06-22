@@ -105,7 +105,7 @@ class Notifier
         $this->toOwner($target->user, $actor, [
             'category' => 'target',
             'title'    => 'Target baru ditetapkan',
-            'message'  => 'Periode ' . $target->start_date->format('d M') . ' – ' . $target->end_date->format('d M Y')
+            'message'  => 'Periode ' . ($target->start_date?->format('d M') ?? '?') . ' – ' . ($target->end_date?->format('d M Y') ?? '?')
                           . ' • Target Rp ' . $this->rp($target->target_amount),
             'url'      => route('marketing-target.me'),
             'icon'     => 'target',
@@ -118,7 +118,7 @@ class Notifier
         $this->toOwner($target->user, $actor, [
             'category' => 'target',
             'title'    => 'Komisi target ditandai dibayar',
-            'message'  => 'Periode ' . $target->start_date->format('d M') . ' – ' . $target->end_date->format('d M Y'),
+            'message'  => 'Periode ' . ($target->start_date?->format('d M') ?? '?') . ' – ' . ($target->end_date?->format('d M Y') ?? '?'),
             'url'      => route('marketing-target.me'),
             'icon'     => 'check-circle',
         ]);

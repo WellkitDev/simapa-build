@@ -144,5 +144,6 @@ class NotifierTest extends TestCase
         $this->notifier->commissionPaid($target, $actor);
 
         Notification::assertSentTo($mkt, DatabaseNotification::class, fn ($n) => $n->payload['category'] === 'target');
+        Notification::assertNotSentTo($actor, DatabaseNotification::class);
     }
 }
