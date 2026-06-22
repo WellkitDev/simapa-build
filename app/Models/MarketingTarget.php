@@ -12,18 +12,27 @@ class MarketingTarget extends Model
     protected $table = 'tb_marketing_targets';
 
     protected $fillable = [
-        'user_id', 'year', 'month', 'target_amount', 'commission_rate', 'created_by', 'updated_by',
+        'user_id', 'start_date', 'end_date', 'target_amount', 'commission_rate',
+        'batch_id', 'commission_paid', 'commission_paid_at', 'commission_paid_by',
+        'created_by', 'updated_by',
     ];
 
     protected $casts = [
-        'year'            => 'integer',
-        'month'           => 'integer',
-        'target_amount'   => 'integer',
-        'commission_rate' => 'decimal:2',
+        'start_date'         => 'date',
+        'end_date'           => 'date',
+        'target_amount'      => 'integer',
+        'commission_rate'    => 'decimal:2',
+        'commission_paid'    => 'boolean',
+        'commission_paid_at' => 'datetime',
     ];
 
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function paidBy()
+    {
+        return $this->belongsTo(User::class, 'commission_paid_by');
     }
 }
