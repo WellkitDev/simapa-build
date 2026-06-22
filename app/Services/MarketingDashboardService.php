@@ -57,6 +57,7 @@ class MarketingDashboardService
             // KPI baru
             'total_piutang'   => (int) ((new FinancialReportService())->piutang($user)['kpi']['sisa']),
             'rata_rata_order' => $this->avgOrderValue($uid, $today->year),
+            'target'          => app(\App\Services\MarketingTargetService::class)->progressFor($user, $today->year, $today->month),
 
             'income_trend'           => $this->dailySum($income(), 'paid_at', 'amount'),
             'order_trend'            => $this->dailyCount(Order::where('user_id', $uid), 'ordered_at'),

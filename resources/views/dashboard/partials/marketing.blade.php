@@ -35,6 +35,34 @@
     @endforeach
 </div>
 
+<h6 class="text-muted mb-2 mt-2">Target Bulan Ini</h6>
+<div class="row">
+    <div class="col-12 grid-margin stretch-card">
+        <div class="card"><div class="card-body">
+            @if($mkt['target']['has_target'])
+                @php
+                    $t = $mkt['target'];
+                    $tcls = $t['capaian_persen'] >= 100 ? 'bg-success' : ($t['capaian_persen'] >= 75 ? 'bg-warning' : 'bg-danger');
+                @endphp
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span>Capaian: <strong>{{ $t['capaian_persen'] }}%</strong></span>
+                    <span class="text-muted">Komisi diperoleh: <strong class="text-success">Rp {{ number_format($t['komisi'], 0, ',', '.') }}</strong></span>
+                </div>
+                <div class="progress mb-3" style="height:18px">
+                    <div class="progress-bar {{ $tcls }}" role="progressbar" style="width: {{ min($t['capaian_persen'], 100) }}%">{{ $t['capaian_persen'] }}%</div>
+                </div>
+                <div class="row text-center">
+                    <div class="col-md-4"><small class="text-muted d-block">Target</small><strong>Rp {{ number_format($t['target'], 0, ',', '.') }}</strong></div>
+                    <div class="col-md-4"><small class="text-muted d-block">Realisasi</small><strong class="text-primary">Rp {{ number_format($t['realisasi'], 0, ',', '.') }}</strong></div>
+                    <div class="col-md-4"><small class="text-muted d-block">Sisa</small><strong class="text-danger">Rp {{ number_format($t['sisa'], 0, ',', '.') }}</strong></div>
+                </div>
+            @else
+                <p class="text-muted mb-0">Target belum ditetapkan untuk bulan ini.</p>
+            @endif
+        </div></div>
+    </div>
+</div>
+
 <h6 class="text-muted mb-2 mt-2">Statistik Order &amp; Tagihan</h6>
 <div class="row">
     <div class="col-md-3 grid-margin stretch-card">

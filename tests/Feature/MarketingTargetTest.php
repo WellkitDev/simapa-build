@@ -56,4 +56,19 @@ class MarketingTargetTest extends TestCase
         $this->actingAs($this->user('marketing'))
             ->get(route('marketing-target.index'))->assertForbidden();
     }
+
+    /** @test */
+    public function marketing_dashboard_shows_target_card(): void
+    {
+        $mkt = $this->user('marketing');
+        MarketingTarget::create([
+            'user_id' => $mkt->id, 'year' => now()->year, 'month' => now()->month,
+            'target_amount' => 10000000, 'commission_rate' => 5,
+        ]);
+
+        $this->actingAs($mkt)->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Target Bulan Ini')
+            ->assertSee('Capaian');
+    }
 }
