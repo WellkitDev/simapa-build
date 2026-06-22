@@ -158,7 +158,9 @@ Route::middleware('auth')->group(function () {
     
     Route::middleware('role:manager|superadmin')->group(function () {
         Route::get('marketing-target', [MarketingTargetController::class, 'index'])->name('marketing-target.index');
-        Route::post('marketing-target', [MarketingTargetController::class, 'save'])->name('marketing-target.save');
+        Route::post('marketing-target', [MarketingTargetController::class, 'store'])->name('marketing-target.store');
+        Route::post('marketing-target/{id}/paid', [MarketingTargetController::class, 'paid'])->name('marketing-target.paid');
+        Route::delete('marketing-target/{id}', [MarketingTargetController::class, 'destroy'])->name('marketing-target.destroy');
     });
 
     Route::get('target', [MarketingTargetController::class, 'me'])
