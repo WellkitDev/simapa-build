@@ -14,6 +14,7 @@ use App\Http\Controllers\Pages\TitleProgressController;
 use App\Http\Controllers\Pages\ManuscriptTrackerController;
 use App\Http\Controllers\Pages\InvoiceController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\Pages\MarketingTargetController;
 
 /*
 |--------------------------------------------------------------------------
@@ -155,6 +156,11 @@ Route::middleware('auth')->group(function () {
         Route::get('lunas/csv',     [IncomeController::class, 'lunasCsv'])->name('lunas.csv');
     });
     
+    Route::middleware('role:manager|superadmin')->group(function () {
+        Route::get('marketing-target', [MarketingTargetController::class, 'index'])->name('marketing-target.index');
+        Route::post('marketing-target', [MarketingTargetController::class, 'save'])->name('marketing-target.save');
+    });
+
     //Route User management
     Route::prefix('user-management')->group(function() {
         Route::get('', [ManagementUserController::class, 'index'])->name('user.management');

@@ -109,6 +109,14 @@
                         </ul>
                     </div>
                 </li>
+                @role(['superadmin', 'manager'])
+                    <li class="nav-item {{ active_class(['marketing-target']) }}">
+                        <a href="{{ route('marketing-target.index') }}" class="nav-link">
+                            <i class="link-icon" data-feather="target"></i>
+                            <span class="link-title">Target Marketing</span>
+                        </a>
+                    </li>
+                @endrole
             @endrole
 
             <li class="nav-item nav-category">Akun</li>
