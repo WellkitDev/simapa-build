@@ -55,6 +55,7 @@ class MarketingTargetService
     {
         $today = Carbon::today();
         $target = MarketingTarget::where('user_id', $marketing->id)
+            ->whereNotNull('start_date')->whereNotNull('end_date')
             ->whereDate('start_date', '<=', $today)
             ->whereDate('end_date', '>=', $today)
             ->orderBy('end_date')
@@ -66,7 +67,10 @@ class MarketingTargetService
     /** Semua target milik satu marketing (untuk halaman Target Saya). */
     public function listForMarketing(User $marketing): Collection
     {
+        // whereNotNull menjaga baris cacat (mis. data lama tanpa rentang tanggal) tidak
+        // menjatuhkan halaman — progressFor memanggil ->copy() pada start/end.
         return MarketingTarget::where('user_id', $marketing->id)
+            ->whereNotNull('start_date')->whereNotNull('end_date')
             ->orderByDesc('start_date')->get()
             ->map(fn (MarketingTarget $t) => $this->progressFor($t))
             ->values();
@@ -75,7 +79,9 @@ class MarketingTargetService
     /** Semua target + nama marketing untuk halaman admin (filter status opsional). */
     public function adminList(?string $status = null): Collection
     {
-        $rows = MarketingTarget::with('user')->orderByDesc('start_date')->get()
+        $rows = MarketingTarget::with('user')
+            ->whereNotNull('start_date')->whereNotNull('end_date')
+            ->orderByDesc('start_date')->get()
             ->map(function (MarketingTarget $t) {
                 $p = $this->progressFor($t);
                 $p['name'] = $t->user?->name ?? '—';

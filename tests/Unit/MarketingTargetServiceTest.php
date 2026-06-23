@@ -147,4 +147,17 @@ class MarketingTargetServiceTest extends TestCase
         $this->assertNotNull($t->commission_paid_at);
         $this->assertSame($actor->id, $t->commission_paid_by);
     }
+
+    /** @test */
+    public function null_date_targets_are_ignored_not_crashing(): void
+    {
+        $u = $this->marketing();
+        // Baris cacat (mis. data lama tanpa rentang tanggal) — tidak boleh menjatuhkan halaman.
+        MarketingTarget::create(['user_id' => $u->id, 'start_date' => null, 'end_date' => null, 'target_amount' => 5000000, 'commission_rate' => 5]);
+        $valid = $this->target($u); // valid, aktif bulan ini
+
+        $this->assertCount(1, $this->svc->adminList());
+        $this->assertCount(1, $this->svc->listForMarketing($u));
+        $this->assertSame($valid->id, $this->svc->currentForMarketing($u)['id']);
+    }
 }
