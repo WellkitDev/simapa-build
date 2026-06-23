@@ -41,6 +41,10 @@ class AnnouncementService
     /** Tandai pengumuman (published) sebagai dibaca oleh user; idempotent. */
     public function markSeen(User $user, array $ids): void
     {
+        if (empty($ids)) {
+            return;
+        }
+
         $valid = Announcement::where('status', 'published')->whereIn('id', $ids)->pluck('id');
 
         foreach ($valid as $id) {

@@ -65,6 +65,17 @@ class AnnouncementServiceTest extends TestCase
     }
 
     /** @test */
+    public function mark_seen_ignores_non_published(): void
+    {
+        $u = User::factory()->create();
+        $draft = Announcement::create(['title' => 'Draf', 'body' => 'x', 'status' => 'draft']);
+
+        $this->svc->markSeen($u, [$draft->id]);
+
+        $this->assertSame(0, AnnouncementRead::where('announcement_id', $draft->id)->count());
+    }
+
+    /** @test */
     public function publish_sets_published_at_once(): void
     {
         $a = Announcement::create(['title' => 'A', 'body' => 'x', 'status' => 'draft']);
