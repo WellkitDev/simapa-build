@@ -6,7 +6,10 @@
 @endpush
 
 @section('content')
-@php $sb = ['draft' => 'bg-secondary', 'published' => 'bg-success', 'archived' => 'bg-dark']; @endphp
+@php
+    $sb = ['draft' => 'bg-secondary', 'published' => 'bg-success', 'archived' => 'bg-dark'];
+    $sl = ['draft' => 'Draf', 'published' => 'Terbit', 'archived' => 'Arsip'];
+@endphp
 <div class="row"><div class="col-12 grid-margin stretch-card"><div class="card"><div class="card-body">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h6 class="card-title mb-0">Pengumuman</h6>
@@ -19,7 +22,7 @@
                 @foreach($announcements as $a)
                     <tr>
                         <td>{{ $a->title }}</td>
-                        <td><span class="badge {{ $sb[$a->status] ?? 'bg-secondary' }}">{{ ucfirst($a->status) }}</span></td>
+                        <td><span class="badge {{ $sb[$a->status] ?? 'bg-secondary' }}">{{ $sl[$a->status] ?? ucfirst($a->status) }}</span></td>
                         <td>@if($a->is_pinned)<i data-feather="bookmark" class="text-warning icon-sm"></i>@endif</td>
                         <td>{{ $a->creator?->name ?? '—' }}</td>
                         <td><small>{{ $a->created_at->format('d/m/y') }}</small></td>

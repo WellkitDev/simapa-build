@@ -69,4 +69,12 @@ class AnnouncementAdminTest extends TestCase
         $this->actingAs($this->user('production'))->get(route('announcement.index'))->assertForbidden();
         $this->actingAs($this->user('marketing'))->get(route('announcement.index'))->assertForbidden();
     }
+
+    /** @test */
+    public function all_roles_can_mark_seen(): void
+    {
+        $this->actingAs($this->user('marketing'))
+            ->post(route('announcement.seen'), ['ids' => []])
+            ->assertNoContent();
+    }
 }

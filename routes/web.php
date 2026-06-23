@@ -168,6 +168,7 @@ Route::middleware('auth')->group(function () {
         ->name('marketing-target.me')
         ->middleware('role:marketing|manager|superadmin');
 
+    // Tandai pengumuman dibaca: sengaja terbuka untuk SEMUA role terautentikasi (bukan hanya admin).
     Route::post('announcements/seen', [AnnouncementController::class, 'seen'])->name('announcement.seen');
 
     Route::middleware('role:superadmin|manager|admin')->group(function () {
