@@ -15,6 +15,7 @@ use App\Http\Controllers\Pages\ManuscriptTrackerController;
 use App\Http\Controllers\Pages\InvoiceController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Pages\MarketingTargetController;
+use App\Http\Controllers\Pages\AnnouncementController;
 
 /*
 |--------------------------------------------------------------------------
@@ -166,6 +167,18 @@ Route::middleware('auth')->group(function () {
     Route::get('target', [MarketingTargetController::class, 'me'])
         ->name('marketing-target.me')
         ->middleware('role:marketing|manager|superadmin');
+
+    Route::post('announcements/seen', [AnnouncementController::class, 'seen'])->name('announcement.seen');
+
+    Route::middleware('role:superadmin|manager|admin')->group(function () {
+        Route::get('announcements', [AnnouncementController::class, 'index'])->name('announcement.index');
+        Route::get('announcements/create', [AnnouncementController::class, 'create'])->name('announcement.create');
+        Route::post('announcements', [AnnouncementController::class, 'store'])->name('announcement.store');
+        Route::get('announcements/{id}/edit', [AnnouncementController::class, 'edit'])->name('announcement.edit');
+        Route::put('announcements/{id}', [AnnouncementController::class, 'update'])->name('announcement.update');
+        Route::delete('announcements/{id}', [AnnouncementController::class, 'destroy'])->name('announcement.destroy');
+        Route::post('announcements/{id}/status', [AnnouncementController::class, 'status'])->name('announcement.status');
+    });
 
     //Route User management
     Route::prefix('user-management')->group(function() {

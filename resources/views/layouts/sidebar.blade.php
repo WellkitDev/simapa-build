@@ -136,6 +136,14 @@
                     </a>
                 </li>
             @endrole
+            @role(['superadmin', 'manager', 'admin'])
+                <li class="nav-item {{ active_class(['announcements']) }}">
+                    <a href="{{ route('announcement.index') }}" class="nav-link">
+                        <i class="link-icon" data-feather="volume-2"></i>
+                        <span class="link-title">Pengumuman</span>
+                    </a>
+                </li>
+            @endrole
             <li class="nav-item {{ active_class(['profile']) }}">
                 <a href="{{ route('profile') }}" class="nav-link">
                     <i class="link-icon" data-feather="user"></i>
