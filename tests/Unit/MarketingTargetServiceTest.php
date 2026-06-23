@@ -123,11 +123,11 @@ class MarketingTargetServiceTest extends TestCase
         $b = $this->marketing();
         $actor = $this->user_superadmin();
 
-        $this->svc->createTarget('individual', [$a->id], 5000000, 4, now()->toDateString(), now()->addMonth()->toDateString(), $actor);
+        $this->svc->createTarget('individual', [$a->id], 5000000, ['type' => 'percent', 'rate' => 4, 'flat' => 0], now()->toDateString(), now()->addMonth()->toDateString(), $actor);
         $this->assertSame(1, MarketingTarget::where('user_id', $a->id)->count());
         $this->assertNull(MarketingTarget::where('user_id', $a->id)->first()->batch_id);
 
-        $this->svc->createTarget('all', [], 7000000, 6, now()->toDateString(), now()->addMonth()->toDateString(), $actor);
+        $this->svc->createTarget('all', [], 7000000, ['type' => 'percent', 'rate' => 6, 'flat' => 0], now()->toDateString(), now()->addMonth()->toDateString(), $actor);
         $batch = MarketingTarget::whereNotNull('batch_id')->pluck('batch_id')->unique();
         $this->assertCount(1, $batch);
         $this->assertSame(2, MarketingTarget::whereNotNull('batch_id')->count());
@@ -146,6 +146,31 @@ class MarketingTargetServiceTest extends TestCase
         $this->assertTrue($t->commission_paid);
         $this->assertNotNull($t->commission_paid_at);
         $this->assertSame($actor->id, $t->commission_paid_by);
+    }
+
+    /** @test */
+    public function flat_commission_is_fixed_nominal(): void
+    {
+        $u = $this->marketing();
+        $t = $this->target($u, ['commission_type' => 'flat', 'commission_flat' => 1000000, 'target_amount' => 45000000]);
+        $this->paidOn($u, 20000000, now());
+
+        $p = $this->svc->progressFor($t);
+
+        $this->assertSame('flat', $p['commission_type']);
+        $this->assertSame(1000000, $p['komisi']); // nominal tetap, tidak proporsional ke realisasi
+    }
+
+    /** @test */
+    public function percent_commission_handles_decimals(): void
+    {
+        $u = $this->marketing();
+        $t = $this->target($u, ['commission_type' => 'percent', 'commission_rate' => 2.5, 'target_amount' => 10000000]);
+        $this->paidOn($u, 10000000, now());
+
+        $p = $this->svc->progressFor($t);
+
+        $this->assertSame(250000, $p['komisi']); // 2,5% × 10jt
     }
 
     /** @test */

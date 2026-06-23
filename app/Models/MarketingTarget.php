@@ -12,9 +12,15 @@ class MarketingTarget extends Model
     protected $table = 'tb_marketing_targets';
 
     protected $fillable = [
-        'user_id', 'start_date', 'end_date', 'target_amount', 'commission_rate',
+        'user_id', 'start_date', 'end_date', 'target_amount',
+        'commission_type', 'commission_rate', 'commission_flat',
         'batch_id', 'commission_paid', 'commission_paid_at', 'commission_paid_by',
         'created_by', 'updated_by',
+    ];
+
+    protected $attributes = [
+        'commission_type' => 'percent',
+        'commission_flat' => 0,
     ];
 
     protected $casts = [
@@ -22,6 +28,7 @@ class MarketingTarget extends Model
         'end_date'           => 'date',
         'target_amount'      => 'integer',
         'commission_rate'    => 'decimal:2',
+        'commission_flat'    => 'integer',
         'commission_paid'    => 'boolean',
         'commission_paid_at' => 'datetime',
     ];

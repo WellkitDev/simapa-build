@@ -27,8 +27,21 @@
                 </div>
                 <div class="mb-2"><label class="form-label">Target Pemasukan (Rp)</label>
                     <input type="number" name="target_amount" min="0" step="1000" class="form-control form-control-sm" required></div>
-                <div class="mb-2"><label class="form-label">Rate Komisi (%)</label>
-                    <input type="number" name="commission_rate" min="0" max="100" step="0.5" class="form-control form-control-sm" required></div>
+                <div class="mb-2">
+                    <label class="form-label">Tipe Komisi</label>
+                    <select name="commission_type" id="commType" class="form-select form-select-sm">
+                        <option value="percent">Persen (%)</option>
+                        <option value="flat">Flat (Rp)</option>
+                    </select>
+                </div>
+                <div class="mb-2" id="rateWrap">
+                    <label class="form-label">Rate Komisi (%)</label>
+                    <input type="number" name="commission_rate" min="0" max="100" step="0.01" class="form-control form-control-sm" placeholder="mis. 2.5">
+                </div>
+                <div class="mb-2 d-none" id="flatWrap">
+                    <label class="form-label">Komisi Flat (Rp)</label>
+                    <input type="number" name="commission_flat" min="0" step="1000" class="form-control form-control-sm" placeholder="mis. 1000000">
+                </div>
                 <div class="row">
                     <div class="col-6 mb-2"><label class="form-label">Mulai</label>
                         <input type="date" name="start_date" class="form-control form-control-sm" value="{{ now()->toDateString() }}" required></div>
@@ -108,6 +121,11 @@
             order: [],
             language: { emptyTable: 'Belum ada target.' }
         });
+        $('#commType').on('change', function () {
+            var flat = this.value === 'flat';
+            $('#flatWrap').toggleClass('d-none', !flat);
+            $('#rateWrap').toggleClass('d-none', flat);
+        }).trigger('change');
     });
 </script>
 @endpush

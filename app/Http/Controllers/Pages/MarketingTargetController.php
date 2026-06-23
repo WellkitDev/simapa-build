@@ -25,7 +25,9 @@ class MarketingTargetController extends Controller
         $data = $request->validate([
             'assignee'        => 'required|string', // 'all' atau id marketing
             'target_amount'   => 'required|numeric|min:0',
-            'commission_rate' => 'required|numeric|min:0|max:100',
+            'commission_type' => 'required|in:percent,flat',
+            'commission_rate' => 'required_if:commission_type,percent|nullable|numeric|min:0|max:100',
+            'commission_flat' => 'required_if:commission_type,flat|nullable|numeric|min:0',
             'start_date'      => 'required|date',
             'end_date'        => 'required|date|after_or_equal:start_date',
         ]);
@@ -37,7 +39,11 @@ class MarketingTargetController extends Controller
             $scope,
             $userIds,
             (int) $data['target_amount'],
-            (float) $data['commission_rate'],
+            [
+                'type' => $data['commission_type'],
+                'rate' => (float) ($data['commission_rate'] ?? 0),
+                'flat' => (int) ($data['commission_flat'] ?? 0),
+            ],
             $data['start_date'],
             $data['end_date'],
             Auth::user(),

@@ -27,6 +27,11 @@ class MarketingTargetService
         $t    = (int) $target->target_amount;
         $rate = (float) $target->commission_rate;
 
+        // Komisi: flat = nominal tetap; persen = rate% × realisasi.
+        $komisi = $target->commission_type === 'flat'
+            ? (int) $target->commission_flat
+            : (int) round($rate / 100 * $realisasi);
+
         $status = $today->lt($start) ? 'akan_datang' : ($today->gt($end) ? 'berakhir' : 'aktif');
         $tertunggak = $today->gt($end->copy()->addDays(7)) && ! $target->commission_paid;
 
@@ -37,9 +42,11 @@ class MarketingTargetService
             'batch_id'           => $target->batch_id,
             'target'             => $t,
             'rate'               => $rate,
+            'commission_type'    => $target->commission_type,
+            'commission_flat'    => (int) $target->commission_flat,
             'realisasi'          => $realisasi,
             'capaian_persen'     => $t > 0 ? round($realisasi / $t * 100, 1) : 0.0,
-            'komisi'             => (int) round($rate / 100 * $realisasi),
+            'komisi'             => $komisi,
             'sisa'               => max($t - $realisasi, 0),
             'start_date'         => $start->format('Y-m-d'),
             'end_date'           => $end->format('Y-m-d'),
@@ -95,8 +102,11 @@ class MarketingTargetService
         return $rows->values();
     }
 
-    /** Buat target: individual (untuk $userIds) atau all (1 baris per marketing aktif, batch_id sama). */
-    public function createTarget(string $scope, array $userIds, int $amount, float $rate, string $start, string $end, User $actor): void
+    /**
+     * Buat target: individual (untuk $userIds) atau all (1 baris per marketing aktif, batch_id sama).
+     * $commission = ['type' => 'percent'|'flat', 'rate' => float, 'flat' => int].
+     */
+    public function createTarget(string $scope, array $userIds, int $amount, array $commission, string $start, string $end, User $actor): void
     {
         $marketingIds = User::role('marketing')->pluck('id')->all();
         $batchId = null;
@@ -112,15 +122,21 @@ class MarketingTargetService
             return;
         }
 
+        $type = ($commission['type'] ?? 'percent') === 'flat' ? 'flat' : 'percent';
+        $rate = $type === 'percent' ? (float) ($commission['rate'] ?? 0) : 0;
+        $flat = $type === 'flat' ? (int) ($commission['flat'] ?? 0) : 0;
+
         $created = [];
-        DB::transaction(function () use ($userIds, $amount, $rate, $start, $end, $actor, $batchId, &$created) {
+        DB::transaction(function () use ($userIds, $amount, $type, $rate, $flat, $start, $end, $actor, $batchId, &$created) {
             foreach ($userIds as $uid) {
                 $created[] = MarketingTarget::create([
                     'user_id'         => $uid,
                     'start_date'      => $start,
                     'end_date'        => $end,
                     'target_amount'   => $amount,
+                    'commission_type' => $type,
                     'commission_rate' => $rate,
+                    'commission_flat' => $flat,
                     'batch_id'        => $batchId,
                     'created_by'      => $actor->id,
                     'updated_by'      => $actor->id,

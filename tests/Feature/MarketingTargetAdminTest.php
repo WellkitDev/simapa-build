@@ -41,7 +41,7 @@ class MarketingTargetAdminTest extends TestCase
 
         $this->actingAs($manager)->post(route('marketing-target.store'), [
             'assignee' => (string) $mkt->id,
-            'target_amount' => 9000000, 'commission_rate' => 5,
+            'target_amount' => 9000000, 'commission_type' => 'percent', 'commission_rate' => 5,
             'start_date' => now()->toDateString(), 'end_date' => now()->addMonth()->toDateString(),
         ])->assertRedirect();
 
@@ -59,11 +59,28 @@ class MarketingTargetAdminTest extends TestCase
 
         $this->actingAs($manager)->post(route('marketing-target.store'), [
             'assignee' => 'all',
-            'target_amount' => 5000000, 'commission_rate' => 4,
+            'target_amount' => 5000000, 'commission_type' => 'percent', 'commission_rate' => 4,
             'start_date' => now()->toDateString(), 'end_date' => now()->addMonth()->toDateString(),
         ])->assertRedirect();
 
         $this->assertSame(2, MarketingTarget::whereNotNull('batch_id')->count());
+    }
+
+    /** @test */
+    public function create_flat_commission_target(): void
+    {
+        $manager = $this->user('manager');
+        $mkt = $this->user('marketing');
+
+        $this->actingAs($manager)->post(route('marketing-target.store'), [
+            'assignee' => (string) $mkt->id,
+            'target_amount' => 45000000, 'commission_type' => 'flat', 'commission_flat' => 1000000,
+            'start_date' => now()->toDateString(), 'end_date' => now()->addMonth()->toDateString(),
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('tb_marketing_targets', [
+            'user_id' => $mkt->id, 'commission_type' => 'flat', 'commission_flat' => 1000000,
+        ]);
     }
 
     /** @test */
