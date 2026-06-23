@@ -53,4 +53,18 @@ class AnnouncementDashboardTest extends TestCase
 
         $this->assertDatabaseHas('tb_announcement_reads', ['announcement_id' => $a->id, 'user_id' => $u->id]);
     }
+
+    /** @test */
+    public function new_badge_shows_for_fresh_then_hidden_after_seen(): void
+    {
+        $u = $this->user('marketing');
+        $a = Announcement::create(['title' => 'PENGUMUMAN SATU', 'body' => '<p>isi</p>', 'status' => 'published', 'published_at' => now()]);
+
+        // Pengumuman baru & belum dibaca → badge "Baru" tampil.
+        $this->actingAs($u)->get(route('dashboard'))->assertOk()->assertSee('bg-danger ms-1">Baru', false);
+
+        // Setelah ditandai dibaca → badge "Baru" hilang.
+        $this->actingAs($u)->post(route('announcement.seen'), ['ids' => [$a->id]])->assertNoContent();
+        $this->actingAs($u)->get(route('dashboard'))->assertOk()->assertDontSee('bg-danger ms-1">Baru', false);
+    }
 }

@@ -26,10 +26,10 @@
                 @endforeach
             </div>
             @if($items->count() > 1)
-                <button class="carousel-control-prev" type="button" data-bs-target="#announceCarousel" data-bs-slide="prev">
+                <button class="carousel-control-prev" type="button" aria-label="Sebelumnya" data-bs-target="#announceCarousel" data-bs-slide="prev">
                     <span class="carousel-control-prev-icon bg-dark rounded" aria-hidden="true"></span>
                 </button>
-                <button class="carousel-control-next" type="button" data-bs-target="#announceCarousel" data-bs-slide="next">
+                <button class="carousel-control-next" type="button" aria-label="Berikutnya" data-bs-target="#announceCarousel" data-bs-slide="next">
                     <span class="carousel-control-next-icon bg-dark rounded" aria-hidden="true"></span>
                 </button>
                 <div class="carousel-indicators position-static mt-2">
@@ -42,6 +42,7 @@
     </div>
 </div>
 
+{{-- JS tandai-dibaca hanya di-push saat ada pengumuman --}}
 @push('custom-scripts')
 <script>
     setTimeout(function () {
