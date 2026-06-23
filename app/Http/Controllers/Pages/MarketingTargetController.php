@@ -23,18 +23,19 @@ class MarketingTargetController extends Controller
     public function store(Request $request, MarketingTargetService $service)
     {
         $data = $request->validate([
-            'scope'           => 'required|in:individual,all',
-            'user_ids'        => 'required_if:scope,individual|array',
-            'user_ids.*'      => 'integer',
+            'assignee'        => 'required|string', // 'all' atau id marketing
             'target_amount'   => 'required|numeric|min:0',
             'commission_rate' => 'required|numeric|min:0|max:100',
             'start_date'      => 'required|date',
             'end_date'        => 'required|date|after_or_equal:start_date',
         ]);
 
+        $scope   = $data['assignee'] === 'all' ? 'all' : 'individual';
+        $userIds = $scope === 'all' ? [] : [(int) $data['assignee']];
+
         $service->createTarget(
-            $data['scope'],
-            $data['user_ids'] ?? [],
+            $scope,
+            $userIds,
             (int) $data['target_amount'],
             (float) $data['commission_rate'],
             $data['start_date'],

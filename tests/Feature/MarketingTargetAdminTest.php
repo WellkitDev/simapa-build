@@ -40,7 +40,7 @@ class MarketingTargetAdminTest extends TestCase
             ->assertOk()->assertSee('MARKETING SATU');
 
         $this->actingAs($manager)->post(route('marketing-target.store'), [
-            'scope' => 'individual', 'user_ids' => [$mkt->id],
+            'assignee' => (string) $mkt->id,
             'target_amount' => 9000000, 'commission_rate' => 5,
             'start_date' => now()->toDateString(), 'end_date' => now()->addMonth()->toDateString(),
         ])->assertRedirect();
@@ -58,7 +58,7 @@ class MarketingTargetAdminTest extends TestCase
         $this->user('marketing');
 
         $this->actingAs($manager)->post(route('marketing-target.store'), [
-            'scope' => 'all',
+            'assignee' => 'all',
             'target_amount' => 5000000, 'commission_rate' => 4,
             'start_date' => now()->toDateString(), 'end_date' => now()->addMonth()->toDateString(),
         ])->assertRedirect();

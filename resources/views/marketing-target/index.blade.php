@@ -16,20 +16,14 @@
             <form method="POST" action="{{ route('marketing-target.store') }}">
                 @csrf
                 <div class="mb-2">
-                    <label class="form-label">Cakupan</label>
-                    <select name="scope" id="scopeSelect" class="form-select form-select-sm">
-                        <option value="individual">Individu</option>
-                        <option value="all">Semua marketing</option>
-                    </select>
-                </div>
-                <div class="mb-2" id="userWrap">
-                    <label class="form-label">Marketing</label>
-                    <select name="user_ids[]" class="form-select form-select-sm" multiple size="4">
+                    <label class="form-label">Cakupan / Marketing</label>
+                    <select name="assignee" class="form-select form-select-sm" required>
+                        <option value="all">Semua Marketing</option>
                         @foreach($marketers as $m)
                             <option value="{{ $m->id }}">{{ $m->name }}</option>
                         @endforeach
                     </select>
-                    <small class="text-muted">Ctrl/Cmd untuk pilih beberapa.</small>
+                    <small class="text-muted">"Semua Marketing" = semua; pilih satu nama = individu.</small>
                 </div>
                 <div class="mb-2"><label class="form-label">Target Pemasukan (Rp)</label>
                     <input type="number" name="target_amount" min="0" step="1000" class="form-control form-control-sm" required></div>
@@ -63,7 +57,7 @@
                         <th>Komisi</th><th>Status</th><th>Komisi Bayar</th><th>Aksi</th>
                     </tr></thead>
                     <tbody>
-                        @forelse($rows as $r)
+                        @foreach($rows as $r)
                             @php $ccls = $r['capaian_persen'] >= 100 ? 'bg-success' : ($r['capaian_persen'] >= 75 ? 'bg-warning text-dark' : 'bg-danger'); @endphp
                             <tr>
                                 <td>{{ $r['name'] }} @if($r['scope'] === 'all')<span class="badge bg-dark">Semua</span>@endif</td>
@@ -93,9 +87,7 @@
                                     </form>
                                 </td>
                             </tr>
-                        @empty
-                            <tr><td colspan="9" class="text-center text-muted py-3">Belum ada target.</td></tr>
-                        @endforelse
+                        @endforeach
                     </tbody>
                 </table>
             </div>
@@ -111,9 +103,10 @@
 @push('custom-scripts')
 <script>
     $(function () {
-        $('.datatable').DataTable({ pageLength: 10, order: [] });
-        $('#scopeSelect').on('change', function () {
-            $('#userWrap').toggle(this.value === 'individual');
+        $('.datatable').DataTable({
+            pageLength: 10,
+            order: [],
+            language: { emptyTable: 'Belum ada target.' }
         });
     });
 </script>
