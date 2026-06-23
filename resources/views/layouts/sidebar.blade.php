@@ -117,6 +117,14 @@
                         </a>
                     </li>
                 @endrole
+                @role(['marketing'])
+                    <li class="nav-item {{ active_class(['target']) }}">
+                        <a href="{{ route('marketing-target.me') }}" class="nav-link">
+                            <i class="link-icon" data-feather="target"></i>
+                            <span class="link-title">Target Saya</span>
+                        </a>
+                    </li>
+                @endrole
             @endrole
 
             <li class="nav-item nav-category">Akun</li>
