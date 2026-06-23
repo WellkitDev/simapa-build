@@ -5,6 +5,7 @@
 @endpush
 
 @section('content')
+@include('dashboard.partials.announcements')
 @if(($dashboardView ?? 'financial') === 'production')
     @include('dashboard.partials.production')
 @elseif(($dashboardView ?? 'financial') === 'marketing')

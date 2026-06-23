@@ -38,5 +38,18 @@ class AppServiceProvider extends ServiceProvider
             $view->with('navUnread', $unread);
             $view->with('navRecent', $recent);
         });
+
+        \Illuminate\Support\Facades\View::composer('dashboard.partials.announcements', function ($view) {
+            $user = \Illuminate\Support\Facades\Auth::user();
+            $items = collect();
+            if ($user) {
+                try {
+                    $items = app(\App\Services\AnnouncementService::class)->forDashboard($user);
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning('Gagal memuat pengumuman dashboard: ' . $e->getMessage());
+                }
+            }
+            $view->with('dashAnnouncements', $items);
+        });
     }
 }
