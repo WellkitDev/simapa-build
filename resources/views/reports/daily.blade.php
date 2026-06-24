@@ -105,6 +105,7 @@
 @push('plugin-scripts')
 <script src="{{ asset('assets/plugins/flatpickr/flatpickr.min.js') }}"></script>
 <script src="{{ asset('assets/plugins/dropzone/dropzone.min.js') }}"></script>
+<script>if (window.Dropzone) Dropzone.autoDiscover = false;</script>
 @endpush
 @push('custom-scripts')
 <script>
@@ -117,9 +118,23 @@ $(function () {
         var li = document.createElement('li');
         li.className = 'list-group-item d-flex justify-content-between align-items-center px-0';
         li.setAttribute('data-file', f.id);
-        li.innerHTML = '<a href="' + f.url + '" target="_blank" style="font-size:13px">' + f.name + '</a>'
-            + '<button class="btn btn-xs btn-outline-danger" data-del-file="' + f.id + '">Hapus</button>';
+        var a = document.createElement('a');
+        a.href = f.url;
+        a.target = '_blank';
+        a.style.fontSize = '13px';
+        var icon = document.createElement('i');
+        icon.setAttribute('data-feather', 'paperclip');
+        icon.className = 'icon-xs me-1';
+        a.appendChild(icon);
+        a.appendChild(document.createTextNode(f.name));
+        var btn = document.createElement('button');
+        btn.className = 'btn btn-xs btn-outline-danger';
+        btn.setAttribute('data-del-file', f.id);
+        btn.textContent = 'Hapus';
+        li.appendChild(a);
+        li.appendChild(btn);
         saved.prepend(li);
+        if (window.feather) feather.replace();
     }
     function delFile(id, el) {
         fetch("{{ url('reports/daily/files') }}/" + id, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': token, 'X-Requested-With': 'XMLHttpRequest' } })
@@ -132,7 +147,6 @@ $(function () {
 
     var dzEl = document.getElementById('reportDropzone');
     if (dzEl && window.Dropzone) {
-        Dropzone.autoDiscover = false;
         new Dropzone(dzEl, {
             url: "{{ route('report.files.store') }}",
             maxFiles: 10, maxFilesize: 10,
