@@ -39,7 +39,8 @@
                 id: info.event.id, title: info.event.title, due: info.event.startStr,
                 priority: info.event.extendedProps.priority,
                 description: info.event.extendedProps.description,
-                assignee: info.event.extendedProps.assignee
+                assignee: info.event.extendedProps.assignee,
+                status: info.event.extendedProps.status
             });
         },
         eventDrop: function (info) {

@@ -71,6 +71,34 @@ class TaskControllerTest extends TestCase
     }
 
     /** @test */
+    public function manager_reassign_updates_owner_and_notifies_new_assignee(): void
+    {
+        $manager = $this->user('manager');
+        $a = $this->user('production');
+        $b = $this->user('production');
+        $t = $this->task($a, ['title' => 'Pindah']);
+
+        $this->actingAs($manager)->put(route('task.update', $t->id), [
+            'title' => 'Pindah', 'priority' => 'normal', 'assignee' => $b->id,
+        ])->assertRedirect();
+
+        $this->assertSame($b->id, $t->fresh()->user_id);
+        $this->assertSame(1, $b->notifications()->count());
+        $this->assertSame(0, $a->notifications()->count());
+    }
+
+    /** @test */
+    public function non_manager_cannot_read_other_users_events(): void
+    {
+        $a = $this->user('production');
+        $b = $this->user('production');
+        $this->task($b, ['title' => 'EventB', 'due_date' => today()->toDateString()]);
+
+        $this->actingAs($a)->get(route('task.events', ['user_id' => $b->id]))->assertOk()
+            ->assertJsonMissing(['title' => 'EventB']);
+    }
+
+    /** @test */
     public function employee_cannot_modify_others_task(): void
     {
         $a = $this->user('production');

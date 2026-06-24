@@ -96,9 +96,11 @@
                 const fromStatus = evt.from.getAttribute('data-status');
                 const ids = Array.from(evt.to.querySelectorAll('[data-id]')).map(function (n) { return n.getAttribute('data-id'); });
                 if (toStatus === fromStatus) {
-                    send("{{ route('task.reorder') }}", 'POST', { status: toStatus, ids: ids });
+                    send("{{ route('task.reorder') }}", 'POST', { status: toStatus, ids: ids })
+                        .then(function (r) { if (!r.ok) location.reload(); }).catch(function () { location.reload(); });
                 } else {
-                    send("{{ url('tasks') }}/" + id + "/status", 'PATCH', { status: toStatus, position: ids.indexOf(id) });
+                    send("{{ url('tasks') }}/" + id + "/status", 'PATCH', { status: toStatus, position: ids.indexOf(id) })
+                        .then(function (r) { if (!r.ok) location.reload(); }).catch(function () { location.reload(); });
                     refreshCounts();
                 }
             }

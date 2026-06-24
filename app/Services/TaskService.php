@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Task;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 
 class TaskService
 {
@@ -40,6 +41,7 @@ class TaskService
                 'priority'    => $t->priority,
                 'description' => $t->description,
                 'assignee'    => $t->user_id,
+                'status'      => $t->status,
             ],
         ])->all();
     }
@@ -61,9 +63,11 @@ class TaskService
     /** Tulis ulang position 0..n untuk satu kolom milik user. */
     public function reorder(User $user, string $status, array $orderedIds): void
     {
-        foreach (array_values($orderedIds) as $i => $id) {
-            Task::forUser($user->id)->where('status', $status)->where('id', (int) $id)->update(['position' => $i]);
-        }
+        DB::transaction(function () use ($user, $status, $orderedIds) {
+            foreach (array_values($orderedIds) as $i => $id) {
+                Task::forUser($user->id)->where('status', $status)->where('id', (int) $id)->update(['position' => $i]);
+            }
+        });
     }
 
     /** Pemantauan: KPI + baris tugas (opsional filter user/status). */
