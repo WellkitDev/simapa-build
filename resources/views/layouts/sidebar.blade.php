@@ -128,7 +128,7 @@
             @endrole
 
             <li class="nav-item nav-category">Tugas</li>
-            <li class="nav-item {{ active_class(['tasks']) }}">
+            <li class="nav-item {{ active_class(['tasks/board']) }}">
                 <a href="{{ route('task.board') }}" class="nav-link">
                     <i class="link-icon" data-feather="trello"></i>
                     <span class="link-title">Board Tugas</span>

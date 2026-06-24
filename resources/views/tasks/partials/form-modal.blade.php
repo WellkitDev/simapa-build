@@ -4,6 +4,7 @@
       <form id="taskForm" method="POST" action="{{ route('task.store') }}">
         @csrf
         <input type="hidden" name="_method" id="taskMethod" value="POST">
+        <input type="hidden" name="status" id="taskStatus" value="todo">
         <div class="modal-header">
           <h5 class="modal-title" id="taskModalTitle">Tugas Baru</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
@@ -64,6 +65,7 @@
     window.openTaskModal = function (data) {
         data = data || {};
         document.getElementById('taskMethod').value = data.id ? 'PUT' : 'POST';
+        document.getElementById('taskStatus').value = data.status || 'todo';
         form.setAttribute('action', data.id ? ("{{ url('tasks') }}/" + data.id) : "{{ route('task.store') }}");
         document.getElementById('taskModalTitle').textContent = data.id ? 'Edit Tugas' : 'Tugas Baru';
         document.getElementById('taskTitle').value = data.title || '';

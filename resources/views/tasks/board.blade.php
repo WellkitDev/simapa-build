@@ -81,6 +81,12 @@
     function send(url, method, body) {
         return fetch(url, { method: method, headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': token, 'X-Requested-With': 'XMLHttpRequest' }, body: JSON.stringify(body) });
     }
+    function refreshCounts() {
+        document.querySelectorAll('[data-column]').forEach(function (col) {
+            const badge = col.parentElement.querySelector('[data-count]');
+            if (badge) badge.textContent = col.querySelectorAll('[data-id]').length;
+        });
+    }
     document.querySelectorAll('[data-column]').forEach(function (col) {
         new Sortable(col, {
             group: 'tasks', animation: 150, ghostClass: 'opacity-50',
@@ -93,6 +99,7 @@
                     send("{{ route('task.reorder') }}", 'POST', { status: toStatus, ids: ids });
                 } else {
                     send("{{ url('tasks') }}/" + id + "/status", 'PATCH', { status: toStatus, position: ids.indexOf(id) });
+                    refreshCounts();
                 }
             }
         });

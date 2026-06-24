@@ -84,7 +84,7 @@ class TaskController extends Controller
             'description' => $data['description'] ?? null,
             'priority'    => $data['priority'],
             'due_date'    => $data['due_date'] ?? null,
-            'status'      => 'todo',
+            'status'      => in_array($request->input('status'), Task::STATUSES, true) ? $request->input('status') : 'todo',
             'created_by'  => Auth::id(),
         ]);
 

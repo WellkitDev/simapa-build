@@ -43,6 +43,14 @@ class TaskControllerTest extends TestCase
     }
 
     /** @test */
+    public function store_honors_column_status(): void
+    {
+        $u = $this->user('production');
+        $this->actingAs($u)->post(route('task.store'), ['title' => 'Langsung kerja', 'priority' => 'normal', 'status' => 'in_progress'])->assertRedirect();
+        $this->assertDatabaseHas('tb_tasks', ['title' => 'Langsung kerja', 'user_id' => $u->id, 'status' => 'in_progress']);
+    }
+
+    /** @test */
     public function employee_cannot_assign_to_others(): void
     {
         $u = $this->user('production');
