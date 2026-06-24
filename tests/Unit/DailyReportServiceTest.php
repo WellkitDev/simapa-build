@@ -40,7 +40,8 @@ class DailyReportServiceTest extends TestCase
         $r = $this->svc->recapFor($u, $today);
 
         $this->assertSame(1, $r['counts']['selesai']);
-        $this->assertSame('Sel', $r['selesai'][0]->title);
+        $this->assertSame('Sel', $r['selesai']->first()->title);
+        $this->assertSame(2, $r['counts']['dibuat']);     // Sel + Ker dibuat hari ini (milik $u), task $other tidak ikut
         $this->assertSame(1, $r['counts']['dikerjakan']); // hari ini → in_progress tampil
     }
 

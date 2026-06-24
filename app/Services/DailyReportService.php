@@ -13,8 +13,9 @@ class DailyReportService
     /** Rekap tugas user untuk satu tanggal (live dari tb_tasks). */
     public function recapFor(User $user, Carbon $date): array
     {
-        $selesai = Task::forUser($user->id)->whereDate('completed_at', $date)->orderByDesc('completed_at')->get();
-        $dibuat  = Task::forUser($user->id)->whereDate('created_at', $date)->orderByDesc('created_at')->get();
+        $range = [$date->copy()->startOfDay(), $date->copy()->endOfDay()];
+        $selesai = Task::forUser($user->id)->whereBetween('completed_at', $range)->orderByDesc('completed_at')->get();
+        $dibuat  = Task::forUser($user->id)->whereBetween('created_at', $range)->orderByDesc('created_at')->get();
         $dikerjakan = $date->isToday()
             ? Task::forUser($user->id)->where('status', 'in_progress')->get()
             : collect();
@@ -69,7 +70,8 @@ class DailyReportService
     public function submissionsForDate(Carbon $date): Collection
     {
         $submitted = DailyReport::whereDate('report_date', $date)->where('status', 'submitted')->pluck('user_id')->flip();
-        $doneCounts = Task::whereDate('completed_at', $date)->selectRaw('user_id, count(*) as c')->groupBy('user_id')->pluck('c', 'user_id');
+        $doneCounts = Task::whereBetween('completed_at', [$date->copy()->startOfDay(), $date->copy()->endOfDay()])
+            ->selectRaw('user_id, count(*) as c')->groupBy('user_id')->pluck('c', 'user_id');
 
         return User::orderBy('name')->get(['id', 'name'])->map(fn (User $u) => [
             'id'        => $u->id,
