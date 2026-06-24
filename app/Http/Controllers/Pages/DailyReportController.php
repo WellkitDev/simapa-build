@@ -37,6 +37,7 @@ class DailyReportController extends Controller
 
     public function daily(Request $request)
     {
+        $request->validate(['date' => 'nullable|date']);
         $user = $this->viewedUser($request);
         $date = $this->dateParam($request);
         $report = DailyReport::with('files')->where('user_id', $user->id)->whereDate('report_date', $date)->first();
@@ -86,6 +87,9 @@ class DailyReportController extends Controller
         }
 
         $folderId = $this->drive->getOrCreateFolderByPath('SiMAPA/Reports/' . Auth::id() . '/' . Carbon::parse($data['date'])->format('Y-m'));
+        if (! $folderId) {
+            return response()->json(['message' => 'Gagal membuat folder Google Drive.'], 500);
+        }
         $uploaded = $this->drive->uploadFile($request->file('file'), $folderId, true);
         if (! $uploaded) {
             return response()->json(['message' => 'Gagal mengunggah ke Google Drive.'], 500);
@@ -109,7 +113,9 @@ class DailyReportController extends Controller
         abort_if($file->report->user_id !== Auth::id(), 403);
         abort_if($file->report->isSubmitted(), 422, 'Report sudah dikirim.');
 
-        $this->drive->deleteFile($file->drive_file_id);
+        if (! $this->drive->deleteFile($file->drive_file_id)) {
+            \Illuminate\Support\Facades\Log::warning('Gagal menghapus file Drive: ' . $file->drive_file_id);
+        }
         $file->delete();
 
         return response()->json(['ok' => true]);
@@ -117,6 +123,7 @@ class DailyReportController extends Controller
 
     public function monthly(Request $request)
     {
+        $request->validate(['month' => 'nullable|date_format:Y-m']);
         $user = $this->viewedUser($request);
         $month = $request->filled('month') ? Carbon::parse($request->input('month') . '-01') : Carbon::today()->startOfMonth();
 
@@ -129,6 +136,7 @@ class DailyReportController extends Controller
 
     public function submissions(Request $request)
     {
+        $request->validate(['date' => 'nullable|date']);
         $date = $this->dateParam($request);
 
         return view('reports.submissions', [

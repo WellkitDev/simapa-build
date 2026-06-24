@@ -108,4 +108,11 @@ class DailyReportControllerTest extends TestCase
     {
         $this->actingAs($this->user('production'))->get(route('report.submissions'))->assertForbidden();
     }
+
+    /** @test */
+    public function daily_with_invalid_date_redirects(): void
+    {
+        $u = $this->user('production');
+        $this->actingAs($u)->get(route('report.daily', ['date' => 'garbage']))->assertStatus(302);
+    }
 }
