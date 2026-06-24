@@ -17,6 +17,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Pages\MarketingTargetController;
 use App\Http\Controllers\Pages\AnnouncementController;
 use App\Http\Controllers\Pages\TaskController;
+use App\Http\Controllers\Pages\DailyReportController;
 
 /*
 |--------------------------------------------------------------------------
@@ -207,6 +208,17 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('role:manager|superadmin')->group(function () {
         Route::get('tasks/monitor', [TaskController::class, 'monitor'])->name('task.monitor');
+    });
+
+    Route::get('reports/daily', [DailyReportController::class, 'daily'])->name('report.daily');
+    Route::post('reports/daily/note', [DailyReportController::class, 'saveNote'])->name('report.note');
+    Route::post('reports/daily/submit', [DailyReportController::class, 'submit'])->name('report.submit');
+    Route::post('reports/daily/files', [DailyReportController::class, 'storeFile'])->name('report.files.store');
+    Route::delete('reports/daily/files/{id}', [DailyReportController::class, 'destroyFile'])->name('report.files.destroy');
+    Route::get('reports/monthly', [DailyReportController::class, 'monthly'])->name('report.monthly');
+
+    Route::middleware('role:manager|superadmin')->group(function () {
+        Route::get('reports/submissions', [DailyReportController::class, 'submissions'])->name('report.submissions');
     });
 });
 
