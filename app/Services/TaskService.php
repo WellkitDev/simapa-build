@@ -33,7 +33,7 @@ class TaskService
         return $query->get()->map(fn (Task $t) => [
             'id'            => (string) $t->id,
             'title'         => $t->title,
-            'start'         => $t->due_date->toDateString(),
+            'start'         => $t->due_date?->toDateString(),
             'allDay'        => true,
             'color'         => $t->status === 'done' ? '#94A3B8' : self::priorityColor($t->priority),
             'extendedProps' => [
@@ -48,7 +48,7 @@ class TaskService
     public function move(Task $task, string $status, int $position): void
     {
         if (! in_array($status, Task::STATUSES, true)) {
-            return;
+            throw new \InvalidArgumentException("Status tugas tidak valid: {$status}");
         }
 
         $task->update([
@@ -77,6 +77,7 @@ class TaskService
             ->orderByRaw('due_date IS NULL, due_date')
             ->get();
 
+        // KPI di-scope ke user saja (sengaja mengabaikan filter status agar ringkasan tetap utuh).
         $scope  = Task::query()->when($userId, fn ($q) => $q->where('user_id', $userId));
         $counts = (clone $scope)->selectRaw('status, count(*) as c')->groupBy('status')->pluck('c', 'status');
         $overdue = (clone $scope)->whereNotNull('due_date')->whereDate('due_date', '<', today())->where('status', '!=', 'done')->count();

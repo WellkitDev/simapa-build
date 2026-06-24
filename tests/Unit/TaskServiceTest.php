@@ -70,6 +70,29 @@ class TaskServiceTest extends TestCase
     }
 
     /** @test */
+    public function reorder_does_not_touch_other_users_tasks(): void
+    {
+        $a = User::factory()->create();
+        $b = User::factory()->create();
+        $ta = $this->task($a, ['status' => 'todo', 'position' => 5]);
+
+        // User B mencoba mengurutkan task milik A → harus diabaikan (scope forUser).
+        $this->svc->reorder($b, 'todo', [$ta->id]);
+
+        $this->assertSame(5, $ta->fresh()->position);
+    }
+
+    /** @test */
+    public function move_throws_on_invalid_status(): void
+    {
+        $u = User::factory()->create();
+        $t = $this->task($u);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->svc->move($t, 'flying', 0);
+    }
+
+    /** @test */
     public function calendar_events_scoped_and_dated(): void
     {
         $u = User::factory()->create();
