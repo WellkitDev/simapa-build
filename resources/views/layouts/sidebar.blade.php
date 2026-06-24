@@ -155,6 +155,28 @@
                 </li>
             @endrole
 
+            <li class="nav-item nav-category">Report</li>
+            <li class="nav-item {{ active_class(['reports/daily']) }}">
+                <a href="{{ route('report.daily') }}" class="nav-link">
+                    <i class="link-icon" data-feather="file-text"></i>
+                    <span class="link-title">Report Harian</span>
+                </a>
+            </li>
+            <li class="nav-item {{ active_class(['reports/monthly']) }}">
+                <a href="{{ route('report.monthly') }}" class="nav-link">
+                    <i class="link-icon" data-feather="calendar"></i>
+                    <span class="link-title">Report Bulanan</span>
+                </a>
+            </li>
+            @role(['manager', 'superadmin'])
+                <li class="nav-item {{ active_class(['reports/submissions']) }}">
+                    <a href="{{ route('report.submissions') }}" class="nav-link">
+                        <i class="link-icon" data-feather="clipboard"></i>
+                        <span class="link-title">Pemantauan Report</span>
+                    </a>
+                </li>
+            @endrole
+
             <li class="nav-item nav-category">Akun</li>
             @role(['superadmin', 'manager'])
                 <li class="nav-item {{ active_class(['user-management']) }}">
