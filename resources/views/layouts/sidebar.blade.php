@@ -127,6 +127,34 @@
                 @endrole
             @endrole
 
+            <li class="nav-item nav-category">Tugas</li>
+            <li class="nav-item {{ active_class(['tasks']) }}">
+                <a href="{{ route('task.board') }}" class="nav-link">
+                    <i class="link-icon" data-feather="trello"></i>
+                    <span class="link-title">Board Tugas</span>
+                </a>
+            </li>
+            <li class="nav-item {{ active_class(['tasks/calendar']) }}">
+                <a href="{{ route('task.calendar') }}" class="nav-link">
+                    <i class="link-icon" data-feather="calendar"></i>
+                    <span class="link-title">Kalender</span>
+                </a>
+            </li>
+            <li class="nav-item {{ active_class(['tasks']) }}">
+                <a href="{{ route('task.index') }}" class="nav-link">
+                    <i class="link-icon" data-feather="check-square"></i>
+                    <span class="link-title">Todo</span>
+                </a>
+            </li>
+            @role(['manager', 'superadmin'])
+                <li class="nav-item {{ active_class(['tasks/monitor']) }}">
+                    <a href="{{ route('task.monitor') }}" class="nav-link">
+                        <i class="link-icon" data-feather="activity"></i>
+                        <span class="link-title">Pemantauan Tugas</span>
+                    </a>
+                </li>
+            @endrole
+
             <li class="nav-item nav-category">Akun</li>
             @role(['superadmin', 'manager'])
                 <li class="nav-item {{ active_class(['user-management']) }}">
