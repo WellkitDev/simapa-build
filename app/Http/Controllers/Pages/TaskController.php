@@ -111,6 +111,7 @@ class TaskController extends Controller
             'due_date'    => $data['due_date'] ?? null,
         ]);
 
+        // Pemilik lama sengaja TIDAK dinotifikasi saat tugas dialihkan; hanya penerima baru.
         if ($reassigned && $assignee !== Auth::id()) {
             $notifier->taskAssigned($task, Auth::user());
         }
@@ -160,6 +161,11 @@ class TaskController extends Controller
 
     public function monitor(Request $request)
     {
+        $request->validate([
+            'user_id' => 'nullable|integer|exists:users,id',
+            'status'  => 'nullable|in:todo,in_progress,done',
+        ]);
+
         $data = $this->service->monitor(
             $request->filled('user_id') ? (int) $request->input('user_id') : null,
             $request->filled('status') ? $request->input('status') : null,
@@ -178,6 +184,7 @@ class TaskController extends Controller
             'description' => 'nullable|string',
             'priority'    => 'required|in:low,normal,high',
             'due_date'    => 'nullable|date',
+            // 'assignee' divalidasi di sini tapi dipakai lewat resolveAssignee() (bukan langsung dari hasil validasi).
             'assignee'    => 'nullable|integer|exists:users,id',
         ]);
     }

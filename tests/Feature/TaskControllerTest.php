@@ -73,6 +73,28 @@ class TaskControllerTest extends TestCase
     }
 
     /** @test */
+    public function employee_cannot_destroy_or_schedule_others_task(): void
+    {
+        $a = $this->user('production');
+        $b = $this->user('production');
+        $t = $this->task($b);
+
+        $this->actingAs($a)->delete(route('task.destroy', $t->id))->assertForbidden();
+        $this->actingAs($a)->patch(route('task.schedule', $t->id), ['due_date' => today()->toDateString()])->assertForbidden();
+    }
+
+    /** @test */
+    public function manager_can_modify_any_users_task(): void
+    {
+        $manager = $this->user('manager');
+        $emp = $this->user('production');
+        $t = $this->task($emp);
+
+        $this->actingAs($manager)->patch(route('task.status', $t->id), ['status' => 'done', 'position' => 0])->assertOk();
+        $this->assertSame('done', $t->fresh()->status);
+    }
+
+    /** @test */
     public function status_patch_updates_status_and_completed_at(): void
     {
         $u = $this->user('production');
