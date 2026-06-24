@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\MarketingTarget;
 use App\Models\Payment;
 use App\Models\Tagihan;
+use App\Models\Task;
 use App\Models\TitleProgress;
 use App\Models\User;
 use App\Notifications\DatabaseNotification;
@@ -121,6 +122,18 @@ class Notifier
             'message'  => 'Periode ' . ($target->start_date?->format('d M') ?? '?') . ' – ' . ($target->end_date?->format('d M Y') ?? '?'),
             'url'      => route('marketing-target.me'),
             'icon'     => 'check-circle',
+        ]);
+    }
+
+    public function taskAssigned(Task $task, User $actor): void
+    {
+        $task->loadMissing('user');
+        $this->toOwner($task->user, $actor, [
+            'category' => 'task',
+            'title'    => 'Tugas baru ditugaskan',
+            'message'  => $task->title,
+            'url'      => route('task.board'),
+            'icon'     => 'check-square',
         ]);
     }
 

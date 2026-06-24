@@ -16,6 +16,7 @@ use App\Http\Controllers\Pages\InvoiceController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Pages\MarketingTargetController;
 use App\Http\Controllers\Pages\AnnouncementController;
+use App\Http\Controllers\Pages\TaskController;
 
 /*
 |--------------------------------------------------------------------------
@@ -192,6 +193,21 @@ Route::middleware('auth')->group(function () {
         ->name('user.management.forceDelete')
         ->withTrashed();
     })->middleware(['can:access-usermanagement']);
+
+    Route::get('tasks', [TaskController::class, 'index'])->name('task.index');
+    Route::get('tasks/board', [TaskController::class, 'board'])->name('task.board');
+    Route::get('tasks/calendar', [TaskController::class, 'calendar'])->name('task.calendar');
+    Route::get('tasks/events', [TaskController::class, 'events'])->name('task.events');
+    Route::post('tasks/reorder', [TaskController::class, 'reorder'])->name('task.reorder');
+    Route::post('tasks', [TaskController::class, 'store'])->name('task.store');
+    Route::put('tasks/{id}', [TaskController::class, 'update'])->name('task.update');
+    Route::delete('tasks/{id}', [TaskController::class, 'destroy'])->name('task.destroy');
+    Route::patch('tasks/{id}/status', [TaskController::class, 'status'])->name('task.status');
+    Route::patch('tasks/{id}/schedule', [TaskController::class, 'schedule'])->name('task.schedule');
+
+    Route::middleware('role:manager|superadmin')->group(function () {
+        Route::get('tasks/monitor', [TaskController::class, 'monitor'])->name('task.monitor');
+    });
 });
 
 
