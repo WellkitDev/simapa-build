@@ -2,21 +2,32 @@
 
 namespace App\Services;
 
+use App\Models\DailyReport;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 class TaskService
 {
-    /** Tugas user dikelompokkan per status (kolom board), diurut position lalu id. */
+    /** Tugas user per kolom. Kolom done diurut completed_at desc + flag is_locked. */
     public function board(User $user): array
     {
-        $grouped = Task::forUser($user->id)->orderBy('position')->orderBy('id')->get()->groupBy('status');
+        $tasks = Task::forUser($user->id)->orderBy('position')->orderBy('id')->get();
+
+        // Tanggal report submitted milik user → menandai tugas selesai yang terkunci.
+        $lockedDates = DailyReport::where('user_id', $user->id)->where('status', 'submitted')
+            ->get(['report_date'])->map(fn ($r) => $r->report_date->toDateString())->flip();
+
+        $grouped = $tasks->groupBy('status');
+        $done = $grouped->get('done', collect())->sortByDesc('completed_at')->values();
+        $done->each(function (Task $t) use ($lockedDates) {
+            $t->is_locked = $t->completed_at && $lockedDates->has($t->completed_at->toDateString());
+        });
 
         return [
             'todo'        => $grouped->get('todo', collect())->values(),
             'in_progress' => $grouped->get('in_progress', collect())->values(),
-            'done'        => $grouped->get('done', collect())->values(),
+            'done'        => $done,
         ];
     }
 
@@ -96,6 +107,45 @@ class TaskService
             ],
             'rows' => $rows,
         ];
+    }
+
+    /** True bila task done & tanggal completed_at-nya punya report submitted. */
+    public function isLocked(Task $task): bool
+    {
+        if ($task->status !== 'done' || ! $task->completed_at) {
+            return false;
+        }
+        return DailyReport::where('user_id', $task->user_id)->where('status', 'submitted')
+            ->whereDate('report_date', $task->completed_at)->exists();
+    }
+
+    /** Tugas user belum selesai dengan due_date dalam 7 hari ke depan. */
+    public function dueSoonFor(User $user): \Illuminate\Support\Collection
+    {
+        return Task::forUser($user->id)->where('status', '!=', 'done')->whereNotNull('due_date')
+            ->whereBetween('due_date', [today()->toDateString(), today()->addDays(7)->toDateString()])
+            ->orderBy('due_date')->get();
+    }
+
+    /** Lintas user (untuk pengawas). */
+    public function dueSoonAll(): \Illuminate\Support\Collection
+    {
+        return Task::query()->where('status', '!=', 'done')->whereNotNull('due_date')
+            ->whereBetween('due_date', [today()->toDateString(), today()->addDays(7)->toDateString()])
+            ->with('user')->orderBy('due_date')->get();
+    }
+
+    /** Kirim notifikasi deadline sekali per tugas (anti-spam via deadline_notified_at). */
+    public function notifyDueSoon(Notifier $notifier): void
+    {
+        $tasks = Task::query()->where('status', '!=', 'done')->whereNotNull('due_date')
+            ->whereBetween('due_date', [today()->toDateString(), today()->addDays(7)->toDateString()])
+            ->whereNull('deadline_notified_at')->get();
+
+        foreach ($tasks as $task) {
+            $notifier->deadlineReminder($task);
+            $task->update(['deadline_notified_at' => now()]);
+        }
     }
 
     private static function priorityColor(string $priority): string

@@ -5,6 +5,8 @@ namespace Tests\Unit;
 use Tests\TestCase;
 use App\Models\User;
 use App\Models\Task;
+use App\Models\DailyReport;
+use App\Services\Notifier;
 use App\Services\TaskService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -124,5 +126,67 @@ class TaskServiceTest extends TestCase
         $mb = $this->svc->monitor($b->id);
         $this->assertCount(1, $mb['rows']);
         $this->assertSame(1, $mb['kpi']['in_progress']);
+    }
+
+    /** @test */
+    public function board_done_sorted_by_completed_and_locked_when_reported(): void
+    {
+        $u = User::factory()->create();
+        $today = today();
+        $done = $this->task($u, ['status' => 'done', 'completed_at' => $today]);
+        DailyReport::create(['user_id' => $u->id, 'report_date' => $today->toDateString(), 'status' => 'submitted', 'submitted_at' => now()]);
+        $olderUnlocked = $this->task($u, ['status' => 'done', 'completed_at' => $today->copy()->subDay()]);
+
+        $board = $this->svc->board($u);
+
+        $this->assertSame($done->id, $board['done'][0]->id);                        // completed_at desc
+        $this->assertTrue($board['done']->firstWhere('id', $done->id)->is_locked);  // hari ini dilaporkan
+        $this->assertFalse($board['done']->firstWhere('id', $olderUnlocked->id)->is_locked);
+    }
+
+    /** @test */
+    public function is_locked_reflects_submitted_report(): void
+    {
+        $u = User::factory()->create();
+        $today = today();
+        $t = $this->task($u, ['status' => 'done', 'completed_at' => $today]);
+
+        $this->assertFalse($this->svc->isLocked($t));
+
+        DailyReport::create(['user_id' => $u->id, 'report_date' => $today->toDateString(), 'status' => 'submitted', 'submitted_at' => now()]);
+        $this->assertTrue($this->svc->isLocked($t->fresh()));
+    }
+
+    /** @test */
+    public function due_soon_scopes_within_7_days_not_done(): void
+    {
+        $u = User::factory()->create();
+        $this->task($u, ['title' => 'Soon', 'due_date' => today()->addDays(3)->toDateString()]);
+        $this->task($u, ['title' => 'Far', 'due_date' => today()->addDays(20)->toDateString()]);
+        $this->task($u, ['title' => 'Done', 'status' => 'done', 'completed_at' => now(), 'due_date' => today()->addDay()->toDateString()]);
+
+        $rows = $this->svc->dueSoonFor($u);
+
+        $this->assertCount(1, $rows);
+        $this->assertSame('Soon', $rows->first()->title);
+    }
+
+    /** @test */
+    public function notify_due_soon_is_idempotent(): void
+    {
+        // roleUsers() di deadlineReminder memanggil User::role([...]) — role harus ada agar Spatie tak melempar.
+        foreach (['manager', 'superadmin', 'admin'] as $r) {
+            \Spatie\Permission\Models\Role::firstOrCreate(['name' => $r, 'guard_name' => 'web']);
+        }
+        $u = User::factory()->create();
+        $t = $this->task($u, ['due_date' => today()->addDays(2)->toDateString()]);
+
+        $this->svc->notifyDueSoon(new Notifier());
+        $this->assertNotNull($t->fresh()->deadline_notified_at);
+        $count = $u->notifications()->count();
+        $this->assertSame(1, $count); // pemilik dapat 1 (tak ada pengawas di test ini)
+
+        $this->svc->notifyDueSoon(new Notifier()); // panggilan kedua: tak menambah
+        $this->assertSame($count, $u->notifications()->count());
     }
 }

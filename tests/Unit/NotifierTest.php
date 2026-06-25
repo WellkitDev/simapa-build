@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use Tests\TestCase;
 use App\Models\MarketingTarget;
+use App\Models\Task;
 use App\Models\User;
 use App\Models\Order;
 use App\Models\Payment;
@@ -145,5 +146,26 @@ class NotifierTest extends TestCase
 
         Notification::assertSentTo($mkt, DatabaseNotification::class, fn ($n) => $n->payload['category'] === 'target');
         Notification::assertNotSentTo($actor, DatabaseNotification::class);
+    }
+
+    /** @test */
+    public function deadline_reminder_notifies_owner_and_overseers(): void
+    {
+        foreach (['production', 'manager', 'superadmin', 'admin'] as $r) {
+            Role::firstOrCreate(['name' => $r, 'guard_name' => 'web']);
+        }
+        $owner = User::factory()->create(); $owner->assignRole('production');
+        $manager = User::factory()->create(); $manager->assignRole('manager');
+        $super = User::factory()->create(); $super->assignRole('superadmin');
+        $admin = User::factory()->create(); $admin->assignRole('admin');
+
+        $task = Task::create(['user_id' => $owner->id, 'title' => 'X', 'status' => 'todo', 'priority' => 'normal', 'due_date' => today()->addDays(2)->toDateString()]);
+
+        (new Notifier())->deadlineReminder($task);
+
+        $this->assertSame(1, $owner->notifications()->count());
+        $this->assertSame(1, $manager->notifications()->count());
+        $this->assertSame(1, $super->notifications()->count());
+        $this->assertSame(1, $admin->notifications()->count());
     }
 }

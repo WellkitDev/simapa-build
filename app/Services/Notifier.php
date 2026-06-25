@@ -137,6 +137,24 @@ class Notifier
         ]);
     }
 
+    public function deadlineReminder(Task $task): void
+    {
+        $task->loadMissing('user');
+        if (! $task->user) {
+            return;
+        }
+        $recipients = $this->roleUsers(['manager', 'superadmin', 'admin'], $task->user)
+            ->push($task->user)->unique('id')->values();
+
+        $this->send($recipients, [
+            'category' => 'deadline',
+            'title'    => 'Tugas mendekati deadline',
+            'message'  => $task->title . ' • ' . ($task->due_date?->format('d M Y') ?? '?'),
+            'url'      => route('task.board'),
+            'icon'     => 'clock',
+        ]);
+    }
+
     public function naskahNeedsReview(TitleProgress $progress, User $actor): void
     {
         $progress->loadMissing('orderDetail');
