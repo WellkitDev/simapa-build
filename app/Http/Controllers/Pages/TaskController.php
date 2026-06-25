@@ -26,6 +26,13 @@ class TaskController extends Controller
         }
     }
 
+    private function abortIfLocked(Task $task): void
+    {
+        if ($this->service->isLocked($task)) {
+            abort(422, 'Tugas sudah dikunci report terkirim.');
+        }
+    }
+
     /** User yang board/list-nya dilihat (manager boleh ?user_id=); selain itu diri sendiri. */
     private function targetUser(Request $request): User
     {
@@ -99,16 +106,20 @@ class TaskController extends Controller
     {
         $task = Task::findOrFail($id);
         $this->authorizeTask($task);
+        $this->abortIfLocked($task);
         $data = $this->validateData($request);
         $assignee = $this->resolveAssignee($request, $task->user_id);
         $reassigned = $assignee !== $task->user_id;
+        $newDue = $data['due_date'] ?? null;
+        $dueChanged = optional($task->due_date)->toDateString() !== $newDue;
 
         $task->update([
             'user_id'     => $assignee,
             'title'       => $data['title'],
             'description' => $data['description'] ?? null,
             'priority'    => $data['priority'],
-            'due_date'    => $data['due_date'] ?? null,
+            'due_date'    => $newDue,
+            'deadline_notified_at' => $dueChanged ? null : $task->deadline_notified_at,
         ]);
 
         // Pemilik lama sengaja TIDAK dinotifikasi saat tugas dialihkan; hanya penerima baru.
@@ -123,6 +134,7 @@ class TaskController extends Controller
     {
         $task = Task::findOrFail($id);
         $this->authorizeTask($task);
+        $this->abortIfLocked($task);
         $task->delete();
         return back()->with('success', 'Tugas dihapus.');
     }
@@ -131,6 +143,7 @@ class TaskController extends Controller
     {
         $task = Task::findOrFail($id);
         $this->authorizeTask($task);
+        $this->abortIfLocked($task);
         $data = $request->validate([
             'status'   => 'required|in:todo,in_progress,done',
             'position' => 'nullable|integer|min:0',

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use Tests\TestCase;
 use App\Models\User;
 use App\Models\Task;
+use App\Models\DailyReport;
 use App\Services\GoogleDriveService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
@@ -166,5 +167,31 @@ class TaskControllerTest extends TestCase
     public function non_manager_cannot_open_monitor(): void
     {
         $this->actingAs($this->user('production'))->get(route('task.monitor'))->assertForbidden();
+    }
+
+    /** @test */
+    public function locked_task_cannot_change_status_or_be_deleted(): void
+    {
+        $u = $this->user('production');
+        $today = today();
+        $t = $this->task($u, ['status' => 'done', 'completed_at' => $today]);
+        DailyReport::create(['user_id' => $u->id, 'report_date' => $today->toDateString(), 'status' => 'submitted', 'submitted_at' => now()]);
+
+        $this->actingAs($u)->patch(route('task.status', $t->id), ['status' => 'todo'])->assertStatus(422);
+        $this->actingAs($u)->delete(route('task.destroy', $t->id))->assertStatus(422);
+        $this->assertDatabaseHas('tb_tasks', ['id' => $t->id, 'status' => 'done']);
+    }
+
+    /** @test */
+    public function changing_due_date_resets_deadline_flag(): void
+    {
+        $u = $this->user('production');
+        $t = $this->task($u, ['due_date' => today()->addDays(3)->toDateString(), 'deadline_notified_at' => now()]);
+
+        $this->actingAs($u)->put(route('task.update', $t->id), [
+            'title' => 'T', 'priority' => 'normal', 'due_date' => today()->addDays(10)->toDateString(),
+        ])->assertRedirect();
+
+        $this->assertNull($t->fresh()->deadline_notified_at);
     }
 }
