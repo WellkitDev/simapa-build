@@ -17,13 +17,14 @@ class Task extends Model
 
     protected $fillable = [
         'user_id', 'title', 'description', 'status', 'priority',
-        'due_date', 'position', 'completed_at', 'created_by',
+        'due_date', 'position', 'completed_at', 'deadline_notified_at', 'created_by',
     ];
 
     protected $casts = [
-        'due_date'     => 'date',
-        'completed_at' => 'datetime',
-        'position'     => 'integer',
+        'due_date'             => 'date',
+        'completed_at'         => 'datetime',
+        'deadline_notified_at' => 'datetime',
+        'position'             => 'integer',
     ];
 
     public function user()
