@@ -38,8 +38,8 @@
                                 <label class="form-label">Jenis Layanan <span class="text-danger">*</span></label>
                                 <select name="type" class="form-select" required>
                                     <option value="">Pilih jenis</option>
-                                    <option value="at_mandiri">Mandiri</option>
-                                    <option value="at_kolab">Kolaborasi</option>
+                                    <option value="at_mandiri" {{ old('type', $prefill['type'] ?? '') === 'at_mandiri' ? 'selected' : '' }}>Mandiri</option>
+                                    <option value="at_kolab" {{ old('type', $prefill['type'] ?? '') === 'at_kolab' ? 'selected' : '' }}>Kolaborasi</option>
                                 </select>
                             </div>
                         </div>

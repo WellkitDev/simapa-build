@@ -32,7 +32,7 @@
                 <dl class="row mb-0">
                     <dt class="col-sm-3">Klien</dt><dd class="col-sm-9">{{ $tagihan->client_name }} @if($tagihan->client_institution) — {{ $tagihan->client_institution }} @endif</dd>
                     <dt class="col-sm-3">Kontak</dt><dd class="col-sm-9">{{ $tagihan->client_email ?: '-' }} / {{ $tagihan->client_phone ?: '-' }}</dd>
-                    <dt class="col-sm-3">Judul</dt><dd class="col-sm-9">{{ $tagihan->title }} ({{ ucfirst($tagihan->type) }})</dd>
+                    <dt class="col-sm-3">Judul</dt><dd class="col-sm-9">{{ $tagihan->title }} ({{ $tagihan->type_label }})</dd>
                     <dt class="col-sm-3">Author</dt><dd class="col-sm-9">{{ $tagihan->author_names ?: '-' }}</dd>
                     <dt class="col-sm-3">Deskripsi</dt><dd class="col-sm-9">{{ $tagihan->description ?: '-' }}</dd>
                     <dt class="col-sm-3">Nominal</dt><dd class="col-sm-9"><strong>Rp {{ number_format($tagihan->amount, 0, ',', '.') }}</strong></dd>

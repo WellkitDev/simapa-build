@@ -62,8 +62,8 @@
                             <div class="col-md-4 mb-3">
                                 <label class="form-label">Tipe <span class="text-danger">*</span></label>
                                 <select name="type" class="form-select" required>
-                                    @foreach(['buku' => 'Buku', 'jurnal' => 'Jurnal'] as $val => $lbl)
-                                        <option value="{{ $val }}" {{ old('type', $tagihan->type ?? 'buku') === $val ? 'selected' : '' }}>{{ $lbl }}</option>
+                                    @foreach(['bk_mandiri' => 'Buku Mandiri', 'bk_kolab' => 'Buku Kolaborasi', 'at_mandiri' => 'Jurnal Mandiri', 'at_kolab' => 'Jurnal Kolaborasi'] as $val => $lbl)
+                                        <option value="{{ $val }}" {{ old('type', $tagihan->type ?? 'bk_mandiri') === $val ? 'selected' : '' }}>{{ $lbl }}</option>
                                     @endforeach
                                 </select>
                             </div>

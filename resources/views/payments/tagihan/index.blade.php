@@ -35,7 +35,7 @@
                                 <td><strong>{{ $t->tagihan_no }}</strong></td>
                                 <td>{{ $t->client_name }}</td>
                                 <td>{{ Str::limit($t->title, 30) }}</td>
-                                <td><span class="badge bg-{{ $t->type === 'jurnal' ? 'info' : 'secondary' }}">{{ ucfirst($t->type) }}</span></td>
+                                <td><span class="badge bg-{{ in_array($t->type, ['at_mandiri','at_kolab','jurnal']) ? 'info' : 'secondary' }}">{{ $t->type_label }}</span></td>
                                 <td>Rp {{ number_format($t->amount, 0, ',', '.') }}</td>
                                 <td><span class="badge bg-{{ $statusColors[$t->status] ?? 'secondary' }}">{{ Str::title(str_replace('_',' ',$t->status)) }}</span></td>
                                 <td data-order="{{ $t->due_at ? $t->due_at->timestamp : 0 }}">{{ $t->due_at ? $t->due_at->format('d M Y') : '-' }}</td>

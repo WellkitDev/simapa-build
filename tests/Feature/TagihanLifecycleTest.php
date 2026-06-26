@@ -37,7 +37,7 @@ class TagihanLifecycleTest extends TestCase
             'client_email' => 'klien@contoh.id',
             'client_phone' => '08123456789',
             'title'        => 'Naskah Tagihan',
-            'type'         => 'buku',
+            'type'         => 'bk_mandiri',
             'author_names' => 'Budi, Sari',
             'description'  => 'Jasa penerbitan',
             'amount'       => 2000000,

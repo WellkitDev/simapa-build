@@ -138,6 +138,7 @@ class OrderBookController extends Controller
                     'contact_phone' => $t->client_phone,
                     'cost_amount'   => $t->amount,
                     'note'          => $t->note,
+                    'type'          => in_array($t->type, ['bk_mandiri', 'bk_kolab'], true) ? $t->type : null,
                 ];
             }
         }

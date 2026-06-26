@@ -64,4 +64,17 @@ class Tagihan extends Model
     {
         return $this->status === 'disetujui';
     }
+
+    /** Label tampilan tipe layanan (mendukung nilai baru + legacy). */
+    public function getTypeLabelAttribute(): string
+    {
+        return [
+            'bk_mandiri' => 'Buku Mandiri',
+            'bk_kolab'   => 'Buku Kolaborasi',
+            'at_mandiri' => 'Jurnal Mandiri',
+            'at_kolab'   => 'Jurnal Kolaborasi',
+            'buku'       => 'Buku',
+            'jurnal'     => 'Jurnal',
+        ][$this->type] ?? ucfirst((string) $this->type);
+    }
 }

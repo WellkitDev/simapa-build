@@ -49,6 +49,7 @@ class OrderJournalController extends Controller
                     'contact_phone' => $t->client_phone,
                     'cost_amount'   => $t->amount,
                     'note'          => $t->note,
+                    'type'          => in_array($t->type, ['at_mandiri', 'at_kolab'], true) ? $t->type : null,
                 ];
             }
         }

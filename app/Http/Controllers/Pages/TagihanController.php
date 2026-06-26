@@ -146,7 +146,8 @@ class TagihanController extends Controller
         if (! $tagihan->canConvert()) {
             return back()->with('error', 'Tagihan harus disetujui dan belum jadi order.');
         }
-        $route = $tagihan->type === 'jurnal' ? 'order.journal.create' : 'order.book.create';
+        $isJurnal = in_array($tagihan->type, ['at_mandiri', 'at_kolab', 'jurnal'], true);
+        $route = $isJurnal ? 'order.journal.create' : 'order.book.create';
         return redirect()->route($route, ['from_tagihan' => $tagihan->id]);
     }
 
@@ -173,7 +174,7 @@ class TagihanController extends Controller
             'client_phone'       => 'nullable|string|max:50',
             'client_institution' => 'nullable|string|max:255',
             'title'              => 'required|string|max:255',
-            'type'               => 'required|in:buku,jurnal',
+            'type'               => 'required|in:bk_mandiri,bk_kolab,at_mandiri,at_kolab',
             'author_names'       => 'nullable|string',
             'description'        => 'nullable|string',
             'amount'             => 'required|integer|min:0',
