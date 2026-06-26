@@ -72,6 +72,8 @@ class OrderJournalEditTest extends TestCase
         $this->assertSame('Judul Baru', $order->details->title);
         $this->assertSame('fastrack', $order->details->publication_type);
         $this->assertSame('new@example.com', $order->contact->cp_email);
+        $this->assertSame(1, $order->details->authors()->count());
+        $this->assertSame('b@example.com', $order->details->authors()->first()->email);
     }
 
     /** @test */
