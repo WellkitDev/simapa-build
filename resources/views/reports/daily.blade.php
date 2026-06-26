@@ -72,7 +72,7 @@
                 @if($submitted)
                     <span class="badge bg-success">Terkirim {{ optional($report->submitted_at)->translatedFormat('d M Y H:i') }}</span>
                 @else
-                    <form method="POST" action="{{ route('report.submit') }}" onsubmit="return confirm('Kirim report hari ini? Setelah dikirim tidak bisa diubah.')">
+                    <form method="POST" action="{{ route('report.submit') }}" data-confirm="Kirim report hari ini? Setelah dikirim tidak bisa diubah.">
                         @csrf
                         <input type="hidden" name="date" value="{{ $date->toDateString() }}">
                         <button type="submit" class="btn btn-sm btn-success">Kirim Report Hari Ini</button>

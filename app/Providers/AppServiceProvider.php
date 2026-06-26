@@ -51,5 +51,23 @@ class AppServiceProvider extends ServiceProvider
             }
             $view->with('dashAnnouncements', $items);
         });
+
+        \Illuminate\Support\Facades\View::composer('dashboard.partials.deadlines', function ($view) {
+            $user = \Illuminate\Support\Facades\Auth::user();
+            $deadlines = collect();
+            $isOverseer = false;
+            if ($user) {
+                try {
+                    $svc = app(\App\Services\TaskService::class);
+                    $svc->notifyDueSoon(app(\App\Services\Notifier::class));
+                    $isOverseer = $user->hasAnyRole(['manager', 'superadmin', 'admin']);
+                    $deadlines = $isOverseer ? $svc->dueSoonAll() : $svc->dueSoonFor($user);
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning('Gagal memuat alert deadline: ' . $e->getMessage());
+                }
+            }
+            $view->with('deadlines', $deadlines);
+            $view->with('deadlineIsOverseer', $isOverseer);
+        });
     }
 }

@@ -46,7 +46,7 @@
                                                 data-description="{{ $task->description }}" data-priority="{{ $task->priority }}"
                                                 data-due="{{ optional($task->due_date)->toDateString() }}" data-assignee="{{ $task->user_id }}">Edit</button></li>
                                             <li>
-                                                <form action="{{ route('task.destroy', $task->id) }}" method="POST" onsubmit="return confirm('Hapus tugas ini?')">@csrf @method('DELETE')
+                                                <form action="{{ route('task.destroy', $task->id) }}" method="POST" data-confirm="Hapus tugas ini?">@csrf @method('DELETE')
                                                     <button class="dropdown-item text-danger">Hapus</button>
                                                 </form>
                                             </li>

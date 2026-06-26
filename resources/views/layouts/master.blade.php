@@ -25,6 +25,7 @@
     <!-- plugin css -->
     <link href="{{ asset('assets/fonts/feather-font/css/iconfont.css') }}" rel="stylesheet" />
     <link href="{{ asset('assets/plugins/perfect-scrollbar/perfect-scrollbar.css') }}" rel="stylesheet" />
+    <link href="{{ asset('assets/plugins/sweetalert2/sweetalert2.min.css') }}" rel="stylesheet" />
     <!-- end plugin css -->
 
     @stack('plugin-styles')
@@ -56,6 +57,7 @@
     <script src="{{ asset('js/app.js') }}"></script>
     <script src="{{ asset('assets/plugins/feather-icons/feather.min.js') }}"></script>
     <script src="{{ asset('assets/plugins/perfect-scrollbar/perfect-scrollbar.min.js') }}"></script>
+    <script src="{{ asset('assets/plugins/sweetalert2/sweetalert2.min.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/gh/alpinejs/alpine@2.8.2/dist/alpine.min.js"></script>
     <!-- end base js -->
 
@@ -68,6 +70,25 @@
     <!-- end common js -->
 
     @stack('custom-scripts')
+
+    <script>
+    (function () {
+        if (!window.Swal) return;
+        document.addEventListener('submit', function (e) {
+            var form = e.target;
+            if (!form.matches || !form.matches('[data-confirm]') || form.dataset.confirmed === '1') return;
+            e.preventDefault();
+            Swal.fire({
+                title: 'Konfirmasi', text: form.getAttribute('data-confirm'), icon: 'warning',
+                showCancelButton: true, confirmButtonText: 'Ya', cancelButtonText: 'Batal', confirmButtonColor: '#d33'
+            }).then(function (res) { if (res.isConfirmed) { form.dataset.confirmed = '1'; form.submit(); } });
+        }, true);
+        window.swalError = function (msg) { Swal.fire({ icon: 'error', title: 'Gagal', text: msg }); };
+        window.swalSuccess = function (msg) { Swal.fire({ icon: 'success', title: 'Berhasil', text: msg, timer: 2000, showConfirmButton: false }); };
+        @if(session('success')) window.swalSuccess(@json(session('success'))); @endif
+        @if(session('error')) window.swalError(@json(session('error'))); @endif
+    })();
+    </script>
 </body>
 
 </html>
