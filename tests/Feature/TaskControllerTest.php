@@ -178,6 +178,7 @@ class TaskControllerTest extends TestCase
         DailyReport::create(['user_id' => $u->id, 'report_date' => $today->toDateString(), 'status' => 'submitted', 'submitted_at' => now()]);
 
         $this->actingAs($u)->patch(route('task.status', $t->id), ['status' => 'todo'])->assertStatus(422);
+        $this->actingAs($u)->patch(route('task.schedule', $t->id), ['due_date' => today()->addDay()->toDateString()])->assertStatus(422);
         $this->actingAs($u)->delete(route('task.destroy', $t->id))->assertStatus(422);
         $this->assertDatabaseHas('tb_tasks', ['id' => $t->id, 'status' => 'done']);
     }

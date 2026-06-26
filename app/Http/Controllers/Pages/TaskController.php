@@ -156,6 +156,7 @@ class TaskController extends Controller
     {
         $task = Task::findOrFail($id);
         $this->authorizeTask($task);
+        $this->abortIfLocked($task);
         $data = $request->validate(['due_date' => 'required|date']);
         $task->update(['due_date' => $data['due_date']]);
         return response()->json(['ok' => true]);
