@@ -84,11 +84,12 @@
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Status Pembayaran <span class="text-danger">*</span></label>
-                                    <select name="payment_type" class="form-select" required>
+                                    <select name="payment_type" class="form-select @error('payment_type') is-invalid @enderror" required>
                                         @foreach(['dp' => 'DP', 'lunas' => 'Lunas', 'pelunasan' => 'Pelunasan'] as $val => $lbl)
                                             <option value="{{ $val }}" {{ old('payment_type', $invoice->payment->payment_type) === $val ? 'selected' : '' }}>{{ $lbl }}</option>
                                         @endforeach
                                     </select>
+                                    @error('payment_type') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
                             </div>
                             <small class="text-muted d-block mb-2">Mengubah nominal/jenis akan menghitung ulang status order &amp; tercatat di log invoice.</small>

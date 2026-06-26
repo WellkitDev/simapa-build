@@ -61,6 +61,11 @@ class InvoiceController extends Controller
 
         $invoice = Invoice::with('order.details')->findOrFail($id);
 
+        // payment_id efektif = nilai yang dikirim (boleh kosong = lepas tautan), atau yang lama bila tak dikirim.
+        $effectivePaymentId = $request->has('payment_id')
+            ? ($request->input('payment_id') ?: null)
+            : $invoice->payment_id;
+
         $rules = [
             'invoice_no' => 'required|string|max:100|unique:tb_invoices,invoice_no,' . $id,
             'issued_at'  => 'required|date',
@@ -68,22 +73,22 @@ class InvoiceController extends Controller
             'note'       => 'nullable|string',
             'payment_id' => 'nullable|exists:tb_payments,id',
         ];
-        if ($invoice->payment_id) {
+        if ($effectivePaymentId) {
             $rules['amount']       = 'required|numeric|min:1';
             $rules['payment_type'] = 'required|in:dp,lunas,pelunasan';
         }
         $data = $request->validate($rules);
 
-        DB::transaction(function () use ($invoice, $data) {
+        DB::transaction(function () use ($invoice, $data, $effectivePaymentId) {
             $invoice->update([
                 'invoice_no' => $data['invoice_no'],
                 'issued_at'  => $data['issued_at'],
                 'due_at'     => $data['due_at'],
                 'note'       => $data['note'] ?? null,
-                'payment_id' => $data['payment_id'] ?? $invoice->payment_id,
+                'payment_id' => $effectivePaymentId,
             ]);
 
-            $payment = $invoice->payment_id ? Payment::find($invoice->payment_id) : null;
+            $payment = $effectivePaymentId ? Payment::find($effectivePaymentId) : null;
             if ($payment && array_key_exists('amount', $data)) {
                 $payment->update([
                     'amount'       => $data['amount'],
@@ -95,6 +100,7 @@ class InvoiceController extends Controller
                 $paid  = $order->payments()->where('status', 'paid')->sum('amount');
                 $order->update(['status' => ($cost - $paid) <= 0 ? 'lunas' : 'pending']);
 
+                // status invoice tidak berubah; log mencatat koreksi pembayaran, bukan transisi status.
                 InvoiceLog::create([
                     'invoice_id'  => $invoice->id,
                     'from_status' => $invoice->status,

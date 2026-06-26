@@ -57,6 +57,7 @@ class InvoicePaymentCorrectionTest extends TestCase
         $this->assertSame('lunas', $payment->fresh()->payment_type);
         $this->assertSame('lunas', $order->fresh()->status);        // cost 1jt - paid 1jt = 0 -> lunas
         $this->assertSame(1, $invoice->logs()->count());            // koreksi tercatat
+        $this->assertSame('Koreksi pembayaran: nominal/jenis diperbarui.', $invoice->logs()->first()->note);
     }
 
     /** @test */
@@ -96,5 +97,6 @@ class InvoicePaymentCorrectionTest extends TestCase
         ])->assertRedirect();
 
         $this->assertSame('INV-2B', $invoice->fresh()->invoice_no);
+        $this->assertSame(0, $invoice->logs()->count()); // tanpa payment → tidak menulis log
     }
 }
