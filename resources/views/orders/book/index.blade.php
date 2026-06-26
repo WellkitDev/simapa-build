@@ -115,10 +115,17 @@
                                                         class="btn btn-icon btn-primary">
                                                         <i class="" data-feather="eye"></i>
                                                     </a>
+                                                    @if (in_array($order->details->type, ['at_mandiri', 'at_kolab']))
+                                                    <a href="{{ route('order.journal.edit', $order->code_order) }}"
+                                                        class="btn btn-icon btn-outline-primary">
+                                                        <i class="" data-feather="edit"></i>
+                                                    </a>
+                                                    @else
                                                     <a href="{{ route('order.book.edit', $order->code_order) }}"
                                                         class="btn btn-icon btn-outline-primary">
                                                         <i class="" data-feather="edit"></i>
                                                     </a>
+                                                    @endif
                                                 @endif
                                             </td>
                                         </tr>

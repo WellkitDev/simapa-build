@@ -56,13 +56,15 @@ Route::middleware('auth')->group(function () {
 
         Route::get('buku/create', [OrderBookController::class, 'create'])->name('book.create')->middleware('role:marketing|manager|superadmin');
         Route::post('buku/create', [OrderBookController::class, 'store'])->name('book.store')->middleware('role:marketing|manager|superadmin');
-        Route::get('buku/show/{code_order}', [OrderBookController::class, 'show'])->name('book.show');
+        Route::get('buku/show/{code_order}', [OrderBookController::class, 'show'])->name('book.show')->middleware('role:marketing|manager|superadmin');
         Route::get('buku/update/{code_order}', [OrderBookController::class, 'edit'])->name('book.edit')->middleware('role:marketing|manager|superadmin');
         Route::put('buku/update/{code_order}', [OrderBookController::class, 'update'])->name('book.update')->middleware('role:marketing|manager|superadmin');
 
         Route::get('jurnal/create', [OrderJournalController::class, 'create'])->name('journal.create')->middleware('role:marketing|manager|superadmin');
         Route::post('jurnal/create', [OrderJournalController::class, 'store'])->name('journal.store')->middleware('role:marketing|manager|superadmin');
-        Route::get('jurnal/show/{code_order}', [OrderJournalController::class, 'show'])->name('journal.show');
+        Route::get('jurnal/show/{code_order}', [OrderJournalController::class, 'show'])->name('journal.show')->middleware('role:marketing|manager|superadmin');
+        Route::get('jurnal/update/{code_order}', [OrderJournalController::class, 'edit'])->name('journal.edit')->middleware('role:marketing|manager|superadmin');
+        Route::put('jurnal/update/{code_order}', [OrderJournalController::class, 'update'])->name('journal.update')->middleware('role:marketing|manager|superadmin');
     });
     //order  journal
     Route::prefix('management')->name('order.')->group(function () {

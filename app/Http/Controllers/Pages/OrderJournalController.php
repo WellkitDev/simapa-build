@@ -218,18 +218,90 @@ class OrderJournalController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(string $id)
+    public function edit(string $code_order)
     {
-        //
-        return view('pages.order.journals.edit');
+        $order = Order::with(['details.authors', 'details.scopes', 'contact'])
+            ->where('code_order', $code_order)->firstOrFail();
+        $scopes = Scope::all();
+
+        return view('orders.journal.edit', compact('order', 'scopes'));
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
+    public function update(Request $request, string $code_order)
     {
-        //
+        $request->validate([
+            'type'                  => 'required|in:at_mandiri,at_kolab',
+            'title'                 => 'required|string|max:255',
+            'scope_id'              => 'nullable',
+            'indexation'            => 'required|string',
+            'naskah_type'           => 'required|in:dibuatkan,mandiri',
+            'publication_type'      => 'required|in:regular,fastrack',
+            'issued_at'             => 'required|date',
+            'cost_amount'           => 'required|numeric|min:0',
+            'contact_phone'         => 'required|string',
+            'contact_email'         => 'required|email',
+            'authors'               => 'required|array|min:1',
+            'authors.*.name'        => 'required|string',
+            'authors.*.email'       => 'nullable|email',
+            'authors.*.phone'       => 'nullable|string',
+            'authors.*.affiliation' => 'nullable|string',
+            'authors.*.position'    => 'required|integer|min:1',
+            'note'                  => 'nullable|string',
+        ]);
+
+        try {
+            DB::transaction(function () use ($request, $code_order) {
+                $order = Order::where('code_order', $code_order)->firstOrFail();
+                $order->update([
+                    'note'       => $request->note,
+                    'ordered_at' => $request->issued_at,
+                ]);
+
+                $order->details()->update([
+                    'title'            => $request->title,
+                    'type'             => $request->type,
+                    'indexation'       => $request->indexation,
+                    'naskah_type'      => $request->naskah_type,
+                    'publication_type' => $request->publication_type,
+                    'cost_amount'      => $request->cost_amount,
+                ]);
+
+                $detail = $order->details;
+
+                if ($request->filled('scope_id')) {
+                    $scopeId = $request->scope_id;
+                    if (! is_numeric($scopeId)) {
+                        $scopeId = Scope::firstOrCreate(['scope' => $scopeId])->id;
+                    }
+                    $detail->scopes()->sync([$scopeId]);
+                }
+
+                $order->contact()->update([
+                    'cp_phone' => $request->contact_phone,
+                    'cp_email' => $request->contact_email,
+                ]);
+
+                $detail->authors()->detach();
+                foreach ($request->authors as $authorData) {
+                    $author = Author::updateOrCreate(
+                        ['email' => $authorData['email']],
+                        [
+                            'name'        => $authorData['name'],
+                            'affiliation' => $authorData['affiliation'] ?? null,
+                            'phone'       => $authorData['phone'] ?? null,
+                        ]
+                    );
+                    $detail->authors()->attach($author->id, ['position' => $authorData['position'] ?? 1]);
+                }
+            });
+
+            return redirect()->route('order.book.index')->with('success', 'Order #' . $code_order . ' berhasil diperbarui.');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage())->withInput();
+        }
     }
 
     /**
