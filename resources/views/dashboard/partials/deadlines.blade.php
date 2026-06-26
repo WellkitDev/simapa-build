@@ -33,7 +33,7 @@
     Swal.fire({
         icon: 'warning',
         title: 'Tugas mendekati deadline',
-        html: '<ul style="text-align:left">' + list.map(function (t) { return '<li>' + t.replace(/</g, '&lt;') + '</li>'; }).join('') + '</ul>',
+        html: '<ul style="text-align:left">' + list.map(function (t) { var li = document.createElement('li'); li.textContent = t; return li.outerHTML; }).join('') + '</ul>',
         confirmButtonText: 'Mengerti'
     });
 })();
