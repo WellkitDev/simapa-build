@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\DailyReport;
+use App\Models\DailyReportFile;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -69,7 +70,13 @@ class DailyReportService
     /** Untuk Pemantauan: per user → sudah kirim? + jml selesai pada tanggal itu. */
     public function submissionsForDate(Carbon $date): Collection
     {
-        $submitted = DailyReport::whereDate('report_date', $date)->where('status', 'submitted')->pluck('user_id')->flip();
+        $reports = DailyReport::whereDate('report_date', $date)->get(['id', 'user_id', 'status']);
+        $submitted = $reports->where('status', 'submitted')->pluck('user_id')->flip();
+
+        $buktiCounts = DailyReportFile::whereIn('daily_report_id', $reports->pluck('id'))
+            ->selectRaw('daily_report_id, count(*) as c')->groupBy('daily_report_id')->pluck('c', 'daily_report_id');
+        $buktiPerUser = $reports->mapWithKeys(fn ($r) => [$r->user_id => (int) ($buktiCounts[$r->id] ?? 0)]);
+
         $doneCounts = Task::whereBetween('completed_at', [$date->copy()->startOfDay(), $date->copy()->endOfDay()])
             ->selectRaw('user_id, count(*) as c')->groupBy('user_id')->pluck('c', 'user_id');
 
@@ -78,6 +85,7 @@ class DailyReportService
             'name'      => $u->name,
             'submitted' => $submitted->has($u->id),
             'selesai'   => (int) ($doneCounts[$u->id] ?? 0),
+            'bukti'     => (int) ($buktiPerUser[$u->id] ?? 0),
         ])->values();
     }
 

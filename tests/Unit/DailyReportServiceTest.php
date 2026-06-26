@@ -103,4 +103,18 @@ class DailyReportServiceTest extends TestCase
         $this->assertSame($r1->id, $r2->id);
         $this->assertSame(1, DailyReport::where('user_id', $u->id)->count());
     }
+
+    /** @test */
+    public function submissions_include_evidence_count(): void
+    {
+        $u = User::factory()->create();
+        $today = Carbon::today();
+        $report = DailyReport::create(['user_id' => $u->id, 'report_date' => $today->toDateString(), 'status' => 'submitted', 'submitted_at' => now()]);
+        $report->files()->create(['drive_file_id' => 'd1', 'name' => 'a.jpg', 'url' => 'u']);
+        $report->files()->create(['drive_file_id' => 'd2', 'name' => 'b.jpg', 'url' => 'u']);
+
+        $rows = $this->svc->submissionsForDate($today);
+
+        $this->assertSame(2, $rows->firstWhere('id', $u->id)['bukti']);
+    }
 }

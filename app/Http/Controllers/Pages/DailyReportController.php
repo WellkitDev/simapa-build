@@ -67,7 +67,11 @@ class DailyReportController extends Controller
     {
         $data = $request->validate(['date' => 'required|date']);
         $report = $this->service->getOrCreateReport(Auth::user(), Carbon::parse($data['date']));
+
         if (! $report->isSubmitted()) {
+            if ($report->files()->count() === 0) {
+                return back()->with('error', 'Wajib lampirkan minimal 1 bukti sebelum mengirim report.');
+            }
             $report->update(['status' => 'submitted', 'submitted_at' => now()]);
         }
 

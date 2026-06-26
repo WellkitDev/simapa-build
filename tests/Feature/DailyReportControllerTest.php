@@ -43,6 +43,9 @@ class DailyReportControllerTest extends TestCase
     public function submit_locks_report(): void
     {
         $u = $this->user('production');
+        // Buat report dengan 1 bukti agar submit bisa diproses
+        $report = DailyReport::create(['user_id' => $u->id, 'report_date' => today()->toDateString()]);
+        $report->files()->create(['drive_file_id' => 'd1', 'name' => 'a.jpg', 'url' => 'u']);
         $this->actingAs($u)->post(route('report.submit'), ['date' => today()->toDateString()])->assertRedirect();
         $this->assertDatabaseHas('tb_daily_reports', ['user_id' => $u->id, 'status' => 'submitted']);
 
@@ -114,5 +117,21 @@ class DailyReportControllerTest extends TestCase
     {
         $u = $this->user('production');
         $this->actingAs($u)->get(route('report.daily', ['date' => 'garbage']))->assertStatus(302);
+    }
+
+    /** @test */
+    public function submit_requires_at_least_one_evidence(): void
+    {
+        $u = $this->user('production');
+
+        // tanpa bukti → ditolak, tetap draft
+        $this->actingAs($u)->post(route('report.submit'), ['date' => today()->toDateString()])->assertRedirect();
+        $this->assertDatabaseHas('tb_daily_reports', ['user_id' => $u->id, 'status' => 'draft']);
+
+        // dengan bukti → submitted
+        $report = \App\Models\DailyReport::where('user_id', $u->id)->first();
+        $report->files()->create(['drive_file_id' => 'd1', 'name' => 'a.jpg', 'url' => 'u']);
+        $this->actingAs($u)->post(route('report.submit'), ['date' => today()->toDateString()])->assertRedirect();
+        $this->assertDatabaseHas('tb_daily_reports', ['id' => $report->id, 'status' => 'submitted']);
     }
 }
