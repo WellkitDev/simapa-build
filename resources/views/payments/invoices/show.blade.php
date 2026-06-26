@@ -2,6 +2,15 @@
 @section('title', 'Detail Invoice - SiMAPA')
 
 @section('content')
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div>
+            <h5 class="mb-0">Detail Invoice</h5>
+        </div>
+        <div>
+            <a href="{{ route('invoice.index') }}" class="btn btn-sm btn-outline-secondary">Kembali</a>
+        </div>
+    </div>
+
 <div class="row">
     <div class="col-md-8">
 
@@ -115,10 +124,8 @@
 
         {{-- Log History --}}
         <div class="card">
-            <div class="card-header bg-transparent border-bottom">
-                <h5 class="mb-0">Riwayat Status Invoice</h5>
-            </div>
             <div class="card-body">
+                <h6 class="card-title">Riwayat Status Invoice</h6>
                 <div class="table-responsive">
                     <table class="table table-sm">
                         <thead>
