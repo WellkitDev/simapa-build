@@ -85,18 +85,24 @@
     </div>
     <div class="col-md-5">
         <div class="card"><div class="card-body">
-            <h6 class="card-title">Lampiran</h6>
+            <h6 class="card-title">Bukti / Lampiran @if($files->count())<span class="badge bg-success">{{ $files->count() }} bukti terlampir</span>@endif</h6>
             @if($isOwner && ! $submitted)
+                <p class="text-muted mb-2" style="font-size:12px">Lampirkan bukti pekerjaan (screenshot/file). <strong>Wajib minimal 1</strong> sebelum Kirim Report.</p>
                 <div id="reportDropzone" class="dropzone mb-2" style="min-height:120px"></div>
             @endif
             <ul id="savedFiles" class="list-group list-group-flush">
-                @foreach($files as $f)
+                @forelse($files as $f)
                     <li class="list-group-item d-flex justify-content-between align-items-center px-0" data-file="{{ $f->id }}">
                         <a href="{{ $f->url }}" target="_blank" style="font-size:13px"><i data-feather="paperclip" class="icon-xs me-1"></i>{{ $f->name }}</a>
                         @if($isOwner && ! $submitted)<button class="btn btn-xs btn-outline-danger" data-del-file="{{ $f->id }}">Hapus</button>@endif
                     </li>
-                @endforeach
+                @empty
+                    <li class="list-group-item text-muted text-center px-0" style="font-size:12px">Belum ada bukti dilampirkan.</li>
+                @endforelse
             </ul>
+            @if(! $isOwner)
+                <small class="text-muted d-block mt-1">Daftar bukti yang dikirim karyawan (read-only).</small>
+            @endif
         </div></div>
     </div>
 </div>

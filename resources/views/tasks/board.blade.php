@@ -34,24 +34,29 @@
                 </div>
                 <div data-column data-status="{{ $key }}" style="min-height:80px">
                     @foreach($board[$key] as $task)
-                        <div class="card mb-2 task-card" data-id="{{ $task->id }}" style="cursor:grab">
+                        @php $locked = $task->is_locked ?? false; @endphp
+                        <div class="card mb-2 task-card {{ $locked ? 'task-locked' : '' }}" data-id="{{ $task->id }}" style="cursor:{{ $locked ? 'not-allowed' : 'grab' }};{{ $locked ? 'opacity:.75' : '' }}">
                             <div class="card-body p-2">
                                 <div class="d-flex justify-content-between align-items-start">
-                                    <span class="fw-semibold" style="font-size:13px">{{ $task->title }}</span>
-                                    <div class="dropdown">
-                                        <button class="btn btn-xs p-0 border-0 bg-transparent" data-bs-toggle="dropdown" aria-label="Menu"><i data-feather="more-vertical" class="icon-sm"></i></button>
-                                        <ul class="dropdown-menu dropdown-menu-end">
-                                            <li><button class="dropdown-item" type="button" data-edit-task
-                                                data-id="{{ $task->id }}" data-title="{{ $task->title }}"
-                                                data-description="{{ $task->description }}" data-priority="{{ $task->priority }}"
-                                                data-due="{{ optional($task->due_date)->toDateString() }}" data-assignee="{{ $task->user_id }}">Edit</button></li>
-                                            <li>
-                                                <form action="{{ route('task.destroy', $task->id) }}" method="POST" data-confirm="Hapus tugas ini?">@csrf @method('DELETE')
-                                                    <button class="dropdown-item text-danger">Hapus</button>
-                                                </form>
-                                            </li>
-                                        </ul>
-                                    </div>
+                                    <span class="fw-semibold" style="font-size:13px">
+                                        @if($locked)<i data-feather="lock" class="icon-xs me-1 text-muted"></i>@endif{{ $task->title }}
+                                    </span>
+                                    @unless($locked)
+                                        <div class="dropdown">
+                                            <button class="btn btn-xs p-0 border-0 bg-transparent" data-bs-toggle="dropdown" aria-label="Menu"><i data-feather="more-vertical" class="icon-sm"></i></button>
+                                            <ul class="dropdown-menu dropdown-menu-end">
+                                                <li><button class="dropdown-item" type="button" data-edit-task
+                                                    data-id="{{ $task->id }}" data-title="{{ $task->title }}"
+                                                    data-description="{{ $task->description }}" data-priority="{{ $task->priority }}"
+                                                    data-due="{{ optional($task->due_date)->toDateString() }}" data-assignee="{{ $task->user_id }}">Edit</button></li>
+                                                <li>
+                                                    <form action="{{ route('task.destroy', $task->id) }}" method="POST" data-confirm="Hapus tugas ini?">@csrf @method('DELETE')
+                                                        <button class="dropdown-item text-danger">Hapus</button>
+                                                    </form>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    @endunless
                                 </div>
                                 <div class="mt-1 d-flex gap-1 align-items-center flex-wrap">
                                     <span class="badge {{ $prioBadge[$task->priority] }}">{{ $prioLabel[$task->priority] }}</span>
@@ -89,7 +94,7 @@
     }
     document.querySelectorAll('[data-column]').forEach(function (col) {
         new Sortable(col, {
-            group: 'tasks', animation: 150, ghostClass: 'opacity-50',
+            group: 'tasks', animation: 150, ghostClass: 'opacity-50', filter: '.task-locked',
             onEnd: function (evt) {
                 const id = evt.item.getAttribute('data-id');
                 const toStatus = evt.to.getAttribute('data-status');

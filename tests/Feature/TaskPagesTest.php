@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use Tests\TestCase;
 use App\Models\User;
 use App\Models\Task;
+use App\Models\DailyReport;
 use App\Services\GoogleDriveService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
@@ -48,5 +49,16 @@ class TaskPagesTest extends TestCase
         Task::create(['user_id' => $emp->id, 'title' => 'TugasEmp', 'status' => 'todo', 'priority' => 'normal']);
 
         $this->actingAs($manager)->get(route('task.monitor'))->assertOk()->assertSee('TugasEmp');
+    }
+
+    /** @test */
+    public function board_marks_locked_done_task(): void
+    {
+        $u = $this->user('production');
+        $today = today();
+        Task::create(['user_id' => $u->id, 'title' => 'TugasTerkunci', 'status' => 'done', 'priority' => 'normal', 'completed_at' => $today]);
+        DailyReport::create(['user_id' => $u->id, 'report_date' => $today->toDateString(), 'status' => 'submitted', 'submitted_at' => now()]);
+
+        $this->actingAs($u)->get(route('task.board'))->assertOk()->assertSee('task-locked');
     }
 }

@@ -27,13 +27,14 @@
 <div class="card"><div class="card-body">
     <div class="table-responsive">
         <table class="table table-hover datatable" style="width:100%">
-            <thead><tr><th>Karyawan</th><th>Status</th><th>Selesai</th><th></th></tr></thead>
+            <thead><tr><th>Karyawan</th><th>Status</th><th>Selesai</th><th>Bukti</th><th></th></tr></thead>
             <tbody>
                 @foreach($rows as $row)
                     <tr>
                         <td>{{ $row['name'] }}</td>
                         <td>@if($row['submitted'])<span class="badge bg-success">Sudah kirim</span>@else<span class="badge bg-secondary">Belum</span>@endif</td>
                         <td>{{ $row['selesai'] }}</td>
+                        <td>@if($row['bukti'])<span class="badge bg-info">{{ $row['bukti'] }}</span>@else<span class="text-muted">0</span>@endif</td>
                         <td><a href="{{ route('report.daily', ['user_id' => $row['id'], 'date' => $date->toDateString()]) }}" class="btn btn-xs btn-outline-primary">Buka report</a></td>
                     </tr>
                 @endforeach
