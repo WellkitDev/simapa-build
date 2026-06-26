@@ -42,10 +42,15 @@ class InvoiceController extends Controller
             abort(403);
         }
 
-        $invoice  = Invoice::with('order')->findOrFail($id);
+        $invoice  = Invoice::with(['order.details', 'payment'])->findOrFail($id);
         $orders   = Order::with('details')->latest()->get();
         $payments = Payment::where('status', 'paid')->get();
-        return view('payments.invoices.edit', compact('invoice', 'orders', 'payments'));
+
+        $totalCost        = (int) ($invoice->order->details->cost_amount ?? 0);
+        $alreadyPaid      = (int) $invoice->order->payments()->where('status', 'paid')->sum('amount');
+        $remainingBalance = max($totalCost - $alreadyPaid, 0);
+
+        return view('payments.invoices.edit', compact('invoice', 'orders', 'payments', 'totalCost', 'alreadyPaid', 'remainingBalance'));
     }
 
     public function update(Request $request, int $id)
@@ -54,20 +59,53 @@ class InvoiceController extends Controller
             abort(403);
         }
 
-        $invoice = Invoice::findOrFail($id);
+        $invoice = Invoice::with('order.details')->findOrFail($id);
 
-        $data = $request->validate([
+        $rules = [
             'invoice_no' => 'required|string|max:100|unique:tb_invoices,invoice_no,' . $id,
             'issued_at'  => 'required|date',
             'due_at'     => 'required|date|after_or_equal:issued_at',
             'note'       => 'nullable|string',
             'payment_id' => 'nullable|exists:tb_payments,id',
-        ]);
+        ];
+        if ($invoice->payment_id) {
+            $rules['amount']       = 'required|numeric|min:1';
+            $rules['payment_type'] = 'required|in:dp,lunas,pelunasan';
+        }
+        $data = $request->validate($rules);
 
-        $invoice->update($data);
+        DB::transaction(function () use ($invoice, $data) {
+            $invoice->update([
+                'invoice_no' => $data['invoice_no'],
+                'issued_at'  => $data['issued_at'],
+                'due_at'     => $data['due_at'],
+                'note'       => $data['note'] ?? null,
+                'payment_id' => $data['payment_id'] ?? $invoice->payment_id,
+            ]);
 
-        return redirect()->route('invoice.show', $invoice->id)
-            ->with('success', 'Invoice berhasil diperbarui.');
+            $payment = $invoice->payment_id ? Payment::find($invoice->payment_id) : null;
+            if ($payment && array_key_exists('amount', $data)) {
+                $payment->update([
+                    'amount'       => $data['amount'],
+                    'payment_type' => $data['payment_type'],
+                ]);
+
+                $order = $invoice->order;
+                $cost  = $order->details->cost_amount ?? 0;
+                $paid  = $order->payments()->where('status', 'paid')->sum('amount');
+                $order->update(['status' => ($cost - $paid) <= 0 ? 'lunas' : 'pending']);
+
+                InvoiceLog::create([
+                    'invoice_id'  => $invoice->id,
+                    'from_status' => $invoice->status,
+                    'to_status'   => $invoice->status,
+                    'changed_by'  => Auth::id(),
+                    'note'        => 'Koreksi pembayaran: nominal/jenis diperbarui.',
+                ]);
+            }
+        });
+
+        return redirect()->route('invoice.show', $invoice->id)->with('success', 'Invoice berhasil diperbarui.');
     }
 
     public function updateStatus(Request $request, int $id)

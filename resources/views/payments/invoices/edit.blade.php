@@ -58,6 +58,45 @@
                             </div>
                         </div>
 
+                        @if($invoice->payment)
+                            <hr>
+                            <h6 class="card-title">Pembayaran Terkait</h6>
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Total Biaya</label>
+                                    <input type="text" class="form-control" disabled value="Rp {{ number_format($totalCost, 0, ',', '.') }}">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Sudah Terbayar</label>
+                                    <input type="text" class="form-control" disabled value="Rp {{ number_format($alreadyPaid, 0, ',', '.') }}">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Sisa</label>
+                                    <input type="text" class="form-control" disabled value="Rp {{ number_format($remainingBalance, 0, ',', '.') }}">
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Total Pembayaran (Rp) <span class="text-danger">*</span></label>
+                                    <input type="number" name="amount" class="form-control @error('amount') is-invalid @enderror"
+                                        min="1" step="1000" value="{{ old('amount', $invoice->payment->amount) }}" required>
+                                    @error('amount') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Status Pembayaran <span class="text-danger">*</span></label>
+                                    <select name="payment_type" class="form-select" required>
+                                        @foreach(['dp' => 'DP', 'lunas' => 'Lunas', 'pelunasan' => 'Pelunasan'] as $val => $lbl)
+                                            <option value="{{ $val }}" {{ old('payment_type', $invoice->payment->payment_type) === $val ? 'selected' : '' }}>{{ $lbl }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                            <small class="text-muted d-block mb-2">Mengubah nominal/jenis akan menghitung ulang status order &amp; tercatat di log invoice.</small>
+                        @else
+                            <hr>
+                            <p class="text-muted">Belum ada pembayaran terkait untuk invoice ini.</p>
+                        @endif
+
                         <div class="mb-3">
                             <label class="form-label">Catatan</label>
                             <textarea name="note" class="form-control" rows="2">{{ old('note', $invoice->note) }}</textarea>
