@@ -16,7 +16,7 @@ return new class extends Migration {
             $table->string('client_phone', 50)->nullable();
             $table->string('client_institution')->nullable();
             $table->string('title');
-            $table->enum('type', ['bk_mandiri', 'bk_kolab', 'at_mandiri', 'at_kolab', 'buku', 'jurnal'])->default('bk_mandiri');
+            $table->enum('type', ['buku', 'jurnal'])->default('buku');
             $table->text('author_names')->nullable();
             $table->text('description')->nullable();
             $table->unsignedBigInteger('amount')->default(0);
