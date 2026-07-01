@@ -82,6 +82,15 @@
                 </li>
             @endrole
 
+            @role(['superadmin', 'manager', 'admin', 'production', 'marketing'])
+                <li class="nav-item {{ active_class(['titles', 'titles/*']) }}">
+                    <a href="{{ route('title.index') }}" class="nav-link">
+                        <i class="link-icon" data-feather="book"></i>
+                        <span class="link-title">Direktori Judul</span>
+                    </a>
+                </li>
+            @endrole
+
             @role(['superadmin', 'manager', 'production'])
                 <li class="nav-item nav-category">Produksi</li>
                 <li class="nav-item {{ active_class(['management/manuscript']) }}">
