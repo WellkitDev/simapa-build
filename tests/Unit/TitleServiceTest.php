@@ -5,6 +5,7 @@ namespace Tests\Unit;
 use Tests\TestCase;
 use App\Models\User;
 use App\Models\Title;
+use App\Models\Scope;
 use App\Services\TitleService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
@@ -96,5 +97,47 @@ class TitleServiceTest extends TestCase
         $this->svc->update($title, ['title' => 'B', 'jenis' => 'artikel', 'tipe_naskah' => 'mandiri'], []);
 
         $this->assertSame(0, $title->chapters()->count());
+    }
+
+    /** @test */
+    public function create_with_new_scope_name_creates_and_links_it(): void
+    {
+        $prod = $this->user('production');
+        $title = $this->svc->create(
+            ['title' => 'S', 'jenis' => 'artikel', 'tipe_naskah' => 'mandiri', 'scope_id' => 'Teknik Informatika'],
+            [],
+            $prod,
+        );
+
+        $this->assertNotNull($title->scope_id);
+        $this->assertSame('Teknik Informatika', $title->scope->scope);
+        $this->assertSame(1, Scope::where('scope', 'Teknik Informatika')->count());
+    }
+
+    /** @test */
+    public function create_with_existing_scope_id_links_without_duplicating(): void
+    {
+        $prod = $this->user('production');
+        $scope = Scope::create(['scope' => 'Kedokteran']);
+
+        $title = $this->svc->create(
+            ['title' => 'S', 'jenis' => 'artikel', 'tipe_naskah' => 'mandiri', 'scope_id' => $scope->id],
+            [],
+            $prod,
+        );
+
+        $this->assertSame($scope->id, $title->scope_id);
+        $this->assertSame(1, Scope::count());
+    }
+
+    /** @test */
+    public function update_changes_scope(): void
+    {
+        $prod = $this->user('production');
+        $title = $this->svc->create(['title' => 'S', 'jenis' => 'artikel', 'tipe_naskah' => 'mandiri', 'scope_id' => 'Fisika'], [], $prod);
+
+        $this->svc->update($title, ['title' => 'S', 'jenis' => 'artikel', 'tipe_naskah' => 'mandiri', 'scope_id' => 'Kimia'], []);
+
+        $this->assertSame('Kimia', $title->fresh()->scope->scope);
     }
 }

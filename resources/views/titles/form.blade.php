@@ -51,6 +51,17 @@
             </div>
         </div>
 
+        <div class="mb-3">
+            <label class="form-label">Bidang Ilmu (Scope)</label>
+            <select name="scope_id" class="form-select select2-scope" data-tags="true">
+                <option value="">Tidak ada / opsional</option>
+                @foreach($scopes as $scope)
+                    <option value="{{ $scope->id }}" {{ (string) old('scope_id', $title->scope_id) === (string) $scope->id ? 'selected' : '' }}>{{ $scope->scope }}</option>
+                @endforeach
+            </select>
+            <small class="text-muted">Pilih dari daftar atau ketik bidang ilmu baru.</small>
+        </div>
+
         <div id="chaptersWrap" class="mb-3 {{ old('jenis', $title->jenis) === 'buku' ? '' : 'd-none' }}">
             <label class="form-label">Bab (judul per bab)</label>
             <div id="chaptersList">
@@ -77,7 +88,7 @@
 @push('custom-scripts')
 <script>
 $(function () {
-    if (window.jQuery && jQuery.fn.select2) { jQuery('.select2-indeks').select2({ tags: true, width: '100%' }); }
+    if (window.jQuery && jQuery.fn.select2) { jQuery('.select2-indeks, .select2-scope').select2({ tags: true, width: '100%' }); }
 
     var jenis = document.getElementById('jenis');
     var wrap = document.getElementById('chaptersWrap');

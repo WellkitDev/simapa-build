@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Pages;
 
 use App\Http\Controllers\Controller;
+use App\Models\Scope;
 use App\Models\Title;
 use App\Services\TitleService;
 use Illuminate\Http\Request;
@@ -24,7 +25,7 @@ class TitleController extends Controller
 
     public function index()
     {
-        $query = Title::with('creator')->latest();
+        $query = Title::with(['creator', 'scope'])->latest();
         if (! $this->canManage()) {
             $query->where('status', 'disetujui'); // marketing hanya lihat yang disetujui
         }
@@ -39,7 +40,10 @@ class TitleController extends Controller
     public function create()
     {
         abort_unless($this->canManage(), 403);
-        return view('titles.form', ['title' => new Title(['jenis' => 'artikel', 'tipe_naskah' => 'mandiri', 'status' => 'draft'])]);
+        return view('titles.form', [
+            'title' => new Title(['jenis' => 'artikel', 'tipe_naskah' => 'mandiri', 'status' => 'draft']),
+            'scopes' => Scope::orderBy('scope')->get(),
+        ]);
     }
 
     public function store(Request $request)
@@ -53,7 +57,7 @@ class TitleController extends Controller
 
     public function show(int $id)
     {
-        $title = Title::with(['chapters', 'creator', 'approver'])->findOrFail($id);
+        $title = Title::with(['chapters', 'creator', 'approver', 'scope'])->findOrFail($id);
         abort_if(! $this->canManage() && ! $title->isApproved(), 403);
 
         return view('titles.show', ['title' => $title, 'canManage' => $this->canManage(), 'isApprover' => $this->isApprover()]);
@@ -65,7 +69,10 @@ class TitleController extends Controller
         $title = Title::with('chapters')->findOrFail($id);
         abort_unless($title->isEditable(), 403);
 
-        return view('titles.form', ['title' => $title]);
+        return view('titles.form', [
+            'title' => $title,
+            'scopes' => Scope::orderBy('scope')->get(),
+        ]);
     }
 
     public function update(Request $request, int $id)
@@ -121,6 +128,7 @@ class TitleController extends Controller
             'jenis'            => 'required|in:artikel,buku',
             'indeksasi'        => 'nullable|string|max:64',
             'tipe_naskah'      => 'required|in:mandiri,kolaborasi',
+            'scope_id'         => 'nullable|string|max:255',
             'chapters'         => 'nullable|array',
             'chapters.*.judul' => 'nullable|string|max:255',
         ]);

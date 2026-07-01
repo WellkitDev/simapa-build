@@ -20,7 +20,7 @@ class Title extends Model
     ];
 
     protected $fillable = [
-        'title', 'jenis', 'indeksasi', 'tipe_naskah', 'status', 'asal', 'slug',
+        'title', 'jenis', 'indeksasi', 'tipe_naskah', 'scope_id', 'status', 'asal', 'slug',
         'created_by', 'approved_by', 'approved_at', 'reject_note',
     ];
 
@@ -29,6 +29,11 @@ class Title extends Model
     public function chapters()
     {
         return $this->hasMany(TitleChapter::class)->orderBy('urutan');
+    }
+
+    public function scope()
+    {
+        return $this->belongsTo(Scope::class);
     }
 
     public function creator()

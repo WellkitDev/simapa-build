@@ -33,6 +33,7 @@ SiMAPA belum punya judul yang berdiri sendiri: judul lahir bersama order (`Order
 | `jenis` | string(16) | `artikel` / `buku` |
 | `indeksasi` | string(64), nullable | mis. `none`, `SINTA 1`..`SINTA 6`, `Scopus Q1`..`Scopus Q4`, `Copernicus`, `WoS`, `DOAJ`, `Garuda`, atau kustom |
 | `tipe_naskah` | string(16) | `mandiri` / `kolaborasi` |
+| `scope_id` | FK → tb_scopes, nullable nullOnDelete | bidang ilmu; pakai pool `tb_scopes` yang sama dengan order (select2-tags, `Scope::firstOrCreate`) |
 | `status` | string(16), default `draft` | `draft` / `menunggu` / `disetujui` / `ditolak` |
 | `asal` | string(16), default `distribusi` | `distribusi` / `order` (untuk Fase 2) |
 | `slug` | string, nullable | dari judul + id |
@@ -53,7 +54,7 @@ Index `(status, jenis)`.
 | `urutan` | unsignedInteger, default 0 | |
 | timestamps | | |
 
-Model `App\Models\Title` (`$table='tb_titles'`): fillable semua kolom di atas; const `JENIS=['artikel','buku']`, `TIPE=['mandiri','kolaborasi']`, `STATUSES=['draft','menunggu','disetujui','ditolak']`, `INDEKSASI` (daftar tercuratel di §4.1); relasi `chapters()` hasMany (urut `urutan`), `creator()`, `approver()`; helper `isEditable()` (`in [draft, ditolak]`), `isApproved()`. Model `App\Models\TitleChapter` (fillable title_id/judul/urutan).
+Model `App\Models\Title` (`$table='tb_titles'`): fillable semua kolom di atas; const `JENIS=['artikel','buku']`, `TIPE=['mandiri','kolaborasi']`, `STATUSES=['draft','menunggu','disetujui','ditolak']`, `INDEKSASI` (daftar tercuratel di §4.1); relasi `chapters()` hasMany (urut `urutan`), `scope()` belongsTo(Scope), `creator()`, `approver()`; helper `isEditable()` (`in [draft, ditolak]`), `isApproved()`. Model `App\Models\TitleChapter` (fillable title_id/judul/urutan). Bidang ilmu memakai model `Scope` (`tb_scopes`) yang sudah ada; `TitleService::resolveScopeId()` menautkan id yang ada atau `firstOrCreate` nama baru (pola order).
 
 *Catatan: jumlah author bersifat turunan dari order (Fase 2) — tidak disimpan, tidak ditampilkan di Fase 1.*
 

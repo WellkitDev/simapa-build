@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use Tests\TestCase;
 use App\Models\User;
 use App\Models\Title;
+use App\Models\Scope;
 use App\Services\GoogleDriveService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
@@ -45,6 +46,20 @@ class TitleControllerTest extends TestCase
 
         $this->actingAs($u)->post(route('title.submit', $title->id))->assertRedirect();
         $this->assertSame('menunggu', $title->fresh()->status);
+    }
+
+    /** @test */
+    public function store_persists_bidang_ilmu_scope(): void
+    {
+        $u = $this->user('production');
+        $this->actingAs($u)->post(route('title.store'), [
+            'title' => 'ScopeTitle', 'jenis' => 'artikel', 'tipe_naskah' => 'mandiri', 'scope_id' => 'Bioteknologi',
+        ])->assertRedirect();
+
+        $title = Title::where('title', 'ScopeTitle')->first();
+        $this->assertNotNull($title->scope_id);
+        $this->assertSame('Bioteknologi', $title->scope->scope);
+        $this->assertSame(1, Scope::where('scope', 'Bioteknologi')->count());
     }
 
     /** @test */

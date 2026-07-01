@@ -9,7 +9,7 @@
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <div>
         <h5 class="mb-0">{{ $title->title }}</h5>
-        <small class="text-muted">{{ ucfirst($title->jenis) }} · {{ ucfirst($title->tipe_naskah) }} · {{ $title->indeksasi ?: 'Tanpa indeksasi' }}</small>
+        <small class="text-muted">{{ ucfirst($title->jenis) }} · {{ ucfirst($title->tipe_naskah) }} · {{ $title->scope?->scope ?? 'Tanpa bidang ilmu' }} · {{ $title->indeksasi ?: 'Tanpa indeksasi' }}</small>
     </div>
     <a href="{{ route('title.index') }}" class="btn btn-sm btn-outline-secondary">Kembali</a>
 </div>

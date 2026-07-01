@@ -20,12 +20,13 @@
 <div class="row"><div class="col-12 grid-margin stretch-card"><div class="card"><div class="card-body">
     <div class="table-responsive">
         <table class="table table-hover datatable" style="width:100%">
-            <thead><tr><th>Judul</th><th>Jenis</th><th>Indeksasi</th><th>Tipe</th><th>Status</th><th>Pembuat</th><th>Aksi</th></tr></thead>
+            <thead><tr><th>Judul</th><th>Jenis</th><th>Bidang Ilmu</th><th>Indeksasi</th><th>Tipe</th><th>Status</th><th>Pembuat</th><th>Aksi</th></tr></thead>
             <tbody>
                 @foreach($titles as $t)
                     <tr>
                         <td>{{ $t->title }}</td>
                         <td>{{ ucfirst($t->jenis) }}</td>
+                        <td>{{ $t->scope?->scope ?? '—' }}</td>
                         <td>{{ $t->indeksasi ?: '—' }}</td>
                         <td>{{ ucfirst($t->tipe_naskah) }}</td>
                         <td><span class="badge {{ $sb[$t->status] ?? 'bg-secondary' }}">{{ $sl[$t->status] ?? $t->status }}</span></td>

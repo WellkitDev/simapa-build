@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Scope;
 use App\Models\Title;
 use App\Models\User;
 use Illuminate\Support\Str;
@@ -16,6 +17,7 @@ class TitleService
             'jenis'       => $data['jenis'],
             'indeksasi'   => $data['indeksasi'] ?? null,
             'tipe_naskah' => $data['tipe_naskah'],
+            'scope_id'    => $this->resolveScopeId($data['scope_id'] ?? null),
             'status'      => 'draft',
             'asal'        => 'distribusi',
             'created_by'  => $actor->id,
@@ -37,6 +39,7 @@ class TitleService
             'jenis'       => $data['jenis'],
             'indeksasi'   => $data['indeksasi'] ?? null,
             'tipe_naskah' => $data['tipe_naskah'],
+            'scope_id'    => $this->resolveScopeId($data['scope_id'] ?? null),
         ]);
 
         if ($title->jenis === 'buku') {
@@ -44,6 +47,19 @@ class TitleService
         } else {
             $title->chapters()->delete();
         }
+    }
+
+    /** Terima id scope yang ada, atau buat baru dari nama bidang ilmu (pola order). */
+    private function resolveScopeId($value): ?int
+    {
+        if (empty($value)) {
+            return null;
+        }
+        if (is_numeric($value)) {
+            return (int) $value;
+        }
+
+        return Scope::firstOrCreate(['scope' => $value])->id;
     }
 
     private function syncChapters(Title $title, array $chapters): void
