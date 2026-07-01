@@ -18,6 +18,7 @@ use App\Http\Controllers\Pages\MarketingTargetController;
 use App\Http\Controllers\Pages\AnnouncementController;
 use App\Http\Controllers\Pages\TaskController;
 use App\Http\Controllers\Pages\DailyReportController;
+use App\Http\Controllers\Pages\TitleController;
 
 /*
 |--------------------------------------------------------------------------
@@ -221,6 +222,22 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('role:manager|superadmin')->group(function () {
         Route::get('reports/submissions', [DailyReportController::class, 'submissions'])->name('report.submissions');
+    });
+
+    // Direktori Judul — index & show accessible to all authenticated roles (incl. marketing)
+    Route::get('titles', [TitleController::class, 'index'])->name('title.index');
+    Route::get('titles/{id}', [TitleController::class, 'show'])->name('title.show')->whereNumber('id');
+    Route::middleware('role:superadmin|manager|admin|production')->group(function () {
+        Route::get('titles/create', [TitleController::class, 'create'])->name('title.create');
+        Route::post('titles', [TitleController::class, 'store'])->name('title.store');
+        Route::get('titles/{id}/edit', [TitleController::class, 'edit'])->name('title.edit')->whereNumber('id');
+        Route::put('titles/{id}', [TitleController::class, 'update'])->name('title.update')->whereNumber('id');
+        Route::delete('titles/{id}', [TitleController::class, 'destroy'])->name('title.destroy')->whereNumber('id');
+        Route::post('titles/{id}/submit', [TitleController::class, 'submit'])->name('title.submit')->whereNumber('id');
+    });
+    Route::middleware('role:superadmin|manager')->group(function () {
+        Route::post('titles/{id}/approve', [TitleController::class, 'approve'])->name('title.approve')->whereNumber('id');
+        Route::post('titles/{id}/reject', [TitleController::class, 'reject'])->name('title.reject')->whereNumber('id');
     });
 });
 
