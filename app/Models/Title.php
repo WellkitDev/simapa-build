@@ -1,0 +1,53 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Title extends Model
+{
+    use HasFactory;
+
+    protected $table = 'tb_titles';
+
+    public const JENIS = ['artikel', 'buku'];
+    public const TIPE = ['mandiri', 'kolaborasi'];
+    public const STATUSES = ['draft', 'menunggu', 'disetujui', 'ditolak'];
+    public const INDEKSASI = [
+        'none', 'SINTA 1', 'SINTA 2', 'SINTA 3', 'SINTA 4', 'SINTA 5', 'SINTA 6',
+        'Scopus Q1', 'Scopus Q2', 'Scopus Q3', 'Scopus Q4', 'Copernicus', 'WoS', 'DOAJ', 'Garuda',
+    ];
+
+    protected $fillable = [
+        'title', 'jenis', 'indeksasi', 'tipe_naskah', 'status', 'asal', 'slug',
+        'created_by', 'approved_by', 'approved_at', 'reject_note',
+    ];
+
+    protected $casts = ['approved_at' => 'datetime'];
+
+    public function chapters()
+    {
+        return $this->hasMany(TitleChapter::class)->orderBy('urutan');
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function approver()
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function isEditable(): bool
+    {
+        return in_array($this->status, ['draft', 'ditolak'], true);
+    }
+
+    public function isApproved(): bool
+    {
+        return $this->status === 'disetujui';
+    }
+}
