@@ -59,7 +59,7 @@ class ManuscriptTrackerController extends Controller
             : $q->whereNotIn('type', $bookTypes);
 
         $details = OrderDetail::query()
-            ->with(['order.user', 'authors', 'scopes', 'titleProgress.assignedUser', 'titleProgress.updatedBy'])
+            ->with(['order.user', 'authors', 'scopes', 'titleProgress.assignedUser', 'titleProgress.updatedBy', 'titleRef.chapters.progress.assignedUser'])
             ->whereHas('titleProgress')
             ->where($typeFilter)
             ->when($editorFilter !== null && $editorFilter !== '', fn ($q) =>
@@ -76,6 +76,15 @@ class ManuscriptTrackerController extends Controller
 
         $stages   = $tipe === 'buku' ? TitleProgress::BOOK_STAGES : TitleProgress::ARTICLE_STAGES;
         $groups   = $this->buildGroupCards($details, $stages);
+        if ($tipe === 'buku') {
+            $svc = app(\App\Services\ChapterManuscriptService::class);
+            foreach ($groups as $g) {
+                if ($g->titleRef) {
+                    $svc->ensureChapters($g->titleRef);
+                }
+            }
+            $groups->each(fn ($g) => optional($g->titleRef)->load('chapters.progress.assignedUser'));
+        }
         $prioRank = ['high' => 0, 'normal' => 1, 'low' => 2];
         $groups   = $groups->sortBy(function ($g) use ($prioRank) {
             $p = $g->titleProgress;

@@ -8,8 +8,10 @@
     $targetWord = in_array($detail->type, ['bk_mandiri', 'bk_kolab'], true) ? 'terbit' : 'publish';
     $overdue    = $p->target_date && $p->target_date->lt(today()) && ! in_array($p->status, ['terbit', 'publish'], true);
     $hasNewLog  = $p->last_log_at && $p->last_log_at->gt(now()->subDays(2));
+    $isBook   = in_array($detail->type, ['bk_mandiri', 'bk_kolab'], true);
+    $chapters = $isBook ? (optional($detail->titleRef)->chapters ?? collect()) : collect();
 @endphp
-<div class="card mb-2 mt-card" data-id="{{ $p->id }}" data-status="{{ $p->status }}">
+<div class="card mb-2 mt-card" data-id="{{ $p->id }}" data-status="{{ $p->status }}" @if($isBook) data-no-drag @endif>
     <div class="card-body p-2">
         <div class="d-flex justify-content-between align-items-center">
             <span class="text-primary fw-bold" style="font-size:11px">{{ $detail->order->code_order ?? '—' }}</span>
@@ -74,7 +76,7 @@
             <div class="dropdown">
                 <button class="btn btn-sm btn-link p-0 text-muted" type="button" data-bs-toggle="dropdown" aria-label="Aksi naskah">⋯</button>
                 <ul class="dropdown-menu dropdown-menu-end p-2" style="min-width:230px">
-                    @if($next)
+                    @if($next && ! $isBook)
                     <li>
                         <form method="POST" action="{{ route('manuscript.move', $p->id) }}">@csrf
                             <input type="hidden" name="status" value="{{ $next }}">
@@ -126,6 +128,44 @@
                         <button type="submit" class="btn btn-sm btn-warning py-0 px-2" style="font-size:11px">Tandai sudah ditinjau</button>
                     </form>
                 @endhasanyrole
+            </div>
+        @endif
+
+        @if($isBook && $chapters->isNotEmpty())
+            <div class="mt-2 pt-2 border-top">
+                <button class="btn btn-sm btn-link p-0 text-decoration-none" type="button" data-bs-toggle="collapse" data-bs-target="#chapters-{{ $p->id }}" style="font-size:11px">
+                    📖 Bab ({{ $chapters->count() }})
+                </button>
+                <div class="collapse mt-1" id="chapters-{{ $p->id }}">
+                    @foreach($chapters as $ch)
+                        @php
+                            $cp = $ch->progress;
+                            $cstatus = optional($cp)->status ?? 'menunggu_proses';
+                            $cix = array_search($cstatus, \App\Models\TitleProgress::BOOK_STAGES, true);
+                            $cnext = $cix === false ? null : (\App\Models\TitleProgress::BOOK_STAGES[$cix + 1] ?? null);
+                        @endphp
+                        <div class="border rounded p-2 mb-1" style="font-size:11px">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="fw-semibold text-truncate" style="max-width:150px">{{ $ch->urutan }}. {{ $ch->judul }}</span>
+                                <span class="badge {{ in_array($cstatus, \App\Models\TitleProgress::FINAL_STAGES, true) ? 'bg-success' : 'bg-info' }}">{{ \App\Models\Title::stageLabel($cstatus) }}</span>
+                            </div>
+                            <div class="text-muted mt-1">Editor: {{ optional(optional($cp)->assignedUser)->name ?? 'Belum' }}</div>
+                            @if($cp)
+                            <div class="d-flex gap-1 mt-1">
+                                @if($cnext)
+                                    <button type="button" class="btn btn-xs btn-outline-primary py-0" data-chapter-advance data-cp="{{ $cp->id }}" data-next="{{ $cnext }}" style="font-size:10px">Maju → {{ \App\Models\Title::stageLabel($cnext) }}</button>
+                                @endif
+                                <select class="form-select form-select-sm py-0" data-chapter-assign data-cp="{{ $cp->id }}" style="font-size:10px; max-width:130px">
+                                    <option value="">Editor…</option>
+                                    @foreach($editors as $ed)
+                                        <option value="{{ $ed->id }}" {{ optional($cp)->assigned_user_id == $ed->id ? 'selected' : '' }}>{{ $ed->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            @endif
+                        </div>
+                    @endforeach
+                </div>
             </div>
         @endif
     </div>

@@ -193,7 +193,7 @@ class ManuscriptTrackerTest extends TestCase
             ->assertSee('UIN Antasari')
             ->assertSee($editor->name)
             ->assertSee('High')
-            ->assertSee('Majukan ke Layout'); // next stage after editing (buku)
+            ->assertDontSee('Majukan ke Layout'); // buku: whole-book move hidden; per-chapter panel used instead
     }
 
     /** @test */

@@ -151,6 +151,8 @@
             group: 'manuscript',
             animation: 150,
             ghostClass: 'opacity-50',
+            filter: '[data-no-drag]',
+            preventOnFilter: false,
             onEnd: function (evt) {
                 const item = evt.item, toCol = evt.to, fromCol = evt.from;
                 if (toCol === fromCol) return;
@@ -178,6 +180,31 @@
         const sep = location.search ? '&' : '?';
         location.replace(location.pathname + location.search + sep + 'view=list');
     }
+
+    document.addEventListener('click', function (e) {
+        const btn = e.target.closest('[data-chapter-advance]');
+        if (!btn) return;
+        e.preventDefault();
+        fetch(base + '/chapter/' + btn.getAttribute('data-cp') + '/advance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': token, 'X-Requested-With': 'XMLHttpRequest' },
+            body: JSON.stringify({ status: btn.getAttribute('data-next') }),
+        })
+        .then(async (res) => { const d = await res.json().catch(() => ({})); if (!res.ok) throw new Error(d.message || 'Gagal.'); toast(d.message || 'Bab diperbarui.', true); setTimeout(() => location.reload(), 500); })
+        .catch((err) => toast(err.message, false));
+    });
+
+    document.addEventListener('change', function (e) {
+        const sel = e.target.closest('[data-chapter-assign]');
+        if (!sel) return;
+        fetch(base + '/chapter/' + sel.getAttribute('data-cp') + '/assign', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': token, 'X-Requested-With': 'XMLHttpRequest' },
+            body: JSON.stringify({ assigned_user_id: sel.value }),
+        })
+        .then(async (res) => { const d = await res.json().catch(() => ({})); if (!res.ok) throw new Error(d.message || 'Gagal.'); toast(d.message || 'Editor bab diperbarui.', true); })
+        .catch((err) => toast(err.message, false));
+    });
 })();
 </script>
 @endpush
