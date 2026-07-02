@@ -21,6 +21,7 @@ use App\Http\Controllers\Pages\TaskController;
 use App\Http\Controllers\Pages\DailyReportController;
 use App\Http\Controllers\Pages\TitleController;
 use App\Http\Controllers\Pages\JournalController;
+use App\Http\Controllers\Pages\JournalSubmissionController;
 
 /*
 |--------------------------------------------------------------------------
@@ -260,6 +261,9 @@ Route::middleware('auth')->group(function () {
         Route::get('journals/{id}/edit', [JournalController::class, 'edit'])->name('journal.edit')->whereNumber('id');
         Route::put('journals/{id}', [JournalController::class, 'update'])->name('journal.update')->whereNumber('id');
         Route::delete('journals/{id}', [JournalController::class, 'destroy'])->name('journal.destroy')->whereNumber('id');
+        Route::post('journals/{journal}/submissions', [JournalSubmissionController::class, 'store'])->name('journal.submission.store')->whereNumber('journal');
+        Route::put('journals/submissions/{id}', [JournalSubmissionController::class, 'update'])->name('journal.submission.update')->whereNumber('id');
+        Route::delete('journals/submissions/{id}', [JournalSubmissionController::class, 'destroy'])->name('journal.submission.destroy')->whereNumber('id');
     });
 });
 
