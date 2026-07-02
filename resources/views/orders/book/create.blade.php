@@ -53,7 +53,7 @@
                                         data-tipe-naskah="{{ $t->tipe_naskah }}"
                                         data-scope-id="{{ $t->scope_id }}"
                                         data-indeksasi="{{ $t->indeksasi }}"
-                                        {{ (string) old('title_id') === (string) $t->id ? 'selected' : '' }}>{{ $t->title }}</option>
+                                        {{ (string) old('title_id') === (string) $t->id ? 'selected' : '' }}>{{ $t->code ? $t->code . ' — ' : '' }}{{ $t->title }}</option>
                                 @endforeach
                                 @if($prefill['title'] ?? false)
                                     <option value="{{ $prefill['title'] }}" selected>{{ $prefill['title'] }}</option>

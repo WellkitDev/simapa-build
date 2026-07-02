@@ -64,7 +64,7 @@
                                         data-tipe-naskah="{{ $t->tipe_naskah }}"
                                         data-scope-id="{{ $t->scope_id }}"
                                         data-indeksasi="{{ $t->indeksasi }}"
-                                        {{ (string) $curId === (string) $t->id ? 'selected' : '' }}>{{ $t->title }}</option>
+                                        {{ (string) $curId === (string) $t->id ? 'selected' : '' }}>{{ $t->code ? $t->code . ' — ' : '' }}{{ $t->title }}</option>
                                 @endforeach
                                 @unless($d->title_id)
                                     <option value="{{ $d->title }}" selected>{{ $d->title }}</option>
