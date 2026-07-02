@@ -68,4 +68,16 @@ class JournalPanelLinkTest extends TestCase
         $this->assertNull($opt->journal_id);
         $this->assertSame('Jurnal Manual', $opt->nama_jurnal);
     }
+
+    /** @test */
+    public function clearing_target_terbit_stores_null_not_today(): void
+    {
+        $mgr = $this->user('manager');
+        $title = $this->title();
+        $title->update(['target_terbit' => '2026-10-01']);
+
+        $this->actingAs($mgr)->put(route('title.info.update', $title->id), ['target_terbit' => ''])->assertRedirect();
+
+        $this->assertNull($title->fresh()->target_terbit);
+    }
 }

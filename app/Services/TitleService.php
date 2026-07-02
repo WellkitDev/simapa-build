@@ -168,7 +168,7 @@ class TitleService
         ];
         $next = [
             'code'              => $code,
-            'target_terbit'     => $data['target_terbit'] ?? null,
+            'target_terbit'     => ($data['target_terbit'] ?? '') ?: null, // absent/kosong → null (hindari '' → hari ini via date cast)
             'jurnal_target'     => $data['jurnal_target'] ?? null,
             'jurnal_link'       => $data['jurnal_link'] ?? null,
             'template_link'     => $data['template_link'] ?? null,
