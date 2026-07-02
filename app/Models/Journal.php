@@ -33,6 +33,11 @@ class Journal extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    public function submissions()
+    {
+        return $this->hasMany(JournalSubmission::class)->latest();
+    }
+
     /** Nama bulan terbitan, terurut. */
     public function terbitanLabels(): array
     {
