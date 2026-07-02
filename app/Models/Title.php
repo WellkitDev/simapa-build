@@ -20,11 +20,12 @@ class Title extends Model
     ];
 
     protected $fillable = [
-        'title', 'jenis', 'indeksasi', 'tipe_naskah', 'scope_id', 'assigned_to', 'status', 'asal', 'slug',
+        'title', 'code', 'jenis', 'indeksasi', 'tipe_naskah', 'scope_id', 'assigned_to', 'status', 'asal', 'slug',
         'created_by', 'approved_by', 'approved_at', 'reject_note',
+        'target_terbit', 'jurnal_target', 'jurnal_link', 'template_link', 'apc_info', 'catatan_publikasi',
     ];
 
-    protected $casts = ['approved_at' => 'datetime'];
+    protected $casts = ['approved_at' => 'datetime', 'target_terbit' => 'date'];
 
     public function chapters()
     {
@@ -44,6 +45,16 @@ class Title extends Model
     public function orderDetails()
     {
         return $this->hasMany(OrderDetail::class, 'title_id');
+    }
+
+    public function journalOptions()
+    {
+        return $this->hasMany(TitleJournalOption::class)->orderBy('urutan');
+    }
+
+    public function logs()
+    {
+        return $this->hasMany(TitleLog::class)->latest('created_at');
     }
 
     public function creator()
