@@ -204,7 +204,7 @@ class TitleProgressService
 
         $status = $sibling->status ?? 'menunggu_proses';
 
-        return TitleProgress::create([
+        $progress = TitleProgress::create([
             'order_detail_id'  => $detail->id,
             'status'           => $status,
             'assigned_role'    => TitleProgress::getHandlerForStatus($status),
@@ -213,6 +213,13 @@ class TitleProgressService
             'updated_by'       => $actorId,
             'started_at'       => now(),
         ]);
+
+        // Buku: pastikan bab + progress bab (roll-up). Artikel: tak ada bab.
+        if (in_array($detail->type, $bookTypes, true) && $detail->title_id) {
+            app(\App\Services\ChapterManuscriptService::class)->ensureChapters($detail->titleRef);
+        }
+
+        return $progress;
     }
 
     // ─── Aksi serempak untuk satu grup judul (semua order judul yang sama) ───
