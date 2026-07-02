@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Pages;
 use App\Http\Controllers\Controller;
 use App\Models\Scope;
 use App\Models\Title;
+use App\Models\User;
 use App\Services\TitleService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -25,9 +26,13 @@ class TitleController extends Controller
 
     public function index()
     {
-        $query = Title::with(['creator', 'scope'])->latest();
+        $query = Title::with(['creator', 'scope', 'assignedMarketing'])->latest();
         if (! $this->canManage()) {
-            $query->where('status', 'disetujui'); // marketing hanya lihat yang disetujui
+            // marketing: hanya disetujui, dan hanya yang tak di-assign (semua) atau di-assign ke dirinya
+            $query->where('status', 'disetujui')
+                ->where(function ($q) {
+                    $q->whereNull('assigned_to')->orWhere('assigned_to', Auth::id());
+                });
         }
 
         return view('titles.index', [
@@ -43,6 +48,7 @@ class TitleController extends Controller
         return view('titles.form', [
             'title' => new Title(['jenis' => 'artikel', 'tipe_naskah' => 'mandiri', 'status' => 'draft']),
             'scopes' => Scope::orderBy('scope')->get(),
+            'marketers' => User::role('marketing')->orderBy('name')->get(),
         ]);
     }
 
@@ -57,8 +63,10 @@ class TitleController extends Controller
 
     public function show(int $id)
     {
-        $title = Title::with(['chapters', 'creator', 'approver', 'scope'])->findOrFail($id);
+        $title = Title::with(['chapters', 'creator', 'approver', 'scope', 'assignedMarketing'])->findOrFail($id);
         abort_if(! $this->canManage() && ! $title->isApproved(), 403);
+        // marketing tak boleh membuka judul yang di-assign ke marketing lain
+        abort_if(! $this->canManage() && $title->assigned_to && $title->assigned_to !== Auth::id(), 403);
 
         return view('titles.show', ['title' => $title, 'canManage' => $this->canManage(), 'isApprover' => $this->isApprover()]);
     }
@@ -72,6 +80,7 @@ class TitleController extends Controller
         return view('titles.form', [
             'title' => $title,
             'scopes' => Scope::orderBy('scope')->get(),
+            'marketers' => User::role('marketing')->orderBy('name')->get(),
         ]);
     }
 
@@ -129,6 +138,7 @@ class TitleController extends Controller
             'indeksasi'        => 'nullable|string|max:64',
             'tipe_naskah'      => 'required|in:mandiri,kolaborasi',
             'scope_id'         => 'nullable|string|max:255',
+            'assigned_to'      => 'nullable|integer|exists:users,id',
             'chapters'         => 'nullable|array',
             'chapters.*.judul' => 'nullable|string|max:255',
         ]);

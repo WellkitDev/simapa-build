@@ -62,6 +62,17 @@
             <small class="text-muted">Pilih dari daftar atau ketik bidang ilmu baru.</small>
         </div>
 
+        <div class="mb-3">
+            <label class="form-label">Distribusi ke Marketing</label>
+            <select name="assigned_to" class="form-select">
+                <option value="">Semua marketing</option>
+                @foreach($marketers as $m)
+                    <option value="{{ $m->id }}" {{ (string) old('assigned_to', $title->assigned_to) === (string) $m->id ? 'selected' : '' }}>{{ $m->name }}</option>
+                @endforeach
+            </select>
+            <small class="text-muted">Kosongkan (Semua) agar terlihat oleh seluruh marketing, atau tetapkan ke satu marketing.</small>
+        </div>
+
         <div id="chaptersWrap" class="mb-3 {{ old('jenis', $title->jenis) === 'buku' ? '' : 'd-none' }}">
             <label class="form-label">Bab (judul per bab)</label>
             <div id="chaptersList">

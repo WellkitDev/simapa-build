@@ -18,6 +18,7 @@ class TitleService
             'indeksasi'   => $data['indeksasi'] ?? null,
             'tipe_naskah' => $data['tipe_naskah'],
             'scope_id'    => $this->resolveScopeId($data['scope_id'] ?? null),
+            'assigned_to' => ! empty($data['assigned_to']) ? (int) $data['assigned_to'] : null,
             'status'      => 'draft',
             'asal'        => 'distribusi',
             'created_by'  => $actor->id,
@@ -40,6 +41,7 @@ class TitleService
             'indeksasi'   => $data['indeksasi'] ?? null,
             'tipe_naskah' => $data['tipe_naskah'],
             'scope_id'    => $this->resolveScopeId($data['scope_id'] ?? null),
+            'assigned_to' => ! empty($data['assigned_to']) ? (int) $data['assigned_to'] : null,
         ]);
 
         if ($title->jenis === 'buku') {

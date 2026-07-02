@@ -140,4 +140,20 @@ class TitleServiceTest extends TestCase
 
         $this->assertSame('Kimia', $title->fresh()->scope->scope);
     }
+
+    /** @test */
+    public function assigned_to_defaults_null_and_can_be_set_then_cleared(): void
+    {
+        $prod = $this->user('production');
+        $mkt  = $this->user('marketing');
+
+        $unassigned = $this->svc->create(['title' => 'U', 'jenis' => 'artikel', 'tipe_naskah' => 'mandiri'], [], $prod);
+        $this->assertNull($unassigned->assigned_to);
+
+        $assigned = $this->svc->create(['title' => 'A', 'jenis' => 'artikel', 'tipe_naskah' => 'mandiri', 'assigned_to' => $mkt->id], [], $prod);
+        $this->assertSame($mkt->id, $assigned->assigned_to);
+
+        $this->svc->update($assigned, ['title' => 'A', 'jenis' => 'artikel', 'tipe_naskah' => 'mandiri', 'assigned_to' => ''], []);
+        $this->assertNull($assigned->fresh()->assigned_to);
+    }
 }

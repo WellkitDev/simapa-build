@@ -103,4 +103,35 @@ class TitleControllerTest extends TestCase
         $title = $this->title($prod, 'disetujui');
         $this->actingAs($prod)->get(route('title.edit', $title->id))->assertForbidden();
     }
+
+    /** @test */
+    public function assigned_title_visible_only_to_that_marketing(): void
+    {
+        $prod = $this->user('production');
+        $mkt1 = $this->user('marketing');
+        $mkt2 = $this->user('marketing');
+
+        $assigned = Title::create(['title' => 'ASSIGNED-M1', 'jenis' => 'artikel', 'tipe_naskah' => 'mandiri', 'status' => 'disetujui', 'created_by' => $prod->id, 'assigned_to' => $mkt1->id]);
+        Title::create(['title' => 'FOR-ALL', 'jenis' => 'artikel', 'tipe_naskah' => 'mandiri', 'status' => 'disetujui', 'created_by' => $prod->id]);
+
+        // mkt1: melihat judul miliknya + yang untuk semua
+        $this->actingAs($mkt1)->get(route('title.index'))->assertOk()->assertSee('ASSIGNED-M1')->assertSee('FOR-ALL');
+        // mkt2: tidak melihat judul yang di-assign ke mkt1, tapi tetap melihat yang untuk semua
+        $this->actingAs($mkt2)->get(route('title.index'))->assertOk()->assertDontSee('ASSIGNED-M1')->assertSee('FOR-ALL');
+        // mkt2 tak boleh membuka detail judul milik mkt1
+        $this->actingAs($mkt2)->get(route('title.show', $assigned->id))->assertForbidden();
+    }
+
+    /** @test */
+    public function store_persists_assigned_marketing(): void
+    {
+        $prod = $this->user('production');
+        $mkt  = $this->user('marketing');
+
+        $this->actingAs($prod)->post(route('title.store'), [
+            'title' => 'DistTitle', 'jenis' => 'artikel', 'tipe_naskah' => 'mandiri', 'assigned_to' => $mkt->id,
+        ])->assertRedirect();
+
+        $this->assertSame($mkt->id, Title::where('title', 'DistTitle')->first()->assigned_to);
+    }
 }

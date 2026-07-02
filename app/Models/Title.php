@@ -20,7 +20,7 @@ class Title extends Model
     ];
 
     protected $fillable = [
-        'title', 'jenis', 'indeksasi', 'tipe_naskah', 'scope_id', 'status', 'asal', 'slug',
+        'title', 'jenis', 'indeksasi', 'tipe_naskah', 'scope_id', 'assigned_to', 'status', 'asal', 'slug',
         'created_by', 'approved_by', 'approved_at', 'reject_note',
     ];
 
@@ -34,6 +34,11 @@ class Title extends Model
     public function scope()
     {
         return $this->belongsTo(Scope::class);
+    }
+
+    public function assignedMarketing()
+    {
+        return $this->belongsTo(User::class, 'assigned_to');
     }
 
     public function creator()

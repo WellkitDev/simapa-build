@@ -17,6 +17,7 @@
 <div class="row"><div class="col-md-8 col-12 grid-margin stretch-card"><div class="card"><div class="card-body">
     <p class="mb-2">Status: <span class="badge {{ $sb[$title->status] ?? 'bg-secondary' }}">{{ $sl[$title->status] ?? $title->status }}</span></p>
     <p class="mb-2"><small class="text-muted">Dibuat oleh {{ $title->creator?->name ?? '—' }}@if($title->approver) · disetujui {{ $title->approver->name }}@endif</small></p>
+    <p class="mb-2">Distribusi: <span class="badge bg-light text-dark border">{{ $title->assignedMarketing?->name ?? 'Semua marketing' }}</span></p>
     @if($title->status === 'ditolak' && $title->reject_note)
         <div class="alert alert-danger py-2"><strong>Ditolak:</strong> {{ $title->reject_note }}</div>
     @endif

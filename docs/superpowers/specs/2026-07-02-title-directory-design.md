@@ -3,7 +3,9 @@
 - **Tanggal:** 2026-07-02
 - **Branch:** `title-directory`
 - **Scope (Fase 1):** Entitas **Judul** berdiri sendiri + menu **Direktori Judul** + CRUD (artikel/buku, bab buku, indeksasi, tipe naskah) + alur **approval** (admin/production buat → tunggu approve superadmin/manager; superadmin/manager langsung disetujui). Belum menyentuh order/invoice/manuskrip.
-- **Di luar scope (Fase 2 / sengaja):** integrasi ke alur order→invoice→manuskrip, buat-judul-inline-saat-order ("judul belum ada di list"), hitung jumlah author dari order, distribusi/assign judul ke marketing tertentu, direktori Jurnal/ISBN/HKI, per-bab status/author.
+- **Di luar scope (Fase 2 / sengaja):** integrasi ke alur order→invoice→manuskrip, buat-judul-inline-saat-order ("judul belum ada di list"), hitung jumlah author dari order, direktori Jurnal/ISBN/HKI, per-bab status/author.
+
+> Ditambahkan setelah review: **bidang ilmu (scope)** memakai pool `tb_scopes` yang sama dengan order, dan **distribusi/assign judul ke marketing** (NULL = semua marketing; diisi = hanya marketing tsb, marketing lain tak melihat/tak bisa membuka).
 
 > Ini fondasi restrukturisasi "Judul sebagai entitas pusat". Saat ini judul terikat di `OrderDetail.title` + manuskrip menempel ke `OrderDetail`; Fase 2 (siklus terpisah) menyambungkan order→judul→manuskrip. Skema Fase 1 dirancang agar Fase 2 tinggal colok (field `asal`).
 
@@ -34,6 +36,7 @@ SiMAPA belum punya judul yang berdiri sendiri: judul lahir bersama order (`Order
 | `indeksasi` | string(64), nullable | mis. `none`, `SINTA 1`..`SINTA 6`, `Scopus Q1`..`Scopus Q4`, `Copernicus`, `WoS`, `DOAJ`, `Garuda`, atau kustom |
 | `tipe_naskah` | string(16) | `mandiri` / `kolaborasi` |
 | `scope_id` | FK → tb_scopes, nullable nullOnDelete | bidang ilmu; pakai pool `tb_scopes` yang sama dengan order (select2-tags, `Scope::firstOrCreate`) |
+| `assigned_to` | FK → users, nullable nullOnDelete | distribusi ke marketing; NULL = semua marketing, diisi = hanya marketing tsb |
 | `status` | string(16), default `draft` | `draft` / `menunggu` / `disetujui` / `ditolak` |
 | `asal` | string(16), default `distribusi` | `distribusi` / `order` (untuk Fase 2) |
 | `slug` | string, nullable | dari judul + id |
