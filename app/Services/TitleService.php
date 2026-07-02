@@ -119,6 +119,14 @@ class TitleService
             }
         }
 
+        // Jika nama (bukan id), cek apakah judul dengan nama yang sama sudah ada
+        if (! is_numeric($value)) {
+            $existing = Title::where('title', (string) $value)->first();
+            if ($existing) {
+                return $existing;
+            }
+        }
+
         return Title::create([
             'title'       => (string) $value,
             'jenis'       => $ctx['jenis'],

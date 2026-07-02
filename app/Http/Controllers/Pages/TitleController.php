@@ -26,7 +26,12 @@ class TitleController extends Controller
 
     public function index()
     {
-        $query = Title::with(['creator', 'scope', 'assignedMarketing'])->latest();
+        $query = Title::with(['creator', 'scope', 'assignedMarketing'])
+            ->withCount('orderDetails as orders_count')
+            ->withCount(['orderDetails as authors_count' => function ($q) {
+                $q->join('tb_author_orders', 'tb_author_orders.order_detail_id', '=', 'tb_order_details.id');
+            }])
+            ->latest();
         if (! $this->canManage()) {
             // marketing: hanya disetujui, dan hanya yang tak di-assign (semua) atau di-assign ke dirinya
             $query->where('status', 'disetujui')
@@ -63,12 +68,16 @@ class TitleController extends Controller
 
     public function show(int $id)
     {
-        $title = Title::with(['chapters', 'creator', 'approver', 'scope', 'assignedMarketing'])->findOrFail($id);
+        $title = Title::with(['chapters', 'creator', 'approver', 'scope', 'assignedMarketing', 'orderDetails.order.user'])->findOrFail($id);
         abort_if(! $this->canManage() && ! $title->isApproved(), 403);
         // marketing tak boleh membuka judul yang di-assign ke marketing lain
         abort_if(! $this->canManage() && $title->assigned_to && $title->assigned_to !== Auth::id(), 403);
 
-        return view('titles.show', ['title' => $title, 'canManage' => $this->canManage(), 'isApprover' => $this->isApprover()]);
+        $ordersCount = $title->orderDetails->count();
+        $authorsCount = \App\Models\OrderDetail::where('title_id', $title->id)
+            ->withCount('authors')->get()->sum('authors_count');
+
+        return view('titles.show', ['title' => $title, 'canManage' => $this->canManage(), 'isApprover' => $this->isApprover(), 'ordersCount' => $ordersCount, 'authorsCount' => $authorsCount]);
     }
 
     public function edit(int $id)

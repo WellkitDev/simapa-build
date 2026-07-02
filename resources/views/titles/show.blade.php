@@ -18,6 +18,24 @@
     <p class="mb-2">Status: <span class="badge {{ $sb[$title->status] ?? 'bg-secondary' }}">{{ $sl[$title->status] ?? $title->status }}</span></p>
     <p class="mb-2"><small class="text-muted">Dibuat oleh {{ $title->creator?->name ?? '—' }}@if($title->approver) · disetujui {{ $title->approver->name }}@endif</small></p>
     <p class="mb-2">Distribusi: <span class="badge bg-light text-dark border">{{ $title->assignedMarketing?->name ?? 'Semua marketing' }}</span></p>
+    <p class="mb-2">Order tertaut: <strong>Jml Order</strong> {{ $ordersCount }} · <strong>Jml Author</strong> {{ $authorsCount }}</p>
+    @if($title->orderDetails->isNotEmpty())
+        <h6 class="card-title mt-3">Order Tertaut</h6>
+        <div class="table-responsive">
+            <table class="table table-sm table-borderless mb-3">
+                <thead><tr><th>Kode Order</th><th>Marketing</th><th>Tanggal</th></tr></thead>
+                <tbody>
+                    @foreach($title->orderDetails as $od)
+                        <tr>
+                            <td>{{ $od->order?->code_order ?? '—' }}</td>
+                            <td>{{ $od->order?->user?->name ?? '—' }}</td>
+                            <td>{{ optional($od->order?->ordered_at)->format('d M Y') ?? '—' }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    @endif
     @if($title->status === 'ditolak' && $title->reject_note)
         <div class="alert alert-danger py-2"><strong>Ditolak:</strong> {{ $title->reject_note }}</div>
     @endif

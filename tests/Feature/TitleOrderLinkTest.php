@@ -117,4 +117,23 @@ class TitleOrderLinkTest extends TestCase
         $this->assertSame($title->id, $detail->title_id);
         $this->assertSame('Judul Baru Relink', $detail->title);
     }
+
+    /** @test */
+    public function directory_shows_order_and_author_counts(): void
+    {
+        $mkt = $this->user('marketing');
+        // dua order menaut judul yang sama (nama baru) → 1 Title, 2 order detail
+        $this->actingAs($mkt)->post(route('order.book.store'), $this->bookPayload(['contact_email' => 'x1@example.com']));
+        $this->actingAs($mkt)->post(route('order.book.store'), $this->bookPayload([
+            'contact_email' => 'x2@example.com',
+            'authors' => [['name' => 'B', 'email' => 'b2@example.com', 'position' => 1], ['name' => 'C', 'email' => 'c2@example.com', 'position' => 2]],
+        ]));
+
+        $title = Title::where('title', 'Judul Order Buku')->first();
+        $this->assertSame(2, $title->orderDetails()->count());
+
+        $mgr = $this->user('manager');
+        $this->actingAs($mgr)->get(route('title.show', $title->id))
+            ->assertOk()->assertSee('Jml Order')->assertSee('Jml Author');
+    }
 }
