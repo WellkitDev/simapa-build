@@ -62,8 +62,19 @@
 
                         <div class="mb-3">
                             <label class="form-label">Judul <span class="text-danger">*</span></label>
-                            <input type="text" name="title" class="form-control" value="{{ $order->details->title }}"
-                                required>
+                            <select name="title_id" id="title_id" class="form-select select2" data-tags="true" required>
+                                @php $curId = old('title_id', $order->details->title_id); @endphp
+                                @foreach ($titles as $t)
+                                    <option value="{{ $t->id }}"
+                                        data-tipe-naskah="{{ $t->tipe_naskah }}"
+                                        data-scope-id="{{ $t->scope_id }}"
+                                        data-indeksasi="{{ $t->indeksasi }}"
+                                        {{ (string) $curId === (string) $t->id ? 'selected' : '' }}>{{ $t->title }}</option>
+                                @endforeach
+                                @unless($order->details->title_id)
+                                    <option value="{{ $order->details->title }}" selected>{{ $order->details->title }}</option>
+                                @endunless
+                            </select>
                         </div>
 
                         <div class="row">
@@ -304,5 +315,22 @@
                 }
             }
         });
+    </script>
+    <script>
+    (function () {
+        var el = document.getElementById('title_id');
+        if (!el) return;
+        function applyTitle() {
+            var opt = el.options[el.selectedIndex];
+            if (!opt || !opt.dataset || !opt.dataset.tipeNaskah) return; // judul baru / kosong
+            var typeSel = document.querySelector('[name="type"]');
+            if (typeSel) typeSel.value = 'bk_' + (opt.dataset.tipeNaskah === 'kolaborasi' ? 'kolab' : 'mandiri');
+            if (opt.dataset.scopeId) {
+                var sc = document.getElementById('scope_id');
+                if (sc) { sc.value = opt.dataset.scopeId; if (window.jQuery) jQuery(sc).trigger('change'); }
+            }
+        }
+        if (window.jQuery) { jQuery(el).on('change', applyTitle); } else { el.addEventListener('change', applyTitle); }
+    })();
     </script>
 @endpush
