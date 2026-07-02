@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class Title extends Model
 {
@@ -75,5 +76,42 @@ class Title extends Model
     public function isApproved(): bool
     {
         return $this->status === 'disetujui';
+    }
+
+    /** Tahap manuskrip judul = bottleneck (stage paling awal) di antara order tertaut. Null bila belum ada progress. */
+    public function manuscriptStatus(): ?string
+    {
+        $stages = $this->jenis === 'buku' ? TitleProgress::BOOK_STAGES : TitleProgress::ARTICLE_STAGES;
+
+        $statuses = $this->orderDetails
+            ->map(fn ($d) => optional($d->titleProgress)->status)
+            ->filter();
+
+        if ($statuses->isEmpty()) {
+            return null;
+        }
+
+        return $statuses
+            ->sortBy(fn ($s) => ($i = array_search($s, $stages, true)) === false ? PHP_INT_MAX : $i)
+            ->first();
+    }
+
+    public function manuscriptStatusLabel(): ?string
+    {
+        return self::stageLabel($this->manuscriptStatus());
+    }
+
+    /** Label rapi untuk satu status tahap manuskrip. */
+    public static function stageLabel(?string $status): ?string
+    {
+        if ($status === null) {
+            return null;
+        }
+
+        return match ($status) {
+            'loa'  => 'LoA',
+            'isbn' => 'ISBN',
+            default => Str::title(str_replace('_', ' ', $status)),
+        };
     }
 }
