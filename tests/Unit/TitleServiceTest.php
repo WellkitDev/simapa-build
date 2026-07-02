@@ -156,4 +156,46 @@ class TitleServiceTest extends TestCase
         $this->svc->update($assigned, ['title' => 'A', 'jenis' => 'artikel', 'tipe_naskah' => 'mandiri', 'assigned_to' => ''], []);
         $this->assertNull($assigned->fresh()->assigned_to);
     }
+
+    /** @test */
+    public function resolve_for_order_returns_existing_title_by_id(): void
+    {
+        $prod = $this->user('production');
+        $existing = $this->svc->create(['title' => 'Judul Ada', 'jenis' => 'buku', 'tipe_naskah' => 'mandiri'], [], $prod);
+
+        $resolved = $this->svc->resolveForOrder((string) $existing->id, ['jenis' => 'buku', 'order_type' => 'bk_mandiri'], $prod);
+
+        $this->assertSame($existing->id, $resolved->id);
+        $this->assertSame(1, \App\Models\Title::count());
+    }
+
+    /** @test */
+    public function resolve_for_order_creates_new_title_from_order_fields(): void
+    {
+        $mkt = $this->user('marketing');
+        $scope = \App\Models\Scope::create(['scope' => 'Hukum']);
+
+        $resolved = $this->svc->resolveForOrder('Judul Baru Order', [
+            'jenis' => 'buku', 'order_type' => 'bk_kolab', 'scope_id' => $scope->id, 'indeksasi' => null,
+        ], $mkt);
+
+        $this->assertSame('Judul Baru Order', $resolved->title);
+        $this->assertSame('buku', $resolved->jenis);
+        $this->assertSame('kolaborasi', $resolved->tipe_naskah);
+        $this->assertSame('order', $resolved->asal);
+        $this->assertSame('disetujui', $resolved->status);
+        $this->assertSame($scope->id, $resolved->scope_id);
+        $this->assertSame($mkt->id, $resolved->created_by);
+        $this->assertSame($mkt->id, $resolved->approved_by);
+    }
+
+    /** @test */
+    public function resolve_for_order_new_article_title_is_mandiri_from_at_mandiri(): void
+    {
+        $mkt = $this->user('marketing');
+        $resolved = $this->svc->resolveForOrder('Artikel X', ['jenis' => 'artikel', 'order_type' => 'at_mandiri'], $mkt);
+
+        $this->assertSame('artikel', $resolved->jenis);
+        $this->assertSame('mandiri', $resolved->tipe_naskah);
+    }
 }

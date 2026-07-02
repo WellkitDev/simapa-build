@@ -105,4 +105,31 @@ class TitleService
         }
         $title->update(['status' => 'ditolak', 'reject_note' => $note, 'approved_by' => null, 'approved_at' => null]);
     }
+
+    /**
+     * Resolusi judul untuk order: id yang ada → judul tsb; nama baru → buat Title (asal=order, disetujui)
+     * dari field order yang sedang diisi. $ctx: jenis, order_type, scope_id?, indeksasi?.
+     */
+    public function resolveForOrder(int|string $value, array $ctx, User $actor): Title
+    {
+        if (is_numeric($value)) {
+            $existing = Title::find((int) $value);
+            if ($existing) {
+                return $existing;
+            }
+        }
+
+        return Title::create([
+            'title'       => (string) $value,
+            'jenis'       => $ctx['jenis'],
+            'tipe_naskah' => str_contains($ctx['order_type'] ?? '', 'kolab') ? 'kolaborasi' : 'mandiri',
+            'scope_id'    => $ctx['scope_id'] ?? null,
+            'indeksasi'   => $ctx['indeksasi'] ?? null,
+            'status'      => 'disetujui',
+            'asal'        => 'order',
+            'created_by'  => $actor->id,
+            'approved_by' => $actor->id,
+            'approved_at' => now(),
+        ]);
+    }
 }
