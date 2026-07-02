@@ -19,9 +19,11 @@ class OrderDetail extends Model
 
     protected static function booted(): void
     {
-        // Jaga group_key selalu sinkron dengan tipe + judul (pengelompokan judul).
+        // Kunci grup = identitas Title bila tertaut; jika tidak, turunan (type + judul).
         static::saving(function (OrderDetail $detail) {
-            if ($detail->type !== null && $detail->title !== null) {
+            if ($detail->title_id !== null) {
+                $detail->group_key = 'title:' . $detail->title_id;
+            } elseif ($detail->type !== null && $detail->title !== null) {
                 $detail->group_key = (new \App\Services\TitleArchiveService())
                     ->groupKeyFor($detail->type, $detail->title);
             }

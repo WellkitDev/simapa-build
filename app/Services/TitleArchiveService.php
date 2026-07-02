@@ -27,7 +27,9 @@ class TitleArchiveService
 
     public function groupKey(OrderDetail $detail): string
     {
-        return $this->groupKeyFor($detail->type, $detail->title);
+        return $detail->title_id !== null
+            ? 'title:' . $detail->title_id
+            : $this->groupKeyFor($detail->type, $detail->title);
     }
 
     public function groupKeyFor(string $type, string $title): string
