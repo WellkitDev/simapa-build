@@ -365,8 +365,15 @@ class OrderBookController extends Controller
 
         // Ambil data scope untuk dropdown
         $scopes = Scope::all();
+        $titles = Title::where('status', 'disetujui')->where('jenis', 'buku')
+            ->when(! Auth::user()->hasAnyRole(['manager', 'superadmin']), function ($q) {
+                $q->where(function ($qq) {
+                    $qq->whereNull('assigned_to')->orWhere('assigned_to', Auth::id());
+                });
+            })
+            ->with('scope')->orderBy('title')->get();
 
-        return view('orders.edit', compact('order', 'scopes'));
+        return view('orders.edit', compact('order', 'scopes', 'titles'));
 
     }
 
@@ -379,7 +386,7 @@ class OrderBookController extends Controller
         // 1. Validasi Input
         $request->validate([
             'type'               => 'required|in:bk_mandiri,bk_kolab,at_mandiri,at_kolab',
-            'title'              => 'required|string|max:255',
+            'title_id'           => 'required|string|max:255',
             'scope_id'           => 'nullable',
             'chapters'           => 'nullable|integer|min:1',
             'naskah_type'        => 'required|in:dibuatkan,mandiri',
@@ -415,20 +422,36 @@ class OrderBookController extends Controller
                     $bab = $request->chapters;
                 }
                 // 2. Update Detail Order
+                $detail = $order->details;
+
+                $scopeId = null;
+                if ($request->filled('scope_id')) {
+                    $scopeId = $request->scope_id;
+                    if (! is_numeric($scopeId)) {
+                        $scopeId = Scope::firstOrCreate(['scope' => $scopeId])->id;
+                    }
+                }
+
+                $title = app(\App\Services\TitleService::class)->resolveForOrder($request->title_id, [
+                    'jenis'      => 'buku',
+                    'order_type' => $request->type,
+                    'scope_id'   => $scopeId,
+                    'indeksasi'  => null,
+                ], Auth::user());
+
                 $order->details()->update([
-                    'title' => $request->title,
-                    'type' => $request->type,
-                    'indexation' =>  $index,
-                    'chapters' => $bab,
-                    'naskah_type' => $request->naskah_type,
+                    'title_id'         => $title->id,
+                    'title'            => $title->title,
+                    'type'             => $request->type,
+                    'indexation'       => $index,
+                    'chapters'         => $bab,
+                    'naskah_type'      => $request->naskah_type,
                     'publication_type' => $request->publication_type,
-                    'cost_amount' => $request->cost_amount,
+                    'cost_amount'      => $request->cost_amount,
                 ]);
 
-                if ($request->has('scope_id')) {
-                    // Jika scope_id di form edit hanya bisa pilih satu (bukan multiple)
-                    // sync akan menghapus scope lama dan menggantinya dengan yang baru
-                    $order->details->scopes()->sync([$request->scope_id]);
+                if ($scopeId) {
+                    $detail->scopes()->sync([$scopeId]);
                 }
 
                 // 3. Update Contact Person

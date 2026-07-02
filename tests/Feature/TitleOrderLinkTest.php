@@ -90,4 +90,31 @@ class TitleOrderLinkTest extends TestCase
         $this->assertSame('artikel', $title->jenis);
         $this->assertSame('kolaborasi', $title->tipe_naskah);
     }
+
+    /** @test */
+    public function journal_update_relinks_title(): void
+    {
+        $mkt = $this->user('marketing');
+        $order = Order::create(['code_order' => 'ORD-202607-0009', 'user_id' => $mkt->id, 'status' => 'pending', 'ordered_at' => '2026-07-02']);
+        $detail = OrderDetail::create([
+            'order_id' => $order->id, 'type' => 'at_mandiri', 'title' => 'Judul Lama',
+            'slug' => 'judul-lama-' . $order->id, 'indexation' => 'sinta 3',
+            'naskah_type' => 'mandiri', 'publication_type' => 'regular', 'cost_amount' => 100,
+        ]);
+        \App\Models\OrderContact::create(['order_id' => $order->id, 'cp_phone' => '08', 'cp_email' => 'e@example.com']);
+
+        $this->actingAs($mkt)->put(route('order.journal.update', $order->code_order), [
+            'type' => 'at_kolab', 'title_id' => 'Judul Baru Relink', 'scope_id' => '',
+            'indexation' => 'sinta 2', 'naskah_type' => 'mandiri', 'publication_type' => 'fastrack',
+            'issued_at' => '2026-07-03', 'cost_amount' => 200,
+            'contact_phone' => '09', 'contact_email' => 'e2@example.com',
+            'authors' => [['name' => 'B', 'email' => 'b@example.com', 'position' => 1]],
+        ])->assertRedirect();
+
+        $detail->refresh();
+        $title = Title::where('title', 'Judul Baru Relink')->first();
+        $this->assertNotNull($title);
+        $this->assertSame($title->id, $detail->title_id);
+        $this->assertSame('Judul Baru Relink', $detail->title);
+    }
 }

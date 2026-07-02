@@ -241,8 +241,15 @@ class OrderJournalController extends Controller
         $order = Order::with(['details.authors', 'details.scopes', 'contact'])
             ->where('code_order', $code_order)->firstOrFail();
         $scopes = Scope::all();
+        $titles = Title::where('status', 'disetujui')->where('jenis', 'artikel')
+            ->when(! Auth::user()->hasAnyRole(['manager', 'superadmin']), function ($q) {
+                $q->where(function ($qq) {
+                    $qq->whereNull('assigned_to')->orWhere('assigned_to', Auth::id());
+                });
+            })
+            ->with('scope')->orderBy('title')->get();
 
-        return view('orders.journal.edit', compact('order', 'scopes'));
+        return view('orders.journal.edit', compact('order', 'scopes', 'titles'));
     }
 
     /**
@@ -252,7 +259,7 @@ class OrderJournalController extends Controller
     {
         $request->validate([
             'type'                  => 'required|in:at_mandiri,at_kolab',
-            'title'                 => 'required|string|max:255',
+            'title_id'              => 'required|string|max:255',
             'scope_id'              => 'nullable',
             'indexation'            => 'required|string',
             'naskah_type'           => 'required|in:dibuatkan,mandiri',
@@ -278,8 +285,26 @@ class OrderJournalController extends Controller
                     'ordered_at' => $request->issued_at,
                 ]);
 
+                $detail = $order->details;
+
+                $scopeId = null;
+                if ($request->filled('scope_id')) {
+                    $scopeId = $request->scope_id;
+                    if (! is_numeric($scopeId)) {
+                        $scopeId = Scope::firstOrCreate(['scope' => $scopeId])->id;
+                    }
+                }
+
+                $title = app(\App\Services\TitleService::class)->resolveForOrder($request->title_id, [
+                    'jenis'      => 'artikel',
+                    'order_type' => $request->type,
+                    'scope_id'   => $scopeId,
+                    'indeksasi'  => $request->indexation,
+                ], Auth::user());
+
                 $order->details()->update([
-                    'title'            => $request->title,
+                    'title_id'         => $title->id,
+                    'title'            => $title->title,
                     'type'             => $request->type,
                     'indexation'       => $request->indexation,
                     'naskah_type'      => $request->naskah_type,
@@ -287,13 +312,7 @@ class OrderJournalController extends Controller
                     'cost_amount'      => $request->cost_amount,
                 ]);
 
-                $detail = $order->details;
-
-                if ($request->filled('scope_id')) {
-                    $scopeId = $request->scope_id;
-                    if (! is_numeric($scopeId)) {
-                        $scopeId = Scope::firstOrCreate(['scope' => $scopeId])->id;
-                    }
+                if ($scopeId) {
                     $detail->scopes()->sync([$scopeId]);
                 }
 

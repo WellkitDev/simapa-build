@@ -60,7 +60,7 @@ class OrderJournalEditTest extends TestCase
             ->assertOk()->assertSee('Judul Lama');
 
         $this->actingAs($u)->put(route('order.journal.update', $order->code_order), [
-            'type' => 'at_kolab', 'title' => 'Judul Baru', 'scope_id' => '',
+            'type' => 'at_kolab', 'title_id' => 'Judul Baru', 'scope_id' => '',
             'indexation' => 'Scopus', 'naskah_type' => 'mandiri', 'publication_type' => 'fastrack',
             'issued_at' => today()->toDateString(), 'cost_amount' => 2000000,
             'contact_phone' => '0899', 'contact_email' => 'new@example.com',
