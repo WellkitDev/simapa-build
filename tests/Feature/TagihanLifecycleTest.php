@@ -213,7 +213,7 @@ class TagihanLifecycleTest extends TestCase
         ]);
 
         $payload = [
-            'type' => 'bk_mandiri', 'title' => 'Dari Tagihan', 'naskah_type' => 'mandiri',
+            'type' => 'bk_mandiri', 'title_id' => 'Dari Tagihan', 'naskah_type' => 'mandiri',
             'publication_type' => 'regular', 'issued_at' => now()->toDateString(), 'cost_amount' => 1500000,
             'contact_phone' => '0811', 'contact_email' => 'klien@x.id',
             'authors' => [['name' => 'Penulis', 'position' => 1]],
@@ -239,7 +239,7 @@ class TagihanLifecycleTest extends TestCase
         ]);
 
         $payload = [
-            'type' => 'at_mandiri', 'title' => 'Dari Tagihan Jurnal', 'naskah_type' => 'mandiri',
+            'type' => 'at_mandiri', 'title_id' => 'Dari Tagihan Jurnal', 'naskah_type' => 'mandiri',
             'indexation' => 'sinta 2',
             'publication_type' => 'regular', 'issued_at' => now()->toDateString(), 'cost_amount' => 2000000,
             'contact_phone' => '0812', 'contact_email' => 'jurnal@x.id',

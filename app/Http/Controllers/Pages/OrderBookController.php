@@ -19,6 +19,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
+use App\Models\Title;
 use App\Services\GoogleDriveService;
 use App\Services\TitleArchiveService;
 use Illuminate\Support\Facades\Auth;
@@ -143,7 +144,15 @@ class OrderBookController extends Controller
             }
         }
 
-        return \view('orders.book.create', \compact('scopes', 'prefill', 'fromTagihan'));
+        $titles = Title::where('status', 'disetujui')->where('jenis', 'buku')
+            ->when(! Auth::user()->hasAnyRole(['manager', 'superadmin']), function ($q) {
+                $q->where(function ($qq) {
+                    $qq->whereNull('assigned_to')->orWhere('assigned_to', Auth::id());
+                });
+            })
+            ->with('scope')->orderBy('title')->get();
+
+        return \view('orders.book.create', \compact('scopes', 'prefill', 'fromTagihan', 'titles'));
     }
 
     /**
@@ -154,7 +163,7 @@ class OrderBookController extends Controller
         //
         $validate = $request->validate([
             'type'               => 'required|in:bk_mandiri,bk_kolab',
-            'title'              => 'required|string|max:255',
+            'title_id'           => 'required|string|max:255',
             'scope_id'           => 'nullable',
             'chapters'           => 'nullable|integer|min:1',
             'naskah_type'        => 'required|in:dibuatkan,mandiri',
@@ -174,9 +183,14 @@ class OrderBookController extends Controller
             'note'               => 'nullable|string',
         ]);
 
+        // Nama judul untuk cek duplikat (id lama → nama judulnya; selain itu = nama baru yang diketik).
+        $titleName = is_numeric($validate['title_id'])
+            ? (\App\Models\Title::find($validate['title_id'])?->title ?? $validate['title_id'])
+            : $validate['title_id'];
+
         // Mencari Order yang memiliki Detail dengan judul sama DAN Contact dengan email sama
-        $isDuplicate = Order::whereHas('details', function ($query) use ($validate) {
-                $query->where('title', $validate['title']);
+        $isDuplicate = Order::whereHas('details', function ($query) use ($titleName) {
+                $query->where('title', $titleName);
             })
             ->whereHas('contact', function ($query) use ($validate) {
                 $query->where('cp_email', $validate['contact_email']);
@@ -208,31 +222,34 @@ class OrderBookController extends Controller
                     'ordered_at' => $validate['issued_at'],
                 ]);
 
-                // Generate slug
-                $cleanTitle = $validate['title'];
-                $baseSlug = Str::slug($cleanTitle);
-                $finalSlug = $baseSlug . '-' . $order->id;
+                // Resolusi scope dulu (dipakai untuk judul baru dari order).
+                $scope_id = $validate['scope_id'] ?? null;
+                if (!is_numeric($scope_id) && !empty($scope_id)) {
+                    $scope_id = Scope::firstOrCreate(['scope' => $scope_id])->id;
+                }
+
+                // Resolusi judul: id yang ada, atau buat Title baru (asal=order) dari field order.
+                $title = app(\App\Services\TitleService::class)->resolveForOrder($validate['title_id'], [
+                    'jenis'      => 'buku',
+                    'order_type' => $validate['type'],
+                    'scope_id'   => $scope_id ?: null,
+                    'indeksasi'  => null,
+                ], Auth::user());
 
                 // ORDER DETAIL
                 $detail = OrderDetail::create([
                     'order_id' => $order->id,
                     'type' => $validate['type'],
-                    'title' => $validate['title'],
-                    'slug' => $finalSlug,
+                    'title_id' => $title->id,
+                    'title' => $title->title,
+                    'slug' => Str::slug($title->title) . '-' . $order->id,
                     'chapters' => $validate['chapters'] ?? null,
                     'naskah_type' => $validate['naskah_type'],
                     'publication_type' => $validate['publication_type'],
                     'cost_amount' => $validate['cost_amount'],
                 ]);
 
-                //handlle science scope (create new if not exists)
-                $scope_id = $validate['scope_id'] ?? null;
-                if (!is_numeric($scope_id) && !empty($scope_id)) {
-                    $scope = Scope::firstOrCreate(['scope' => $scope_id]);
-                    $scope_id = $scope->id;
-                }
-
-                if($scope_id) {
+                if ($scope_id) {
                     $detail->scopes()->attach($scope_id);
                 }
 

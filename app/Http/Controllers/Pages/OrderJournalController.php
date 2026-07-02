@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Pages;
 
 use App\Models\Order;
 use App\Models\Scope;
+use App\Models\Title;
 use App\Models\Author;
 use App\Models\Tagihan;
 use App\Models\TagihanLog;
@@ -54,7 +55,15 @@ class OrderJournalController extends Controller
             }
         }
 
-        return view('orders.journal.create', \compact('scopes', 'prefill', 'fromTagihan'));
+        $titles = Title::where('status', 'disetujui')->where('jenis', 'artikel')
+            ->when(! Auth::user()->hasAnyRole(['manager', 'superadmin']), function ($q) {
+                $q->where(function ($qq) {
+                    $qq->whereNull('assigned_to')->orWhere('assigned_to', Auth::id());
+                });
+            })
+            ->with('scope')->orderBy('title')->get();
+
+        return view('orders.journal.create', \compact('scopes', 'prefill', 'fromTagihan', 'titles'));
     }
 
     /**
@@ -65,7 +74,7 @@ class OrderJournalController extends Controller
         //
         $validate = $request->validate([
             'type'               => 'required|in:at_mandiri,at_kolab',
-            'title'              => 'required|string|max:255',
+            'title_id'           => 'required|string|max:255',
             'scope_id'           => 'nullable',
 
             'indexation'         => 'required|string',
@@ -86,9 +95,14 @@ class OrderJournalController extends Controller
             'note'               => 'nullable|string',
         ]);
 
+        // Nama judul untuk cek duplikat (id lama → nama judulnya; selain itu = nama baru yang diketik).
+        $titleName = is_numeric($validate['title_id'])
+            ? (\App\Models\Title::find($validate['title_id'])?->title ?? $validate['title_id'])
+            : $validate['title_id'];
+
         // Mencari Order yang memiliki Detail dengan judul sama DAN Contact dengan email sama
-        $isDuplicate = Order::whereHas('details', function ($query) use ($validate) {
-                $query->where('title', $validate['title']);
+        $isDuplicate = Order::whereHas('details', function ($query) use ($titleName) {
+                $query->where('title', $titleName);
             })
             ->whereHas('contact', function ($query) use ($validate) {
                 $query->where('cp_email', $validate['contact_email']);
@@ -120,31 +134,34 @@ class OrderJournalController extends Controller
                     'ordered_at' => $validate['issued_at'],
                 ]);
 
-                // Generate slug
-                $cleanTitle = $validate['title'];
-                $baseSlug = Str::slug($cleanTitle);
-                $finalSlug = $baseSlug . '-' . $order->id;
+                // Resolusi scope dulu.
+                $scope_id = $validate['scope_id'] ?? null;
+                if (!is_numeric($scope_id) && !empty($scope_id)) {
+                    $scope_id = Scope::firstOrCreate(['scope' => $scope_id])->id;
+                }
+
+                // Resolusi judul (jenis artikel).
+                $title = app(\App\Services\TitleService::class)->resolveForOrder($validate['title_id'], [
+                    'jenis'      => 'artikel',
+                    'order_type' => $validate['type'],
+                    'scope_id'   => $scope_id ?: null,
+                    'indeksasi'  => $validate['indexation'] ?? null,
+                ], Auth::user());
 
                 // ORDER DETAIL
                 $detail = OrderDetail::create([
                     'order_id' => $order->id,
                     'type' => $validate['type'],
-                    'title' => $validate['title'],
-                    'slug' => $finalSlug,
+                    'title_id' => $title->id,
+                    'title' => $title->title,
+                    'slug' => Str::slug($title->title) . '-' . $order->id,
                     'indexation' => $validate['indexation'],
                     'naskah_type' => $validate['naskah_type'],
                     'publication_type' => $validate['publication_type'],
                     'cost_amount' => $validate['cost_amount'],
                 ]);
 
-                //handlle science scope (create new if not exists)
-                $scope_id = $validate['scope_id'];
-                if (!is_numeric($scope_id) && !empty($scope_id)) {
-                    $scope = Scope::firstOrCreate(['scope' => $scope_id]);
-                    $scope_id = $scope->id;
-                }
-
-                if($scope_id) {
+                if ($scope_id) {
                     $detail->scopes()->attach($scope_id);
                 }
 

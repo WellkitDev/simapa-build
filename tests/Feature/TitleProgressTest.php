@@ -133,7 +133,7 @@ class TitleProgressTest extends TestCase
 
         $payload = [
             'type'             => 'bk_mandiri',
-            'title'            => 'Buku Tes Integrasi',
+            'title_id'         => 'Buku Tes Integrasi',
             'naskah_type'      => 'mandiri',
             'publication_type' => 'regular',
             'issued_at'        => now()->toDateString(),
@@ -168,7 +168,7 @@ class TitleProgressTest extends TestCase
 
         $payload = [
             'type'             => 'at_mandiri',
-            'title'            => 'Artikel Tes Integrasi',
+            'title_id'         => 'Artikel Tes Integrasi',
             'scope_id'         => '', // form selalu mengirim field ini (boleh kosong)
             'indexation'       => 'Scopus Q2',
             'naskah_type'      => 'mandiri',
@@ -216,7 +216,7 @@ class TitleProgressTest extends TestCase
 
         $payload = [
             'type'             => 'bk_mandiri',
-            'title'            => 'Buku Warisan', // judul sama → grup sama
+            'title_id'         => 'Buku Warisan', // judul sama → grup sama
             'naskah_type'      => 'mandiri',
             'publication_type' => 'regular',
             'issued_at'        => now()->toDateString(),
