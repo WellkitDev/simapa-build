@@ -214,4 +214,20 @@ class TitleServiceTest extends TestCase
         $this->assertNotSame($book->id, $article->id);
         $this->assertSame('artikel', $article->jenis);
     }
+
+    /** @test */
+    public function create_assigns_a_code(): void
+    {
+        $prod = $this->user('production');
+        $title = $this->svc->create(['title' => 'Blockchain dalam Fintech Syariah', 'jenis' => 'buku', 'tipe_naskah' => 'mandiri'], [], $prod);
+        $this->assertSame('BDFS', $title->fresh()->code);
+    }
+
+    /** @test */
+    public function resolve_for_order_assigns_a_code(): void
+    {
+        $mkt = $this->user('marketing');
+        $title = $this->svc->resolveForOrder('Analisis Data Besar Nasional', ['jenis' => 'artikel', 'order_type' => 'at_mandiri'], $mkt);
+        $this->assertSame('ADBN', $title->code);
+    }
 }

@@ -23,7 +23,10 @@ class TitleService
             'asal'        => 'distribusi',
             'created_by'  => $actor->id,
         ]);
-        $title->update(['slug' => Str::slug($title->title) . '-' . $title->id]);
+        $title->update([
+            'slug' => Str::slug($title->title) . '-' . $title->id,
+            'code' => app(TitleCodeService::class)->generate($title->title, $title->id),
+        ]);
 
         if ($title->jenis === 'buku') {
             $this->syncChapters($title, $chapters);
@@ -132,6 +135,7 @@ class TitleService
 
         return Title::create([
             'title'       => (string) $value,
+            'code'        => app(TitleCodeService::class)->generate((string) $value),
             'jenis'       => $ctx['jenis'],
             'tipe_naskah' => str_contains($ctx['order_type'] ?? '', 'kolab') ? 'kolaborasi' : 'mandiri',
             'scope_id'    => $ctx['scope_id'] ?? null,
