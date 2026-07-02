@@ -6,6 +6,7 @@ use App\Models\MarketingTarget;
 use App\Models\Payment;
 use App\Models\Tagihan;
 use App\Models\Task;
+use App\Models\Title;
 use App\Models\TitleProgress;
 use App\Models\User;
 use App\Notifications\DatabaseNotification;
@@ -164,6 +165,17 @@ class Notifier
             'message'  => $progress->orderDetail?->title ?? 'Naskah',
             'url'      => route('order.indexJudul.progress', $progress->order_detail_id),
             'icon'     => 'alert-triangle',
+        ]);
+    }
+
+    public function titleInfoUpdated(Title $title, User $actor): void
+    {
+        $this->send($this->roleUsers(['superadmin'], $actor), [
+            'category' => 'title',
+            'title'    => 'Info publikasi judul diperbarui',
+            'message'  => trim(($title->code ? $title->code . ' — ' : '') . $title->title),
+            'url'      => route('title.show', $title->id),
+            'icon'     => 'edit',
         ]);
     }
 

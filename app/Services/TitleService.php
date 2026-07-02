@@ -4,7 +4,9 @@ namespace App\Services;
 
 use App\Models\Scope;
 use App\Models\Title;
+use App\Models\TitleLog;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class TitleService
@@ -146,5 +148,84 @@ class TitleService
             'approved_by' => $actor->id,
             'approved_at' => now(),
         ]);
+    }
+
+    /**
+     * Perbarui informasi publikasi judul + opsi jurnal, tulis log ringkasan perubahan,
+     * dan beri tahu superadmin. $data: code?, target_terbit?, jurnal_target?, jurnal_link?,
+     * template_link?, apc_info?, catatan_publikasi?. $journalOptions: array of [nama_jurnal, link?, apc?].
+     */
+    public function updateInfo(Title $title, array $data, array $journalOptions, User $actor): void
+    {
+        // Kode: kosong → regenerasi dari judul.
+        $newCode = trim((string) ($data['code'] ?? ''));
+        $code = $newCode !== '' ? $newCode : app(TitleCodeService::class)->generate($title->title, $title->id);
+
+        $labels = [
+            'code' => 'Kode', 'target_terbit' => 'Target terbit', 'jurnal_target' => 'Jurnal target',
+            'jurnal_link' => 'Link jurnal', 'template_link' => 'Template', 'apc_info' => 'APC',
+            'catatan_publikasi' => 'Catatan',
+        ];
+        $next = [
+            'code'              => $code,
+            'target_terbit'     => $data['target_terbit'] ?: null,
+            'jurnal_target'     => $data['jurnal_target'] ?? null,
+            'jurnal_link'       => $data['jurnal_link'] ?? null,
+            'template_link'     => $data['template_link'] ?? null,
+            'apc_info'          => $data['apc_info'] ?? null,
+            'catatan_publikasi' => $data['catatan_publikasi'] ?? null,
+        ];
+
+        $changed = [];
+        foreach ($labels as $field => $label) {
+            $old = $field === 'target_terbit'
+                ? (string) (optional($title->target_terbit)->toDateString() ?? '')
+                : (string) ($title->$field ?? '');
+            $new = (string) ($next[$field] ?? '');
+            if ($old !== $new) {
+                $changed[] = $label;
+            }
+        }
+
+        // Snapshot opsi jurnal sebelum, untuk deteksi perubahan.
+        $before = $title->journalOptions()->orderBy('urutan')->get()
+            ->map(fn ($o) => $o->nama_jurnal . '|' . $o->link . '|' . $o->apc)->implode(';;');
+
+        DB::transaction(function () use ($title, $next, $journalOptions) {
+            $title->update($next);
+
+            $title->journalOptions()->delete();
+            $i = 0;
+            foreach ($journalOptions as $opt) {
+                $nama = trim((string) ($opt['nama_jurnal'] ?? ''));
+                if ($nama === '') {
+                    continue;
+                }
+                $title->journalOptions()->create([
+                    'nama_jurnal' => $nama,
+                    'link'        => $opt['link'] ?? null,
+                    'apc'         => $opt['apc'] ?? null,
+                    'urutan'      => $i++,
+                ]);
+            }
+        });
+
+        $after = $title->journalOptions()->orderBy('urutan')->get()
+            ->map(fn ($o) => $o->nama_jurnal . '|' . $o->link . '|' . $o->apc)->implode(';;');
+        if ($before !== $after) {
+            $changed[] = 'Opsi jurnal';
+        }
+
+        $note = $changed ? implode(', ', array_unique($changed)) . ' diperbarui' : 'Info publikasi disimpan';
+
+        TitleLog::create([
+            'title_id'   => $title->id,
+            'event'      => 'info_updated',
+            'note'       => $note,
+            'changed_by' => $actor->id,
+            'created_at' => now(),
+        ]);
+
+        app(Notifier::class)->titleInfoUpdated($title->fresh(), $actor);
     }
 }

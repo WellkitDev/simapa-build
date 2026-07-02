@@ -230,4 +230,33 @@ class TitleServiceTest extends TestCase
         $title = $this->svc->resolveForOrder('Analisis Data Besar Nasional', ['jenis' => 'artikel', 'order_type' => 'at_mandiri'], $mkt);
         $this->assertSame('ADBN', $title->code);
     }
+
+    /** @test */
+    public function update_info_saves_fields_options_and_writes_log(): void
+    {
+        $mgr = $this->user('manager');
+        $title = $this->svc->create(['title' => 'Judul Publikasi', 'jenis' => 'artikel', 'tipe_naskah' => 'mandiri'], [], $mgr);
+
+        $this->svc->updateInfo($title, [
+            'code' => '', // kosong → regen
+            'target_terbit' => '2026-09-01',
+            'jurnal_target' => 'Jurnal A',
+            'jurnal_link' => 'https://a.test',
+            'template_link' => 'https://a.test/tpl',
+            'apc_info' => 'Rp 3.000.000',
+            'catatan_publikasi' => 'catatan',
+        ], [
+            ['nama_jurnal' => 'Jurnal Alt', 'link' => 'https://alt.test', 'apc' => 'gratis'],
+            ['nama_jurnal' => ''], // diabaikan
+        ], $mgr);
+
+        $title->refresh();
+        $this->assertSame('Jurnal A', $title->jurnal_target);
+        $this->assertSame('2026-09-01', $title->target_terbit->toDateString());
+        $this->assertNotEmpty($title->code); // regen
+        $this->assertSame(1, $title->journalOptions()->count());
+        $this->assertSame('Jurnal Alt', $title->journalOptions()->first()->nama_jurnal);
+        $this->assertSame(1, $title->logs()->count());
+        $this->assertSame('info_updated', $title->logs()->first()->event);
+    }
 }
