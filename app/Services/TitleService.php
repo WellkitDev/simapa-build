@@ -168,7 +168,7 @@ class TitleService
         ];
         $next = [
             'code'              => $code,
-            'target_terbit'     => $data['target_terbit'] ?: null,
+            'target_terbit'     => $data['target_terbit'] ?? null,
             'jurnal_target'     => $data['jurnal_target'] ?? null,
             'jurnal_link'       => $data['jurnal_link'] ?? null,
             'template_link'     => $data['template_link'] ?? null,
@@ -197,14 +197,17 @@ class TitleService
             $title->journalOptions()->delete();
             $i = 0;
             foreach ($journalOptions as $opt) {
-                $nama = trim((string) ($opt['nama_jurnal'] ?? ''));
+                $journalId = ! empty($opt['journal_id']) ? (int) $opt['journal_id'] : null;
+                $journal   = $journalId ? \App\Models\Journal::find($journalId) : null;
+                $nama      = $journal ? $journal->nama : trim((string) ($opt['nama_jurnal'] ?? ''));
                 if ($nama === '') {
                     continue;
                 }
                 $title->journalOptions()->create([
+                    'journal_id'  => $journal?->id,
                     'nama_jurnal' => $nama,
-                    'link'        => $opt['link'] ?? null,
-                    'apc'         => $opt['apc'] ?? null,
+                    'link'        => $journal ? $journal->link : ($opt['link'] ?? null),
+                    'apc'         => $journal ? $journal->apc_reguler : ($opt['apc'] ?? null),
                     'urutan'      => $i++,
                 ]);
             }

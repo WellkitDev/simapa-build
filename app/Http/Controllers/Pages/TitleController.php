@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Pages;
 
 use App\Http\Controllers\Controller;
+use App\Models\Journal;
 use App\Models\Scope;
 use App\Models\Title;
 use App\Models\User;
@@ -69,7 +70,7 @@ class TitleController extends Controller
 
     public function show(int $id)
     {
-        $title = Title::with(['chapters', 'creator', 'approver', 'scope', 'assignedMarketing', 'orderDetails.order.user', 'orderDetails.titleProgress', 'journalOptions', 'logs.changedBy'])->findOrFail($id);
+        $title = Title::with(['chapters', 'creator', 'approver', 'scope', 'assignedMarketing', 'orderDetails.order.user', 'orderDetails.titleProgress', 'journalOptions.journal', 'logs.changedBy'])->findOrFail($id);
         abort_if(! $this->canManage() && ! $title->isApproved(), 403);
         // marketing tak boleh membuka judul yang di-assign ke marketing lain
         abort_if(! $this->canManage() && $title->assigned_to && $title->assigned_to !== Auth::id(), 403);
@@ -87,6 +88,7 @@ class TitleController extends Controller
             'canViewInfo' => Auth::user()->hasAnyRole(['superadmin', 'manager', 'admin', 'production']),
             'canEditInfo' => Auth::user()->hasAnyRole(['superadmin', 'manager', 'admin']),
             'canOpenBoard' => Auth::user()->hasAnyRole(['superadmin', 'manager', 'production']),
+            'journals' => Journal::orderBy('nama')->get(),
         ]);
     }
 
@@ -162,10 +164,11 @@ class TitleController extends Controller
             'template_link'                 => 'nullable|string|max:255',
             'apc_info'                      => 'nullable|string|max:255',
             'catatan_publikasi'             => 'nullable|string',
-            'journal_options'               => 'nullable|array',
-            'journal_options.*.nama_jurnal' => 'nullable|string|max:255',
-            'journal_options.*.link'        => 'nullable|string|max:255',
-            'journal_options.*.apc'         => 'nullable|string|max:255',
+            'journal_options'                  => 'nullable|array',
+            'journal_options.*.journal_id'     => 'nullable|integer|exists:tb_journals,id',
+            'journal_options.*.nama_jurnal'    => 'nullable|string|max:255',
+            'journal_options.*.link'           => 'nullable|string|max:255',
+            'journal_options.*.apc'            => 'nullable|string|max:255',
         ]);
 
         $this->service->updateInfo($title, $data, $request->input('journal_options', []), Auth::user());

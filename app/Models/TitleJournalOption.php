@@ -11,10 +11,15 @@ class TitleJournalOption extends Model
 
     protected $table = 'tb_title_journal_options';
 
-    protected $fillable = ['title_id', 'nama_jurnal', 'link', 'apc', 'urutan'];
+    protected $fillable = ['title_id', 'journal_id', 'nama_jurnal', 'link', 'apc', 'urutan'];
 
     public function title()
     {
         return $this->belongsTo(Title::class);
+    }
+
+    public function journal()
+    {
+        return $this->belongsTo(Journal::class);
     }
 }
