@@ -12,6 +12,7 @@ use App\Http\Controllers\Pages\PaymentBookController;
 use App\Http\Controllers\Pages\OrderJournalController;
 use App\Http\Controllers\Pages\TitleProgressController;
 use App\Http\Controllers\Pages\ManuscriptTrackerController;
+use App\Http\Controllers\Pages\ChapterProgressController;
 use App\Http\Controllers\Pages\InvoiceController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Pages\MarketingTargetController;
@@ -105,6 +106,12 @@ Route::middleware('auth')->group(function () {
         Route::post('manuscript/{id}/clear-log', [ManuscriptTrackerController::class, 'clearLog'])
             ->name('manuscript.clearLog')
             ->middleware('role:superadmin');
+        Route::post('manuscript/chapter/{id}/advance', [ChapterProgressController::class, 'advance'])
+            ->name('chapter.advance')->whereNumber('id')
+            ->middleware('role:superadmin|manager|production');
+        Route::post('manuscript/chapter/{id}/assign', [ChapterProgressController::class, 'assign'])
+            ->name('chapter.assign')->whereNumber('id')
+            ->middleware('role:superadmin|manager|production');
     });
 
     Route::prefix('payments')->name('payment.')->middleware('role:marketing|manager|superadmin')->group(function () {
