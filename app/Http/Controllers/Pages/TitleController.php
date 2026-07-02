@@ -27,7 +27,7 @@ class TitleController extends Controller
 
     public function index()
     {
-        $query = Title::with(['creator', 'scope', 'assignedMarketing'])
+        $query = Title::with(['creator', 'scope', 'assignedMarketing', 'orderDetails.titleProgress'])
             ->withCount('orderDetails as orders_count')
             ->withCount(['orderDetails as authors_count' => function ($q) {
                 $q->join('tb_author_orders', 'tb_author_orders.order_detail_id', '=', 'tb_order_details.id');
@@ -69,7 +69,7 @@ class TitleController extends Controller
 
     public function show(int $id)
     {
-        $title = Title::with(['chapters', 'creator', 'approver', 'scope', 'assignedMarketing', 'orderDetails.order.user', 'journalOptions', 'logs.changedBy'])->findOrFail($id);
+        $title = Title::with(['chapters', 'creator', 'approver', 'scope', 'assignedMarketing', 'orderDetails.order.user', 'orderDetails.titleProgress', 'journalOptions', 'logs.changedBy'])->findOrFail($id);
         abort_if(! $this->canManage() && ! $title->isApproved(), 403);
         // marketing tak boleh membuka judul yang di-assign ke marketing lain
         abort_if(! $this->canManage() && $title->assigned_to && $title->assigned_to !== Auth::id(), 403);
@@ -86,6 +86,7 @@ class TitleController extends Controller
             'authorsCount' => $authorsCount,
             'canViewInfo' => Auth::user()->hasAnyRole(['superadmin', 'manager', 'admin', 'production']),
             'canEditInfo' => Auth::user()->hasAnyRole(['superadmin', 'manager', 'admin']),
+            'canOpenBoard' => Auth::user()->hasAnyRole(['superadmin', 'manager', 'production']),
         ]);
     }
 

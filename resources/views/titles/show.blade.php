@@ -19,17 +19,25 @@
     <p class="mb-2"><small class="text-muted">Dibuat oleh {{ $title->creator?->name ?? '—' }}@if($title->approver) · disetujui {{ $title->approver->name }}@endif</small></p>
     <p class="mb-2">Distribusi: <span class="badge bg-light text-dark border">{{ $title->assignedMarketing?->name ?? 'Semua marketing' }}</span></p>
     <p class="mb-2">Order tertaut: <strong>Jml Order</strong> {{ $ordersCount }} · <strong>Jml Author</strong> {{ $authorsCount }}</p>
+    @php $mstat = $title->manuscriptStatus(); @endphp
+    <p class="mb-2">Manuskrip:
+        @if($mstat)<span class="badge {{ in_array($mstat, \App\Models\TitleProgress::FINAL_STAGES, true) ? 'bg-success' : 'bg-info' }}">{{ $title->manuscriptStatusLabel() }}</span>@else<span class="text-muted">Belum ada order</span>@endif
+        @if($canOpenBoard)
+            <a href="{{ route('manuscript.board', ['tipe' => $title->jenis === 'buku' ? 'buku' : 'artikel']) }}" class="btn btn-xs btn-outline-secondary ms-2">Buka Papan Manuskrip</a>
+        @endif
+    </p>
     @if($title->orderDetails->isNotEmpty())
         <h6 class="card-title mt-3">Order Tertaut</h6>
         <div class="table-responsive">
             <table class="table table-sm table-borderless mb-3">
-                <thead><tr><th>Kode Order</th><th>Marketing</th><th>Tanggal</th></tr></thead>
+                <thead><tr><th>Kode Order</th><th>Marketing</th><th>Tanggal</th><th>Manuskrip</th></tr></thead>
                 <tbody>
                     @foreach($title->orderDetails as $od)
                         <tr>
                             <td>{{ $od->order?->code_order ?? '—' }}</td>
                             <td>{{ $od->order?->user?->name ?? '—' }}</td>
                             <td>{{ optional($od->order?->ordered_at)->format('d M Y') ?? '—' }}</td>
+                            <td>{{ \App\Models\Title::stageLabel(optional($od->titleProgress)->status) ?? '—' }}</td>
                         </tr>
                     @endforeach
                 </tbody>
