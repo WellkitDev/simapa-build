@@ -239,6 +239,9 @@ Route::middleware('auth')->group(function () {
         Route::post('titles/{id}/approve', [TitleController::class, 'approve'])->name('title.approve')->whereNumber('id');
         Route::post('titles/{id}/reject', [TitleController::class, 'reject'])->name('title.reject')->whereNumber('id');
     });
+    Route::middleware('role:superadmin|manager|admin')->group(function () {
+        Route::put('titles/{id}/info', [TitleController::class, 'updateInfo'])->name('title.info.update')->whereNumber('id');
+    });
 });
 
 

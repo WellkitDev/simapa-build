@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\TitleService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
 class TitleController extends Controller
 {
@@ -68,7 +69,7 @@ class TitleController extends Controller
 
     public function show(int $id)
     {
-        $title = Title::with(['chapters', 'creator', 'approver', 'scope', 'assignedMarketing', 'orderDetails.order.user'])->findOrFail($id);
+        $title = Title::with(['chapters', 'creator', 'approver', 'scope', 'assignedMarketing', 'orderDetails.order.user', 'journalOptions', 'logs.changedBy'])->findOrFail($id);
         abort_if(! $this->canManage() && ! $title->isApproved(), 403);
         // marketing tak boleh membuka judul yang di-assign ke marketing lain
         abort_if(! $this->canManage() && $title->assigned_to && $title->assigned_to !== Auth::id(), 403);
@@ -77,7 +78,15 @@ class TitleController extends Controller
         $authorsCount = \App\Models\OrderDetail::where('title_id', $title->id)
             ->withCount('authors')->get()->sum('authors_count');
 
-        return view('titles.show', ['title' => $title, 'canManage' => $this->canManage(), 'isApprover' => $this->isApprover(), 'ordersCount' => $ordersCount, 'authorsCount' => $authorsCount]);
+        return view('titles.show', [
+            'title' => $title,
+            'canManage' => $this->canManage(),
+            'isApprover' => $this->isApprover(),
+            'ordersCount' => $ordersCount,
+            'authorsCount' => $authorsCount,
+            'canViewInfo' => Auth::user()->hasAnyRole(['superadmin', 'manager', 'admin', 'production']),
+            'canEditInfo' => Auth::user()->hasAnyRole(['superadmin', 'manager', 'admin']),
+        ]);
     }
 
     public function edit(int $id)
@@ -137,6 +146,30 @@ class TitleController extends Controller
         $this->service->reject(Title::findOrFail($id), Auth::user(), $data['reject_note']);
 
         return back()->with('success', 'Judul ditolak.');
+    }
+
+    public function updateInfo(Request $request, int $id)
+    {
+        abort_unless(Auth::user()->hasAnyRole(['superadmin', 'manager', 'admin']), 403);
+        $title = Title::findOrFail($id);
+
+        $data = $request->validate([
+            'code'                          => ['nullable', 'string', 'max:16', Rule::unique('tb_titles', 'code')->ignore($title->id)],
+            'target_terbit'                 => 'nullable|date',
+            'jurnal_target'                 => 'nullable|string|max:255',
+            'jurnal_link'                   => 'nullable|string|max:255',
+            'template_link'                 => 'nullable|string|max:255',
+            'apc_info'                      => 'nullable|string|max:255',
+            'catatan_publikasi'             => 'nullable|string',
+            'journal_options'               => 'nullable|array',
+            'journal_options.*.nama_jurnal' => 'nullable|string|max:255',
+            'journal_options.*.link'        => 'nullable|string|max:255',
+            'journal_options.*.apc'         => 'nullable|string|max:255',
+        ]);
+
+        $this->service->updateInfo($title, $data, $request->input('journal_options', []), Auth::user());
+
+        return redirect()->route('title.show', $title->id)->with('success', 'Informasi publikasi diperbarui.');
     }
 
     private function validateData(Request $request): array
