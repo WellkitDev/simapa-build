@@ -80,4 +80,16 @@ class JournalPanelLinkTest extends TestCase
 
         $this->assertNull($title->fresh()->target_terbit);
     }
+
+    /** @test */
+    public function detail_links_directory_journal_option(): void
+    {
+        $mgr = $this->user('manager');
+        $journal = Journal::create(['nama' => 'Jurnal Tautan', 'created_by' => $mgr->id]);
+        $title = $this->title();
+        $title->journalOptions()->create(['journal_id' => $journal->id, 'nama_jurnal' => 'Jurnal Tautan', 'urutan' => 0]);
+
+        $this->actingAs($mgr)->get(route('title.show', $title->id))
+            ->assertOk()->assertSee(route('journal.show', $journal->id))->assertSee('Jurnal Tautan');
+    }
 }

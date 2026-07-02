@@ -100,7 +100,13 @@
 
     <h6 class="text-muted small mt-2">Opsi Jurnal Lain</h6>
     @forelse($title->journalOptions as $opt)
-        <div class="small mb-1">• {{ $opt->nama_jurnal }}@if($opt->link) · <a href="{{ $opt->link }}" target="_blank" rel="noopener">link</a>@endif @if($opt->apc)· APC: {{ $opt->apc }}@endif</div>
+        <div class="small mb-1">•
+            @if($opt->journal_id && $opt->journal)
+                <a href="{{ route('journal.show', $opt->journal_id) }}">{{ $opt->nama_jurnal }}</a> <span class="badge bg-light text-dark border" style="font-size:9px">direktori</span>
+            @else
+                {{ $opt->nama_jurnal }}
+            @endif
+            @if($opt->link) · <a href="{{ $opt->link }}" target="_blank" rel="noopener">link</a>@endif @if($opt->apc)· APC: {{ $opt->apc }}@endif</div>
     @empty
         <div class="small text-muted mb-1">Belum ada opsi jurnal.</div>
     @endforelse
@@ -147,14 +153,47 @@
             <label class="form-label">Opsi Jurnal Lain</label>
             <div id="joList">
                 @foreach($title->journalOptions as $i => $opt)
-                    <div class="row g-1 mb-1" data-jo-row>
-                        <div class="col-md-5"><input type="text" name="journal_options[{{ $i }}][nama_jurnal]" class="form-control form-control-sm" value="{{ $opt->nama_jurnal }}" placeholder="Nama jurnal"></div>
-                        <div class="col-md-4"><input type="text" name="journal_options[{{ $i }}][link]" class="form-control form-control-sm" value="{{ $opt->link }}" placeholder="Link"></div>
-                        <div class="col-md-2"><input type="text" name="journal_options[{{ $i }}][apc]" class="form-control form-control-sm" value="{{ $opt->apc }}" placeholder="APC"></div>
-                        <div class="col-md-1"><button type="button" class="btn btn-sm btn-outline-danger w-100" data-jo-remove>×</button></div>
+                    <div class="border rounded p-2 mb-1" data-jo-row>
+                        <div class="row g-1">
+                            <div class="col-md-11">
+                                <select name="journal_options[{{ $i }}][journal_id]" class="form-select form-select-sm select2-journal">
+                                    <option value="">— pilih dari direktori (opsional) —</option>
+                                    @foreach($journals as $j)
+                                        <option value="{{ $j->id }}" {{ $opt->journal_id == $j->id ? 'selected' : '' }}>{{ $j->nama }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-1"><button type="button" class="btn btn-sm btn-outline-danger w-100" data-jo-remove>×</button></div>
+                        </div>
+                        <div class="row g-1 mt-1">
+                            <div class="col-md-5"><input type="text" name="journal_options[{{ $i }}][nama_jurnal]" class="form-control form-control-sm" value="{{ $opt->nama_jurnal }}" placeholder="Nama jurnal (manual)"></div>
+                            <div class="col-md-4"><input type="text" name="journal_options[{{ $i }}][link]" class="form-control form-control-sm" value="{{ $opt->link }}" placeholder="Link"></div>
+                            <div class="col-md-3"><input type="text" name="journal_options[{{ $i }}][apc]" class="form-control form-control-sm" value="{{ $opt->apc }}" placeholder="APC"></div>
+                        </div>
                     </div>
                 @endforeach
             </div>
+            <template id="joRowTpl">
+                <div class="border rounded p-2 mb-1" data-jo-row>
+                    <div class="row g-1">
+                        <div class="col-md-11">
+                            <select name="journal_options[__IDX__][journal_id]" class="form-select form-select-sm select2-journal">
+                                <option value="">— pilih dari direktori (opsional) —</option>
+                                @foreach($journals as $j)
+                                    <option value="{{ $j->id }}">{{ $j->nama }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-1"><button type="button" class="btn btn-sm btn-outline-danger w-100" data-jo-remove>×</button></div>
+                    </div>
+                    <div class="row g-1 mt-1">
+                        <div class="col-md-5"><input type="text" name="journal_options[__IDX__][nama_jurnal]" class="form-control form-control-sm" placeholder="Nama jurnal (manual)"></div>
+                        <div class="col-md-4"><input type="text" name="journal_options[__IDX__][link]" class="form-control form-control-sm" placeholder="Link"></div>
+                        <div class="col-md-3"><input type="text" name="journal_options[__IDX__][apc]" class="form-control form-control-sm" placeholder="APC"></div>
+                    </div>
+                </div>
+            </template>
+            <small class="text-muted d-block mb-2">Pilih jurnal dari direktori (nama/link/APC otomatis), atau isi manual bila belum terdaftar.</small>
             <button type="button" class="btn btn-sm btn-outline-primary mb-3" id="joAdd">+ Opsi Jurnal</button>
 
             <div><button type="submit" class="btn btn-sm btn-primary">Simpan Informasi</button></div>
@@ -186,16 +225,27 @@ $(function () {
     if (window.flatpickr) { flatpickr('.flatpickr-date', { dateFormat: 'Y-m-d', allowInput: true }); }
     var list = document.getElementById('joList');
     var addBtn = document.getElementById('joAdd');
+    var tpl = document.getElementById('joRowTpl');
     var idx = list ? list.querySelectorAll('[data-jo-row]').length : 0;
-    if (addBtn) addBtn.addEventListener('click', function () {
-        var row = document.createElement('div');
-        row.className = 'row g-1 mb-1';
-        row.setAttribute('data-jo-row', '');
-        row.innerHTML = '<div class="col-md-5"><input type="text" name="journal_options[' + idx + '][nama_jurnal]" class="form-control form-control-sm" placeholder="Nama jurnal"></div>'
-            + '<div class="col-md-4"><input type="text" name="journal_options[' + idx + '][link]" class="form-control form-control-sm" placeholder="Link"></div>'
-            + '<div class="col-md-2"><input type="text" name="journal_options[' + idx + '][apc]" class="form-control form-control-sm" placeholder="APC"></div>'
-            + '<div class="col-md-1"><button type="button" class="btn btn-sm btn-outline-danger w-100" data-jo-remove>×</button></div>';
-        list.appendChild(row); idx++;
+
+    function initJournalSelect(scope) {
+        if (!window.jQuery || !jQuery.fn.select2) return;
+        jQuery(scope).find('.select2-journal').each(function () {
+            if (!jQuery(this).hasClass('select2-hidden-accessible')) {
+                jQuery(this).select2({ width: '100%', placeholder: 'Cari jurnal…', allowClear: true });
+            }
+        });
+    }
+    if (list) initJournalSelect(list);
+
+    if (addBtn && tpl) addBtn.addEventListener('click', function () {
+        var html = tpl.innerHTML.replace(/__IDX__/g, idx);
+        var wrap = document.createElement('div');
+        wrap.innerHTML = html.trim();
+        var row = wrap.firstElementChild;
+        list.appendChild(row);
+        initJournalSelect(row);
+        idx++;
     });
     if (list) list.addEventListener('click', function (e) {
         var b = e.target.closest('[data-jo-remove]');
