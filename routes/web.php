@@ -20,6 +20,7 @@ use App\Http\Controllers\Pages\AnnouncementController;
 use App\Http\Controllers\Pages\TaskController;
 use App\Http\Controllers\Pages\DailyReportController;
 use App\Http\Controllers\Pages\TitleController;
+use App\Http\Controllers\Pages\JournalController;
 
 /*
 |--------------------------------------------------------------------------
@@ -248,6 +249,17 @@ Route::middleware('auth')->group(function () {
     });
     Route::middleware('role:superadmin|manager|admin')->group(function () {
         Route::put('titles/{id}/info', [TitleController::class, 'updateInfo'])->name('title.info.update')->whereNumber('id');
+    });
+
+    // Direktori Jurnal — index & show accessible to all authenticated roles
+    Route::get('journals', [JournalController::class, 'index'])->name('journal.index');
+    Route::get('journals/{id}', [JournalController::class, 'show'])->name('journal.show')->whereNumber('id');
+    Route::middleware('role:superadmin|manager|admin')->group(function () {
+        Route::get('journals/create', [JournalController::class, 'create'])->name('journal.create');
+        Route::post('journals', [JournalController::class, 'store'])->name('journal.store');
+        Route::get('journals/{id}/edit', [JournalController::class, 'edit'])->name('journal.edit')->whereNumber('id');
+        Route::put('journals/{id}', [JournalController::class, 'update'])->name('journal.update')->whereNumber('id');
+        Route::delete('journals/{id}', [JournalController::class, 'destroy'])->name('journal.destroy')->whereNumber('id');
     });
 });
 
