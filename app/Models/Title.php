@@ -41,6 +41,11 @@ class Title extends Model
         return $this->belongsTo(User::class, 'assigned_to');
     }
 
+    public function orderDetails()
+    {
+        return $this->hasMany(OrderDetail::class, 'title_id');
+    }
+
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');

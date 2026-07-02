@@ -11,7 +11,7 @@ class OrderDetail extends Model
     protected $table = 'tb_order_details';
 
     protected $fillable = [
-        'order_id', 'type', 'title', 'slug',
+        'order_id', 'type', 'title_id', 'title', 'slug',
         'chapters', 'indexation',
         'naskah_type', 'publication_type',
         'cost_amount', 'group_key',
@@ -31,6 +31,11 @@ class OrderDetail extends Model
     public function order()
     {
         return $this->belongsTo(Order::class);
+    }
+
+    public function titleRef()
+    {
+        return $this->belongsTo(Title::class, 'title_id');
     }
 
     public function scopes()
