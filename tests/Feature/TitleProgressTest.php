@@ -201,9 +201,13 @@ class TitleProgressTest extends TestCase
     /** @test */
     public function new_book_order_of_existing_title_inherits_group_status(): void
     {
-        // Sudah ada order judul sama yang sedang di stage 'layout'.
+        // Sudah ada order judul sama yang sedang di stage 'layout' (tertaut ke Title —
+        // order-nyata pasca-2a selalu punya title_id, dan grup manuskrip berbasis title_id).
+        $warisan = \App\Models\Title::create([
+            'title' => 'Buku Warisan', 'jenis' => 'buku', 'tipe_naskah' => 'mandiri', 'status' => 'disetujui',
+        ]);
         $existing = \App\Models\OrderDetail::factory()->create([
-            'type' => 'bk_mandiri', 'title' => 'Buku Warisan',
+            'type' => 'bk_mandiri', 'title' => 'Buku Warisan', 'title_id' => $warisan->id,
         ]);
         TitleProgress::create([
             'order_detail_id' => $existing->id,
