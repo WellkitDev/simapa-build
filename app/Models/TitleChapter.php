@@ -17,4 +17,9 @@ class TitleChapter extends Model
     {
         return $this->belongsTo(Title::class);
     }
+
+    public function progress()
+    {
+        return $this->hasOne(ChapterProgress::class, 'title_chapter_id');
+    }
 }
