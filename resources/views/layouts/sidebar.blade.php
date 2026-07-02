@@ -91,6 +91,15 @@
                 </li>
             @endrole
 
+            @role(['superadmin', 'manager', 'admin', 'production', 'marketing'])
+                <li class="nav-item {{ active_class(['journals', 'journals/*']) }}">
+                    <a href="{{ route('journal.index') }}" class="nav-link">
+                        <i class="link-icon" data-feather="book-open"></i>
+                        <span class="link-title">Direktori Jurnal</span>
+                    </a>
+                </li>
+            @endrole
+
             @role(['superadmin', 'manager', 'production'])
                 <li class="nav-item nav-category">Produksi</li>
                 <li class="nav-item {{ active_class(['management/manuscript']) }}">
