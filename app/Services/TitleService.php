@@ -119,9 +119,12 @@ class TitleService
             }
         }
 
-        // Jika nama (bukan id), cek apakah judul dengan nama yang sama sudah ada
+        // Jika nama (bukan id), pakai ulang judul dengan nama + jenis sama (hindari duplikat &
+        // salah-taut lintas jenis: order jurnal tak boleh menaut judul buku bernama sama).
         if (! is_numeric($value)) {
-            $existing = Title::where('title', (string) $value)->first();
+            $existing = Title::where('title', (string) $value)
+                ->where('jenis', $ctx['jenis'])
+                ->first();
             if ($existing) {
                 return $existing;
             }

@@ -198,4 +198,20 @@ class TitleServiceTest extends TestCase
         $this->assertSame('artikel', $resolved->jenis);
         $this->assertSame('mandiri', $resolved->tipe_naskah);
     }
+
+    /** @test */
+    public function resolve_for_order_reuses_same_name_only_within_same_jenis(): void
+    {
+        $mkt = $this->user('marketing');
+
+        $book = $this->svc->resolveForOrder('Judul Ganda', ['jenis' => 'buku', 'order_type' => 'bk_mandiri'], $mkt);
+        // nama sama, jenis sama → pakai ulang
+        $bookAgain = $this->svc->resolveForOrder('Judul Ganda', ['jenis' => 'buku', 'order_type' => 'bk_kolab'], $mkt);
+        $this->assertSame($book->id, $bookAgain->id);
+
+        // nama sama, jenis beda (artikel) → judul baru, bukan menaut ke judul buku
+        $article = $this->svc->resolveForOrder('Judul Ganda', ['jenis' => 'artikel', 'order_type' => 'at_mandiri'], $mkt);
+        $this->assertNotSame($book->id, $article->id);
+        $this->assertSame('artikel', $article->jenis);
+    }
 }
