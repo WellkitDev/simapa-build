@@ -21,7 +21,17 @@ class ChapterManuscriptServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        foreach (['marketing', 'manager', 'superadmin', 'production', 'admin'] as $r) {
+            \Spatie\Permission\Models\Role::create(['name' => $r, 'guard_name' => 'web']);
+        }
         $this->svc = new ChapterManuscriptService();
+    }
+
+    private function user(string $role): User
+    {
+        $u = User::factory()->create();
+        $u->assignRole($role);
+        return $u;
     }
 
     private function bookWithOrder(int $chapters = 3, string $progressStatus = 'menunggu_proses'): Title
@@ -99,5 +109,72 @@ class ChapterManuscriptServiceTest extends TestCase
 
         $this->assertSame(2, $book->chapters()->count());
         $this->assertSame(2, ChapterProgress::count());
+    }
+
+    /** @test */
+    public function production_advances_a_production_stage_chapter_and_rolls_up(): void
+    {
+        $prod = $this->user('production');
+        $book = $this->bookWithOrder(2, 'editing'); // progress buku 'editing'
+        $this->svc->ensureChapters($book);          // 2 bab @ editing
+
+        $chapters = $book->chapters()->with('progress')->orderBy('urutan')->get();
+        // Majukan bab pertama editing -> layout (keduanya handler production)
+        $this->svc->changeStatus($chapters[0]->progress, 'layout', $prod);
+
+        $this->assertSame('layout', $chapters[0]->progress->fresh()->status);
+        // roll-up buku = bottleneck = 'editing' (bab kedua masih editing)
+        $bookProgress = $book->orderDetails()->first()->titleProgress;
+        $this->assertSame('editing', $bookProgress->fresh()->status);
+    }
+
+    /** @test */
+    public function production_cannot_move_a_superadmin_stage_chapter(): void
+    {
+        $prod = $this->user('production');
+        $book = $this->bookWithOrder(1, 'cetak'); // handler superadmin
+        $this->svc->ensureChapters($book);
+        $cp = $book->chapters()->first()->progress;
+
+        $this->expectException(\Illuminate\Auth\Access\AuthorizationException::class);
+        $this->svc->changeStatus($cp, 'terbit', $prod);
+    }
+
+    /** @test */
+    public function correction_requires_note(): void
+    {
+        $mgr = $this->user('manager');
+        $book = $this->bookWithOrder(1, 'editing');
+        $this->svc->ensureChapters($book);
+        $cp = $book->chapters()->first()->progress;
+
+        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        $this->svc->changeStatus($cp, 'menunggu_proses', $mgr); // lompat mundur tanpa note
+    }
+
+    /** @test */
+    public function assign_editor_sets_chapter_editor(): void
+    {
+        $mgr = $this->user('manager');
+        $editor = $this->user('production');
+        $book = $this->bookWithOrder(1, 'editing');
+        $this->svc->ensureChapters($book);
+        $cp = $book->chapters()->first()->progress;
+
+        $this->svc->assignEditor($cp, $editor->id, $mgr);
+        $this->assertSame($editor->id, $cp->fresh()->assigned_user_id);
+    }
+
+    /** @test */
+    public function assign_editor_rejects_non_editor_role(): void
+    {
+        $mgr = $this->user('manager');
+        $marketing = $this->user('marketing');
+        $book = $this->bookWithOrder(1, 'editing');
+        $this->svc->ensureChapters($book);
+        $cp = $book->chapters()->first()->progress;
+
+        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        $this->svc->assignEditor($cp, $marketing->id, $mgr);
     }
 }
