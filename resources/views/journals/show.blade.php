@@ -106,3 +106,29 @@
     @endforeach
 @endif
 @endsection
+
+@if($canManage)
+@push('plugin-styles')
+<link href="{{ asset('assets/plugins/select2/select2.min.css') }}" rel="stylesheet" />
+@endpush
+@push('plugin-scripts')
+<script src="{{ asset('assets/plugins/select2/select2.min.js') }}"></script>
+@endpush
+@push('custom-scripts')
+<script>
+$(function () {
+    if (!window.jQuery || !jQuery.fn.select2) return;
+    // Init select2 judul artikel saat modal dibuka (dropdownParent = modal agar kotak cari fokus).
+    document.querySelectorAll('.modal').forEach(function (modal) {
+        modal.addEventListener('shown.bs.modal', function () {
+            jQuery(modal).find('.select2-article').each(function () {
+                if (!jQuery(this).hasClass('select2-hidden-accessible')) {
+                    jQuery(this).select2({ width: '100%', dropdownParent: jQuery(modal), placeholder: 'Cari judul artikel…' });
+                }
+            });
+        });
+    });
+});
+</script>
+@endpush
+@endif

@@ -2,7 +2,7 @@
 <div class="row">
     <div class="col-md-8 mb-2">
         <label class="form-label">Judul Artikel</label>
-        <select name="title_id" class="form-select">
+        <select name="title_id" class="form-select select2-article">
             <option value="">— tak tertaut —</option>
             @foreach($articles as $a)
                 <option value="{{ $a->id }}" {{ optional($s)->title_id == $a->id ? 'selected' : '' }}>{{ $a->title }}</option>
