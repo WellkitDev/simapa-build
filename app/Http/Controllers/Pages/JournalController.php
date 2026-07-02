@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Pages;
 use App\Http\Controllers\Controller;
 use App\Models\Journal;
 use App\Models\Scope;
+use App\Models\Title;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -43,8 +44,9 @@ class JournalController extends Controller
     public function show(int $id)
     {
         return view('journals.show', [
-            'journal' => Journal::with(['scope', 'creator'])->findOrFail($id),
+            'journal' => Journal::with(['scope', 'creator', 'submissions.title'])->findOrFail($id),
             'canManage' => $this->canManage(),
+            'articles' => Title::where('jenis', 'artikel')->where('status', 'disetujui')->orderBy('title')->get(),
         ]);
     }
 

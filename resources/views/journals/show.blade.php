@@ -26,7 +26,83 @@
     </dl>
 
     <hr class="my-3">
-    <h6 class="card-title">Artikel di Jurnal Ini</h6>
-    <p class="text-muted small mb-0">Daftar artikel yang di-submit/terbit ke jurnal ini akan hadir di fase berikutnya (tracking submit artikel).</p>
+    @php $sb = ['submitted' => 'bg-secondary', 'loa' => 'bg-info', 'published' => 'bg-success']; @endphp
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="card-title mb-0">Artikel di Jurnal Ini</h6>
+        @if($canManage)
+            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#subCreate">+ Tambah Artikel Submit</button>
+        @endif
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm table-hover">
+            <thead><tr><th>Judul</th><th>Submit</th><th>Terbit</th><th>Status</th>@if($canManage)<th>Aksi</th>@endif</tr></thead>
+            <tbody>
+                @forelse($journal->submissions as $s)
+                    <tr>
+                        <td>{{ $s->title?->title ?? '—' }}</td>
+                        <td>{{ optional($s->tgl_submit)->format('d M Y') ?? '—' }}</td>
+                        <td>{{ optional($s->tgl_terbit)->format('d M Y') ?? '—' }}</td>
+                        <td><span class="badge {{ $sb[$s->status] ?? 'bg-secondary' }}">{{ $s->statusLabel() }}</span></td>
+                        @if($canManage)
+                            <td>
+                                <button type="button" class="btn btn-xs btn-outline-primary" data-bs-toggle="modal" data-bs-target="#subDetail{{ $s->id }}">Detail</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#subEdit{{ $s->id }}">Edit</button>
+                                <form action="{{ route('journal.submission.destroy', $s->id) }}" method="POST" class="d-inline m-0" data-confirm="Hapus submission ini?">@csrf @method('DELETE')<button class="btn btn-xs btn-outline-danger">Hapus</button></form>
+                            </td>
+                        @endif
+                    </tr>
+                @empty
+                    <tr><td colspan="{{ $canManage ? 5 : 4 }}" class="text-muted text-center py-3">Belum ada submission.</td></tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
 </div></div></div></div>
+
+@if($canManage)
+    {{-- Modal Create --}}
+    <div class="modal fade" id="subCreate" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-lg"><div class="modal-content">
+        <form method="POST" action="{{ route('journal.submission.store', $journal->id) }}" enctype="multipart/form-data">
+            @csrf
+            <div class="modal-header"><h6 class="modal-title">Tambah Artikel Submit</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                @include('journals.partials.submission-fields', ['s' => null])
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-sm btn-primary">Simpan</button></div>
+        </form>
+    </div></div></div>
+
+    {{-- Modal Edit + Detail per baris --}}
+    @foreach($journal->submissions as $s)
+        <div class="modal fade" id="subEdit{{ $s->id }}" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-lg"><div class="modal-content">
+            <form method="POST" action="{{ route('journal.submission.update', $s->id) }}" enctype="multipart/form-data">
+                @csrf @method('PUT')
+                <div class="modal-header"><h6 class="modal-title">Edit Submission</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    @include('journals.partials.submission-fields', ['s' => $s])
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-sm btn-primary">Simpan</button></div>
+            </form>
+        </div></div></div>
+
+        <div class="modal fade" id="subDetail{{ $s->id }}" tabindex="-1" aria-hidden="true"><div class="modal-dialog"><div class="modal-content">
+            <div class="modal-header"><h6 class="modal-title">Detail Submission</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body small">
+                <dl class="row mb-0">
+                    <dt class="col-4 text-muted">Judul</dt><dd class="col-8">{{ $s->title?->title ?? '—' }}</dd>
+                    <dt class="col-4 text-muted">Submit</dt><dd class="col-8">{{ optional($s->tgl_submit)->format('d M Y') ?? '—' }}</dd>
+                    <dt class="col-4 text-muted">Terbit</dt><dd class="col-8">{{ optional($s->tgl_terbit)->format('d M Y') ?? '—' }}</dd>
+                    <dt class="col-4 text-muted">Status</dt><dd class="col-8">{{ $s->statusLabel() }}</dd>
+                    <dt class="col-4 text-muted">OJS Akun</dt><dd class="col-8">{{ $s->ojs_akun ?: '—' }}</dd>
+                    <dt class="col-4 text-muted">OJS Password</dt><dd class="col-8">{{ $s->ojs_password ?: '—' }}</dd>
+                    <dt class="col-4 text-muted">LoA</dt><dd class="col-8">@if($s->loa_url)<a href="{{ $s->loa_url }}" target="_blank" rel="noopener">buka</a>@else—@endif</dd>
+                    <dt class="col-4 text-muted">Bukti Bayar</dt><dd class="col-8">@if($s->bukti_bayar_url)<a href="{{ $s->bukti_bayar_url }}" target="_blank" rel="noopener">buka</a>@else—@endif</dd>
+                    <dt class="col-4 text-muted">Link Publish</dt><dd class="col-8">@if($s->link_publish)<a href="{{ $s->link_publish }}" target="_blank" rel="noopener">{{ $s->link_publish }}</a>@else—@endif</dd>
+                    <dt class="col-4 text-muted">Catatan</dt><dd class="col-8">{{ $s->catatan ?: '—' }}</dd>
+                </dl>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">Tutup</button></div>
+        </div></div></div>
+    @endforeach
+@endif
 @endsection
