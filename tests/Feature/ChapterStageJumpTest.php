@@ -86,4 +86,17 @@ class ChapterStageJumpTest extends TestCase
 
         $this->assertSame('cetak', $cp->fresh()->status);
     }
+
+    /** @test */
+    public function board_renders_ubah_control_for_book_chapter(): void
+    {
+        $owner = $this->user('production');
+        $book = Title::create(['title' => 'Buku Render', 'jenis' => 'buku', 'tipe_naskah' => 'mandiri', 'status' => 'disetujui']);
+        $order = Order::create(['code_order' => 'ORD-RD-' . uniqid(), 'user_id' => $owner->id, 'status' => 'pending', 'ordered_at' => now()]);
+        $detail = OrderDetail::create(['order_id' => $order->id, 'title_id' => $book->id, 'type' => 'bk_mandiri', 'title' => 'Buku Render', 'slug' => 'buku-render', 'chapters' => 2, 'cost_amount' => 0, 'naskah_type' => 'mandiri', 'publication_type' => 'regular']);
+        app(\App\Services\TitleProgressService::class)->createForDetail($detail, $owner->id);
+
+        $this->actingAs($this->user('manager'))->get(route('manuscript.board', ['tipe' => 'buku']))
+            ->assertOk()->assertSee('data-chapter-edit', false);
+    }
 }

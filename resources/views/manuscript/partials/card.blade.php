@@ -156,6 +156,11 @@
                                 @if($cnext)
                                     <button type="button" class="btn btn-xs btn-outline-primary py-0" data-chapter-advance data-cp="{{ $cp->id }}" data-next="{{ $cnext }}" style="font-size:10px">Maju → {{ \App\Models\Title::stageLabel($cnext) }}</button>
                                 @endif
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0"
+                                        data-chapter-edit data-cp="{{ $cp->id }}"
+                                        data-current="{{ $cstatus }}" data-next="{{ $cnext ?? '' }}"
+                                        data-judul="{{ $ch->urutan }}. {{ $ch->judul }}"
+                                        style="font-size:10px">Ubah…</button>
                                 <select class="form-select form-select-sm py-0" data-chapter-assign data-cp="{{ $cp->id }}" style="font-size:10px; max-width:130px">
                                     <option value="">Editor…</option>
                                     @foreach($editors as $ed)
