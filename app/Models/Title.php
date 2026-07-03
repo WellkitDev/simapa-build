@@ -101,6 +101,27 @@ class Title extends Model
         return self::stageLabel($this->manuscriptStatus());
     }
 
+    public function bookIsbn()
+    {
+        return $this->hasOne(BookIsbn::class);
+    }
+
+    /** Buku yang manuskripnya sudah mencapai tahap 'isbn' (bottleneck ≥ index 'isbn'). */
+    public function isbnEligible(): bool
+    {
+        if ($this->jenis !== 'buku') {
+            return false;
+        }
+        $status = $this->manuscriptStatus();
+        if ($status === null) {
+            return false;
+        }
+        $stages  = TitleProgress::BOOK_STAGES;
+        $reached = array_search($status, $stages, true);
+        $isbnIdx = array_search('isbn', $stages, true);
+        return $reached !== false && $reached >= $isbnIdx;
+    }
+
     /** Label rapi untuk satu status tahap manuskrip. */
     public static function stageLabel(?string $status): ?string
     {
