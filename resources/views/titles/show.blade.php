@@ -371,7 +371,7 @@
         <hr class="my-3">
         <button type="submit" class="btn btn-sm btn-primary">Simpan Kelengkapan</button>
     </form>
-        <form method="POST" action="{{ route('title.doc.submit', $title->id) }}" class="d-inline ms-1">@csrf
+        <form method="POST" action="{{ route('title.doc.submit', $title->id) }}" class="d-inline ms-2">@csrf
             <button type="submit" class="btn btn-sm btn-success">Submit &amp; Ajukan</button>
         </form>
     @endif
