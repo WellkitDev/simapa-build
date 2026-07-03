@@ -97,4 +97,16 @@ class DocChecklistTest extends TestCase
                 ->assertForbidden();
         }
     }
+
+    /** @test */
+    public function card_renders_grouped_items_with_progress(): void
+    {
+        $book = $this->book();
+        $this->actingAs($this->user('admin'))->get(route('title.show', $book->id))
+            ->assertOk()
+            ->assertSee('Cek Kelengkapan Data')
+            ->assertSee('Dokumen Penerbit (ISBN)')
+            ->assertSee('Dokumen HKI (Hak Cipta)')
+            ->assertSee('Surat Pernyataan Keaslian Karya');
+    }
 }

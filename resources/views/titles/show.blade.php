@@ -294,6 +294,110 @@
     @endif
 </div></div></div></div>
 @endif
+
+@if($title->jenis === 'buku' && $canViewInfo)
+<div class="row"><div class="col-md-8 col-12 grid-margin stretch-card"><div class="card"><div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="card-title mb-0">Cek Kelengkapan Data</h6>
+        <span class="badge {{ optional($docChecklist)->status === 'diajukan' ? 'bg-success' : 'bg-secondary' }}">
+            {{ optional($docChecklist)->status === 'diajukan' ? 'Diajukan ' . optional($docChecklist->submitted_at)->format('d M Y') : 'Draft' }}
+        </span>
+    </div>
+
+    @if($canMarkDocs)
+    <form method="POST" action="{{ route('title.doc.save', $title->id) }}" enctype="multipart/form-data">
+        @csrf @method('PUT')
+    @endif
+
+    @foreach(\App\Models\DocRequirement::CATEGORIES as $catKey => $catLabel)
+        @php $items = $docRequirements[$catKey] ?? collect(); $prog = $docProgress[$catKey]; @endphp
+        <div class="d-flex justify-content-between align-items-center mt-3 mb-1">
+            <span class="text-muted small fw-semibold">{{ $catLabel }}</span>
+            <span class="badge bg-light text-dark border">{{ $prog['done'] }}/{{ $prog['total'] }} ada</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+                <tbody>
+                @forelse($items as $i => $req)
+                    @php $mark = $docMarks[$req->id] ?? null; $st = optional($mark)->status ?? 'belum'; @endphp
+                    <tr>
+                        <td style="width:28px" class="text-muted">{{ $i + 1 }}.</td>
+                        <td>
+                            <div class="fw-semibold" style="font-size:13px">{{ $req->label }}</div>
+                            @if($req->description)<div class="text-muted" style="font-size:11px">{{ $req->description }}</div>@endif
+                            @if($canMarkDocs)
+                                <input type="text" name="marks[{{ $req->id }}][catatan]" value="{{ optional($mark)->catatan }}" class="form-control form-control-sm mt-1" placeholder="Catatan (opsional)">
+                            @elseif(optional($mark)->catatan)
+                                <div class="text-muted" style="font-size:11px">Catatan: {{ $mark->catatan }}</div>
+                            @endif
+                        </td>
+                        <td style="width:130px">
+                            @if($canMarkDocs)
+                                <select name="marks[{{ $req->id }}][status]" class="form-select form-select-sm">
+                                    @foreach(\App\Models\TitleDocMark::STATUSES as $sv => $sl)
+                                        <option value="{{ $sv }}" {{ $st === $sv ? 'selected' : '' }}>{{ $sl }}</option>
+                                    @endforeach
+                                </select>
+                            @else
+                                <span class="badge {{ $st === 'ada' ? 'bg-success' : ($st === 'tidak_perlu' ? 'bg-light text-dark border' : 'bg-secondary') }}">{{ \App\Models\TitleDocMark::STATUSES[$st] ?? $st }}</span>
+                            @endif
+                        </td>
+                        <td style="width:150px">
+                            @if(optional($mark)->file_url)
+                                <a href="{{ $mark->file_url }}" target="_blank" rel="noopener" class="d-block text-truncate" style="max-width:140px; font-size:11px">📎 {{ $mark->file_name ?: 'file' }}</a>
+                            @endif
+                            @if($canMarkDocs)
+                                <input type="file" name="marks[{{ $req->id }}][file]" class="form-control form-control-sm mt-1">
+                            @endif
+                        </td>
+                    </tr>
+                @empty
+                    <tr><td colspan="4" class="text-muted small">Belum ada item.</td></tr>
+                @endforelse
+                </tbody>
+            </table>
+        </div>
+    @endforeach
+
+    @if($canMarkDocs)
+        <button type="submit" class="btn btn-sm btn-primary mt-2">Simpan Kelengkapan</button>
+    </form>
+        <form method="POST" action="{{ route('title.doc.submit', $title->id) }}" class="mt-2">@csrf
+            <button type="submit" class="btn btn-sm btn-success">Submit</button>
+        </form>
+    @endif
+
+    @if($canManageDocReq)
+        <div class="mt-3">
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#docTplForm">Kelola Template Dokumen</button>
+            <div class="collapse mt-2" id="docTplForm">
+                <p class="text-muted small mb-2">Item berlaku untuk semua buku.</p>
+                @foreach(\App\Models\DocRequirement::CATEGORIES as $catKey => $catLabel)
+                    <div class="text-muted small fw-semibold mt-2">{{ $catLabel }}</div>
+                    @foreach(($docRequirements[$catKey] ?? collect()) as $req)
+                        <div class="d-flex gap-1 mb-1 align-items-center">
+                            <form method="POST" action="{{ route('doc-req.update', $req->id) }}" class="d-flex gap-1 flex-grow-1 m-0">
+                                @csrf @method('PUT')
+                                <input type="hidden" name="category" value="{{ $req->category }}">
+                                <input name="label" value="{{ $req->label }}" class="form-control form-control-sm">
+                                <input name="position" value="{{ $req->position }}" class="form-control form-control-sm" style="max-width:64px" title="Urutan">
+                                <button class="btn btn-sm btn-outline-primary">Simpan</button>
+                            </form>
+                            <form method="POST" action="{{ route('doc-req.destroy', $req->id) }}" class="m-0" data-confirm="Hapus item ini?">@csrf @method('DELETE')<button class="btn btn-sm btn-outline-danger">×</button></form>
+                        </div>
+                    @endforeach
+                    <form method="POST" action="{{ route('doc-req.store') }}" class="d-flex gap-1 mt-1">
+                        @csrf
+                        <input type="hidden" name="category" value="{{ $catKey }}">
+                        <input name="label" placeholder="Item baru untuk {{ $catLabel }}…" class="form-control form-control-sm">
+                        <button class="btn btn-sm btn-outline-success">+ Tambah</button>
+                    </form>
+                @endforeach
+            </div>
+        </div>
+    @endif
+</div></div></div></div>
+@endif
 @endsection
 
 @push('plugin-styles')

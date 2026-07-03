@@ -71,7 +71,7 @@ class TitleController extends Controller
 
     public function show(int $id)
     {
-        $title = Title::with(['chapters.authors', 'creator', 'approver', 'scope', 'assignedMarketing', 'orderDetails.order.user', 'orderDetails.titleProgress', 'orderDetails.authors', 'journalOptions.journal', 'logs.changedBy', 'bookIsbn'])->findOrFail($id);
+        $title = Title::with(['chapters.authors', 'creator', 'approver', 'scope', 'assignedMarketing', 'orderDetails.order.user', 'orderDetails.titleProgress', 'orderDetails.authors', 'journalOptions.journal', 'logs.changedBy', 'bookIsbn', 'docMarks', 'docChecklist'])->findOrFail($id);
         abort_if(! $this->canManage() && ! $title->isApproved(), 403);
         // marketing tak boleh membuka judul yang di-assign ke marketing lain
         abort_if(! $this->canManage() && $title->assigned_to && $title->assigned_to !== Auth::id(), 403);
@@ -102,6 +102,15 @@ class TitleController extends Controller
             'allAuthors' => Author::orderBy('name')->get(),
             'orderAuthors' => $orderAuthors,
             'canManageIsbn' => Auth::user()->hasAnyRole(['superadmin', 'manager', 'admin', 'production']),
+            'docRequirements' => \App\Models\DocRequirement::active()->orderBy('position')->get()->groupBy('category'),
+            'docMarks'        => $title->docMarks->keyBy('doc_requirement_id'),
+            'docChecklist'    => $title->docChecklist,
+            'docProgress'     => [
+                'penerbit' => app(\App\Services\DocChecklistService::class)->progress($title, 'penerbit'),
+                'hki'      => app(\App\Services\DocChecklistService::class)->progress($title, 'hki'),
+            ],
+            'canMarkDocs'     => Auth::user()->hasAnyRole(['superadmin', 'admin']),
+            'canManageDocReq' => Auth::user()->hasRole('superadmin'),
         ]);
     }
 
