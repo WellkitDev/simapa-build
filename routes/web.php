@@ -289,6 +289,18 @@ Route::middleware('auth')->group(function () {
         Route::put('titles/{id}/doc-check', [TitleDocCheckController::class, 'save'])->name('title.doc.save')->whereNumber('id');
         Route::post('titles/{id}/doc-check/submit', [TitleDocCheckController::class, 'submit'])->name('title.doc.submit')->whereNumber('id');
     });
+
+    // Arsip Judul selesai
+    Route::get('management/archive', [\App\Http\Controllers\Pages\TitleArchiveController::class, 'index'])->name('archive.index');
+    Route::get('management/archive/{id}', [\App\Http\Controllers\Pages\TitleArchiveController::class, 'show'])->name('archive.show')->whereNumber('id');
+    Route::middleware('role:superadmin|manager|admin|production')->group(function () {
+        Route::put('management/archive/{id}/artifacts', [\App\Http\Controllers\Pages\TitleArchiveController::class, 'saveArtifacts'])->name('archive.artifacts')->whereNumber('id');
+        Route::post('management/archive/{id}/submit', [\App\Http\Controllers\Pages\TitleArchiveController::class, 'submit'])->name('archive.submit')->whereNumber('id');
+    });
+    Route::middleware('role:superadmin|manager')->group(function () {
+        Route::post('management/archive/{id}/approve', [\App\Http\Controllers\Pages\TitleArchiveController::class, 'approve'])->name('archive.approve')->whereNumber('id');
+        Route::post('management/archive/{id}/reject', [\App\Http\Controllers\Pages\TitleArchiveController::class, 'reject'])->name('archive.reject')->whereNumber('id');
+    });
 });
 
 
