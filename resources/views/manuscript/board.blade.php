@@ -199,7 +199,7 @@
             .join('');
 
         Swal.fire({
-            title: 'Ubah tahap: ' + judul,
+            titleText: 'Ubah tahap: ' + judul,
             html:
                 '<select id="swal-stage" class="form-select form-select-sm mb-2">' + options + '</select>' +
                 '<textarea id="swal-note" class="form-control form-control-sm" rows="2" placeholder="Catatan (wajib bila mundur/lompat)"></textarea>',
