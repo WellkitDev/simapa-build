@@ -22,6 +22,7 @@ use App\Http\Controllers\Pages\DailyReportController;
 use App\Http\Controllers\Pages\TitleController;
 use App\Http\Controllers\Pages\JournalController;
 use App\Http\Controllers\Pages\JournalSubmissionController;
+use App\Http\Controllers\Pages\BookIsbnController;
 
 /*
 |--------------------------------------------------------------------------
@@ -265,6 +266,14 @@ Route::middleware('auth')->group(function () {
         Route::post('journals/{journal}/submissions', [JournalSubmissionController::class, 'store'])->name('journal.submission.store')->whereNumber('journal');
         Route::put('journals/submissions/{id}', [JournalSubmissionController::class, 'update'])->name('journal.submission.update')->whereNumber('id');
         Route::delete('journals/submissions/{id}', [JournalSubmissionController::class, 'destroy'])->name('journal.submission.destroy')->whereNumber('id');
+    });
+
+    // Direktori ISBN — index utk semua staf; mutasi utk pengelola (production ikut, pemegang tahap isbn)
+    Route::get('management/isbn', [BookIsbnController::class, 'index'])->name('isbn.index');
+    Route::middleware('role:superadmin|manager|admin|production')->group(function () {
+        Route::post('management/isbn', [BookIsbnController::class, 'store'])->name('isbn.store');
+        Route::put('management/isbn/{id}', [BookIsbnController::class, 'update'])->name('isbn.update')->whereNumber('id');
+        Route::delete('management/isbn/{id}', [BookIsbnController::class, 'destroy'])->name('isbn.destroy')->whereNumber('id');
     });
 });
 
