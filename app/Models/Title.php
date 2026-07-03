@@ -106,6 +106,16 @@ class Title extends Model
         return $this->hasOne(BookIsbn::class);
     }
 
+    public function docMarks()
+    {
+        return $this->hasMany(TitleDocMark::class);
+    }
+
+    public function docChecklist()
+    {
+        return $this->hasOne(TitleDocChecklist::class);
+    }
+
     /** Buku yang manuskripnya sudah mencapai tahap 'isbn' (bottleneck ≥ index 'isbn'). */
     public function isbnEligible(): bool
     {
