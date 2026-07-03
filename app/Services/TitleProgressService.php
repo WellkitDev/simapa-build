@@ -103,8 +103,11 @@ class TitleProgressService
         if ($actor->hasRole('superadmin')) {
             return; // bebas: maju, mundur, lompat
         }
+        if (TitleProgress::isFinal($current)) {
+            throw new AuthorizationException('Naskah sudah final dan terkunci.');
+        }
         if ($actor->hasRole('manager')) {
-            return; // oversight: stage apa pun
+            return; // oversight: stage apa pun (non-final)
         }
         if ($actor->hasRole('production') && TitleProgress::getHandlerForStatus($current) === 'production') {
             return; // hanya kartu yang sedang jadi domain production
@@ -246,7 +249,7 @@ class TitleProgressService
         $canonicalIdx = array_search($canonical, $stages, true);
         $next         = $stages[$canonicalIdx + 1] ?? null;
 
-        if ($next === null) {
+        if ($next === null && $target === $canonical) {
             throw ValidationException::withMessages(['status' => 'Naskah sudah berada di tahap akhir.']);
         }
 

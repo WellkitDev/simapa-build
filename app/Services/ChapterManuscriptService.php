@@ -191,7 +191,13 @@ class ChapterManuscriptService
 
     private function authorize(User $actor, string $current): void
     {
-        if ($actor->hasAnyRole(['superadmin', 'manager'])) {
+        if ($actor->hasRole('superadmin')) {
+            return;
+        }
+        if (TitleProgress::isFinal($current)) {
+            throw new AuthorizationException('Bab sudah final dan terkunci.');
+        }
+        if ($actor->hasRole('manager')) {
             return;
         }
         if ($actor->hasRole('production') && TitleProgress::getHandlerForStatus($current) === 'production') {

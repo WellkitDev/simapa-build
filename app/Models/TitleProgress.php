@@ -55,6 +55,8 @@ class TitleProgress extends Model
 
     const FINAL_STAGES = ['terbit', 'publish'];
 
+    const BOARD_RETENTION_DAYS = 30;
+
     /** Daftar status yang handler-nya production (diturunkan dari STAGE_HANDLER). */
     public static function productionStages(): array
     {
