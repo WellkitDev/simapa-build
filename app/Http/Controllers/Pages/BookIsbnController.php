@@ -28,14 +28,19 @@ class BookIsbnController extends Controller
     {
         $data = $request->validate([
             'status'         => 'required|in:pendaftaran,ber_isbn,cetak',
-            'no_pendaftaran' => 'nullable|string|max:100',
-            'no_isbn'        => 'nullable|string|max:100',
-            'no_buku_cetak'  => 'nullable|string|max:100',
+            // Tiap status mewajibkan nomor yang sesuai (pendaftaran→no_pendaftaran, ber_isbn→no_isbn, cetak→no_buku_cetak).
+            'no_pendaftaran' => 'nullable|required_if:status,pendaftaran|string|max:100',
+            'no_isbn'        => 'nullable|required_if:status,ber_isbn|string|max:100',
+            'no_buku_cetak'  => 'nullable|required_if:status,cetak|string|max:100',
             'penerbit'       => 'nullable|string|max:150',
             'tgl_daftar'     => 'nullable|date',
             'tgl_isbn'       => 'nullable|date',
             'tgl_terbit'     => 'nullable|date',
             'catatan'        => 'nullable|string',
+        ], [
+            'no_pendaftaran.required_if' => 'No. Pendaftaran wajib diisi untuk status Pendaftaran.',
+            'no_isbn.required_if'        => 'No. ISBN wajib diisi untuk status Ber-ISBN.',
+            'no_buku_cetak.required_if'  => 'No. Buku Cetak wajib diisi untuk status Cetak/Terbit.',
         ]);
         foreach (['tgl_daftar', 'tgl_isbn', 'tgl_terbit'] as $d) {
             $data[$d] = ($data[$d] ?? '') ?: null;

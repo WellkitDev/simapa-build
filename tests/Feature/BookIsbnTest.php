@@ -149,4 +149,28 @@ class BookIsbnTest extends TestCase
             ->assertSee('Informasi Publikasi')
             ->assertDontSee('Registrasi ISBN');
     }
+
+    /** @test */
+    public function each_status_requires_its_matching_number_field(): void
+    {
+        $map = ['pendaftaran' => 'no_pendaftaran', 'ber_isbn' => 'no_isbn', 'cetak' => 'no_buku_cetak'];
+        foreach ($map as $status => $field) {
+            $book = $this->bookAtStage('isbn');
+            $this->actingAs($this->user('production'))->from(route('title.show', $book->id))
+                ->post(route('isbn.store'), ['title_id' => $book->id, 'status' => $status])
+                ->assertSessionHasErrors($field);
+            $this->assertSame(0, BookIsbn::where('title_id', $book->id)->count(), "record tak boleh dibuat saat {$field} kosong");
+        }
+    }
+
+    /** @test */
+    public function store_succeeds_when_required_number_present(): void
+    {
+        $book = $this->bookAtStage('isbn');
+        $this->actingAs($this->user('production'))->from(route('title.show', $book->id))
+            ->post(route('isbn.store'), ['title_id' => $book->id, 'status' => 'cetak', 'no_buku_cetak' => 'BK-001'])
+            ->assertRedirect(route('title.show', $book->id))
+            ->assertSessionHasNoErrors();
+        $this->assertSame('cetak', BookIsbn::where('title_id', $book->id)->first()->status);
+    }
 }

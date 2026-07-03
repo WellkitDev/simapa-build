@@ -272,15 +272,15 @@
                     <div class="row g-2">
                         <div class="col-md-4">
                             <label class="form-label small mb-1">Status</label>
-                            <select name="status" class="form-select form-select-sm">
+                            <select name="status" id="isbnStatus" class="form-select form-select-sm">
                                 @foreach(\App\Models\BookIsbn::STATUSES as $val => $lbl)
                                     <option value="{{ $val }}" {{ optional($isbn)->status === $val ? 'selected' : '' }}>{{ $lbl }}</option>
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-md-4"><label class="form-label small mb-1">No. Pendaftaran</label><input name="no_pendaftaran" value="{{ optional($isbn)->no_pendaftaran }}" class="form-control form-control-sm"></div>
-                        <div class="col-md-4"><label class="form-label small mb-1">No. ISBN</label><input name="no_isbn" value="{{ optional($isbn)->no_isbn }}" class="form-control form-control-sm"></div>
-                        <div class="col-md-4"><label class="form-label small mb-1">No. Buku Cetak</label><input name="no_buku_cetak" value="{{ optional($isbn)->no_buku_cetak }}" class="form-control form-control-sm"></div>
+                        <div class="col-md-4"><label class="form-label small mb-1">No. Pendaftaran <span class="text-danger d-none" data-isbn-req="pendaftaran">*</span></label><input name="no_pendaftaran" id="isbnNoPendaftaran" value="{{ optional($isbn)->no_pendaftaran }}" class="form-control form-control-sm"></div>
+                        <div class="col-md-4"><label class="form-label small mb-1">No. ISBN <span class="text-danger d-none" data-isbn-req="ber_isbn">*</span></label><input name="no_isbn" id="isbnNoIsbn" value="{{ optional($isbn)->no_isbn }}" class="form-control form-control-sm"></div>
+                        <div class="col-md-4"><label class="form-label small mb-1">No. Buku Cetak <span class="text-danger d-none" data-isbn-req="cetak">*</span></label><input name="no_buku_cetak" id="isbnNoCetak" value="{{ optional($isbn)->no_buku_cetak }}" class="form-control form-control-sm"></div>
                         <div class="col-md-4"><label class="form-label small mb-1">Penerbit</label><input name="penerbit" value="{{ optional($isbn)->penerbit }}" class="form-control form-control-sm"></div>
                         <div class="col-md-4"><label class="form-label small mb-1">Tgl Daftar</label><input type="text" name="tgl_daftar" value="{{ optional(optional($isbn)->tgl_daftar)->format('Y-m-d') }}" class="form-control form-control-sm flatpickr-date" placeholder="YYYY-MM-DD"></div>
                         <div class="col-md-4"><label class="form-label small mb-1">Tgl ISBN</label><input type="text" name="tgl_isbn" value="{{ optional(optional($isbn)->tgl_isbn)->format('Y-m-d') }}" class="form-control form-control-sm flatpickr-date" placeholder="YYYY-MM-DD"></div>
@@ -339,6 +339,25 @@ $(function () {
         var b = e.target.closest('[data-jo-remove]');
         if (b) b.closest('[data-jo-row]').remove();
     });
+
+    // Nomor yang wajib mengikuti status terpilih pada form registrasi.
+    var isbnStatus = document.getElementById('isbnStatus');
+    if (isbnStatus) {
+        var isbnFields = { pendaftaran: 'isbnNoPendaftaran', ber_isbn: 'isbnNoIsbn', cetak: 'isbnNoCetak' };
+        var applyIsbnRequired = function () {
+            Object.keys(isbnFields).forEach(function (st) {
+                var el = document.getElementById(isbnFields[st]);
+                if (el) el.required = false;
+            });
+            document.querySelectorAll('[data-isbn-req]').forEach(function (s) { s.classList.add('d-none'); });
+            var target = document.getElementById(isbnFields[isbnStatus.value]);
+            if (target) target.required = true;
+            var star = document.querySelector('[data-isbn-req="' + isbnStatus.value + '"]');
+            if (star) star.classList.remove('d-none');
+        };
+        isbnStatus.addEventListener('change', applyIsbnRequired);
+        applyIsbnRequired();
+    }
 });
 </script>
 @endpush
