@@ -297,12 +297,13 @@
 
 @if($title->jenis === 'buku' && $canViewInfo)
 <div class="row"><div class="col-md-8 col-12 grid-margin stretch-card"><div class="card"><div class="card-body">
-    <div class="d-flex justify-content-between align-items-center mb-2">
+    <div class="d-flex justify-content-between align-items-center mb-1">
         <h6 class="card-title mb-0">Cek Kelengkapan Data</h6>
         <span class="badge {{ optional($docChecklist)->status === 'diajukan' ? 'bg-success' : 'bg-secondary' }}">
             {{ optional($docChecklist)->status === 'diajukan' ? 'Diajukan ' . optional($docChecklist->submitted_at)->format('d M Y') : 'Draft' }}
         </span>
     </div>
+    <p class="text-muted small mb-0">Dokumen yang diperlukan untuk pengajuan ISBN &amp; HKI.</p>
 
     @if($canMarkDocs)
     <form method="POST" action="{{ route('title.doc.save', $title->id) }}" enctype="multipart/form-data">
@@ -310,28 +311,31 @@
     @endif
 
     @foreach(\App\Models\DocRequirement::CATEGORIES as $catKey => $catLabel)
-        @php $items = $docRequirements[$catKey] ?? collect(); $prog = $docProgress[$catKey]; @endphp
-        <div class="d-flex justify-content-between align-items-center mt-3 mb-1">
-            <span class="text-muted small fw-semibold">{{ $catLabel }}</span>
-            <span class="badge bg-light text-dark border">{{ $prog['done'] }}/{{ $prog['total'] }} ada</span>
+        @php
+            $items = $docRequirements[$catKey] ?? collect();
+            $prog  = $docProgress[$catKey];
+            $pct   = $prog['total'] > 0 ? round($prog['done'] / $prog['total'] * 100) : 0;
+        @endphp
+        <div class="d-flex justify-content-between align-items-center mt-4 mb-2">
+            <span class="fw-semibold text-body">{{ $catLabel }}</span>
+            <span class="d-flex align-items-center gap-2">
+                <span class="progress" style="width:88px; height:6px">
+                    <span class="progress-bar {{ $pct == 100 ? 'bg-success' : 'bg-info' }}" role="progressbar" style="width:{{ $pct }}%"></span>
+                </span>
+                <span class="text-muted small">{{ $prog['done'] }}/{{ $prog['total'] }}</span>
+            </span>
         </div>
-        <div class="table-responsive">
-            <table class="table table-sm align-middle mb-0">
-                <tbody>
-                @forelse($items as $i => $req)
-                    @php $mark = $docMarks[$req->id] ?? null; $st = optional($mark)->status ?? 'belum'; @endphp
-                    <tr>
-                        <td style="width:28px" class="text-muted">{{ $i + 1 }}.</td>
-                        <td>
-                            <div class="fw-semibold" style="font-size:13px">{{ $req->label }}</div>
-                            @if($req->description)<div class="text-muted" style="font-size:11px">{{ $req->description }}</div>@endif
-                            @if($canMarkDocs)
-                                <input type="text" name="marks[{{ $req->id }}][catatan]" value="{{ optional($mark)->catatan }}" class="form-control form-control-sm mt-1" placeholder="Catatan (opsional)">
-                            @elseif(optional($mark)->catatan)
-                                <div class="text-muted" style="font-size:11px">Catatan: {{ $mark->catatan }}</div>
-                            @endif
-                        </td>
-                        <td style="width:130px">
+
+        <div class="list-group list-group-flush">
+            @forelse($items as $i => $req)
+                @php $mark = $docMarks[$req->id] ?? null; $st = optional($mark)->status ?? 'belum'; @endphp
+                <div class="list-group-item px-0 py-3">
+                    <div class="d-flex justify-content-between align-items-start gap-3">
+                        <div class="flex-grow-1" style="min-width:0">
+                            <div class="fw-semibold" style="font-size:13px">{{ $i + 1 }}. {{ $req->label }}</div>
+                            @if($req->description)<div class="text-muted mt-1" style="font-size:11px; line-height:1.4">{{ $req->description }}</div>@endif
+                        </div>
+                        <div class="flex-shrink-0" style="width:132px">
                             @if($canMarkDocs)
                                 <select name="marks[{{ $req->id }}][status]" class="form-select form-select-sm">
                                     @foreach(\App\Models\TitleDocMark::STATUSES as $sv => $sl)
@@ -339,31 +343,36 @@
                                     @endforeach
                                 </select>
                             @else
-                                <span class="badge {{ $st === 'ada' ? 'bg-success' : ($st === 'tidak_perlu' ? 'bg-light text-dark border' : 'bg-secondary') }}">{{ \App\Models\TitleDocMark::STATUSES[$st] ?? $st }}</span>
+                                <span class="badge w-100 {{ $st === 'ada' ? 'bg-success' : ($st === 'tidak_perlu' ? 'bg-light text-dark border' : 'bg-secondary') }}">{{ \App\Models\TitleDocMark::STATUSES[$st] ?? $st }}</span>
                             @endif
-                        </td>
-                        <td style="width:150px">
-                            @if(optional($mark)->file_url)
-                                <a href="{{ $mark->file_url }}" target="_blank" rel="noopener" class="d-block text-truncate" style="max-width:140px; font-size:11px">📎 {{ $mark->file_name ?: 'file' }}</a>
-                            @endif
-                            @if($canMarkDocs)
-                                <input type="file" name="marks[{{ $req->id }}][file]" class="form-control form-control-sm mt-1">
-                            @endif
-                        </td>
-                    </tr>
-                @empty
-                    <tr><td colspan="4" class="text-muted small">Belum ada item.</td></tr>
-                @endforelse
-                </tbody>
-            </table>
+                        </div>
+                    </div>
+
+                    @if(optional($mark)->file_url)
+                        <a href="{{ $mark->file_url }}" target="_blank" rel="noopener" class="d-inline-block text-truncate mt-2" style="max-width:100%; font-size:11px">📎 {{ $mark->file_name ?: 'file' }}</a>
+                    @endif
+
+                    @if($canMarkDocs)
+                        <div class="row g-2 mt-1">
+                            <div class="col-sm-6"><input type="file" name="marks[{{ $req->id }}][file]" class="form-control form-control-sm" aria-label="Unggah dokumen {{ $req->label }}"></div>
+                            <div class="col-sm-6"><input type="text" name="marks[{{ $req->id }}][catatan]" value="{{ optional($mark)->catatan }}" class="form-control form-control-sm" placeholder="Catatan (opsional)"></div>
+                        </div>
+                    @elseif(optional($mark)->catatan)
+                        <div class="text-muted mt-1" style="font-size:11px">Catatan: {{ $mark->catatan }}</div>
+                    @endif
+                </div>
+            @empty
+                <div class="list-group-item px-0 py-2 text-muted small">Belum ada item.</div>
+            @endforelse
         </div>
     @endforeach
 
     @if($canMarkDocs)
-        <button type="submit" class="btn btn-sm btn-primary mt-2">Simpan Kelengkapan</button>
+        <hr class="my-3">
+        <button type="submit" class="btn btn-sm btn-primary">Simpan Kelengkapan</button>
     </form>
-        <form method="POST" action="{{ route('title.doc.submit', $title->id) }}" class="mt-2">@csrf
-            <button type="submit" class="btn btn-sm btn-success">Submit</button>
+        <form method="POST" action="{{ route('title.doc.submit', $title->id) }}" class="d-inline ms-1">@csrf
+            <button type="submit" class="btn btn-sm btn-success">Submit &amp; Ajukan</button>
         </form>
     @endif
 
