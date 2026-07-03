@@ -107,4 +107,16 @@ class ManuscriptFinalizeTest extends TestCase
         $this->actingAs($this->user('manager'))->get(route('manuscript.board', ['tipe' => 'artikel']))
             ->assertOk()->assertSee($editing->orderDetail->title);
     }
+
+    /** @test */
+    public function final_article_card_is_not_draggable_for_manager_only(): void
+    {
+        $this->articleAt('publish'); // started_at now → tetap di papan
+
+        $this->actingAs($this->user('manager'))->get(route('manuscript.board', ['tipe' => 'artikel']))
+            ->assertOk()->assertSee('data-final-locked', false);
+
+        $this->actingAs($this->user('superadmin'))->get(route('manuscript.board', ['tipe' => 'artikel']))
+            ->assertOk()->assertDontSee('data-final-locked', false);
+    }
 }

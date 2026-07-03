@@ -10,8 +10,9 @@
     $hasNewLog  = $p->last_log_at && $p->last_log_at->gt(now()->subDays(2));
     $isBook   = in_array($detail->type, ['bk_mandiri', 'bk_kolab'], true);
     $chapters = $isBook ? (optional($detail->titleRef)->chapters ?? collect()) : collect();
+    $finalLocked = \App\Models\TitleProgress::isFinal($p->status) && ! auth()->user()->hasRole('superadmin');
 @endphp
-<div class="card mb-2 mt-card" data-id="{{ $p->id }}" data-status="{{ $p->status }}" @if($isBook) data-no-drag @endif>
+<div class="card mb-2 mt-card" data-id="{{ $p->id }}" data-status="{{ $p->status }}" @if($isBook || $finalLocked) data-no-drag @endif @if($finalLocked) data-final-locked @endif>
     <div class="card-body p-2">
         <div class="d-flex justify-content-between align-items-center">
             <span class="text-primary fw-bold" style="font-size:11px">{{ $detail->order->code_order ?? '—' }}</span>
@@ -21,6 +22,9 @@
                 @endif
                 @if($p->needs_review)
                     <span class="badge bg-warning text-dark" title="Lompat tahap oleh non-superadmin — perlu ditinjau superadmin">⚑ tinjau</span>
+                @endif
+                @if(\App\Models\TitleProgress::isFinal($p->status))
+                    <span class="badge bg-success" title="Naskah final — terkunci">🔒 Final</span>
                 @endif
                 @if($orderCount > 1)
                     <span class="badge bg-secondary" title="Jumlah order untuk judul ini">{{ $orderCount }} order</span>
@@ -156,11 +160,13 @@
                                 @if($cnext)
                                     <button type="button" class="btn btn-xs btn-outline-primary py-0" data-chapter-advance data-cp="{{ $cp->id }}" data-next="{{ $cnext }}" style="font-size:10px">Maju → {{ \App\Models\Title::stageLabel($cnext) }}</button>
                                 @endif
+                                @unless(\App\Models\TitleProgress::isFinal($cstatus) && ! auth()->user()->hasRole('superadmin'))
                                 <button type="button" class="btn btn-xs btn-outline-secondary py-0"
                                         data-chapter-edit data-cp="{{ $cp->id }}"
                                         data-current="{{ $cstatus }}" data-next="{{ $cnext ?? '' }}"
                                         data-judul="{{ $ch->urutan }}. {{ $ch->judul }}"
                                         style="font-size:10px">Ubah…</button>
+                                @endunless
                                 <select class="form-select form-select-sm py-0" data-chapter-assign data-cp="{{ $cp->id }}" style="font-size:10px; max-width:130px">
                                     <option value="">Editor…</option>
                                     @foreach($editors as $ed)
