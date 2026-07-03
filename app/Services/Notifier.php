@@ -179,6 +179,18 @@ class Notifier
         ]);
     }
 
+    public function titleArchiveSubmitted(\App\Models\TitleArchive $archive, User $actor): void
+    {
+        $archive->loadMissing('title');
+        $this->send($this->roleUsers(['superadmin', 'manager'], $actor), [
+            'category' => 'title',
+            'title'    => 'Judul diajukan ke arsip',
+            'message'  => trim((optional($archive->title)->code ? $archive->title->code . ' — ' : '') . optional($archive->title)->title),
+            'url'      => route('archive.show', $archive->title_id),
+            'icon'     => 'archive',
+        ]);
+    }
+
     private function rp(int|string|null $amount): string
     {
         return number_format((int) $amount, 0, ',', '.');
