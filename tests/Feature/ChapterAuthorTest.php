@@ -72,4 +72,37 @@ class ChapterAuthorTest extends TestCase
         $this->actingAs($this->user('manager'))->get(route('title.show', $book->id))
             ->assertOk()->assertSee('Nama Tercantum');
     }
+
+    /** Buat order tertaut ke judul + author (urut posisi). */
+    private function attachOrderAuthors(Title $title, string $type, array $names): void
+    {
+        $detail = \App\Models\OrderDetail::factory()->create(['title_id' => $title->id, 'type' => $type]);
+        $pos = 1;
+        foreach ($names as $n) {
+            $detail->authors()->attach(Author::create(['name' => $n])->id, ['position' => $pos++]);
+        }
+    }
+
+    /** @test */
+    public function show_seeds_chapter_authors_from_order(): void
+    {
+        $book = $this->book(); // 1 bab, kosong
+        $this->attachOrderAuthors($book, 'bk_kolab', ['Penulis Order']);
+
+        $this->actingAs($this->user('manager'))->get(route('title.show', $book->id))
+            ->assertOk()->assertSee('Penulis Order');
+
+        // ter-seed persisten ke bab (bukan sekadar tampil)
+        $this->assertTrue($book->chapters()->first()->authors()->where('name', 'Penulis Order')->exists());
+    }
+
+    /** @test */
+    public function article_show_displays_order_authors(): void
+    {
+        $art = Title::create(['title' => 'Artikel Kolab', 'jenis' => 'artikel', 'tipe_naskah' => 'kolaborasi', 'status' => 'disetujui']);
+        $this->attachOrderAuthors($art, 'at_kolab', ['Author Artikel']);
+
+        $this->actingAs($this->user('manager'))->get(route('title.show', $art->id))
+            ->assertOk()->assertSee('Author Artikel')->assertSee('Author (dari order)');
+    }
 }

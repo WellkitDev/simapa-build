@@ -19,6 +19,9 @@
     <p class="mb-2"><small class="text-muted">Dibuat oleh {{ $title->creator?->name ?? '—' }}@if($title->approver) · disetujui {{ $title->approver->name }}@endif</small></p>
     <p class="mb-2">Distribusi: <span class="badge bg-light text-dark border">{{ $title->assignedMarketing?->name ?? 'Semua marketing' }}</span></p>
     <p class="mb-2">Order tertaut: <strong>Jml Order</strong> {{ $ordersCount }} · <strong>Jml Author</strong> {{ $authorsCount }}</p>
+    @if($orderAuthors->isNotEmpty())
+        <p class="mb-2">Author (dari order): <span class="text-muted">{{ $orderAuthors->pluck('name')->join(', ') }}</span></p>
+    @endif
     @php $mstat = $title->manuscriptStatus(); @endphp
     <p class="mb-2">Manuskrip:
         @if($mstat)<span class="badge {{ in_array($mstat, \App\Models\TitleProgress::FINAL_STAGES, true) ? 'bg-success' : 'bg-info' }}">{{ $title->manuscriptStatusLabel() }}</span>@else<span class="text-muted">Belum ada order</span>@endif
@@ -77,7 +80,7 @@
                         </div>
                     @endforeach
                     <button type="submit" class="btn btn-sm btn-primary">Simpan Author Bab</button>
-                    <small class="text-muted d-block mt-1">Pilih author yang ada atau ketik nama baru. Urutan pilihan = urutan author.</small>
+                    <small class="text-muted d-block mt-1">Bab terisi otomatis dari author order; sesuaikan di sini untuk bunga rampai (beda penulis per bab). Ketik nama untuk author baru; urutan pilihan = urutan author.</small>
                 </form>
             </div>
         @endif

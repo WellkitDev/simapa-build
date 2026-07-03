@@ -72,4 +72,57 @@ class ChapterAuthorServiceTest extends TestCase
         $this->svc->syncChapterAuthors($art, [999 => ['X']]);
         $this->assertSame(0, Author::count());
     }
+
+    /** Buat order tertaut ke buku + author (urut posisi). */
+    private function attachOrderAuthors(Title $book, array $authors): void
+    {
+        $detail = \App\Models\OrderDetail::factory()->create(['title_id' => $book->id, 'type' => 'bk_kolab']);
+        $pos = 1;
+        foreach ($authors as $a) {
+            $detail->authors()->attach($a->id, ['position' => $pos++]);
+        }
+    }
+
+    /** @test */
+    public function seed_from_orders_fills_empty_chapters_from_order_authors(): void
+    {
+        $book = $this->book(2);
+        $a = Author::create(['name' => 'Ani']);
+        $b = Author::create(['name' => 'Budi']);
+        $this->attachOrderAuthors($book, [$a, $b]);
+
+        $this->svc->seedFromOrders($book);
+
+        foreach ($book->chapters()->get() as $ch) {
+            $this->assertSame([$a->id, $b->id], $ch->authors()->pluck('tb_authors.id')->all());
+        }
+    }
+
+    /** @test */
+    public function seed_from_orders_does_not_overwrite_existing_chapter_authors(): void
+    {
+        $book = $this->book(2);
+        $chapters = $book->chapters()->orderBy('urutan')->get();
+        $manual = Author::create(['name' => 'Manual']);
+        $chapters[0]->authors()->attach($manual->id, ['position' => 1]);
+
+        $order = Author::create(['name' => 'Order']);
+        $this->attachOrderAuthors($book, [$order]);
+
+        $this->svc->seedFromOrders($book);
+
+        // bab 1 dipertahankan (tak ditimpa); bab 2 (kosong) terisi dari order
+        $this->assertSame([$manual->id], $chapters[0]->authors()->pluck('tb_authors.id')->all());
+        $this->assertSame([$order->id], $chapters[1]->authors()->pluck('tb_authors.id')->all());
+    }
+
+    /** @test */
+    public function seed_from_orders_noop_without_order_authors(): void
+    {
+        $book = $this->book(2);
+        $this->svc->seedFromOrders($book);
+        foreach ($book->chapters()->get() as $ch) {
+            $this->assertSame(0, $ch->authors()->count());
+        }
+    }
 }

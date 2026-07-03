@@ -71,10 +71,19 @@ class TitleController extends Controller
 
     public function show(int $id)
     {
-        $title = Title::with(['chapters.authors', 'creator', 'approver', 'scope', 'assignedMarketing', 'orderDetails.order.user', 'orderDetails.titleProgress', 'journalOptions.journal', 'logs.changedBy'])->findOrFail($id);
+        $title = Title::with(['chapters.authors', 'creator', 'approver', 'scope', 'assignedMarketing', 'orderDetails.order.user', 'orderDetails.titleProgress', 'orderDetails.authors', 'journalOptions.journal', 'logs.changedBy'])->findOrFail($id);
         abort_if(! $this->canManage() && ! $title->isApproved(), 403);
         // marketing tak boleh membuka judul yang di-assign ke marketing lain
         abort_if(! $this->canManage() && $title->assigned_to && $title->assigned_to !== Auth::id(), 403);
+
+        // Pre-fill author bab dari author order (bab kosong saja) untuk buku pra-fitur — idempotent.
+        if ($title->jenis === 'buku') {
+            app(\App\Services\ChapterAuthorService::class)->seedFromOrders($title);
+            $title->load('chapters.authors');
+        }
+
+        // Author dari order (level judul) — sumber kebenaran; artikel tampil otomatis dari sini.
+        $orderAuthors = $title->orderDetails->flatMap->authors->unique('id')->values();
 
         $ordersCount = $title->orderDetails->count();
         $authorsCount = \App\Models\OrderDetail::where('title_id', $title->id)
@@ -91,6 +100,7 @@ class TitleController extends Controller
             'canOpenBoard' => Auth::user()->hasAnyRole(['superadmin', 'manager', 'production']),
             'journals' => Journal::orderBy('nama')->get(),
             'allAuthors' => Author::orderBy('name')->get(),
+            'orderAuthors' => $orderAuthors,
         ]);
     }
 

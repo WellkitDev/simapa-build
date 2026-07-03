@@ -41,6 +41,9 @@ class ChapterManuscriptService
                 $chapter->progress()->create(['status' => $seedStatus, 'started_at' => now()]);
             }
         }
+
+        // Pre-fill author bab dari author order (bab kosong saja) → hindari input ulang.
+        app(ChapterAuthorService::class)->seedFromOrders($book);
     }
 
     /** Ubah status bab (maju/koreksi) dengan aturan & otorisasi seperti TitleProgress; roll-up buku. */
