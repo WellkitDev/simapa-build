@@ -173,4 +173,51 @@ class BookIsbnTest extends TestCase
             ->assertSessionHasNoErrors();
         $this->assertSame('cetak', BookIsbn::where('title_id', $book->id)->first()->status);
     }
+
+    private function manuscriptStatus(Title $book): ?string
+    {
+        return $book->fresh()->load('orderDetails.titleProgress')->manuscriptStatus();
+    }
+
+    /** @test */
+    public function ber_isbn_advances_manuscript_to_cetak(): void
+    {
+        $book = $this->bookAtStage('isbn');
+        $this->actingAs($this->user('production'))
+            ->post(route('isbn.store'), ['title_id' => $book->id, 'status' => 'ber_isbn', 'no_isbn' => '978-1']);
+        $this->assertSame('cetak', $this->manuscriptStatus($book));
+    }
+
+    /** @test */
+    public function cetak_advances_manuscript_to_terbit(): void
+    {
+        $book = $this->bookAtStage('isbn');
+        $this->actingAs($this->user('production'))
+            ->post(route('isbn.store'), ['title_id' => $book->id, 'status' => 'cetak', 'no_buku_cetak' => 'BK-1']);
+        $this->assertSame('terbit', $this->manuscriptStatus($book));
+    }
+
+    /** @test */
+    public function pendaftaran_does_not_advance_manuscript(): void
+    {
+        $book = $this->bookAtStage('isbn');
+        $this->actingAs($this->user('production'))
+            ->post(route('isbn.store'), ['title_id' => $book->id, 'status' => 'pendaftaran', 'no_pendaftaran' => 'REG-1']);
+        $this->assertSame('isbn', $this->manuscriptStatus($book));
+    }
+
+    /** @test */
+    public function sync_is_forward_only_never_regresses(): void
+    {
+        $book = $this->bookAtStage('isbn');
+        $isbn = BookIsbn::create(['title_id' => $book->id, 'status' => 'cetak', 'no_buku_cetak' => 'BK-1']);
+        // manuskrip dimajukan ke terbit lewat store-sync manual:
+        app(\App\Services\ChapterManuscriptService::class)->advanceBookToStage($book, 'terbit', $this->user('superadmin'));
+        $this->assertSame('terbit', $this->manuscriptStatus($book));
+
+        // turunkan status ISBN ke ber_isbn (→cetak) — manuskrip TAK boleh mundur ke cetak
+        $this->actingAs($this->user('production'))
+            ->put(route('isbn.update', $isbn->id), ['status' => 'ber_isbn', 'no_isbn' => '978-2']);
+        $this->assertSame('terbit', $this->manuscriptStatus($book));
+    }
 }

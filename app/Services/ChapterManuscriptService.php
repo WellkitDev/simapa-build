@@ -128,6 +128,67 @@ class ChapterManuscriptService
         }
     }
 
+    /**
+     * Majukan manuskrip buku ke tahap target (maju-saja) — dipicu registrasi ISBN.
+     * Menggerakkan bab (bila ada) + TitleProgress tiap order-variant; tak pernah memundurkan.
+     */
+    public function advanceBookToStage(Title $book, string $target, User $actor): void
+    {
+        if ($book->jenis !== 'buku') {
+            return;
+        }
+        $stages    = TitleProgress::BOOK_STAGES;
+        $targetIdx = array_search($target, $stages, true);
+        if ($targetIdx === false) {
+            return;
+        }
+
+        $moved = false;
+
+        // Bab (bila ada) — maju-saja, agar roll-up tak menarik mundur kelak.
+        foreach ($book->chapters()->with('progress')->get() as $chapter) {
+            $cp = $chapter->progress;
+            if (! $cp) {
+                continue;
+            }
+            $idx = array_search($cp->status, $stages, true);
+            if ($idx === false || $idx >= $targetIdx) {
+                continue;
+            }
+            $cp->update(['status' => $target, 'updated_by' => $actor->id, 'started_at' => now(), 'last_log_at' => now()]);
+            $moved = true;
+        }
+
+        // TitleProgress tiap order-variant (sumber manuscriptStatus) — maju-saja.
+        foreach ($book->orderDetails()->with('titleProgress')->get() as $detail) {
+            $tp = $detail->titleProgress;
+            if (! $tp) {
+                continue;
+            }
+            $idx = array_search($tp->status, $stages, true);
+            if ($idx === false || $idx >= $targetIdx) {
+                continue;
+            }
+            $tp->update(['status' => $target, 'assigned_role' => TitleProgress::getHandlerForStatus($target)]);
+            $moved = true;
+        }
+
+        if ($moved) {
+            $progress = $book->orderDetails()->with('titleProgress')->get()->map->titleProgress->filter()->first();
+            if ($progress) {
+                TitleProgressLog::create([
+                    'title_progress_id' => $progress->id,
+                    'event'             => 'isbn_sync',
+                    'from_value'        => 'Registrasi ISBN',
+                    'to_value'          => Str::title(str_replace('_', ' ', $target)),
+                    'changed_by'        => $actor->id,
+                    'note'              => 'Sinkron otomatis dari registrasi ISBN.',
+                    'is_correction'     => false,
+                ]);
+            }
+        }
+    }
+
     private function authorize(User $actor, string $current): void
     {
         if ($actor->hasAnyRole(['superadmin', 'manager'])) {

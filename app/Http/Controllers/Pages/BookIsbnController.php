@@ -58,7 +58,8 @@ class BookIsbnController extends Controller
         $data = $this->validated($request);
         $data['title_id']   = $title->id;
         $data['created_by'] = Auth::id();
-        BookIsbn::create($data);
+        $isbn = BookIsbn::create($data);
+        $this->syncManuscript($isbn);
 
         return redirect()->route('title.show', $title->id)->with('success', 'Registrasi ISBN disimpan.');
     }
@@ -67,8 +68,22 @@ class BookIsbnController extends Controller
     {
         $isbn = BookIsbn::findOrFail($id);
         $isbn->update($this->validated($request));
+        $this->syncManuscript($isbn);
 
         return redirect()->route('title.show', $isbn->title_id)->with('success', 'Registrasi ISBN diperbarui.');
+    }
+
+    /** Sinkron tahap manuskrip buku dari status ISBN (maju-saja): Ber-ISBN→cetak, Cetak/Terbit→terbit. */
+    private function syncManuscript(BookIsbn $isbn): void
+    {
+        $map = ['ber_isbn' => 'cetak', 'cetak' => 'terbit'];
+        if (! isset($map[$isbn->status])) {
+            return; // Pendaftaran: tak memindahkan
+        }
+        $title = $isbn->title()->first();
+        if ($title) {
+            app(\App\Services\ChapterManuscriptService::class)->advanceBookToStage($title, $map[$isbn->status], Auth::user());
+        }
     }
 
     public function destroy(int $id)
