@@ -23,6 +23,8 @@ use App\Http\Controllers\Pages\TitleController;
 use App\Http\Controllers\Pages\JournalController;
 use App\Http\Controllers\Pages\JournalSubmissionController;
 use App\Http\Controllers\Pages\BookIsbnController;
+use App\Http\Controllers\Pages\DocRequirementController;
+use App\Http\Controllers\Pages\TitleDocCheckController;
 
 /*
 |--------------------------------------------------------------------------
@@ -274,6 +276,18 @@ Route::middleware('auth')->group(function () {
         Route::post('management/isbn', [BookIsbnController::class, 'store'])->name('isbn.store');
         Route::put('management/isbn/{id}', [BookIsbnController::class, 'update'])->name('isbn.update')->whereNumber('id');
         Route::delete('management/isbn/{id}', [BookIsbnController::class, 'destroy'])->name('isbn.destroy')->whereNumber('id');
+    });
+
+    // Template checklist dokumen — CRUD superadmin
+    Route::middleware('role:superadmin')->group(function () {
+        Route::post('doc-requirements', [DocRequirementController::class, 'store'])->name('doc-req.store');
+        Route::put('doc-requirements/{id}', [DocRequirementController::class, 'update'])->name('doc-req.update')->whereNumber('id');
+        Route::delete('doc-requirements/{id}', [DocRequirementController::class, 'destroy'])->name('doc-req.destroy')->whereNumber('id');
+    });
+    // Cek kelengkapan dokumen per judul — superadmin/admin
+    Route::middleware('role:superadmin|admin')->group(function () {
+        Route::put('titles/{id}/doc-check', [TitleDocCheckController::class, 'save'])->name('title.doc.save')->whereNumber('id');
+        Route::post('titles/{id}/doc-check/submit', [TitleDocCheckController::class, 'submit'])->name('title.doc.submit')->whereNumber('id');
     });
 });
 
