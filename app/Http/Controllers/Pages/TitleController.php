@@ -71,7 +71,7 @@ class TitleController extends Controller
 
     public function show(int $id)
     {
-        $title = Title::with(['chapters.authors', 'creator', 'approver', 'scope', 'assignedMarketing', 'orderDetails.order.user', 'orderDetails.titleProgress', 'orderDetails.authors', 'journalOptions.journal', 'logs.changedBy'])->findOrFail($id);
+        $title = Title::with(['chapters.authors', 'creator', 'approver', 'scope', 'assignedMarketing', 'orderDetails.order.user', 'orderDetails.titleProgress', 'orderDetails.authors', 'journalOptions.journal', 'logs.changedBy', 'bookIsbn'])->findOrFail($id);
         abort_if(! $this->canManage() && ! $title->isApproved(), 403);
         // marketing tak boleh membuka judul yang di-assign ke marketing lain
         abort_if(! $this->canManage() && $title->assigned_to && $title->assigned_to !== Auth::id(), 403);
@@ -101,6 +101,7 @@ class TitleController extends Controller
             'journals' => Journal::orderBy('nama')->get(),
             'allAuthors' => Author::orderBy('name')->get(),
             'orderAuthors' => $orderAuthors,
+            'canManageIsbn' => Auth::user()->hasAnyRole(['superadmin', 'manager', 'admin', 'production']),
         ]);
     }
 

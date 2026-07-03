@@ -238,6 +238,62 @@
     @endif
 </div></div></div></div>
 @endif
+
+@if($title->jenis === 'buku' && $canViewInfo)
+<div class="row"><div class="col-md-8 col-12 grid-margin stretch-card"><div class="card"><div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="card-title mb-0">Registrasi ISBN</h6>
+        @if($canManageIsbn && $title->isbnEligible())
+            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#isbnForm">Edit Registrasi ISBN</button>
+        @endif
+    </div>
+
+    @if(! $title->isbnEligible())
+        <p class="text-muted mb-0">Registrasi ISBN tersedia setelah manuskrip mencapai tahap ISBN.</p>
+    @else
+        @php $isbn = $title->bookIsbn; @endphp
+        <dl class="row mb-2">
+            <dt class="col-sm-4 text-muted small">Status</dt><dd class="col-sm-8">@if($isbn)<span class="badge bg-info">{{ $isbn->statusLabel() }}</span>@else<span class="text-muted">Belum didaftarkan</span>@endif</dd>
+            <dt class="col-sm-4 text-muted small">No. Pendaftaran</dt><dd class="col-sm-8">{{ $isbn?->no_pendaftaran ?: '—' }}</dd>
+            <dt class="col-sm-4 text-muted small">No. ISBN</dt><dd class="col-sm-8">{{ $isbn?->no_isbn ?: '—' }}</dd>
+            <dt class="col-sm-4 text-muted small">No. Buku Cetak</dt><dd class="col-sm-8">{{ $isbn?->no_buku_cetak ?: '—' }}</dd>
+            <dt class="col-sm-4 text-muted small">Penerbit</dt><dd class="col-sm-8">{{ $isbn?->penerbit ?: '—' }}</dd>
+            <dt class="col-sm-4 text-muted small">Tgl Daftar</dt><dd class="col-sm-8">{{ optional($isbn?->tgl_daftar)->format('d M Y') ?? '—' }}</dd>
+            <dt class="col-sm-4 text-muted small">Tgl ISBN</dt><dd class="col-sm-8">{{ optional($isbn?->tgl_isbn)->format('d M Y') ?? '—' }}</dd>
+            <dt class="col-sm-4 text-muted small">Tgl Terbit</dt><dd class="col-sm-8">{{ optional($isbn?->tgl_terbit)->format('d M Y') ?? '—' }}</dd>
+            <dt class="col-sm-4 text-muted small">Catatan</dt><dd class="col-sm-8">{{ $isbn?->catatan ?: '—' }}</dd>
+        </dl>
+
+        @if($canManageIsbn)
+            <div class="collapse" id="isbnForm">
+                <form method="POST" action="{{ $isbn ? route('isbn.update', $isbn->id) : route('isbn.store') }}">
+                    @csrf
+                    @if($isbn) @method('PUT') @else <input type="hidden" name="title_id" value="{{ $title->id }}"> @endif
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <label class="form-label small mb-1">Status</label>
+                            <select name="status" class="form-select form-select-sm">
+                                @foreach(\App\Models\BookIsbn::STATUSES as $val => $lbl)
+                                    <option value="{{ $val }}" {{ optional($isbn)->status === $val ? 'selected' : '' }}>{{ $lbl }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-4"><label class="form-label small mb-1">No. Pendaftaran</label><input name="no_pendaftaran" value="{{ optional($isbn)->no_pendaftaran }}" class="form-control form-control-sm"></div>
+                        <div class="col-md-4"><label class="form-label small mb-1">No. ISBN</label><input name="no_isbn" value="{{ optional($isbn)->no_isbn }}" class="form-control form-control-sm"></div>
+                        <div class="col-md-4"><label class="form-label small mb-1">No. Buku Cetak</label><input name="no_buku_cetak" value="{{ optional($isbn)->no_buku_cetak }}" class="form-control form-control-sm"></div>
+                        <div class="col-md-4"><label class="form-label small mb-1">Penerbit</label><input name="penerbit" value="{{ optional($isbn)->penerbit }}" class="form-control form-control-sm"></div>
+                        <div class="col-md-4"><label class="form-label small mb-1">Tgl Daftar</label><input type="text" name="tgl_daftar" value="{{ optional(optional($isbn)->tgl_daftar)->format('Y-m-d') }}" class="form-control form-control-sm flatpickr-date" placeholder="YYYY-MM-DD"></div>
+                        <div class="col-md-4"><label class="form-label small mb-1">Tgl ISBN</label><input type="text" name="tgl_isbn" value="{{ optional(optional($isbn)->tgl_isbn)->format('Y-m-d') }}" class="form-control form-control-sm flatpickr-date" placeholder="YYYY-MM-DD"></div>
+                        <div class="col-md-4"><label class="form-label small mb-1">Tgl Terbit</label><input type="text" name="tgl_terbit" value="{{ optional(optional($isbn)->tgl_terbit)->format('Y-m-d') }}" class="form-control form-control-sm flatpickr-date" placeholder="YYYY-MM-DD"></div>
+                        <div class="col-12"><label class="form-label small mb-1">Catatan</label><textarea name="catatan" rows="2" class="form-control form-control-sm">{{ optional($isbn)->catatan }}</textarea></div>
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-primary mt-2">Simpan Registrasi ISBN</button>
+                </form>
+            </div>
+        @endif
+    @endif
+</div></div></div></div>
+@endif
 @endsection
 
 @push('plugin-styles')

@@ -100,6 +100,15 @@
                 </li>
             @endrole
 
+            @role(['superadmin', 'manager', 'admin', 'production', 'marketing'])
+                <li class="nav-item {{ active_class(['management/isbn', 'management/isbn/*']) }}">
+                    <a href="{{ route('isbn.index') }}" class="nav-link">
+                        <i class="link-icon" data-feather="hash"></i>
+                        <span class="link-title">Direktori ISBN</span>
+                    </a>
+                </li>
+            @endrole
+
             @role(['superadmin', 'manager', 'production'])
                 <li class="nav-item nav-category">Produksi</li>
                 <li class="nav-item {{ active_class(['management/manuscript']) }}">

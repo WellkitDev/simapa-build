@@ -117,4 +117,16 @@ class BookIsbnTest extends TestCase
         $this->actingAs($this->user('production'))->delete(route('isbn.destroy', $isbn->id))->assertRedirect();
         $this->assertNull(BookIsbn::find($isbn->id));
     }
+
+    /** @test */
+    public function panel_shows_form_when_eligible_and_note_when_not(): void
+    {
+        $eligible = $this->bookAtStage('isbn');
+        $this->actingAs($this->user('production'))->get(route('title.show', $eligible->id))
+            ->assertOk()->assertSee('Registrasi ISBN')->assertSee('Simpan Registrasi ISBN');
+
+        $notYet = $this->bookAtStage('editing');
+        $this->actingAs($this->user('production'))->get(route('title.show', $notYet->id))
+            ->assertOk()->assertSee('setelah manuskrip mencapai tahap ISBN');
+    }
 }
