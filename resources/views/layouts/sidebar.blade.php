@@ -74,8 +74,8 @@
                         <span class="link-title">Daftar Order</span>
                     </a>
                 </li>
-                <li class="nav-item {{ active_class(['management/title']) }}">
-                    <a href="{{ route('order.book.indexJudul') }}" class="nav-link">
+                <li class="nav-item {{ active_class(['management/archive', 'management/archive/*']) }}">
+                    <a href="{{ route('archive.index') }}" class="nav-link">
                         <i class="link-icon" data-feather="archive"></i>
                         <span class="link-title">Arsip Judul</span>
                     </a>
