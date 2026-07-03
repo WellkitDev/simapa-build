@@ -49,14 +49,38 @@
     @endif
 
     @if($title->jenis === 'buku')
-        <h6 class="card-title mt-3">Bab</h6>
-        <ol class="mb-3">
+        <div class="d-flex justify-content-between align-items-center mt-3">
+            <h6 class="card-title mb-0">Bab & Author</h6>
+            @if($canEditInfo && $title->chapters->isNotEmpty())
+                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#chapAuthorForm">Edit Author Bab</button>
+            @endif
+        </div>
+        <ol class="mb-2">
             @forelse($title->chapters as $ch)
-                <li>{{ $ch->judul }}</li>
+                <li>{{ $ch->judul }}@if($ch->authors->isNotEmpty()) — <span class="text-muted">{{ $ch->authors->pluck('name')->join(', ') }}</span>@endif</li>
             @empty
                 <li class="text-muted">Belum ada bab.</li>
             @endforelse
         </ol>
+        @if($canEditInfo && $title->chapters->isNotEmpty())
+            <div class="collapse mb-3" id="chapAuthorForm">
+                <form method="POST" action="{{ route('title.chapters.authors', $title->id) }}">
+                    @csrf @method('PUT')
+                    @foreach($title->chapters as $ch)
+                        <div class="mb-2">
+                            <label class="form-label small mb-1">{{ $ch->urutan }}. {{ $ch->judul }}</label>
+                            <select name="chapter_authors[{{ $ch->id }}][]" multiple class="form-select form-select-sm select2-authors" data-tags="true">
+                                @foreach($allAuthors as $a)
+                                    <option value="{{ $a->id }}" {{ $ch->authors->contains($a->id) ? 'selected' : '' }}>{{ $a->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    @endforeach
+                    <button type="submit" class="btn btn-sm btn-primary">Simpan Author Bab</button>
+                    <small class="text-muted d-block mt-1">Pilih author yang ada atau ketik nama baru. Urutan pilihan = urutan author.</small>
+                </form>
+            </div>
+        @endif
     @endif
 
     <div class="d-flex gap-2 flex-wrap">
@@ -215,14 +239,19 @@
 
 @push('plugin-styles')
 <link href="{{ asset('assets/plugins/flatpickr/flatpickr.min.css') }}" rel="stylesheet" />
+<link href="{{ asset('assets/plugins/select2/select2.min.css') }}" rel="stylesheet" />
 @endpush
 @push('plugin-scripts')
 <script src="{{ asset('assets/plugins/flatpickr/flatpickr.min.js') }}"></script>
+<script src="{{ asset('assets/plugins/select2/select2.min.js') }}"></script>
 @endpush
 @push('custom-scripts')
 <script>
 $(function () {
     if (window.flatpickr) { flatpickr('.flatpickr-date', { dateFormat: 'Y-m-d', allowInput: true }); }
+    if (window.jQuery && jQuery.fn.select2) {
+        jQuery('.select2-authors').select2({ tags: true, width: '100%', placeholder: 'Pilih / ketik author…' });
+    }
     var list = document.getElementById('joList');
     var addBtn = document.getElementById('joAdd');
     var tpl = document.getElementById('joRowTpl');

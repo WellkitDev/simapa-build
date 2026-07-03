@@ -150,6 +150,7 @@
                                 <span class="badge {{ in_array($cstatus, \App\Models\TitleProgress::FINAL_STAGES, true) ? 'bg-success' : 'bg-info' }}">{{ \App\Models\Title::stageLabel($cstatus) }}</span>
                             </div>
                             <div class="text-muted mt-1">Editor: {{ optional(optional($cp)->assignedUser)->name ?? 'Belum' }}</div>
+                            <div class="text-muted">Author: {{ $ch->authors->pluck('name')->join(', ') ?: '—' }}</div>
                             @if($cp)
                             <div class="d-flex gap-1 mt-1">
                                 @if($cnext)
