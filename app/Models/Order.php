@@ -46,4 +46,15 @@ class Order extends Model
     {
        return $this->belongsTo(User::class, 'user_id', 'id');
     }
+
+    /** Lunas bila ada invoice berstatus 'lunas' atau total pembayaran 'paid' >= biaya. */
+    public function isLunas(): bool
+    {
+        if ($this->invoices()->where('status', 'lunas')->exists()) {
+            return true;
+        }
+        $paid = (int) $this->payments()->where('status', 'paid')->sum('amount');
+        $cost = (int) optional($this->details)->cost_amount;
+        return $paid >= $cost;
+    }
 }

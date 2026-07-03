@@ -116,6 +116,34 @@ class Title extends Model
         return $this->hasOne(TitleDocChecklist::class);
     }
 
+    public function archive()
+    {
+        return $this->hasOne(TitleArchive::class);
+    }
+
+    public function archiveArtifacts()
+    {
+        return $this->hasMany(TitleArchiveArtifact::class)->orderBy('position');
+    }
+
+    /** Semua order tertaut sudah lunas (tak ada sisa/DP). */
+    public function isPaidOff(): bool
+    {
+        $orders = $this->orderDetails->map->order->filter()->unique('id');
+        return $orders->isNotEmpty() && $orders->every(fn ($o) => $o->isLunas());
+    }
+
+    public function manuscriptIsFinal(): bool
+    {
+        return TitleProgress::isFinal((string) $this->manuscriptStatus());
+    }
+
+    /** Layak diarsipkan: semua order lunas DAN manuskrip final (terbit/publish). */
+    public function archiveEligible(): bool
+    {
+        return $this->isPaidOff() && $this->manuscriptIsFinal();
+    }
+
     /** Buku yang manuskripnya sudah mencapai tahap 'isbn' (bottleneck ≥ index 'isbn'). */
     public function isbnEligible(): bool
     {
