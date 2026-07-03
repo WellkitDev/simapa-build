@@ -129,4 +129,24 @@ class BookIsbnTest extends TestCase
         $this->actingAs($this->user('production'))->get(route('title.show', $notYet->id))
             ->assertOk()->assertSee('setelah manuskrip mencapai tahap ISBN');
     }
+
+    /** @test */
+    public function book_shows_isbn_card_but_not_publication_info(): void
+    {
+        $book = $this->bookAtStage('isbn');
+        $this->actingAs($this->user('production'))->get(route('title.show', $book->id))
+            ->assertOk()
+            ->assertSee('Registrasi ISBN')
+            ->assertDontSee('Informasi Publikasi');
+    }
+
+    /** @test */
+    public function article_shows_publication_info_but_not_isbn_card(): void
+    {
+        $article = Title::create(['title' => 'Artikel Publikasi ' . uniqid(), 'jenis' => 'artikel', 'tipe_naskah' => 'mandiri', 'status' => 'disetujui']);
+        $this->actingAs($this->user('production'))->get(route('title.show', $article->id))
+            ->assertOk()
+            ->assertSee('Informasi Publikasi')
+            ->assertDontSee('Registrasi ISBN');
+    }
 }

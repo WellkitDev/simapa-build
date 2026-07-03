@@ -107,7 +107,7 @@
     @endif
 </div></div></div></div>
 
-@if($canViewInfo)
+@if($canViewInfo && $title->jenis === 'artikel')
 <div class="row"><div class="col-md-8 col-12 grid-margin stretch-card"><div class="card"><div class="card-body">
     <div class="d-flex justify-content-between align-items-center mb-2">
         <h6 class="card-title mb-0">Informasi Publikasi</h6>
