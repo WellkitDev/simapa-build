@@ -23,4 +23,9 @@ class Author extends Model
         )->withPivot('position');
     }
 
+    public function chapters()
+    {
+        return $this->belongsToMany(TitleChapter::class, 'tb_title_chapter_authors', 'author_id', 'title_chapter_id');
+    }
+
 }

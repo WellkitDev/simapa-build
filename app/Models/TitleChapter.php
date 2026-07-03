@@ -22,4 +22,10 @@ class TitleChapter extends Model
     {
         return $this->hasOne(ChapterProgress::class, 'title_chapter_id');
     }
+
+    public function authors()
+    {
+        return $this->belongsToMany(Author::class, 'tb_title_chapter_authors', 'title_chapter_id', 'author_id')
+            ->withPivot('position')->orderByPivot('position');
+    }
 }
