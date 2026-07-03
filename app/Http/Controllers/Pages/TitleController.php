@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Pages;
 
 use App\Http\Controllers\Controller;
+use App\Models\Author;
 use App\Models\Journal;
 use App\Models\Scope;
 use App\Models\Title;
@@ -70,7 +71,7 @@ class TitleController extends Controller
 
     public function show(int $id)
     {
-        $title = Title::with(['chapters', 'creator', 'approver', 'scope', 'assignedMarketing', 'orderDetails.order.user', 'orderDetails.titleProgress', 'journalOptions.journal', 'logs.changedBy'])->findOrFail($id);
+        $title = Title::with(['chapters.authors', 'creator', 'approver', 'scope', 'assignedMarketing', 'orderDetails.order.user', 'orderDetails.titleProgress', 'journalOptions.journal', 'logs.changedBy'])->findOrFail($id);
         abort_if(! $this->canManage() && ! $title->isApproved(), 403);
         // marketing tak boleh membuka judul yang di-assign ke marketing lain
         abort_if(! $this->canManage() && $title->assigned_to && $title->assigned_to !== Auth::id(), 403);
@@ -89,6 +90,7 @@ class TitleController extends Controller
             'canEditInfo' => Auth::user()->hasAnyRole(['superadmin', 'manager', 'admin']),
             'canOpenBoard' => Auth::user()->hasAnyRole(['superadmin', 'manager', 'production']),
             'journals' => Journal::orderBy('nama')->get(),
+            'allAuthors' => Author::orderBy('name')->get(),
         ]);
     }
 
@@ -174,6 +176,22 @@ class TitleController extends Controller
         $this->service->updateInfo($title, $data, $request->input('journal_options', []), Auth::user());
 
         return redirect()->route('title.show', $title->id)->with('success', 'Informasi publikasi diperbarui.');
+    }
+
+    public function updateChapterAuthors(Request $request, int $id)
+    {
+        abort_unless(Auth::user()->hasAnyRole(['superadmin', 'manager', 'admin']), 403);
+        $title = Title::findOrFail($id);
+
+        $request->validate([
+            'chapter_authors'     => 'nullable|array',
+            'chapter_authors.*'   => 'nullable|array',
+            'chapter_authors.*.*' => 'nullable|string',
+        ]);
+
+        app(\App\Services\ChapterAuthorService::class)->syncChapterAuthors($title, $request->input('chapter_authors', []));
+
+        return redirect()->route('title.show', $title->id)->with('success', 'Author bab diperbarui.');
     }
 
     private function validateData(Request $request): array

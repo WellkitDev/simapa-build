@@ -250,6 +250,7 @@ Route::middleware('auth')->group(function () {
     });
     Route::middleware('role:superadmin|manager|admin')->group(function () {
         Route::put('titles/{id}/info', [TitleController::class, 'updateInfo'])->name('title.info.update')->whereNumber('id');
+        Route::put('titles/{id}/chapter-authors', [TitleController::class, 'updateChapterAuthors'])->name('title.chapters.authors')->whereNumber('id');
     });
 
     // Direktori Jurnal — index & show accessible to all authenticated roles
