@@ -181,6 +181,53 @@
         location.replace(location.pathname + location.search + sep + 'view=list');
     }
 
+    const CHAPTER_STAGES = @json(collect(\App\Models\TitleProgress::BOOK_STAGES)
+        ->map(fn ($s) => ['value' => $s, 'label' => \App\Models\Title::stageLabel($s)])->values());
+
+    document.addEventListener('click', function (e) {
+        const btn = e.target.closest('[data-chapter-edit]');
+        if (!btn) return;
+        e.preventDefault();
+        const cp      = btn.getAttribute('data-cp');
+        const current = btn.getAttribute('data-current');
+        const next    = btn.getAttribute('data-next');
+        const judul   = btn.getAttribute('data-judul') || 'Bab';
+
+        const options = CHAPTER_STAGES
+            .filter((s) => s.value !== current)
+            .map((s) => '<option value="' + s.value + '">' + s.label + '</option>')
+            .join('');
+
+        Swal.fire({
+            title: 'Ubah tahap: ' + judul,
+            html:
+                '<select id="swal-stage" class="form-select form-select-sm mb-2">' + options + '</select>' +
+                '<textarea id="swal-note" class="form-control form-control-sm" rows="2" placeholder="Catatan (wajib bila mundur/lompat)"></textarea>',
+            showCancelButton: true,
+            confirmButtonText: 'Simpan',
+            cancelButtonText: 'Batal',
+            focusConfirm: false,
+            preConfirm: () => {
+                const target = document.getElementById('swal-stage').value;
+                const note   = document.getElementById('swal-note').value.trim();
+                if (target !== next && note === '') {
+                    Swal.showValidationMessage('Catatan wajib untuk lompat/mundur.');
+                    return false;
+                }
+                return { target, note };
+            },
+        }).then((result) => {
+            if (!result.isConfirmed) return;
+            fetch(base + '/chapter/' + cp + '/advance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': token, 'X-Requested-With': 'XMLHttpRequest' },
+                body: JSON.stringify({ status: result.value.target, note: result.value.note }),
+            })
+            .then(async (res) => { const d = await res.json().catch(() => ({})); if (!res.ok) throw new Error(d.message || 'Gagal.'); toast(d.message || 'Bab diperbarui.', true); setTimeout(() => location.reload(), 500); })
+            .catch((err) => toast(err.message, false));
+        });
+    });
+
     document.addEventListener('click', function (e) {
         const btn = e.target.closest('[data-chapter-advance]');
         if (!btn) return;
