@@ -61,6 +61,12 @@ class ManuscriptTrackerController extends Controller
         $details = OrderDetail::query()
             ->with(['order.user', 'authors', 'scopes', 'titleProgress.assignedUser', 'titleProgress.updatedBy', 'titleRef.chapters.progress.assignedUser', 'titleRef.chapters.authors'])
             ->whereHas('titleProgress')
+            ->whereHas('titleProgress', function ($t) {
+                $t->where(function ($q) {
+                    $q->whereNotIn('status', TitleProgress::FINAL_STAGES)
+                      ->orWhere('started_at', '>=', now()->subDays(TitleProgress::BOARD_RETENTION_DAYS));
+                });
+            })
             ->where($typeFilter)
             ->when($editorFilter !== null && $editorFilter !== '', fn ($q) =>
                 $q->whereHas('titleProgress', fn ($t) => $t->where('assigned_user_id', $editorFilter)))

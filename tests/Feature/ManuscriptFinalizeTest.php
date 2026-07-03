@@ -88,4 +88,23 @@ class ManuscriptFinalizeTest extends TestCase
             ->assertOk();
         $this->assertSame('cetak', $cp->fresh()->status);
     }
+
+    /** @test */
+    public function final_older_than_30_days_drops_off_board_recent_stays(): void
+    {
+        $old    = $this->articleAt('publish', now()->subDays(31));
+        $recent = $this->articleAt('publish', now()->subDays(29));
+
+        $res = $this->actingAs($this->user('manager'))->get(route('manuscript.board', ['tipe' => 'artikel']))->assertOk();
+        $res->assertDontSee($old->orderDetail->title);
+        $res->assertSee($recent->orderDetail->title);
+    }
+
+    /** @test */
+    public function non_final_old_manuscript_stays_on_board(): void
+    {
+        $editing = $this->articleAt('editing', now()->subDays(60));
+        $this->actingAs($this->user('manager'))->get(route('manuscript.board', ['tipe' => 'artikel']))
+            ->assertOk()->assertSee($editing->orderDetail->title);
+    }
 }
