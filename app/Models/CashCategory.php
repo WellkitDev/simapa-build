@@ -8,7 +8,7 @@ class CashCategory extends Model
 {
     protected $table = 'tb_cash_categories';
 
-    protected $fillable = ['name', 'jenis', 'active', 'position'];
+    protected $fillable = ['name', 'jenis', 'active', 'position', 'map_key'];
 
     protected $casts = ['active' => 'boolean'];
 

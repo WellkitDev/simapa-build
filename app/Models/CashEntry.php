@@ -8,7 +8,7 @@ class CashEntry extends Model
 {
     protected $table = 'tb_cash_entries';
 
-    protected $fillable = ['tanggal', 'kode', 'keterangan', 'jenis', 'amount', 'cash_category_id', 'produk', 'ref', 'catatan', 'source', 'created_by'];
+    protected $fillable = ['tanggal', 'kode', 'keterangan', 'jenis', 'amount', 'cash_category_id', 'produk', 'ref', 'catatan', 'source', 'created_by', 'payment_id'];
 
     protected $casts = ['tanggal' => 'date', 'amount' => 'decimal:2'];
 
@@ -19,4 +19,6 @@ class CashEntry extends Model
     public function category() { return $this->belongsTo(CashCategory::class, 'cash_category_id'); }
 
     public function creator() { return $this->belongsTo(User::class, 'created_by'); }
+
+    public function payment() { return $this->belongsTo(\App\Models\Payment::class); }
 }
