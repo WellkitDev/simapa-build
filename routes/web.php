@@ -307,6 +307,11 @@ Route::middleware('auth')->group(function () {
     Route::middleware('role:superadmin|accounting')->group(function () {
         Route::get('accounting/journal', [\App\Http\Controllers\Pages\CashEntryController::class, 'index'])->name('accounting.journal');
         Route::get('accounting/dashboard', [\App\Http\Controllers\Pages\AccountingDashboardController::class, 'index'])->name('accounting.dashboard');
+        Route::get('accounting/distribution', [\App\Http\Controllers\Pages\ProfitDistributionController::class, 'index'])->name('accounting.distribution');
+        Route::put('accounting/distribution/settings', [\App\Http\Controllers\Pages\ProfitDistributionController::class, 'updateSetting'])->name('accounting.distribution.settings');
+        Route::post('accounting/distribution/rule', [\App\Http\Controllers\Pages\ProfitDistributionController::class, 'storeRule'])->name('accounting.distribution.rule.store');
+        Route::put('accounting/distribution/rule/{id}', [\App\Http\Controllers\Pages\ProfitDistributionController::class, 'updateRule'])->name('accounting.distribution.rule.update')->whereNumber('id');
+        Route::delete('accounting/distribution/rule/{id}', [\App\Http\Controllers\Pages\ProfitDistributionController::class, 'destroyRule'])->name('accounting.distribution.rule.destroy')->whereNumber('id');
         Route::put('accounting/opening', [\App\Http\Controllers\Pages\CashEntryController::class, 'updateOpening'])->name('accounting.opening.update');
         Route::post('accounting/entry', [\App\Http\Controllers\Pages\CashEntryController::class, 'store'])->name('accounting.entry.store');
         Route::put('accounting/entry/{id}', [\App\Http\Controllers\Pages\CashEntryController::class, 'update'])->name('accounting.entry.update')->whereNumber('id');

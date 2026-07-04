@@ -96,6 +96,12 @@
                         <span class="link-title">Dashboard Keuangan</span>
                     </a>
                 </li>
+                <li class="nav-item {{ active_class(['accounting/distribution']) }}">
+                    <a href="{{ route('accounting.distribution') }}" class="nav-link">
+                        <i class="link-icon" data-feather="pie-chart"></i>
+                        <span class="link-title">Distribusi Profit</span>
+                    </a>
+                </li>
             @endrole
 
             @role(['superadmin', 'manager', 'admin', 'production', 'marketing'])
