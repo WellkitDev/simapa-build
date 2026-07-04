@@ -302,6 +302,17 @@ Route::middleware('auth')->group(function () {
         Route::post('management/archive/{id}/approve', [\App\Http\Controllers\Pages\TitleArchiveController::class, 'approve'])->name('archive.approve')->whereNumber('id');
         Route::post('management/archive/{id}/reject', [\App\Http\Controllers\Pages\TitleArchiveController::class, 'reject'])->name('archive.reject')->whereNumber('id');
     });
+
+    // Akuntansi — Jurnal Kas (superadmin/accounting)
+    Route::middleware('role:superadmin|accounting')->group(function () {
+        Route::get('accounting/journal', [\App\Http\Controllers\Pages\CashEntryController::class, 'index'])->name('accounting.journal');
+        Route::post('accounting/entry', [\App\Http\Controllers\Pages\CashEntryController::class, 'store'])->name('accounting.entry.store');
+        Route::put('accounting/entry/{id}', [\App\Http\Controllers\Pages\CashEntryController::class, 'update'])->name('accounting.entry.update')->whereNumber('id');
+        Route::delete('accounting/entry/{id}', [\App\Http\Controllers\Pages\CashEntryController::class, 'destroy'])->name('accounting.entry.destroy')->whereNumber('id');
+        Route::post('accounting/category', [\App\Http\Controllers\Pages\CashCategoryController::class, 'store'])->name('accounting.category.store');
+        Route::put('accounting/category/{id}', [\App\Http\Controllers\Pages\CashCategoryController::class, 'update'])->name('accounting.category.update')->whereNumber('id');
+        Route::delete('accounting/category/{id}', [\App\Http\Controllers\Pages\CashCategoryController::class, 'destroy'])->name('accounting.category.destroy')->whereNumber('id');
+    });
 });
 
 
