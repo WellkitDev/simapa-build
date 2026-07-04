@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use Tests\TestCase;
 use App\Models\CashEntry;
+use App\Models\CashSetting;
 use App\Services\CashJournalService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Carbon\Carbon;
@@ -40,6 +41,20 @@ class CashJournalServiceTest extends TestCase
         $this->assertSame(1300000.0, $r['saldoAkhir']);
         $saldos = $r['entries']->pluck('saldo')->all();
         $this->assertSame([1500000.0, 1300000.0], $saldos); // running: 1jt+500rb, -200rb
+    }
+
+    /** @test */
+    public function saldo_awal_seeds_the_running_balance(): void
+    {
+        CashSetting::singleton()->update(['saldo_awal' => 50000000]);
+        $this->entry('2026-06-05', 'pemasukan', 500000);
+
+        $r = (new CashJournalService())->compute(2026, 6, null);
+
+        $this->assertSame(50000000.0, $r['saldoAwal']);
+        $this->assertSame(50000000.0, $r['opening']);          // saldo awal jadi basis
+        $this->assertSame(50500000.0, $r['entries']->first()->saldo); // berlanjut dari saldo awal
+        $this->assertSame(50500000.0, $r['saldoAkhir']);
     }
 
     /** @test */

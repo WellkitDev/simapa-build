@@ -33,9 +33,25 @@
 </div>
 
 <div class="row"><div class="col-12 grid-margin stretch-card"><div class="card"><div class="card-body">
-    <div class="d-flex justify-content-between align-items-center mb-2">
-        <span class="text-muted small">Saldo awal periode: {{ $rp($opening) }}</span>
-        <button class="btn btn-sm btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#entryForm">+ Tambah Transaksi</button>
+    <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+        <span class="text-muted small">
+            Saldo awal periode: {{ $rp($opening) }}
+            · <span title="Saldo pembukaan kas (lanjutan dari data sebelumnya)">Saldo Awal: {{ $rp($setting->saldo_awal) }}@if($setting->tanggal_awal) per {{ $setting->tanggal_awal->format('d M Y') }}@endif</span>
+        </span>
+        <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#openingForm">Set Saldo Awal</button>
+            <button class="btn btn-sm btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#entryForm">+ Tambah Transaksi</button>
+        </div>
+    </div>
+
+    <div class="collapse mb-3" id="openingForm">
+        <form method="POST" action="{{ route('accounting.opening.update') }}" class="border rounded p-3 d-flex gap-2 align-items-end flex-wrap">
+            @csrf @method('PUT')
+            <div><label class="form-label small mb-1">Saldo Awal (Rp)</label><input type="number" name="saldo_awal" value="{{ (int) $setting->saldo_awal }}" class="form-control form-control-sm" min="0" required></div>
+            <div><label class="form-label small mb-1">Per Tanggal</label><input type="date" name="tanggal_awal" value="{{ optional($setting->tanggal_awal)->format('Y-m-d') }}" class="form-control form-control-sm"></div>
+            <button class="btn btn-sm btn-primary">Simpan Saldo Awal</button>
+            <small class="text-muted">Saldo pembukaan kas — running saldo di jurnal berlanjut dari nilai ini.</small>
+        </form>
     </div>
 
     <div class="collapse mb-3" id="entryForm">

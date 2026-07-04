@@ -91,4 +91,16 @@ class AccountingJournalTest extends TestCase
         $this->actingAs($this->user('accounting'))->delete(route('accounting.entry.destroy', $e->id))->assertRedirect();
         $this->assertNull(CashEntry::find($e->id));
     }
+
+    /** @test */
+    public function accounting_sets_saldo_awal(): void
+    {
+        $this->actingAs($this->user('accounting'))->put(route('accounting.opening.update'), [
+            'saldo_awal' => 50000000, 'tanggal_awal' => '2026-07-01',
+        ])->assertRedirect();
+
+        $setting = \App\Models\CashSetting::singleton();
+        $this->assertSame('50000000.00', $setting->saldo_awal);
+        $this->assertSame('2026-07-01', $setting->tanggal_awal->format('Y-m-d'));
+    }
 }

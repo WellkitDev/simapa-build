@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\CashEntry;
+use App\Models\CashSetting;
 use Carbon\Carbon;
 
 class CashJournalService
@@ -21,9 +22,10 @@ class CashJournalService
     {
         $start = $month ? Carbon::create($year, $month, 1)->startOfDay() : Carbon::create($year, 1, 1)->startOfDay();
 
-        $priorIn  = (float) CashEntry::where('tanggal', '<', $start)->where('jenis', 'pemasukan')->sum('amount');
-        $priorOut = (float) CashEntry::where('tanggal', '<', $start)->where('jenis', 'pengeluaran')->sum('amount');
-        $opening  = $priorIn - $priorOut;
+        $saldoAwal = (float) CashSetting::singleton()->saldo_awal;
+        $priorIn   = (float) CashEntry::where('tanggal', '<', $start)->where('jenis', 'pemasukan')->sum('amount');
+        $priorOut  = (float) CashEntry::where('tanggal', '<', $start)->where('jenis', 'pengeluaran')->sum('amount');
+        $opening   = $saldoAwal + $priorIn - $priorOut;
 
         $q = CashEntry::with('category')->whereYear('tanggal', $year);
         if ($month) { $q->whereMonth('tanggal', $month); }
@@ -41,6 +43,6 @@ class CashJournalService
 
         $entries = $jenis ? $all->where('jenis', $jenis)->values() : $all;
 
-        return compact('entries', 'opening', 'totalIn', 'totalOut', 'saldoAkhir');
+        return compact('entries', 'opening', 'totalIn', 'totalOut', 'saldoAkhir', 'saldoAwal');
     }
 }

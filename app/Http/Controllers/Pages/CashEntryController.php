@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Pages;
 use App\Http\Controllers\Controller;
 use App\Models\CashCategory;
 use App\Models\CashEntry;
+use App\Models\CashSetting;
 use App\Services\CashJournalService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -30,7 +31,22 @@ class CashEntryController extends Controller
             'jenis'         => $jenis,
             'categories'    => CashCategory::active()->orderBy('jenis')->orderBy('position')->get(),
             'allCategories' => CashCategory::orderBy('jenis')->orderBy('position')->get(),
+            'setting'       => CashSetting::singleton(),
         ]));
+    }
+
+    /** Set saldo awal (saldo pembukaan kas) — melanjutkan saldo dari data sebelumnya. */
+    public function updateOpening(Request $request)
+    {
+        $data = $request->validate([
+            'saldo_awal'   => 'required|numeric|min:0',
+            'tanggal_awal' => 'nullable|date',
+        ]);
+        $data['tanggal_awal'] = ($data['tanggal_awal'] ?? '') ?: null;
+        $data['updated_by'] = Auth::id();
+        CashSetting::singleton()->update($data);
+
+        return back()->with('success', 'Saldo awal diperbarui.');
     }
 
     private function validated(Request $request): array
