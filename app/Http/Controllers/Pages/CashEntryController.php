@@ -7,6 +7,7 @@ use App\Models\CashAccount;
 use App\Models\CashCategory;
 use App\Models\CashEntry;
 use App\Services\CashJournalService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,7 +17,8 @@ class CashEntryController extends Controller
 {
     public function __construct(private CashJournalService $service) {}
 
-    public function index(Request $request)
+    /** @return array{0:int,1:?int,2:?string,3:?int} [year, month, jenis, accountId] dari query. */
+    private function resolveFilters(Request $request): array
     {
         $now   = now();
         $year  = (int) $request->query('year', $now->year);
@@ -25,6 +27,12 @@ class CashEntryController extends Controller
         $jenis = in_array($request->query('jenis'), ['pemasukan', 'pengeluaran'], true) ? $request->query('jenis') : null;
         $acc   = $request->query('account');
         $accountId = ($acc === null || $acc === '' || $acc === 'all') ? null : (int) $acc;
+        return [$year, $month, $jenis, $accountId];
+    }
+
+    public function index(Request $request)
+    {
+        [$year, $month, $jenis, $accountId] = $this->resolveFilters($request);
 
         $data = $this->service->compute($year, $month, $jenis, $accountId);
 
@@ -39,6 +47,45 @@ class CashEntryController extends Controller
             'allAccounts'   => CashAccount::orderBy('position')->get(),
             'balances'      => $this->service->accountBalances(),
         ]));
+    }
+
+    public function exportCsv(Request $request)
+    {
+        [$year, $month, $jenis, $accountId] = $this->resolveFilters($request);
+        $data = $this->service->compute($year, $month, $jenis, $accountId);
+        $filename = 'Jurnal_Kas_' . $year . '_' . ($month ?? 'semua') . '.csv';
+
+        return response()->streamDownload(function () use ($data) {
+            $h = fopen('php://output', 'w');
+            fwrite($h, "\xEF\xBB\xBF"); // BOM UTF-8
+            fputcsv($h, ['Tanggal', 'Kode', 'Keterangan', 'Akun', 'Kategori', 'Produk', 'Pemasukan', 'Pengeluaran', 'Saldo', 'Ref'], ';');
+            foreach ($data['entries'] as $e) {
+                fputcsv($h, [
+                    optional($e->tanggal)->format('Y-m-d'),
+                    $e->kode,
+                    $e->keterangan,
+                    $e->account?->name ?? '',
+                    $e->category?->name ?? '',
+                    \App\Models\CashEntry::PRODUK[$e->produk] ?? '',
+                    $e->isPemasukan() ? (int) $e->amount : '',
+                    ! $e->isPemasukan() ? (int) $e->amount : '',
+                    (int) ($e->saldo ?? 0),
+                    $e->ref ?? '',
+                ], ';');
+            }
+            fclose($h);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    public function exportPdf(Request $request)
+    {
+        [$year, $month, $jenis, $accountId] = $this->resolveFilters($request);
+        $data = $this->service->compute($year, $month, $jenis, $accountId);
+        $data['year'] = $year;
+        $data['month'] = $month;
+
+        return Pdf::loadView('accounting.pdf.journal', $data)
+            ->download('Jurnal_Kas_' . $year . '_' . ($month ?? 'semua') . '.pdf');
     }
 
     private function validated(Request $request): array

@@ -33,6 +33,8 @@
         </select>
         <button class="btn btn-sm btn-outline-secondary">Filter</button>
     </form>
+    <a href="{{ route('accounting.journal.export.csv', request()->query()) }}" class="btn btn-sm btn-outline-success">Export CSV</a>
+    <a href="{{ route('accounting.journal.export.pdf', request()->query()) }}" class="btn btn-sm btn-outline-danger">Export PDF</a>
 </div>
 
 {{-- Kartu saldo per akun --}}
