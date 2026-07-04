@@ -15,6 +15,6 @@ class CashSetting extends Model
     /** Baris tunggal setelan kas (dibuat bila belum ada). */
     public static function singleton(): self
     {
-        return static::firstOrCreate([]);
+        return static::firstOrCreate([], ['saldo_awal' => 0, 'team_members' => 8]);
     }
 }
