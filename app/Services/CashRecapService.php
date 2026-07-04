@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Models\CashEntry;
-use App\Models\CashSetting;
+use App\Models\CashAccount;
 use Carbon\Carbon;
 
 class CashRecapService
@@ -14,11 +14,11 @@ class CashRecapService
     public function monthlyRecap(int $year): array
     {
         $yearStart = Carbon::create($year, 1, 1)->startOfDay();
-        $opening = (float) CashSetting::singleton()->saldo_awal
-            + (float) CashEntry::where('tanggal', '<', $yearStart)->where('jenis', 'pemasukan')->sum('amount')
-            - (float) CashEntry::where('tanggal', '<', $yearStart)->where('jenis', 'pengeluaran')->sum('amount');
+        $opening = CashAccount::totalOpening()
+            + (float) CashEntry::where('tanggal', '<', $yearStart)->where('is_transfer', false)->where('jenis', 'pemasukan')->sum('amount')
+            - (float) CashEntry::where('tanggal', '<', $yearStart)->where('is_transfer', false)->where('jenis', 'pengeluaran')->sum('amount');
 
-        $entries = CashEntry::whereYear('tanggal', $year)->get();
+        $entries = CashEntry::whereYear('tanggal', $year)->where('is_transfer', false)->get();
         $running = $opening;
         $out = [];
         for ($m = 1; $m <= 12; $m++) {
@@ -52,7 +52,7 @@ class CashRecapService
         $incomeArtikel = (float) array_sum(array_column($recap, 'inArtikel'));
         $incomeBuku    = (float) array_sum(array_column($recap, 'inBuku'));
 
-        $expenseByCategory = CashEntry::whereYear('tanggal', $year)->where('jenis', 'pengeluaran')
+        $expenseByCategory = CashEntry::whereYear('tanggal', $year)->where('jenis', 'pengeluaran')->where('is_transfer', false)
             ->with('category')->get()
             ->groupBy(fn ($e) => optional($e->category)->name ?? 'Tanpa Kategori')
             ->map(fn ($g) => (float) $g->sum('amount'))

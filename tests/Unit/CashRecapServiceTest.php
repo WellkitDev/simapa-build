@@ -6,6 +6,7 @@ use Tests\TestCase;
 use App\Models\CashEntry;
 use App\Models\CashCategory;
 use App\Models\CashSetting;
+use App\Models\CashAccount;
 use App\Services\CashRecapService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -20,7 +21,7 @@ class CashRecapServiceTest extends TestCase
 
     private function seedData(): void
     {
-        CashSetting::singleton()->update(['saldo_awal' => 1000000]);
+        CashAccount::incomeDefault()->update(['opening_balance' => 1000000]);
         $opCat = CashCategory::where('name', 'Operational')->first();
         $this->entry('2026-01-05', 'pemasukan', 500000, 'artikel');
         $this->entry('2026-01-10', 'pemasukan', 300000, 'buku');
@@ -63,5 +64,19 @@ class CashRecapServiceTest extends TestCase
         $this->assertSame('Jan', $y['bestMonthLabel']);
         $this->assertArrayHasKey('Operational', $y['expenseByCategory']);
         $this->assertSame(200000.0, $y['expenseByCategory']['Operational']);
+    }
+
+    /** @test */
+    public function transfers_excluded_from_recap(): void
+    {
+        $A = CashAccount::incomeDefault();
+        $B = CashAccount::where('purpose', 'operational')->first();
+        CashEntry::create(['tanggal' => '2026-03-01', 'jenis' => 'pengeluaran', 'amount' => 300000, 'keterangan' => 't', 'source' => 'manual', 'account_id' => $A->id, 'is_transfer' => true, 'transfer_group' => 'g']);
+        CashEntry::create(['tanggal' => '2026-03-01', 'jenis' => 'pemasukan', 'amount' => 300000, 'keterangan' => 't', 'source' => 'manual', 'account_id' => $B->id, 'is_transfer' => true, 'transfer_group' => 'g']);
+
+        $mar = (new CashRecapService())->monthlyRecap(2026)[2];
+        $this->assertSame(0.0, $mar['totalIn']);
+        $this->assertSame(0.0, $mar['totalOut']);
+        $this->assertSame(0.0, $mar['laba']);
     }
 }
