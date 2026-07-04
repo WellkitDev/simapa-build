@@ -108,6 +108,12 @@
                         <span class="link-title">Asumsi</span>
                     </a>
                 </li>
+                <li class="nav-item {{ active_class(['accounting/target']) }}">
+                    <a href="{{ route('accounting.target') }}" class="nav-link">
+                        <i class="link-icon" data-feather="target"></i>
+                        <span class="link-title">Anggaran & Target</span>
+                    </a>
+                </li>
             @endrole
 
             @role(['superadmin', 'manager', 'admin', 'production', 'marketing'])

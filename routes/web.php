@@ -319,6 +319,8 @@ Route::middleware('auth')->group(function () {
         Route::post('accounting/assumption/expense', [\App\Http\Controllers\Pages\CashAssumptionController::class, 'storeExpense'])->name('accounting.assumption.expense.store');
         Route::put('accounting/assumption/expense/{id}', [\App\Http\Controllers\Pages\CashAssumptionController::class, 'updateExpense'])->name('accounting.assumption.expense.update')->whereNumber('id');
         Route::delete('accounting/assumption/expense/{id}', [\App\Http\Controllers\Pages\CashAssumptionController::class, 'destroyExpense'])->name('accounting.assumption.expense.destroy')->whereNumber('id');
+        Route::get('accounting/target', [\App\Http\Controllers\Pages\BudgetTargetController::class, 'index'])->name('accounting.target');
+        Route::put('accounting/target', [\App\Http\Controllers\Pages\BudgetTargetController::class, 'updateTarget'])->name('accounting.target.update');
         Route::put('accounting/opening', [\App\Http\Controllers\Pages\CashEntryController::class, 'updateOpening'])->name('accounting.opening.update');
         Route::post('accounting/entry', [\App\Http\Controllers\Pages\CashEntryController::class, 'store'])->name('accounting.entry.store');
         Route::put('accounting/entry/{id}', [\App\Http\Controllers\Pages\CashEntryController::class, 'update'])->name('accounting.entry.update')->whereNumber('id');
