@@ -9,6 +9,7 @@ use App\Models\OrderDetail;
 use App\Models\Payment;
 use App\Models\CashEntry;
 use App\Models\CashCategory;
+use App\Models\CashAccount;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
 
@@ -54,6 +55,7 @@ class PaymentCashSyncTest extends TestCase
         $this->assertSame($order->code_order, $e->ref);
         $this->assertSame('B626', $e->kode);
         $this->assertSame(CashCategory::where('map_key', 'at_kolab')->first()->id, $e->cash_category_id);
+        $this->assertSame(CashAccount::incomeDefault()->id, $e->account_id);
     }
 
     /** @test */

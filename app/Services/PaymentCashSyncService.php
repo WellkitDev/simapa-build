@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\CashAccount;
 use App\Models\CashCategory;
 use App\Models\CashEntry;
 use App\Models\Payment;
@@ -39,6 +40,7 @@ class PaymentCashSyncService
                 'jenis'            => $refund ? 'pengeluaran' : 'pemasukan',
                 'amount'           => $payment->amount,
                 'cash_category_id' => $catId,
+                'account_id'       => optional(CashAccount::incomeDefault())->id,
                 'produk'           => $produk,
                 'ref'              => $ref,
                 'keterangan'       => $ket,
