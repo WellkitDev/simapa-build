@@ -50,6 +50,11 @@
         </form>
 
         <div class="text-muted small fw-semibold mb-1">Aturan Distribusi</div>
+        <p class="text-muted small mb-2">
+            <strong>Persen</strong> = % dari profit (bila <em>per anggota</em>, total dibagi jumlah anggota).
+            <strong>Flat + per anggota</strong> = nominal <em>per orang</em> (mis. gaji pokok) → total = nominal × jumlah anggota.
+            <strong>Flat</strong> tanpa per anggota = nominal tetap.
+        </p>
         @foreach($rules as $r)
             <div class="d-flex gap-2 align-items-center mb-1 flex-wrap">
                 <form method="POST" action="{{ route('accounting.distribution.rule.update', $r->id) }}" class="d-flex gap-2 align-items-center flex-wrap flex-grow-1 m-0">

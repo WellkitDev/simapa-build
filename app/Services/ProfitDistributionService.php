@@ -16,14 +16,28 @@ class ProfitDistributionService
         }
 
         $lines = CashDistribution::active()->orderBy('position')->get()->map(function ($r) use ($profit, $members) {
-            $amount = $r->type === 'percent' ? round((float) $r->value / 100 * $profit) : (float) $r->value;
+            $value = (float) $r->value;
+            if ($r->type === 'percent') {
+                // Persen dari profit = pool; per anggota → dibagi jumlah anggota.
+                $amount    = round($value / 100 * $profit);
+                $perPerson = $r->per_member ? $amount / $members : null;
+            } elseif ($r->per_member) {
+                // Flat per anggota (mis. gaji pokok) = nominal per orang; total = nominal × anggota.
+                $perPerson = $value;
+                $amount    = $value * $members;
+            } else {
+                // Flat total.
+                $amount    = $value;
+                $perPerson = null;
+            }
+
             return [
                 'name'       => $r->name,
                 'type'       => $r->type,
-                'value'      => (float) $r->value,
+                'value'      => $value,
                 'per_member' => (bool) $r->per_member,
                 'amount'     => $amount,
-                'perPerson'  => $r->per_member ? $amount / $members : null,
+                'perPerson'  => $perPerson,
             ];
         })->values();
 

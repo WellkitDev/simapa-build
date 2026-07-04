@@ -51,4 +51,15 @@ class ProfitDistributionServiceTest extends TestCase
         $this->assertFalse($r['lines']->contains('name', 'Fee Tim'));
         $this->assertSame(150000.0, $r['totalAllocated']); // 5% + 10%
     }
+
+    /** @test */
+    public function flat_per_member_is_salary_per_person(): void
+    {
+        // Gaji pokok 2,5jt PER ORANG, 8 anggota → per orang = 2,5jt, total = 20jt.
+        CashDistribution::create(['name' => 'Gaji Pokok', 'type' => 'flat', 'value' => 2500000, 'per_member' => true, 'active' => true, 'position' => 5]);
+
+        $line = (new ProfitDistributionService())->distribute(1000000, 8)['lines']->firstWhere('name', 'Gaji Pokok');
+        $this->assertSame(2500000.0, $line['perPerson']); // nominal = per orang
+        $this->assertSame(20000000.0, $line['amount']);   // total = 2,5jt × 8
+    }
 }
