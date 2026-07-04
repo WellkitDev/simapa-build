@@ -43,6 +43,7 @@ class AccountingJournalTest extends TestCase
         $this->assertNotNull($e);
         $this->assertSame('B626', $e->kode);
         $this->assertSame('manual', $e->source);
+        $this->assertSame(CashAccount::incomeDefault()->id, $e->account_id); // entri manual → akun income-default
 
         $expCat = CashCategory::where('jenis', 'pengeluaran')->first();
         $this->actingAs($this->user('superadmin'))->post(route('accounting.entry.store'), [

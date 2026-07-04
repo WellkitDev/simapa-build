@@ -331,6 +331,7 @@ Route::middleware('auth')->group(function () {
         Route::post('accounting/account', [\App\Http\Controllers\Pages\CashAccountController::class, 'store'])->name('accounting.account.store');
         Route::put('accounting/account/{id}', [\App\Http\Controllers\Pages\CashAccountController::class, 'update'])->name('accounting.account.update')->whereNumber('id');
         Route::delete('accounting/account/{id}', [\App\Http\Controllers\Pages\CashAccountController::class, 'destroy'])->name('accounting.account.destroy')->whereNumber('id');
+        Route::post('accounting/transfer', [\App\Http\Controllers\Pages\CashEntryController::class, 'transfer'])->name('accounting.transfer.store');
     });
 });
 

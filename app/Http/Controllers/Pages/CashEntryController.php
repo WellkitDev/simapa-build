@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Pages;
 
 use App\Http\Controllers\Controller;
+use App\Models\CashAccount;
 use App\Models\CashCategory;
 use App\Models\CashEntry;
 use App\Models\CashSetting;
@@ -10,6 +11,7 @@ use App\Services\CashJournalService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 
 class CashEntryController extends Controller
 {
@@ -55,6 +57,7 @@ class CashEntryController extends Controller
             'tanggal'          => 'required|date',
             'jenis'            => 'required|in:pemasukan,pengeluaran',
             'cash_category_id' => 'nullable|exists:tb_cash_categories,id',
+            'account_id'       => 'nullable|exists:tb_cash_accounts,id',
             'amount'           => 'required|numeric|min:0',
             'produk'           => 'nullable|in:artikel,buku,operasional',
             'keterangan'       => 'required|string|max:255',
@@ -66,6 +69,7 @@ class CashEntryController extends Controller
     public function store(Request $request)
     {
         $data = $this->validated($request);
+        $data['account_id'] = $data['account_id'] ?? optional(CashAccount::incomeDefault())->id;
         $data['kode']       = $this->service->deriveKode(Carbon::parse($data['tanggal']));
         $data['source']     = 'manual';
         $data['created_by'] = Auth::id();
@@ -74,10 +78,40 @@ class CashEntryController extends Controller
         return back()->with('success', 'Transaksi kas ditambahkan.');
     }
 
+    /** Transfer dana antar akun: buat 2 baris (keluar + masuk), ditandai internal (is_transfer). */
+    public function transfer(Request $request)
+    {
+        $data = $request->validate([
+            'from_account_id' => 'required|exists:tb_cash_accounts,id',
+            'to_account_id'   => 'required|exists:tb_cash_accounts,id|different:from_account_id',
+            'amount'          => 'required|numeric|min:1',
+            'tanggal'         => 'required|date',
+            'catatan'         => 'nullable|string',
+        ]);
+
+        $from = CashAccount::find($data['from_account_id']);
+        $to   = CashAccount::find($data['to_account_id']);
+        $group = (string) Str::uuid();
+        $kode  = $this->service->deriveKode(Carbon::parse($data['tanggal']));
+        $ket   = "Transfer: {$from->name} → {$to->name}";
+
+        $base = [
+            'tanggal' => $data['tanggal'], 'kode' => $kode, 'keterangan' => $ket,
+            'amount' => $data['amount'], 'catatan' => $data['catatan'] ?? null,
+            'is_transfer' => true, 'transfer_group' => $group,
+            'source' => 'manual', 'created_by' => Auth::id(),
+        ];
+        CashEntry::create($base + ['account_id' => $from->id, 'jenis' => 'pengeluaran']);
+        CashEntry::create($base + ['account_id' => $to->id,   'jenis' => 'pemasukan']);
+
+        return back()->with('success', 'Transfer dana dicatat.');
+    }
+
     public function update(Request $request, int $id)
     {
         $entry = CashEntry::findOrFail($id);
         $data = $this->validated($request);
+        $data['account_id'] = $data['account_id'] ?? optional(CashAccount::incomeDefault())->id;
         $data['kode'] = $this->service->deriveKode(Carbon::parse($data['tanggal']));
         $entry->update($data);
 
@@ -86,7 +120,12 @@ class CashEntryController extends Controller
 
     public function destroy(int $id)
     {
-        CashEntry::findOrFail($id)->delete();
+        $entry = CashEntry::findOrFail($id);
+        if ($entry->is_transfer && $entry->transfer_group) {
+            CashEntry::where('transfer_group', $entry->transfer_group)->delete();
+            return back()->with('success', 'Transfer dihapus (kedua sisi).');
+        }
+        $entry->delete();
 
         return back()->with('success', 'Transaksi kas dihapus.');
     }
