@@ -82,6 +82,16 @@
                 </li>
             @endrole
 
+            @role(['superadmin', 'accounting'])
+                <li class="nav-item nav-category">Keuangan</li>
+                <li class="nav-item {{ active_class(['accounting/journal', 'accounting/*']) }}">
+                    <a href="{{ route('accounting.journal') }}" class="nav-link">
+                        <i class="link-icon" data-feather="book"></i>
+                        <span class="link-title">Jurnal Kas</span>
+                    </a>
+                </li>
+            @endrole
+
             @role(['superadmin', 'manager', 'admin', 'production', 'marketing'])
                 <li class="nav-item {{ active_class(['titles', 'titles/*']) }}">
                     <a href="{{ route('title.index') }}" class="nav-link">
