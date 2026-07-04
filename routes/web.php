@@ -293,6 +293,7 @@ Route::middleware('auth')->group(function () {
     // Arsip Judul selesai
     Route::get('management/archive', [\App\Http\Controllers\Pages\TitleArchiveController::class, 'index'])->name('archive.index');
     Route::get('management/archive/{id}', [\App\Http\Controllers\Pages\TitleArchiveController::class, 'show'])->name('archive.show')->whereNumber('id');
+    Route::get('management/archive/{id}/pdf', [\App\Http\Controllers\Pages\TitleArchiveController::class, 'pdf'])->name('archive.pdf')->whereNumber('id');
     Route::middleware('role:superadmin|manager|admin|production')->group(function () {
         Route::put('management/archive/{id}/artifacts', [\App\Http\Controllers\Pages\TitleArchiveController::class, 'saveArtifacts'])->name('archive.artifacts')->whereNumber('id');
         Route::post('management/archive/{id}/submit', [\App\Http\Controllers\Pages\TitleArchiveController::class, 'submit'])->name('archive.submit')->whereNumber('id');

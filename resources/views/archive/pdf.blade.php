@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: DejaVu Sans, sans-serif; font-size: 11px; color: #222; }
+        .head { border-bottom: 2px solid #333; padding-bottom: 8px; margin-bottom: 14px; }
+        .head h1 { margin: 4px 0 0; font-size: 18px; }
+        .muted { color: #666; }
+        h2 { font-size: 13px; margin: 16px 0 6px; border-bottom: 1px solid #ccc; padding-bottom: 3px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+        td, th { padding: 5px 7px; border: 1px solid #ccc; text-align: left; vertical-align: top; }
+        th { background: #f3f3f3; }
+    </style>
+</head>
+<body>
+    <div class="head">
+        @if(file_exists(public_path('assets/images/logo-av-90.png')))
+            <img src="{{ public_path('assets/images/logo-av-90.png') }}" height="36">
+        @endif
+        <h1>ARSIP JUDUL SELESAI</h1>
+        <div class="muted">{{ $title->code ? $title->code . ' — ' : '' }}{{ $title->title }} · Dicetak: {{ now()->format('d M Y H:i') }}</div>
+    </div>
+
+    <h2>Info Judul</h2>
+    <table>
+        <tr><th width="25%">Kode</th><td>{{ $title->code ?? '-' }}</td></tr>
+        <tr><th>Judul</th><td>{{ $title->title }}</td></tr>
+        <tr><th>Jenis / Tipe</th><td>{{ ucfirst($title->jenis) }} / {{ ucfirst($title->tipe_naskah) }}</td></tr>
+        <tr><th>Bidang Ilmu</th><td>{{ $title->scope?->scope ?? '-' }}</td></tr>
+    </table>
+
+    <h2>Info Order</h2>
+    <table>
+        <thead><tr><th>Kode Order</th><th>Marketing</th><th>Tanggal</th><th>Biaya</th><th>Bayar</th></tr></thead>
+        <tbody>
+        @forelse($title->orderDetails as $od)
+            <tr>
+                <td>{{ $od->order?->code_order ?? '-' }}</td>
+                <td>{{ $od->order?->user?->name ?? '-' }}</td>
+                <td>{{ optional($od->order?->ordered_at)->format('d M Y') ?? '-' }}</td>
+                <td>Rp {{ number_format((int) $od->cost_amount, 0, ',', '.') }}</td>
+                <td>{{ $od->order && $od->order->isLunas() ? 'Lunas' : 'Belum' }}</td>
+            </tr>
+        @empty
+            <tr><td colspan="5">Belum ada order.</td></tr>
+        @endforelse
+        </tbody>
+    </table>
+
+    <h2>Info Manuskrip</h2>
+    <table>
+        <tr><th width="25%">Status</th><td>{{ $title->manuscriptStatusLabel() ?? '-' }}</td></tr>
+        @if($title->jenis === 'buku' && $title->chapters->isNotEmpty())
+            <tr><th>Bab</th><td>{{ $title->chapters->pluck('judul')->join(', ') }}</td></tr>
+        @endif
+    </table>
+
+    <h2>Artefak Penyelesaian</h2>
+    <table>
+        <thead><tr><th width="22%">Item</th><th>Nilai</th><th width="20%">PIC</th><th width="22%">Catatan</th></tr></thead>
+        <tbody>
+        @foreach($artifacts as $a)
+            <tr>
+                <td>{{ $a['label'] }}</td>
+                <td>{{ $a['value'] ?: '-' }}{{ $a['type'] === 'file' && $a['file_name'] ? ' (' . $a['file_name'] . ')' : '' }}</td>
+                <td>{{ $a['pic_name'] ?? '-' }}</td>
+                <td>{{ $a['note'] ?? '-' }}</td>
+            </tr>
+        @endforeach
+        @foreach($custom as $c)
+            <tr>
+                <td>{{ $c->label }}</td>
+                <td>{{ $c->value ?: '-' }}</td>
+                <td>{{ optional($c->pic)->name ?? '-' }}</td>
+                <td>{{ $c->note ?? '-' }}</td>
+            </tr>
+        @endforeach
+        </tbody>
+    </table>
+
+    <h2>Persetujuan</h2>
+    <table>
+        <tr><th width="25%">Status</th><td>Disetujui</td></tr>
+        <tr><th>Disetujui oleh</th><td>{{ optional($title->archive->approver)->name ?? '-' }}</td></tr>
+        <tr><th>Tanggal</th><td>{{ optional($title->archive->approved_at)->format('d M Y H:i') ?? '-' }}</td></tr>
+        <tr><th>Catatan</th><td>{{ $title->archive->approval_note ?? '-' }}</td></tr>
+    </table>
+</body>
+</html>

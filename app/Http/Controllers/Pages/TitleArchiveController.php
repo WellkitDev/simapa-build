@@ -52,6 +52,25 @@ class TitleArchiveController extends Controller
         ]);
     }
 
+    public function pdf(int $id)
+    {
+        abort_unless($this->canManage(), 403);
+        $title = Title::with([
+            'chapters', 'scope', 'bookIsbn', 'archive.approver', 'archive.submitter',
+            'archiveArtifacts.pic',
+            'orderDetails.order.user', 'orderDetails.order.invoices', 'orderDetails.order.payments', 'orderDetails.order.details', 'orderDetails.titleProgress',
+        ])->findOrFail($id);
+        abort_unless(optional($title->archive)->status === 'disetujui', 403);
+
+        return \Barryvdh\DomPDF\Facade\Pdf::loadView('archive.pdf', [
+            'title'     => $title,
+            'artifacts' => $this->service->defaultArtifacts($title),
+            'custom'    => $title->archiveArtifacts->where('is_custom', true)->values(),
+            'isPaidOff' => $title->isPaidOff(),
+            'isFinal'   => $title->manuscriptIsFinal(),
+        ])->stream('Arsip_' . ($title->code ?: $title->id) . '.pdf');
+    }
+
     public function saveArtifacts(Request $request, int $id)
     {
         abort_unless($this->canManage(), 403);

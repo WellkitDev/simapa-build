@@ -35,6 +35,7 @@ class TitleArchivalService
                 'value'       => $row->value ?? ($prefill[$key] ?? null),
                 'file_name'   => $row->file_name ?? null,
                 'pic_user_id' => $row->pic_user_id ?? null,
+                'pic_name'    => $row ? optional($row->pic)->name : null,
                 'note'        => $row->note ?? null,
             ];
         }
