@@ -51,4 +51,22 @@ class CashJournalService
 
         return compact('entries', 'opening', 'totalIn', 'totalOut', 'saldoAkhir', 'saldoAwal');
     }
+
+    /**
+     * Saldo tiap akun aktif (opening + Σ pemasukan − Σ pengeluaran, termasuk transfer).
+     * @return array{rows:array<int,array{account:\App\Models\CashAccount,saldo:float}>,total:float}
+     */
+    public function accountBalances(): array
+    {
+        $rows = [];
+        $total = 0.0;
+        foreach (CashAccount::active()->orderBy('position')->get() as $acc) {
+            $in  = (float) CashEntry::where('account_id', $acc->id)->where('jenis', 'pemasukan')->sum('amount');
+            $out = (float) CashEntry::where('account_id', $acc->id)->where('jenis', 'pengeluaran')->sum('amount');
+            $saldo = (float) $acc->opening_balance + $in - $out;
+            $rows[] = ['account' => $acc, 'saldo' => $saldo];
+            $total += $saldo;
+        }
+        return ['rows' => $rows, 'total' => $total];
+    }
 }
