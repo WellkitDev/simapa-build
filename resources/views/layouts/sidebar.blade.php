@@ -90,6 +90,12 @@
                         <span class="link-title">Jurnal Kas</span>
                     </a>
                 </li>
+                <li class="nav-item {{ active_class(['accounting/dashboard']) }}">
+                    <a href="{{ route('accounting.dashboard') }}" class="nav-link">
+                        <i class="link-icon" data-feather="bar-chart-2"></i>
+                        <span class="link-title">Dashboard Keuangan</span>
+                    </a>
+                </li>
             @endrole
 
             @role(['superadmin', 'manager', 'admin', 'production', 'marketing'])
