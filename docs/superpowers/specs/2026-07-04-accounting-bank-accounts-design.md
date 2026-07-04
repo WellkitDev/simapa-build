@@ -75,7 +75,8 @@ $table->string('transfer_group')->nullable()->after('is_transfer'); // penghubun
 - Running saldo: iterasi **semua** entri scope, `running += pemasukan? +amt : −amt`, set `$e->saldo`. `saldoAkhir = running` (final; **termasuk transfer**).
 - `totalIn = entri->where('is_transfer',false)->where('jenis','pemasukan')->sum('amount')`; `totalOut` idem pengeluaran (**kecualikan transfer**).
 - `entries` = (bila `$jenis`) subset by jenis else semua.
-- return `entries, opening, totalIn, totalOut, saldoAkhir` (+ hapus `saldoAwal` yg lama).
+- `saldoAwal` = **opening mentah bercakup**: `accountId` → `CashAccount::find($accountId)?->opening_balance`, else `CashAccount::totalOpening()` (menggantikan sumber `CashSetting::saldo_awal`; **shape return dipertahankan** agar test lama minim ubah).
+- return `entries, opening, totalIn, totalOut, saldoAkhir, saldoAwal`.
 
 **`CashJournalService::accountBalances(): array`** (baru) — untuk kartu ringkasan:
 - Untuk tiap `CashAccount::active()->orderBy('position')` → `saldo = opening_balance + Σ(pemasukan) − Σ(pengeluaran)` seluruh entri akun (semua waktu, termasuk transfer). return `[['account'=>CashAccount,'saldo'=>float], ...]` + `total` = Σ saldo.
@@ -134,9 +135,11 @@ Tak berubah (menu "Keuangan → Jurnal Kas" sudah memuat semua ini di halaman ju
 - `payment_entry_lands_in_income_account` *(bila mudah)*: paksa sync Payment paid → entri `account_id` = akun income-default. (opsional bila setup Payment berat; boleh diverifikasi via unit `PaymentCashSyncService` yang sudah ada — cukup assert account_id ter-set.)
 - `marketing_cannot_transfer_or_manage_accounts`: marketing POST transfer & account.store → 403.
 
-**Sesuaikan `AccountingJournalTest`:**
-- Ganti `accounting_sets_saldo_awal` → **`accounting_sets_account_opening`**: ambil akun income-default; PUT `accounting.account.update` (opening_balance 50000000, name & purpose sama) → assert `opening_balance` akun = 50000000.
-- `accounting_and_superadmin_can_store_entry`: tetap (account_id tak dikirim → default akun income; assertion lama tetap valid). Tambah assert `$e->account_id === CashAccount::incomeDefault()->id`.
+**Sesuaikan test lama (opening pindah dari `saldo_awal` ke opening akun):**
+- **`AccountingJournalTest`**: ganti `accounting_sets_saldo_awal` → **`accounting_sets_account_opening`**: ambil akun income-default; PUT `accounting.account.update` (opening_balance 50000000, name & purpose sama) → assert `opening_balance` akun = 50000000. Di `accounting_and_superadmin_can_store_entry` tambah assert `$e->account_id === CashAccount::incomeDefault()->id`.
+- **`CashJournalServiceTest::saldo_awal_seeds_the_running_balance`**: ganti `CashSetting::singleton()->update(['saldo_awal'=>50000000])` → `CashAccount::incomeDefault()->update(['opening_balance'=>50000000])`. Assertion `saldoAwal`/`opening`/saldo/`saldoAkhir` tetap (compute masih kembalikan `saldoAwal`).
+- **`CashRecapServiceTest::seedData`**: ganti `CashSetting::singleton()->update(['saldo_awal'=>1000000])` → `CashAccount::incomeDefault()->update(['opening_balance'=>1000000])`. Assertion `saldoAkhir` jan/feb/ytd tetap.
+- Test lain yg **tak** menyetel saldo_awal (mis. `compute_running_saldo_with_opening_and_summary`, dashboard/distribution/target) tak berubah: fresh DB → opening akun 0.
 
 **Regresi:** seluruh suite hijau; recap/dashboard/distribution/target tak berubah perilaku (fresh DB → opening akun 0 = seperti saldo_awal 0; tanpa transfer filter no-op). `php artisan view:cache` bersih.
 
@@ -145,7 +148,7 @@ Tak berubah (menu "Keuangan → Jurnal Kas" sudah memuat semua ini di halaman ju
 ## 9. Komponen
 
 - **Baru:** migrasi `2026_07_04_000009`; model `CashAccount`; `CashAccountController`; method `CashEntryController::transfer`; `CashJournalService::accountBalances`; test unit `CashAccountBalanceTest` + feature `AccountingBankAccountTest`.
-- **Diubah:** `CashEntry` (fillable/casts/relasi/scope); `CashJournalService::compute` (param accountId + saldo dari running + kecualikan transfer di totalIn/Out); `CashRecapService` (opening Σ akun + kecualikan transfer); `PaymentCashSyncService` (account_id); `CashEntryController` (index/store/update/destroy, hapus updateOpening); `routes/web.php` (transfer + account.* , hapus opening); `resources/views/accounting/journal.blade.php`; `tests/Feature/AccountingJournalTest.php` (sesuaikan 1 test).
+- **Diubah:** `CashEntry` (fillable/casts/relasi/scope); `CashJournalService::compute` (param accountId + saldo dari running + kecualikan transfer di totalIn/Out; `saldoAwal` dari opening akun); `CashRecapService` (opening Σ akun + kecualikan transfer); `PaymentCashSyncService` (account_id); `CashEntryController` (index/store/update/destroy, hapus updateOpening); `routes/web.php` (transfer + account.* , hapus opening); `resources/views/accounting/journal.blade.php`; `tests/Feature/AccountingJournalTest.php`, `tests/Unit/CashJournalServiceTest.php`, `tests/Unit/CashRecapServiceTest.php` (opening pindah ke akun — 3 test disesuaikan).
 - **Tak diubah:** Dashboard/Distribusi/Asumsi/Target controller & view (mereka konsumsi service yg sudah diperbarui, hasil konsisten); sidebar.
 
 ## 10. Asumsi & Risiko
