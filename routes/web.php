@@ -328,6 +328,9 @@ Route::middleware('auth')->group(function () {
         Route::post('accounting/category', [\App\Http\Controllers\Pages\CashCategoryController::class, 'store'])->name('accounting.category.store');
         Route::put('accounting/category/{id}', [\App\Http\Controllers\Pages\CashCategoryController::class, 'update'])->name('accounting.category.update')->whereNumber('id');
         Route::delete('accounting/category/{id}', [\App\Http\Controllers\Pages\CashCategoryController::class, 'destroy'])->name('accounting.category.destroy')->whereNumber('id');
+        Route::post('accounting/account', [\App\Http\Controllers\Pages\CashAccountController::class, 'store'])->name('accounting.account.store');
+        Route::put('accounting/account/{id}', [\App\Http\Controllers\Pages\CashAccountController::class, 'update'])->name('accounting.account.update')->whereNumber('id');
+        Route::delete('accounting/account/{id}', [\App\Http\Controllers\Pages\CashAccountController::class, 'destroy'])->name('accounting.account.destroy')->whereNumber('id');
     });
 });
 

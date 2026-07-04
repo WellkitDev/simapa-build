@@ -6,6 +6,7 @@ use Tests\TestCase;
 use App\Models\User;
 use App\Models\CashCategory;
 use App\Models\CashEntry;
+use App\Models\CashAccount;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
 
@@ -93,14 +94,13 @@ class AccountingJournalTest extends TestCase
     }
 
     /** @test */
-    public function accounting_sets_saldo_awal(): void
+    public function accounting_sets_account_opening(): void
     {
-        $this->actingAs($this->user('accounting'))->put(route('accounting.opening.update'), [
-            'saldo_awal' => 50000000, 'tanggal_awal' => '2026-07-01',
+        $acc = CashAccount::incomeDefault();
+        $this->actingAs($this->user('accounting'))->put(route('accounting.account.update', $acc->id), [
+            'name' => $acc->name, 'purpose' => $acc->purpose, 'opening_balance' => 50000000, 'is_income_default' => 1, 'active' => 1,
         ])->assertRedirect();
 
-        $setting = \App\Models\CashSetting::singleton();
-        $this->assertSame('50000000.00', $setting->saldo_awal);
-        $this->assertSame('2026-07-01', $setting->tanggal_awal->format('Y-m-d'));
+        $this->assertSame('50000000.00', $acc->fresh()->opening_balance);
     }
 }
