@@ -14,10 +14,14 @@
 @endphp
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <h5 class="mb-0">Dashboard Keuangan</h5>
-    <form method="GET" class="d-flex gap-2 align-items-center">
-        <input type="number" name="year" value="{{ $year }}" class="form-control form-control-sm" style="width:100px">
-        <button class="btn btn-sm btn-outline-secondary">Tahun</button>
-    </form>
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+        <form method="GET" class="d-flex gap-2 align-items-center">
+            <input type="number" name="year" value="{{ $year }}" class="form-control form-control-sm" style="width:100px">
+            <button class="btn btn-sm btn-outline-secondary">Tahun</button>
+        </form>
+        <a href="{{ route('accounting.recap.export.csv', ['year' => $year]) }}" class="btn btn-sm btn-outline-success">Export Rekap CSV</a>
+        <a href="{{ route('accounting.recap.export.pdf', ['year' => $year]) }}" class="btn btn-sm btn-outline-danger">Export Rekap PDF</a>
+    </div>
 </div>
 
 <div class="row">

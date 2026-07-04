@@ -309,6 +309,8 @@ Route::middleware('auth')->group(function () {
         Route::get('accounting/journal/export/csv', [\App\Http\Controllers\Pages\CashEntryController::class, 'exportCsv'])->name('accounting.journal.export.csv');
         Route::get('accounting/journal/export/pdf', [\App\Http\Controllers\Pages\CashEntryController::class, 'exportPdf'])->name('accounting.journal.export.pdf');
         Route::get('accounting/dashboard', [\App\Http\Controllers\Pages\AccountingDashboardController::class, 'index'])->name('accounting.dashboard');
+        Route::get('accounting/recap/export/csv', [\App\Http\Controllers\Pages\AccountingDashboardController::class, 'exportCsv'])->name('accounting.recap.export.csv');
+        Route::get('accounting/recap/export/pdf', [\App\Http\Controllers\Pages\AccountingDashboardController::class, 'exportPdf'])->name('accounting.recap.export.pdf');
         Route::get('accounting/distribution', [\App\Http\Controllers\Pages\ProfitDistributionController::class, 'index'])->name('accounting.distribution');
         Route::put('accounting/distribution/settings', [\App\Http\Controllers\Pages\ProfitDistributionController::class, 'updateSetting'])->name('accounting.distribution.settings');
         Route::post('accounting/distribution/rule', [\App\Http\Controllers\Pages\ProfitDistributionController::class, 'storeRule'])->name('accounting.distribution.rule.store');

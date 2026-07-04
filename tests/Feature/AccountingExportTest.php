@@ -52,4 +52,21 @@ class AccountingExportTest extends TestCase
     {
         $this->actingAs($this->user('marketing'))->get(route('accounting.journal.export.csv'))->assertForbidden();
     }
+
+    /** @test */
+    public function recap_csv_download(): void
+    {
+        $res = $this->actingAs($this->user('accounting'))->get(route('accounting.recap.export.csv', ['year' => 2026]));
+        $res->assertOk();
+        $this->assertStringContainsString('text/csv', (string) $res->headers->get('Content-Type'));
+        $this->assertStringContainsString('YTD', $res->streamedContent());
+    }
+
+    /** @test */
+    public function recap_pdf_download(): void
+    {
+        $res = $this->actingAs($this->user('accounting'))->get(route('accounting.recap.export.pdf', ['year' => 2026]));
+        $res->assertOk();
+        $this->assertStringContainsString('application/pdf', (string) $res->headers->get('Content-Type'));
+    }
 }
