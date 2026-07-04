@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use Tests\TestCase;
+use App\Models\CashAccount;
 use App\Models\CashEntry;
 use App\Models\CashSetting;
 use App\Services\CashJournalService;
@@ -46,7 +47,7 @@ class CashJournalServiceTest extends TestCase
     /** @test */
     public function saldo_awal_seeds_the_running_balance(): void
     {
-        CashSetting::singleton()->update(['saldo_awal' => 50000000]);
+        CashAccount::incomeDefault()->update(['opening_balance' => 50000000]);
         $this->entry('2026-06-05', 'pemasukan', 500000);
 
         $r = (new CashJournalService())->compute(2026, 6, null);
@@ -68,5 +69,34 @@ class CashJournalServiceTest extends TestCase
         $this->assertSame(500000.0, $r['totalIn']);           // ringkasan tetap penuh
         $this->assertSame(200000.0, $r['totalOut']);
         $this->assertSame(500000.0, $r['entries']->first()->saldo); // saldo berjalan penuh
+    }
+
+    /** @test */
+    public function compute_scopes_to_account_and_excludes_transfer_from_totals(): void
+    {
+        $A = CashAccount::incomeDefault();
+        $B = CashAccount::where('purpose', 'operational')->first();
+
+        CashEntry::create(['tanggal' => '2026-06-05', 'jenis' => 'pemasukan', 'amount' => 500000, 'keterangan' => 'in', 'source' => 'manual', 'account_id' => $A->id]);
+        // transfer A->B 200rb (dua kaki)
+        CashEntry::create(['tanggal' => '2026-06-06', 'jenis' => 'pengeluaran', 'amount' => 200000, 'keterangan' => 't', 'source' => 'manual', 'account_id' => $A->id, 'is_transfer' => true, 'transfer_group' => 'g']);
+        CashEntry::create(['tanggal' => '2026-06-06', 'jenis' => 'pemasukan', 'amount' => 200000, 'keterangan' => 't', 'source' => 'manual', 'account_id' => $B->id, 'is_transfer' => true, 'transfer_group' => 'g']);
+
+        // Semua akun: totalIn/out kecualikan transfer; saldoAkhir dari running (transfer net-nol)
+        $all = (new CashJournalService())->compute(2026, 6, null, null);
+        $this->assertSame(500000.0, $all['totalIn']);   // transfer-in 200rb tidak dihitung
+        $this->assertSame(0.0, $all['totalOut']);        // transfer-out 200rb tidak dihitung
+        $this->assertSame(500000.0, $all['saldoAkhir']); // 0 + 500 -200 +200 = 500rb
+
+        // Difilter akun A: saldo A turun oleh transfer keluar
+        $a = (new CashJournalService())->compute(2026, 6, null, $A->id);
+        $this->assertSame(300000.0, $a['saldoAkhir']);   // 500rb - 200rb transfer keluar
+        $this->assertSame(500000.0, $a['totalIn']);
+        $this->assertSame(0.0, $a['totalOut']);
+
+        // Difilter akun B: hanya transfer masuk
+        $b = (new CashJournalService())->compute(2026, 6, null, $B->id);
+        $this->assertSame(200000.0, $b['saldoAkhir']);
+        $this->assertSame(0.0, $b['totalIn']);           // transfer dikecualikan dari totalIn
     }
 }

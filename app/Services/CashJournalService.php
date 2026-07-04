@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
+use App\Models\CashAccount;
 use App\Models\CashEntry;
-use App\Models\CashSetting;
 use Carbon\Carbon;
 
 class CashJournalService
@@ -15,20 +15,25 @@ class CashJournalService
     }
 
     /**
-     * Hitung jurnal periode: saldo berjalan (opening + kumulatif) + ringkasan.
-     * @return array{entries:\Illuminate\Support\Collection,opening:float,totalIn:float,totalOut:float,saldoAkhir:float}
+     * Hitung jurnal periode: saldo berjalan (opening + kumulatif, termasuk transfer) + ringkasan.
+     * Bila $accountId diisi → discope ke akun itu; else gabungan semua akun.
+     * @return array{entries:\Illuminate\Support\Collection,opening:float,totalIn:float,totalOut:float,saldoAkhir:float,saldoAwal:float}
      */
-    public function compute(int $year, ?int $month, ?string $jenis = null): array
+    public function compute(int $year, ?int $month, ?string $jenis = null, ?int $accountId = null): array
     {
         $start = $month ? Carbon::create($year, $month, 1)->startOfDay() : Carbon::create($year, 1, 1)->startOfDay();
 
-        $saldoAwal = (float) CashSetting::singleton()->saldo_awal;
-        $priorIn   = (float) CashEntry::where('tanggal', '<', $start)->where('jenis', 'pemasukan')->sum('amount');
-        $priorOut  = (float) CashEntry::where('tanggal', '<', $start)->where('jenis', 'pengeluaran')->sum('amount');
-        $opening   = $saldoAwal + $priorIn - $priorOut;
+        $saldoAwal = $accountId
+            ? (float) optional(CashAccount::find($accountId))->opening_balance
+            : CashAccount::totalOpening();
 
-        $q = CashEntry::with('category')->whereYear('tanggal', $year);
-        if ($month) { $q->whereMonth('tanggal', $month); }
+        $priorIn  = (float) CashEntry::where('tanggal', '<', $start)->when($accountId, fn ($q) => $q->where('account_id', $accountId))->where('jenis', 'pemasukan')->sum('amount');
+        $priorOut = (float) CashEntry::where('tanggal', '<', $start)->when($accountId, fn ($q) => $q->where('account_id', $accountId))->where('jenis', 'pengeluaran')->sum('amount');
+        $opening  = $saldoAwal + $priorIn - $priorOut;
+
+        $q = CashEntry::with('category', 'account')->whereYear('tanggal', $year);
+        if ($month)     { $q->whereMonth('tanggal', $month); }
+        if ($accountId) { $q->where('account_id', $accountId); }
         $all = $q->orderBy('tanggal')->orderBy('id')->get();
 
         $running = $opening;
@@ -36,10 +41,11 @@ class CashJournalService
             $running += $e->isPemasukan() ? (float) $e->amount : -(float) $e->amount;
             $e->saldo = $running;
         }
+        $saldoAkhir = $running; // termasuk transfer (benar untuk per-akun; net-nol untuk gabungan)
 
-        $totalIn  = (float) $all->where('jenis', 'pemasukan')->sum('amount');
-        $totalOut = (float) $all->where('jenis', 'pengeluaran')->sum('amount');
-        $saldoAkhir = $opening + $totalIn - $totalOut;
+        $real     = $all->where('is_transfer', false);
+        $totalIn  = (float) $real->where('jenis', 'pemasukan')->sum('amount');
+        $totalOut = (float) $real->where('jenis', 'pengeluaran')->sum('amount');
 
         $entries = $jenis ? $all->where('jenis', $jenis)->values() : $all;
 
