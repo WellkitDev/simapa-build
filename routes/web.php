@@ -312,6 +312,13 @@ Route::middleware('auth')->group(function () {
         Route::post('accounting/distribution/rule', [\App\Http\Controllers\Pages\ProfitDistributionController::class, 'storeRule'])->name('accounting.distribution.rule.store');
         Route::put('accounting/distribution/rule/{id}', [\App\Http\Controllers\Pages\ProfitDistributionController::class, 'updateRule'])->name('accounting.distribution.rule.update')->whereNumber('id');
         Route::delete('accounting/distribution/rule/{id}', [\App\Http\Controllers\Pages\ProfitDistributionController::class, 'destroyRule'])->name('accounting.distribution.rule.destroy')->whereNumber('id');
+        Route::get('accounting/assumption', [\App\Http\Controllers\Pages\CashAssumptionController::class, 'index'])->name('accounting.assumption');
+        Route::post('accounting/assumption/margin', [\App\Http\Controllers\Pages\CashAssumptionController::class, 'storeMargin'])->name('accounting.assumption.margin.store');
+        Route::put('accounting/assumption/margin/{id}', [\App\Http\Controllers\Pages\CashAssumptionController::class, 'updateMargin'])->name('accounting.assumption.margin.update')->whereNumber('id');
+        Route::delete('accounting/assumption/margin/{id}', [\App\Http\Controllers\Pages\CashAssumptionController::class, 'destroyMargin'])->name('accounting.assumption.margin.destroy')->whereNumber('id');
+        Route::post('accounting/assumption/expense', [\App\Http\Controllers\Pages\CashAssumptionController::class, 'storeExpense'])->name('accounting.assumption.expense.store');
+        Route::put('accounting/assumption/expense/{id}', [\App\Http\Controllers\Pages\CashAssumptionController::class, 'updateExpense'])->name('accounting.assumption.expense.update')->whereNumber('id');
+        Route::delete('accounting/assumption/expense/{id}', [\App\Http\Controllers\Pages\CashAssumptionController::class, 'destroyExpense'])->name('accounting.assumption.expense.destroy')->whereNumber('id');
         Route::put('accounting/opening', [\App\Http\Controllers\Pages\CashEntryController::class, 'updateOpening'])->name('accounting.opening.update');
         Route::post('accounting/entry', [\App\Http\Controllers\Pages\CashEntryController::class, 'store'])->name('accounting.entry.store');
         Route::put('accounting/entry/{id}', [\App\Http\Controllers\Pages\CashEntryController::class, 'update'])->name('accounting.entry.update')->whereNumber('id');

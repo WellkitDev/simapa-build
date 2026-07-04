@@ -102,6 +102,12 @@
                         <span class="link-title">Distribusi Profit</span>
                     </a>
                 </li>
+                <li class="nav-item {{ active_class(['accounting/assumption']) }}">
+                    <a href="{{ route('accounting.assumption') }}" class="nav-link">
+                        <i class="link-icon" data-feather="sliders"></i>
+                        <span class="link-title">Asumsi</span>
+                    </a>
+                </li>
             @endrole
 
             @role(['superadmin', 'manager', 'admin', 'production', 'marketing'])
