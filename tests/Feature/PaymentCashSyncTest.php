@@ -10,10 +10,19 @@ use App\Models\Payment;
 use App\Models\CashEntry;
 use App\Models\CashCategory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Role;
 
 class PaymentCashSyncTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        foreach (['marketing', 'manager', 'superadmin', 'production', 'admin'] as $r) {
+            Role::create(['name' => $r, 'guard_name' => 'web']);
+        }
+    }
 
     private function order(string $type = 'at_kolab'): Order
     {
@@ -102,5 +111,20 @@ class PaymentCashSyncTest extends TestCase
         $this->assertNull($e->cash_category_id);
         $this->assertNull($e->produk);
         $this->assertSame('pemasukan', $e->jenis);
+    }
+
+    /** @test */
+    public function auto_entry_is_readonly_in_journal(): void
+    {
+        $order = $this->order();
+        $payment = $this->pay($order);
+        $entry = CashEntry::where('payment_id', $payment->id)->first();
+
+        $sa = User::factory()->create();
+        $sa->assignRole('superadmin');
+
+        $res = $this->actingAs($sa)->get(route('accounting.journal', ['year' => 2026, 'month' => 6]))->assertOk();
+        $res->assertSee('auto');                                            // badge entri otomatis
+        $res->assertDontSee(route('accounting.entry.destroy', $entry->id)); // tanpa tombol hapus
     }
 }

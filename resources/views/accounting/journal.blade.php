@@ -91,7 +91,13 @@
                         <td class="text-end">{{ ! $e->isPemasukan() ? $rp($e->amount) : '' }}</td>
                         <td class="text-end">{{ $rp($e->saldo ?? 0) }}</td>
                         <td>{{ $e->ref ?? '—' }}</td>
-                        <td><form method="POST" action="{{ route('accounting.entry.destroy', $e->id) }}" data-confirm="Hapus transaksi ini?" class="m-0">@csrf @method('DELETE')<button class="btn btn-xs btn-outline-danger">×</button></form></td>
+                        <td>
+                            @if($e->source === 'payment')
+                                <span class="badge bg-light text-muted border" title="Otomatis dari pembayaran">⚙ auto</span>
+                            @else
+                                <form method="POST" action="{{ route('accounting.entry.destroy', $e->id) }}" data-confirm="Hapus transaksi ini?" class="m-0">@csrf @method('DELETE')<button class="btn btn-xs btn-outline-danger">×</button></form>
+                            @endif
+                        </td>
                     </tr>
                 @endforeach
             </tbody>
