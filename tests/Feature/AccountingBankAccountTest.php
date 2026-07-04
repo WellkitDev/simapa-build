@@ -128,4 +128,23 @@ class AccountingBankAccountTest extends TestCase
             'from_account_id' => $a->id, 'to_account_id' => $a->id, 'amount' => 1, 'tanggal' => '2026-06-01',
         ])->assertForbidden();
     }
+
+    /** @test */
+    public function journal_shows_account_cards_and_transfer_ui(): void
+    {
+        $this->actingAs($this->user('accounting'))->get(route('accounting.journal'))
+            ->assertOk()
+            ->assertSee('Kas Pemasukan')   // kartu saldo akun
+            ->assertSee('Transfer Dana')   // tombol transfer
+            ->assertSee('Kelola Akun');    // pengelolaan akun
+    }
+
+    /** @test */
+    public function journal_can_filter_by_account(): void
+    {
+        $b = CashAccount::where('purpose', 'operational')->first();
+        $this->actingAs($this->user('accounting'))
+            ->get(route('accounting.journal', ['account' => $b->id]))
+            ->assertOk();
+    }
 }

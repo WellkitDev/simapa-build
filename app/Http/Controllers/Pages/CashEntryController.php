@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\CashAccount;
 use App\Models\CashCategory;
 use App\Models\CashEntry;
-use App\Models\CashSetting;
 use App\Services\CashJournalService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -24,31 +23,22 @@ class CashEntryController extends Controller
         $mq    = $request->query('month', (string) $now->month);
         $month = ($mq === 'all') ? null : (int) ($mq ?: $now->month);
         $jenis = in_array($request->query('jenis'), ['pemasukan', 'pengeluaran'], true) ? $request->query('jenis') : null;
+        $acc   = $request->query('account');
+        $accountId = ($acc === null || $acc === '' || $acc === 'all') ? null : (int) $acc;
 
-        $data = $this->service->compute($year, $month, $jenis);
+        $data = $this->service->compute($year, $month, $jenis, $accountId);
 
         return view('accounting.journal', array_merge($data, [
             'year'          => $year,
             'month'         => $month,
             'jenis'         => $jenis,
+            'accountId'     => $accountId,
             'categories'    => CashCategory::active()->orderBy('jenis')->orderBy('position')->get(),
             'allCategories' => CashCategory::orderBy('jenis')->orderBy('position')->get(),
-            'setting'       => CashSetting::singleton(),
+            'accounts'      => CashAccount::active()->orderBy('position')->get(),
+            'allAccounts'   => CashAccount::orderBy('position')->get(),
+            'balances'      => $this->service->accountBalances(),
         ]));
-    }
-
-    /** Set saldo awal (saldo pembukaan kas) — melanjutkan saldo dari data sebelumnya. */
-    public function updateOpening(Request $request)
-    {
-        $data = $request->validate([
-            'saldo_awal'   => 'required|numeric|min:0',
-            'tanggal_awal' => 'nullable|date',
-        ]);
-        $data['tanggal_awal'] = ($data['tanggal_awal'] ?? '') ?: null;
-        $data['updated_by'] = Auth::id();
-        CashSetting::singleton()->update($data);
-
-        return back()->with('success', 'Saldo awal diperbarui.');
     }
 
     private function validated(Request $request): array
