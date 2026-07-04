@@ -10,7 +10,12 @@
             · <span class="badge {{ $st === 'disetujui' ? 'bg-success' : ($st === 'diajukan' ? 'bg-warning text-dark' : ($st === 'ditolak' ? 'bg-danger' : 'bg-secondary')) }}">{{ \App\Models\TitleArchive::STATUSES[$st] ?? $st }}</span>
         </small>
     </div>
-    <a href="{{ route('archive.index') }}" class="btn btn-sm btn-outline-secondary">Kembali</a>
+    <div class="d-flex gap-2">
+        @if($st === 'disetujui' && $canManage)
+            <a href="{{ route('archive.pdf', $title->id) }}" target="_blank" class="btn btn-sm btn-outline-dark">Export PDF</a>
+        @endif
+        <a href="{{ route('archive.index') }}" class="btn btn-sm btn-outline-secondary">Kembali</a>
+    </div>
 </div>
 
 {{-- Kelayakan + aksi Ajukan --}}
