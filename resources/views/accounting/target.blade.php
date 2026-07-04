@@ -16,8 +16,8 @@
         <h6 class="card-title">Set Target Perusahaan (per Bulan)</h6>
         <form method="POST" action="{{ route('accounting.target.update') }}" class="d-flex gap-2 align-items-end flex-wrap">
             @csrf @method('PUT')
-            <div><label class="form-label small mb-1">Target Operasional (Rp/bln)</label><input type="number" name="target_operasional" value="{{ (int) $setting->target_operasional }}" min="0" class="form-control form-control-sm" style="width:180px"></div>
-            <div><label class="form-label small mb-1">Target Order (Rp/bln)</label><input type="number" name="target_order" value="{{ (int) $setting->target_order }}" min="0" class="form-control form-control-sm" style="width:180px"></div>
+            <div><label class="form-label small mb-1">Target Operasional (Rp/bln)</label><input type="text" name="target_operasional" value="{{ (int) $setting->target_operasional }}" min="0" class="form-control form-control-sm money-mask" inputmode="numeric" style="width:180px"></div>
+            <div><label class="form-label small mb-1">Target Order (Rp/bln)</label><input type="text" name="target_order" value="{{ (int) $setting->target_order }}" min="0" class="form-control form-control-sm money-mask" inputmode="numeric" style="width:180px"></div>
             <button class="btn btn-sm btn-primary">Simpan Target</button>
         </form>
         <p class="text-muted small mb-0 mt-2">Total Biaya Tetap/bln (Asumsi): <strong>{{ $rp($fixedMonthly) }}</strong> · Target order ≈ operasional ÷ 40%.</p>
@@ -58,4 +58,5 @@
         </table>
     </div>
 </div></div></div></div>
+@include('accounting.partials.money-mask')
 @endsection

@@ -10,7 +10,7 @@
         <select name="month" class="form-select form-select-sm" style="width:130px">
             @for($m = 1; $m <= 12; $m++)<option value="{{ $m }}" {{ $month === $m ? 'selected' : '' }}>{{ \Carbon\Carbon::create()->month($m)->translatedFormat('F') }}</option>@endfor
         </select>
-        <input type="number" name="profit" value="{{ (int) $profit }}" class="form-control form-control-sm" style="width:150px" placeholder="Profit (Rp)" title="Kosongkan untuk pakai laba kas bulan">
+        <input type="text" name="profit" value="{{ (int) $profit }}" class="form-control form-control-sm money-mask" inputmode="numeric" style="width:150px" placeholder="Profit (Rp)" title="Kosongkan untuk pakai laba kas bulan">
         <button class="btn btn-sm btn-outline-secondary">Hitung</button>
     </form>
 </div>
@@ -80,4 +80,5 @@
         </form>
     </div>
 </div></div></div></div>
+@include('accounting.partials.money-mask')
 @endsection

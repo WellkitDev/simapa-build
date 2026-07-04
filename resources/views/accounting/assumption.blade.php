@@ -54,7 +54,7 @@
                                     @csrf @method('PUT')
                                     <input name="name" value="{{ $e->name }}" class="form-control form-control-sm" style="max-width:220px">
                                     <select name="period" class="form-select form-select-sm" style="max-width:110px">@foreach(\App\Models\CashFixedExpense::PERIODS as $pk => $pl)<option value="{{ $pk }}" {{ $e->period === $pk ? 'selected' : '' }}>{{ $pl }}</option>@endforeach</select>
-                                    <input type="number" name="amount" value="{{ (int) $e->amount }}" class="form-control form-control-sm" style="max-width:140px">
+                                    <input type="text" name="amount" value="{{ (int) $e->amount }}" class="form-control form-control-sm money-mask" inputmode="numeric" style="max-width:140px">
                                     <span class="text-muted small">= {{ $rp($e->monthlyAmount()) }}/bln</span>
                                     <label class="small mb-0"><input type="checkbox" name="active" value="1" {{ $e->active ? 'checked' : '' }}> aktif</label>
                                     <button class="btn btn-xs btn-outline-primary">Simpan</button>
@@ -72,8 +72,9 @@
         @csrf
         <input name="name" placeholder="Nama biaya…" class="form-control form-control-sm" style="max-width:220px">
         <select name="period" class="form-select form-select-sm" style="max-width:110px"><option value="bulanan">Bulanan</option><option value="tahunan">Tahunan</option></select>
-        <input type="number" name="amount" placeholder="Nominal" class="form-control form-control-sm" style="max-width:140px">
+        <input type="text" name="amount" placeholder="Nominal" class="form-control form-control-sm money-mask" inputmode="numeric" style="max-width:140px">
         <button class="btn btn-xs btn-outline-success">+ Tambah Biaya</button>
     </form>
 </div></div></div></div>
+@include('accounting.partials.money-mask')
 @endsection

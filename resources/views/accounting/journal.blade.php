@@ -90,7 +90,7 @@
                 <div class="col-md-3"><label class="form-label small mb-1">Ke Akun</label>
                     <select name="to_account_id" class="form-select form-select-sm" required>@foreach($accounts as $a)<option value="{{ $a->id }}" {{ $loop->index === 1 ? 'selected' : '' }}>{{ $a->name }}</option>@endforeach</select>
                 </div>
-                <div class="col-md-2"><label class="form-label small mb-1">Nominal (Rp)</label><input type="number" name="amount" class="form-control form-control-sm" min="1" required></div>
+                <div class="col-md-2"><label class="form-label small mb-1">Nominal (Rp)</label><input type="text" name="amount" class="form-control form-control-sm money-mask" inputmode="numeric" min="1" required></div>
                 <div class="col-md-2"><label class="form-label small mb-1">Tanggal</label><input type="date" name="tanggal" value="{{ now()->format('Y-m-d') }}" class="form-control form-control-sm" required></div>
                 <div class="col-md-2"><label class="form-label small mb-1">Catatan</label><input name="catatan" class="form-control form-control-sm"></div>
             </div>
@@ -116,7 +116,7 @@
                         @foreach($categories as $c)<option value="{{ $c->id }}" data-jenis="{{ $c->jenis }}">{{ $c->name }} ({{ \App\Models\CashCategory::JENIS[$c->jenis] }})</option>@endforeach
                     </select>
                 </div>
-                <div class="col-md-2"><label class="form-label small mb-1">Nominal</label><input type="number" name="amount" class="form-control form-control-sm" min="0" required></div>
+                <div class="col-md-2"><label class="form-label small mb-1">Nominal</label><input type="text" name="amount" class="form-control form-control-sm money-mask" inputmode="numeric" min="0" required></div>
                 <div class="col-md-2"><label class="form-label small mb-1">Produk</label><select name="produk" class="form-select form-select-sm"><option value="">—</option>@foreach(\App\Models\CashEntry::PRODUK as $k => $v)<option value="{{ $k }}">{{ $v }}</option>@endforeach</select></div>
                 <div class="col-md-4"><label class="form-label small mb-1">Keterangan</label><input name="keterangan" class="form-control form-control-sm" required></div>
                 <div class="col-md-3"><label class="form-label small mb-1">Ref (INV/Order)</label><input name="ref" class="form-control form-control-sm"></div>
@@ -137,7 +137,7 @@
                         @csrf @method('PUT')
                         <div><label class="form-label small mb-0">Nama</label><input name="name" value="{{ $a->name }}" class="form-control form-control-sm" style="max-width:200px" required></div>
                         <div><label class="form-label small mb-0">Peran</label><select name="purpose" class="form-select form-select-sm" style="max-width:140px"><option value="">—</option>@foreach(\App\Models\CashAccount::PURPOSES as $pk => $pv)<option value="{{ $pk }}" {{ $a->purpose === $pk ? 'selected' : '' }}>{{ $pv }}</option>@endforeach</select></div>
-                        <div><label class="form-label small mb-0">Saldo Awal</label><input type="number" name="opening_balance" value="{{ (int) $a->opening_balance }}" class="form-control form-control-sm" style="max-width:130px" min="0"></div>
+                        <div><label class="form-label small mb-0">Saldo Awal</label><input type="text" name="opening_balance" value="{{ (int) $a->opening_balance }}" class="form-control form-control-sm money-mask" inputmode="numeric" style="max-width:130px" min="0"></div>
                         <label class="small mb-0"><input type="checkbox" name="is_income_default" value="1" {{ $a->is_income_default ? 'checked' : '' }}> akun pemasukan</label>
                         <label class="small mb-0"><input type="checkbox" name="active" value="1" {{ $a->active ? 'checked' : '' }}> aktif</label>
                         <button class="btn btn-xs btn-outline-primary">Simpan</button>
@@ -149,7 +149,7 @@
                 @csrf
                 <div class="col-md-3"><input name="name" placeholder="Nama akun/bank baru…" class="form-control form-control-sm" required></div>
                 <div class="col-md-2"><select name="purpose" class="form-select form-select-sm"><option value="">Peran…</option>@foreach(\App\Models\CashAccount::PURPOSES as $pk => $pv)<option value="{{ $pk }}">{{ $pv }}</option>@endforeach</select></div>
-                <div class="col-md-2"><input type="number" name="opening_balance" value="0" class="form-control form-control-sm" min="0" title="Saldo awal"></div>
+                <div class="col-md-2"><input type="text" name="opening_balance" value="0" class="form-control form-control-sm money-mask" inputmode="numeric" min="0" title="Saldo awal"></div>
                 <div class="col-md-2"><label class="small mb-0"><input type="checkbox" name="is_income_default" value="1"> akun pemasukan</label></div>
                 <div class="col-md-3"><button class="btn btn-xs btn-outline-success">+ Tambah Akun</button></div>
             </form>
@@ -214,6 +214,7 @@
         </div>
     </div>
 </div></div></div>
+@include('accounting.partials.money-mask')
 @endsection
 
 @push('plugin-scripts')
