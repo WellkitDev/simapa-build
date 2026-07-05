@@ -12,6 +12,7 @@
 @endphp
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <h5 class="mb-0">Jurnal Kas</h5>
+    <div class="d-flex gap-2 align-items-center flex-wrap">
     <form method="GET" class="d-flex gap-2 align-items-center flex-wrap">
         <input type="number" name="year" value="{{ $year }}" class="form-control form-control-sm" style="width:90px">
         <select name="month" class="form-select form-select-sm" style="width:130px">
@@ -35,6 +36,7 @@
     </form>
     <a href="{{ route('accounting.journal.export.csv', request()->query()) }}" class="btn btn-sm btn-outline-success">Export CSV</a>
     <a href="{{ route('accounting.journal.export.pdf', request()->query()) }}" class="btn btn-sm btn-outline-danger">Export PDF</a>
+    </div>
 </div>
 
 {{-- Kartu saldo per akun --}}
