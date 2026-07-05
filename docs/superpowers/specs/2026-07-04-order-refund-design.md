@@ -51,7 +51,7 @@ public function refundPayment() { return $this->belongsTo(Payment::class, 'refun
   - `$invoice->update(['status'=>'refund','refunded_by'=>Auth::id(),'refunded_at'=>now(),'refund_reason'=>$data['reason'],'refund_method'=>$data['method'],'refund_account'=>$data['account']??null,'refund_payment_id'=>$payment->id])`.
   - `InvoiceLog::create([... 'from_status'=>'lunas','to_status'=>'refund','changed_by'=>Auth::id(),'note'=>'Refund Rp '.number_format($data['amount'],0,',','.').' — '.$data['reason']])`.
   - return `$payment`.
-- `SendRefundJob::dispatch($payment->id)`; `app(Notifier::class)->refundIssued($payment, Auth::user())`.
+- `SendRefundJob::dispatch($invoice->id)` (job baca refundPayment dari invoice); `app(Notifier::class)->refundIssued($payment, Auth::user())`.
 - `redirect()->route('invoice.show', $invoice->id)->with('success','Refund diproses. Bukti refund dikirim ke customer.')`.
 
 **`refundPdf(int $id)` (baru, GET — cetak ulang staf):**
