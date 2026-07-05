@@ -53,6 +53,23 @@ class Notifier
         ]);
     }
 
+    public function refundIssued(Payment $payment, User $actor): void
+    {
+        $payment->loadMissing('order.user');
+        $recipients = $this->roleUsers(['manager', 'superadmin'], $actor);
+        $owner = $payment->order?->user;
+        if ($owner && $owner->id !== $actor->id) {
+            $recipients = $recipients->push($owner)->unique('id')->values();
+        }
+        $this->send($recipients, [
+            'category' => 'payment',
+            'title'    => 'Refund diproses',
+            'message'  => 'Rp ' . $this->rp($payment->amount) . ' — ' . ($payment->order?->user?->name ?? '—'),
+            'url'      => route('invoice.index'),
+            'icon'     => 'corner-up-left',
+        ]);
+    }
+
     public function tagihanSubmitted(Tagihan $tagihan, User $actor): void
     {
         $this->send($this->roleUsers(['superadmin'], $actor), [
