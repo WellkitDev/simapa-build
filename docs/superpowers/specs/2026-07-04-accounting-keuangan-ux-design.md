@@ -36,13 +36,13 @@ $(function () {
 ```
 > `autoUnmask` + `removeMaskOnSubmit` → nilai yang terkirim = angka polos (mis. `50000000`). `jquery.inputmask` butuh jQuery (sudah dimuat via DataTables) & input **`type="text"`** (mask tak jalan di `type=number`).
 
-**Perubahan tiap view** (money inputs): ubah `type="number"` → `type="text"` + tambah class `money-mask`, lalu `@include('accounting.partials.money-mask')` sekali di view. Input terdampak:
-- `accounting/journal.blade.php`: amount (Tambah Transaksi), amount (Transfer), opening_balance (Kelola Akun — update & tambah).
-- `accounting/distribution.blade.php`: value aturan distribusi.
-- `accounting/assumption.blade.php`: amount biaya tetap (tambah & update). *(margin_pct = persen, BUKAN di-mask.)*
-- `accounting/target.blade.php`: target_operasional, target_order.
+**Perubahan tiap view** (hanya input **Rupiah bilangan bulat**): ubah `type="number"` → `type="text"` + tambah class `money-mask`, lalu `@include('accounting.partials.money-mask')` sekali di view. Input terdampak (9):
+- `accounting/journal.blade.php`: `amount` Transfer, `amount` Tambah Transaksi, `opening_balance` Kelola Akun (update & tambah). (4)
+- `accounting/target.blade.php`: `target_operasional`, `target_order`. (2)
+- `accounting/assumption.blade.php`: `amount` biaya tetap (update & tambah). (2)
+- `accounting/distribution.blade.php`: `profit` (input laba). (1)
 
-> Atribut `min="0"` boleh tetap (tak berpengaruh pada `type=text`; validasi server tetap `min:0`).
+> **TIDAK di-mask** (dan tetap `type=number`): `year` (filter), `margin_pct` & `value` distribusi (persen/pecahan, `step=0.01`), `team_members` (cacah). `value` distribusi dwi-fungsi (persen atau flat) → jangan di-mask agar desimal persen tak rusak. Atribut `min`/`step` boleh tetap (tak berpengaruh pada `type=text`; validasi server tak berubah).
 
 ## 3. Bagian 2 — Export CSV & PDF
 
