@@ -101,16 +101,21 @@ class InvoiceLifecycleTest extends TestCase
     /** @test */
     public function superadmin_can_refund_only_lunas_invoice(): void
     {
+        \Illuminate\Support\Facades\Queue::fake();
+        \App\Models\Payment::create(['order_id' => $this->order->id, 'payment_type' => 'lunas', 'amount' => 500000, 'status' => 'paid', 'paid_at' => '2026-06-01']);
+
         $lunas = Invoice::factory()->create(['order_id' => $this->order->id, 'status' => 'lunas']);
         $draft = Invoice::factory()->create(['order_id' => $this->order->id, 'status' => 'draft']);
 
         $this->actingAs($this->superadmin);
 
-        $this->post(route('invoice.refund', $lunas->id), ['note' => 'Dana dikembalikan'])
-            ->assertRedirect();
+        $this->post(route('invoice.refund', $lunas->id), [
+            'amount' => 200000, 'reason' => 'Dana dikembalikan', 'method' => 'transfer', 'tanggal' => '2026-06-05',
+        ])->assertRedirect();
         $this->assertDatabaseHas('tb_invoices', ['id' => $lunas->id, 'status' => 'refund']);
 
-        $this->post(route('invoice.refund', $draft->id), ['note' => 'Coba refund draft'])
-            ->assertSessionHasErrors();
+        $this->post(route('invoice.refund', $draft->id), [
+            'amount' => 100000, 'reason' => 'Coba refund draft', 'method' => 'transfer', 'tanggal' => '2026-06-05',
+        ])->assertSessionHasErrors();
     }
 }

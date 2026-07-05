@@ -144,6 +144,8 @@ Route::middleware('auth')->group(function () {
         Route::post('{id}/status', [InvoiceController::class, 'updateStatus'])->name('updateStatus')->middleware('role:manager|superadmin');
         Route::post('{id}/cancel', [InvoiceController::class, 'cancel'])->name('cancel')->middleware('role:manager|superadmin');
         Route::post('{id}/refund', [InvoiceController::class, 'refund'])->name('refund')->middleware('role:manager|superadmin');
+        Route::get('{id}/refund',     [InvoiceController::class, 'refundForm'])->name('refund.form')->middleware('role:manager|superadmin');
+        Route::get('{id}/refund/pdf', [InvoiceController::class, 'refundPdf'])->name('refund.pdf')->middleware('role:manager|superadmin');
         Route::get('{id}/logs',    [InvoiceController::class, 'logs'])->name('logs');
         Route::get('{id}/pdf', [InvoiceController::class, 'pdf'])->name('pdf');
     });
