@@ -305,6 +305,7 @@ Route::middleware('auth')->group(function () {
 
     // Akuntansi — Jurnal Kas (superadmin/accounting)
     Route::middleware('role:superadmin|accounting')->group(function () {
+        Route::get('accounting/overview', [\App\Http\Controllers\Pages\AccountingOverviewController::class, 'index'])->name('accounting.overview');
         Route::get('accounting/journal', [\App\Http\Controllers\Pages\CashEntryController::class, 'index'])->name('accounting.journal');
         Route::get('accounting/journal/export/csv', [\App\Http\Controllers\Pages\CashEntryController::class, 'exportCsv'])->name('accounting.journal.export.csv');
         Route::get('accounting/journal/export/pdf', [\App\Http\Controllers\Pages\CashEntryController::class, 'exportPdf'])->name('accounting.journal.export.pdf');

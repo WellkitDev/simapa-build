@@ -84,6 +84,12 @@
 
             @role(['superadmin', 'accounting'])
                 <li class="nav-item nav-category">Keuangan</li>
+                <li class="nav-item {{ active_class(['accounting/overview']) }}">
+                    <a href="{{ route('accounting.overview') }}" class="nav-link">
+                        <i class="link-icon" data-feather="pie-chart"></i>
+                        <span class="link-title">Ringkasan</span>
+                    </a>
+                </li>
                 <li class="nav-item {{ active_class(['accounting/journal', 'accounting/*']) }}">
                     <a href="{{ route('accounting.journal') }}" class="nav-link">
                         <i class="link-icon" data-feather="book"></i>
