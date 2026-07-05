@@ -18,6 +18,7 @@ class Invoice extends Model
         'pdf_url', 'pdf_drive_id',
         'cancelled_by', 'cancelled_at',
         'refunded_by', 'refunded_at',
+        'refund_reason', 'refund_method', 'refund_account', 'refund_payment_id',
     ];
 
     protected $casts = [
@@ -56,6 +57,11 @@ class Invoice extends Model
     public function refundedBy()
     {
         return $this->belongsTo(User::class, 'refunded_by');
+    }
+
+    public function refundPayment()
+    {
+        return $this->belongsTo(Payment::class, 'refund_payment_id');
     }
 
     public function isOverdue(): bool
