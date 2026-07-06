@@ -17,6 +17,28 @@ if (!function_exists('show_class')) {
     }
 }
 
+/*
+ | Nav helpers berbasis nama route (routeIs) — lebih presisi dari Request::is
+ | untuk active-state sidebar (item nyala hanya untuk route & sub-route-nya).
+ */
+if (!function_exists('nav_active')) {
+    function nav_active($names, $active = 'active') {
+        return request()->routeIs(...(array) $names) ? $active : '';
+    }
+}
+
+if (!function_exists('nav_show')) {
+    function nav_show($names) {
+        return request()->routeIs(...(array) $names) ? 'show' : '';
+    }
+}
+
+if (!function_exists('nav_expanded')) {
+    function nav_expanded($names) {
+        return request()->routeIs(...(array) $names) ? 'true' : 'false';
+    }
+}
+
 if (!function_exists('hasRole')) {
     function hasRole($role)
     {
