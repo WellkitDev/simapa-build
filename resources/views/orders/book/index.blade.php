@@ -126,6 +126,17 @@
                                                         <i class="" data-feather="edit"></i>
                                                     </a>
                                                     @endif
+                                                    @role('superadmin')
+                                                        @php
+                                                            $paidIn = $order->payments->where('status','paid')->where('payment_type','!=','refund')->sum('amount');
+                                                            $refunded = $order->payments->where('payment_type','refund')->isNotEmpty();
+                                                        @endphp
+                                                        @if($refunded)
+                                                            <a href="{{ route('order.refund.pdf', $order->code_order) }}" target="_blank" class="btn btn-icon btn-outline-secondary" title="Bukti Refund"><i class="" data-feather="file-text"></i></a>
+                                                        @elseif($paidIn > 0)
+                                                            <a href="{{ route('order.refund.form', $order->code_order) }}" class="btn btn-icon btn-outline-warning" title="Refund"><i class="" data-feather="corner-up-left"></i></a>
+                                                        @endif
+                                                    @endrole
                                                 @endif
                                             </td>
                                         </tr>

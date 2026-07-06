@@ -1,17 +1,17 @@
 @extends('layouts.master')
-@section('title', 'Refund Invoice - SiMAPA')
+@section('title', 'Refund Order - SiMAPA')
 
 @section('content')
 @php $rp = fn ($n) => 'Rp ' . number_format((float) $n, 0, ',', '.'); @endphp
 <div class="row"><div class="col-lg-8">
 <div class="card"><div class="card-body">
-    <h5 class="mb-3">Proses Refund — Invoice {{ $invoice->invoice_no }}</h5>
+    <h5 class="mb-3">Proses Refund — Order {{ $order->code_order }}</h5>
     <div class="mb-3 text-muted small">
-        Order: {{ optional($invoice->order)->code_order }} ·
-        Customer: {{ optional(optional($invoice->order)->contact)->cp_name ?? '-' }} ·
+        Customer: {{ optional($order->contact)->cp_name ?? '-' }} ·
+        Judul: {{ optional($order->details)->title ?? '-' }} ·
         <strong>Total sudah dibayar: {{ $rp($paidIn) }}</strong>
     </div>
-    <form method="POST" action="{{ route('invoice.refund', $invoice->id) }}" onsubmit="return confirm('Proses refund ini? Dana akan tercatat sebagai pengeluaran.')">
+    <form method="POST" action="{{ route('order.refund.store', $order->code_order) }}" onsubmit="return confirm('Proses refund ini? Dana akan tercatat sebagai pengeluaran.')">
         @csrf
         <div class="mb-3">
             <label class="form-label">Nominal Refund (Rp)</label>
@@ -41,7 +41,7 @@
             @error('reason')<div class="invalid-feedback">{{ $message }}</div>@enderror
         </div>
         <button class="btn btn-warning">Proses Refund</button>
-        <a href="{{ route('invoice.show', $invoice->id) }}" class="btn btn-outline-secondary">Batal</a>
+        <a href="{{ route('order.book.index') }}" class="btn btn-outline-secondary">Batal</a>
     </form>
 </div></div>
 </div></div>

@@ -12,9 +12,6 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use App\Jobs\SendRefundJob;
-use App\Support\RefundPdfData;
-use App\Services\Notifier;
 
 class InvoiceController extends Controller
 {
@@ -175,88 +172,6 @@ class InvoiceController extends Controller
         });
 
         return back()->with('warning', 'Invoice dibatalkan.');
-    }
-
-    public function refundForm(int $id)
-    {
-        if (! Auth::user()->hasRole('superadmin')) {
-            abort(403);
-        }
-
-        $invoice = Invoice::with('order.details', 'order.contact', 'order.payments')->findOrFail($id);
-        if ($invoice->status !== 'lunas') {
-            return back()->withErrors(['refund' => 'Invoice harus berstatus lunas untuk di-refund.']);
-        }
-
-        $paidIn = (int) $invoice->order->payments()->where('status', 'paid')->where('payment_type', '!=', 'refund')->sum('amount');
-
-        return view('payments.invoices.refund_form', compact('invoice', 'paidIn'));
-    }
-
-    public function refund(Request $request, int $id)
-    {
-        if (! Auth::user()->hasRole('superadmin')) {
-            abort(403);
-        }
-
-        $invoice = Invoice::with('order')->findOrFail($id);
-        if ($invoice->status !== 'lunas') {
-            return back()->withErrors(['refund' => 'Invoice harus berstatus lunas untuk di-refund.']);
-        }
-
-        $paidIn = (int) $invoice->order->payments()->where('status', 'paid')->where('payment_type', '!=', 'refund')->sum('amount');
-
-        $data = $request->validate([
-            'amount'  => 'required|numeric|min:1|max:' . $paidIn,
-            'reason'  => 'required|string',
-            'method'  => 'required|in:transfer,tunai,lainnya',
-            'account' => 'nullable|string|max:150',
-            'tanggal' => 'required|date',
-        ]);
-
-        $payment = DB::transaction(function () use ($invoice, $data) {
-            $payment = Payment::create([
-                'order_id'     => $invoice->order_id,
-                'payment_type' => 'refund',
-                'amount'       => $data['amount'],
-                'status'       => 'paid',
-                'paid_at'      => $data['tanggal'],
-            ]);
-
-            $invoice->update([
-                'status'            => 'refund',
-                'refunded_by'       => Auth::id(),
-                'refunded_at'       => now(),
-                'refund_reason'     => $data['reason'],
-                'refund_method'     => $data['method'],
-                'refund_account'    => $data['account'] ?? null,
-                'refund_payment_id' => $payment->id,
-            ]);
-
-            InvoiceLog::create([
-                'invoice_id'  => $invoice->id,
-                'from_status' => 'lunas',
-                'to_status'   => 'refund',
-                'changed_by'  => Auth::id(),
-                'note'        => 'Refund Rp ' . number_format($data['amount'], 0, ',', '.') . ' — ' . $data['reason'],
-            ]);
-
-            return $payment;
-        });
-
-        SendRefundJob::dispatch($invoice->id);
-        app(Notifier::class)->refundIssued($payment, Auth::user());
-
-        return redirect()->route('invoice.show', $invoice->id)->with('success', 'Refund diproses. Bukti refund dikirim ke customer.');
-    }
-
-    public function refundPdf(int $id)
-    {
-        $invoice = Invoice::with('order.details', 'order.contact', 'refundPayment')->findOrFail($id);
-        abort_if($invoice->status !== 'refund' || ! $invoice->refundPayment, 404, 'Belum ada refund untuk invoice ini.');
-
-        return Pdf::loadView('payments.refunds.refund_pdf', RefundPdfData::for($invoice))
-            ->stream('Refund_' . $invoice->invoice_no . '.pdf');
     }
 
     public function logs(int $id)

@@ -45,7 +45,7 @@ class MarketingAccessTest extends TestCase
         $this->put(route('invoice.update', 1))->assertForbidden();
         $this->post(route('invoice.updateStatus', 1))->assertForbidden();
         $this->post(route('invoice.cancel', 1))->assertForbidden();
-        $this->post(route('invoice.refund', 1))->assertForbidden();
+        $this->get(route('order.refund.form', 'X'))->assertForbidden();
     }
 
     /** @test */

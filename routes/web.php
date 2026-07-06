@@ -72,6 +72,10 @@ Route::middleware('auth')->group(function () {
         Route::get('jurnal/show/{code_order}', [OrderJournalController::class, 'show'])->name('journal.show')->middleware('role:marketing|manager|superadmin');
         Route::get('jurnal/update/{code_order}', [OrderJournalController::class, 'edit'])->name('journal.edit')->middleware('role:marketing|manager|superadmin');
         Route::put('jurnal/update/{code_order}', [OrderJournalController::class, 'update'])->name('journal.update')->middleware('role:marketing|manager|superadmin');
+
+        Route::get('refund/{code_order}', [\App\Http\Controllers\Pages\RefundController::class, 'form'])->name('refund.form')->middleware('role:superadmin');
+        Route::post('refund/{code_order}', [\App\Http\Controllers\Pages\RefundController::class, 'store'])->name('refund.store')->middleware('role:superadmin');
+        Route::get('refund/{code_order}/pdf', [\App\Http\Controllers\Pages\RefundController::class, 'pdf'])->name('refund.pdf')->middleware('role:superadmin');
     });
     //order  journal
     Route::prefix('management')->name('order.')->group(function () {
@@ -143,9 +147,6 @@ Route::middleware('auth')->group(function () {
         Route::put('{id}',         [InvoiceController::class, 'update'])->name('update')->middleware('role:manager|superadmin');
         Route::post('{id}/status', [InvoiceController::class, 'updateStatus'])->name('updateStatus')->middleware('role:manager|superadmin');
         Route::post('{id}/cancel', [InvoiceController::class, 'cancel'])->name('cancel')->middleware('role:manager|superadmin');
-        Route::post('{id}/refund', [InvoiceController::class, 'refund'])->name('refund')->middleware('role:manager|superadmin');
-        Route::get('{id}/refund',     [InvoiceController::class, 'refundForm'])->name('refund.form')->middleware('role:manager|superadmin');
-        Route::get('{id}/refund/pdf', [InvoiceController::class, 'refundPdf'])->name('refund.pdf')->middleware('role:manager|superadmin');
         Route::get('{id}/logs',    [InvoiceController::class, 'logs'])->name('logs');
         Route::get('{id}/pdf', [InvoiceController::class, 'pdf'])->name('pdf');
     });

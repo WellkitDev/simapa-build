@@ -65,10 +65,6 @@
                     <div class="alert alert-info mt-3 py-2">
                         Refund diproses oleh <strong>{{ $invoice->refundedBy->name ?? '-' }}</strong>
                         pada {{ $invoice->refunded_at?->format('d/m/Y H:i') }}
-                        @if($invoice->refund_payment_id)
-                            · Rp {{ number_format((float) optional($invoice->refundPayment)->amount, 0, ',', '.') }}
-                            · <a href="{{ route('invoice.refund.pdf', $invoice->id) }}" target="_blank">Bukti Refund (PDF)</a>
-                        @endif
                     </div>
                 @endif
 
@@ -111,10 +107,6 @@
                             <input type="hidden" name="note" value="Dibatalkan oleh superadmin.">
                             <button type="submit" class="btn btn-sm btn-danger">Cancel</button>
                         </form>
-                        @endif
-
-                        @if($invoice->status === 'lunas')
-                        <a href="{{ route('invoice.refund.form', $invoice->id) }}" class="btn btn-sm btn-outline-warning">Refund</a>
                         @endif
                     @endrole
                 </div>
