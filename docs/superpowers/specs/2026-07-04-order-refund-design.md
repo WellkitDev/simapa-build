@@ -1,5 +1,9 @@
 # Spec — Refund Order (dari Invoice lunas)
 
+> **REVISI 2026-07-04 (final = order-based).** Setelah v1 (invoice-based) selesai dibangun, disepakati ulang: refund **berbasis order** (bukan invoice), dari **daftar order** (superadmin), untuk order yang punya pembayaran **paid** (dp/pelunasan/lunas) & belum pernah refund. Metadata refund pindah ke **`tb_payments`** (`refund_reason/method/account/refunded_by`); kolom refund di `tb_invoices` **di-drop**; invoice **tak disentuh** saat refund. Refund PDF menampilkan **riwayat pembayaran order** + ringkasan. Detail rombakan di `docs/superpowers/plans/2026-07-04-order-refund.md` (Task R1–R4). Bagian di bawah = desain v1 (invoice-based), sebagian di-superseded.
+
+
+
 - **Tanggal:** 2026-07-04
 - **Branch:** `order-refund`
 - **Scope:** Alur refund lengkap dari **invoice lunas**: halaman form refund (nominal sebagian + alasan + metode) → buat **Payment refund** (→ pengeluaran Jurnal Kas otomatis) → **PDF bukti refund** → **email** ke customer + **notif in-app** → invoice ditandai `refund`. superadmin.

@@ -1,81 +1,63 @@
-# Refund Order (dari Invoice lunas) — Implementation Plan
+# Refund Order — REVISI: order-based (menggantikan invoice-based)
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans. Steps use checkbox (`- [ ]`).
+> **For agentic workers:** REQUIRED SUB-SKILL: superpowers:subagent-driven-development. Steps pakai checkbox.
+> **KONTEKS:** Branch `order-refund` sudah memuat refund **invoice-based** (v1, commits 7d2f68d…6fb53b5). Rencana ini **merombaknya jadi order-based**. Refund kini: dari **daftar order**, superadmin, order punya pembayaran paid (dp/pelunasan/lunas) & belum pernah refund; metadata di **Payment refund**; **invoice tak disentuh**; PDF memuat **riwayat pembayaran**.
 
-**Goal:** Alur refund lengkap dari invoice lunas: form refund → Payment refund (→ pengeluaran Jurnal Kas otomatis) → PDF bukti + email customer + notif in-app → invoice ditandai refund.
+**Goal:** Refund berbasis order dari daftar order → Payment refund (→ pengeluaran Jurnal Kas) → PDF bukti (dgn riwayat pembayaran) + email + notif. Tanpa menyentuh invoice.
 
-**Architecture:** Perluas `InvoiceController::refund` + form baru. Refund membuat `Payment(payment_type='refund',status='paid')` → `PaymentObserver::saved` → `PaymentCashSyncService` → entri pengeluaran (sudah ada). Kirim PDF/email via `SendRefundJob` (tiru `SendInvoiceJob`) + `RefundMail`. Notif via `Notifier`.
-
-**Tech Stack:** Laravel 11, PHP 8.2, dompdf, Queue/Mail, PHPUnit.
-
-**Spec:** `docs/superpowers/specs/2026-07-04-order-refund-design.md`
+**Tech Stack:** Laravel 11, dompdf, Queue/Mail, PHPUnit.
 
 ---
 
 ## Konvensi (semua task)
 
-- **Test:** `php artisan test` (phpunit.xml → `APP_ENV=testing` → DB `avidpedi_simapa_test`). Single: `php artisan test --filter=Nama`. Jangan pakai DB dev untuk test.
-- **TDD:** test gagal dulu → konfirmasi gagal → implementasi → konfirmasi lulus.
-- **Commit:** author `WellkitDev <rahmatpurnomo808@gmail.com>`, co-author `Mira <admin@avidpedia.com>`. JANGAN "Claude"/Anthropic. `git add` path eksplisit (jangan `git add .`). Commit heredoc via Bash tool.
-- **Setelah semua task:** `php artisan migrate` di DB dev (`avidpedi_simapa`) untuk kolom baru. Lihat [[migrate-dev-db-after-new-migration]].
+- **Test:** `php artisan test` (phpunit.xml → `APP_ENV=testing` → DB test). Single: `--filter=Nama`. Jangan pakai DB dev untuk test.
+- **TDD:** test gagal dulu → konfirmasi → implementasi → lulus.
+- **Commit:** author `WellkitDev <rahmatpurnomo808@gmail.com>`, co-author `Mira <admin@avidpedia.com>`. `git add` eksplisit. Commit heredoc via Bash.
+- **Migrate dev** hanya di Task R4.
 
 ---
 
-## File Structure
+## Task R1: Pivot skema ke Payment + revert Invoice
 
-- **Buat:** migrasi `2026_07_04_000010_add_refund_fields_to_invoices.php`; `app/Support/RefundPdfData.php`; `app/Mail/RefundMail.php`; `app/Jobs/SendRefundJob.php`; views `resources/views/payments/refunds/refund_pdf.blade.php`, `resources/views/pages/mails/refund_mail.blade.php`, `resources/views/payments/invoices/refund_form.blade.php`; test `RefundInvoiceModelTest`, `RefundNotifierTest`, `RefundDeliveryTest`, `RefundFlowTest`.
-- **Ubah:** `app/Models/Invoice.php` (fillable+relasi); `app/Services/Notifier.php` (+refundIssued); `app/Http/Controllers/Pages/InvoiceController.php` (refundForm/refund/refundPdf); `routes/web.php` (+2 rute); `resources/views/payments/invoices/show.blade.php` (tombol→form + link PDF); `tests/Feature/InvoiceLifecycleTest.php` (1 test disesuaikan).
+**Files:** Create `database/migrations/2026_07_04_000011_move_refund_fields_to_payments.php`, `tests/Feature/RefundPaymentModelTest.php`; Modify `app/Models/Payment.php`, `app/Models/Invoice.php`; Delete `tests/Feature/RefundInvoiceModelTest.php`.
 
----
-
-## Task 1: Migrasi + model Invoice
-
-**Files:** Create `database/migrations/2026_07_04_000010_add_refund_fields_to_invoices.php`; Modify `app/Models/Invoice.php`; Test `tests/Feature/RefundInvoiceModelTest.php`.
-
-- [ ] **Step 1: Test gagal**
-
-Buat `tests/Feature/RefundInvoiceModelTest.php`:
+- [ ] **Step 1: Test gagal** — buat `tests/Feature/RefundPaymentModelTest.php`:
 ```php
 <?php
 
 namespace Tests\Feature;
 
 use Tests\TestCase;
+use App\Models\User;
 use App\Models\Order;
 use App\Models\Payment;
-use App\Models\Invoice;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
-class RefundInvoiceModelTest extends TestCase
+class RefundPaymentModelTest extends TestCase
 {
     use RefreshDatabase;
 
     /** @test */
-    public function invoice_stores_refund_fields_and_links_payment(): void
+    public function payment_stores_refund_metadata_and_refunded_by(): void
     {
+        $user = User::factory()->create();
         $order = Order::factory()->create();
-        $payment = Payment::create(['order_id' => $order->id, 'payment_type' => 'refund', 'amount' => 150000, 'status' => 'paid', 'paid_at' => '2026-06-05']);
-        $invoice = Invoice::factory()->create([
-            'order_id' => $order->id, 'status' => 'refund',
-            'refund_reason' => 'Batal cetak', 'refund_method' => 'transfer', 'refund_account' => 'BCA 123',
-            'refund_payment_id' => $payment->id,
-        ]);
-        $invoice->refresh();
+        $payment = Payment::create([
+            'order_id' => $order->id, 'payment_type' => 'refund', 'amount' => 150000, 'status' => 'paid', 'paid_at' => '2026-06-05',
+            'refund_reason' => 'Batal cetak', 'refund_method' => 'transfer', 'refund_account' => 'BCA 123', 'refunded_by' => $user->id,
+        ])->refresh();
 
-        $this->assertSame('Batal cetak', $invoice->refund_reason);
-        $this->assertSame('transfer', $invoice->refund_method);
-        $this->assertSame($payment->id, $invoice->refundPayment->id);
-        $this->assertEquals(150000, $invoice->refundPayment->amount);
+        $this->assertSame('Batal cetak', $payment->refund_reason);
+        $this->assertSame('transfer', $payment->refund_method);
+        $this->assertSame($user->id, $payment->refundedBy->id);
     }
 }
 ```
 
-- [ ] **Step 2: Run — gagal**
+- [ ] **Step 2: Run — gagal** — `php artisan test --filter=RefundPaymentModelTest` → FAIL (kolom `refund_reason` di payments belum ada).
 
-Run: `php artisan test --filter=RefundInvoiceModelTest`
-Expected: FAIL (kolom `refund_reason` tidak ada / relasi `refundPayment` tidak ada).
-
-- [ ] **Step 3: Migrasi** — buat `database/migrations/2026_07_04_000010_add_refund_fields_to_invoices.php`:
+- [ ] **Step 3: Migrasi** — buat `database/migrations/2026_07_04_000011_move_refund_fields_to_payments.php`:
 ```php
 <?php
 
@@ -87,49 +69,71 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('tb_invoices', function (Blueprint $table) {
-            $table->text('refund_reason')->nullable()->after('refunded_at');
+        Schema::table('tb_payments', function (Blueprint $table) {
+            $table->text('refund_reason')->nullable()->after('status');
             $table->string('refund_method')->nullable()->after('refund_reason');
             $table->string('refund_account')->nullable()->after('refund_method');
-            $table->foreignId('refund_payment_id')->nullable()->after('refund_account')
-                  ->constrained('tb_payments')->nullOnDelete();
+            $table->unsignedBigInteger('refunded_by')->nullable()->after('refund_account');
         });
-    }
 
-    public function down(): void
-    {
         Schema::table('tb_invoices', function (Blueprint $table) {
             $table->dropForeign(['refund_payment_id']);
             $table->dropColumn(['refund_reason', 'refund_method', 'refund_account', 'refund_payment_id']);
         });
     }
+
+    public function down(): void
+    {
+        Schema::table('tb_payments', function (Blueprint $table) {
+            $table->dropColumn(['refund_reason', 'refund_method', 'refund_account', 'refunded_by']);
+        });
+
+        Schema::table('tb_invoices', function (Blueprint $table) {
+            $table->text('refund_reason')->nullable()->after('refunded_at');
+            $table->string('refund_method')->nullable()->after('refund_reason');
+            $table->string('refund_account')->nullable()->after('refund_method');
+            $table->foreignId('refund_payment_id')->nullable()->after('refund_account')->constrained('tb_payments')->nullOnDelete();
+        });
+    }
 };
 ```
 
-- [ ] **Step 4: Model Invoice** — di `app/Models/Invoice.php`:
-- Tambah 4 field ke `$fillable` (setelah `'refunded_by', 'refunded_at',`):
+- [ ] **Step 4: Payment model** — di `app/Models/Payment.php`:
+- Tambah 4 field ke `$fillable`:
 ```php
-        'refund_reason', 'refund_method', 'refund_account', 'refund_payment_id',
+    protected $fillable = [
+        'order_id', 'payment_type',
+        'amount', 'paid_at',
+        'proof_url', 'status',
+        'refund_reason', 'refund_method', 'refund_account', 'refunded_by',
+    ];
 ```
-- Tambahkan relasi (setelah method `refundedBy()`):
+- Tambahkan relasi (setelah `approval()`):
 ```php
-    public function refundPayment()
+    public function refundedBy()
     {
-        return $this->belongsTo(Payment::class, 'refund_payment_id');
+        return $this->belongsTo(User::class, 'refunded_by');
     }
 ```
+(Pastikan `use App\Models\User;` tak perlu — same namespace `App\Models`, jadi `User::class` cukup.)
 
-- [ ] **Step 5: Run — lulus**
+- [ ] **Step 5: Revert Invoice model** — di `app/Models/Invoice.php`:
+- Hapus 4 field refund dari `$fillable` (`'refund_reason', 'refund_method', 'refund_account', 'refund_payment_id',`) → kembalikan ke daftar sebelum Task 1.
+- Hapus method `refundPayment()`.
 
-Run: `php artisan test --filter=RefundInvoiceModelTest`
-Expected: PASS (1 test).
+- [ ] **Step 6: Hapus test lama** — hapus file `tests/Feature/RefundInvoiceModelTest.php`.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Run — lulus** — `php artisan test --filter=RefundPaymentModelTest` → PASS.
 
+- [ ] **Step 8: Commit**
 ```bash
-git add database/migrations/2026_07_04_000010_add_refund_fields_to_invoices.php app/Models/Invoice.php tests/Feature/RefundInvoiceModelTest.php
+git add database/migrations/2026_07_04_000011_move_refund_fields_to_payments.php app/Models/Payment.php app/Models/Invoice.php tests/Feature/RefundPaymentModelTest.php tests/Feature/RefundInvoiceModelTest.php
 git commit --author="WellkitDev <rahmatpurnomo808@gmail.com>" -m "$(cat <<'EOF'
-feat(refund): kolom refund di invoices + relasi refundPayment
+refactor(refund): pindah metadata refund ke tb_payments (drop dari invoices)
+
+Refund jadi order/payment-based; kolom refund_reason/method/account/
+refunded_by di tb_payments; kolom refund di tb_invoices di-drop. Invoice
+tak lagi menyimpan status refund.
 
 Co-authored-by: Mira <admin@avidpedia.com>
 EOF
@@ -138,106 +142,11 @@ EOF
 
 ---
 
-## Task 2: Notifier::refundIssued
+## Task R2: Delivery berbasis Payment + riwayat di PDF
 
-**Files:** Modify `app/Services/Notifier.php`; Test `tests/Feature/RefundNotifierTest.php`.
+**Files:** Modify `app/Support/RefundPdfData.php`, `resources/views/payments/refunds/refund_pdf.blade.php`, `app/Mail/RefundMail.php`, `resources/views/pages/mails/refund_mail.blade.php`, `app/Jobs/SendRefundJob.php`, `tests/Feature/RefundDeliveryTest.php`.
 
-- [ ] **Step 1: Test gagal**
-
-Buat `tests/Feature/RefundNotifierTest.php`:
-```php
-<?php
-
-namespace Tests\Feature;
-
-use Tests\TestCase;
-use App\Models\User;
-use App\Models\Order;
-use App\Models\Payment;
-use App\Services\Notifier;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Spatie\Permission\Models\Role;
-
-class RefundNotifierTest extends TestCase
-{
-    use RefreshDatabase;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-        foreach (['marketing', 'manager', 'superadmin', 'production', 'admin'] as $r) {
-            Role::create(['name' => $r, 'guard_name' => 'web']);
-        }
-    }
-
-    /** @test */
-    public function refund_issued_notifies_superadmin_but_not_actor(): void
-    {
-        $recipient = User::factory()->create(); $recipient->assignRole('superadmin');
-        $actor = User::factory()->create(); $actor->assignRole('superadmin');
-        $order = Order::factory()->create();
-        $payment = Payment::create(['order_id' => $order->id, 'payment_type' => 'refund', 'amount' => 200000, 'status' => 'paid', 'paid_at' => '2026-06-05']);
-
-        app(Notifier::class)->refundIssued($payment, $actor);
-
-        $this->assertDatabaseHas('notifications', ['notifiable_id' => $recipient->id]);
-        $this->assertDatabaseMissing('notifications', ['notifiable_id' => $actor->id]);
-    }
-}
-```
-
-- [ ] **Step 2: Run — gagal**
-
-Run: `php artisan test --filter=RefundNotifierTest`
-Expected: FAIL (`Method refundIssued does not exist`).
-
-- [ ] **Step 3: Implementasi** — di `app/Services/Notifier.php`, tambahkan method (mis. setelah `paymentRejected`):
-```php
-    public function refundIssued(Payment $payment, User $actor): void
-    {
-        $payment->loadMissing('order.user');
-        $recipients = $this->roleUsers(['manager', 'superadmin'], $actor);
-        $owner = $payment->order?->user;
-        if ($owner && $owner->id !== $actor->id) {
-            $recipients = $recipients->push($owner)->unique('id')->values();
-        }
-        $this->send($recipients, [
-            'category' => 'payment',
-            'title'    => 'Refund diproses',
-            'message'  => 'Rp ' . $this->rp($payment->amount) . ' — ' . ($payment->order?->user?->name ?? '—'),
-            'url'      => route('invoice.index'),
-            'icon'     => 'corner-up-left',
-        ]);
-    }
-```
-(`Payment`, `User`, `Collection` sudah di-import di file ini.)
-
-- [ ] **Step 4: Run — lulus**
-
-Run: `php artisan test --filter=RefundNotifierTest`
-Expected: PASS.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add app/Services/Notifier.php tests/Feature/RefundNotifierTest.php
-git commit --author="WellkitDev <rahmatpurnomo808@gmail.com>" -m "$(cat <<'EOF'
-feat(refund): Notifier::refundIssued (notif superadmin/manager + pemilik)
-
-Co-authored-by: Mira <admin@avidpedia.com>
-EOF
-)"
-```
-
----
-
-## Task 3: Delivery — RefundPdfData + view PDF + RefundMail + view email + SendRefundJob
-
-**Files:** Create `app/Support/RefundPdfData.php`, `resources/views/payments/refunds/refund_pdf.blade.php`, `app/Mail/RefundMail.php`, `resources/views/pages/mails/refund_mail.blade.php`, `app/Jobs/SendRefundJob.php`; Test `tests/Feature/RefundDeliveryTest.php`.
-
-- [ ] **Step 1: Test gagal**
-
-Buat `tests/Feature/RefundDeliveryTest.php`:
+- [ ] **Step 1: Ganti test (jadikan gagal)** — REPLACE seluruh isi `tests/Feature/RefundDeliveryTest.php`:
 ```php
 <?php
 
@@ -246,7 +155,6 @@ namespace Tests\Feature;
 use Tests\TestCase;
 use App\Models\Order;
 use App\Models\Payment;
-use App\Models\Invoice;
 use App\Mail\RefundMail;
 use App\Support\RefundPdfData;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -256,101 +164,132 @@ class RefundDeliveryTest extends TestCase
     use RefreshDatabase;
 
     /** @test */
-    public function refund_pdf_data_and_mail_subject(): void
+    public function refund_pdf_data_includes_history_and_mail_subject(): void
     {
         $order = Order::factory()->create();
-        $payment = Payment::create(['order_id' => $order->id, 'payment_type' => 'refund', 'amount' => 250000, 'status' => 'paid', 'paid_at' => '2026-06-05']);
-        $invoice = Invoice::factory()->create([
-            'order_id' => $order->id, 'status' => 'refund', 'invoice_no' => 'INV-RF-1',
-            'refund_reason' => 'Batal', 'refund_method' => 'transfer', 'refund_payment_id' => $payment->id,
+        Payment::create(['order_id' => $order->id, 'payment_type' => 'dp', 'amount' => 200000, 'status' => 'paid', 'paid_at' => '2026-06-01']);
+        Payment::create(['order_id' => $order->id, 'payment_type' => 'pelunasan', 'amount' => 300000, 'status' => 'paid', 'paid_at' => '2026-06-03']);
+        $refund = Payment::create([
+            'order_id' => $order->id, 'payment_type' => 'refund', 'amount' => 250000, 'status' => 'paid', 'paid_at' => '2026-06-05',
+            'refund_reason' => 'Batal', 'refund_method' => 'transfer',
         ]);
 
-        $data = RefundPdfData::for($invoice);
-        $this->assertEquals(250000.0, $data['amount']);
+        $data = RefundPdfData::for($refund);
+        $this->assertEquals(250000.0, $data['refundAmount']);
+        $this->assertEquals(500000.0, $data['paidIn']);   // 200rb + 300rb (non-refund)
+        $this->assertCount(3, $data['payments']);          // dp + pelunasan + refund
         $this->assertSame('Batal', $data['reason']);
-        $this->assertSame('transfer', $data['method']);
 
-        $mail = new RefundMail($invoice, $data, 'PDFBYTES');
+        $mail = new RefundMail($refund, $data, 'PDFBYTES');
         $this->assertStringContainsString('Bukti Refund', $mail->envelope()->subject);
-        $this->assertStringContainsString('INV-RF-1', $mail->envelope()->subject);
+        $this->assertStringContainsString($order->code_order, $mail->envelope()->subject);
         $this->assertCount(1, $mail->attachments());
     }
 }
 ```
 
-- [ ] **Step 2: Run — gagal**
+- [ ] **Step 2: Run — gagal** — `php artisan test --filter=RefundDeliveryTest` → FAIL (RefundPdfData masih invoice-based / signature beda).
 
-Run: `php artisan test --filter=RefundDeliveryTest`
-Expected: FAIL (`Class "App\Support\RefundPdfData" not found`).
-
-- [ ] **Step 3: RefundPdfData** — buat `app/Support/RefundPdfData.php`:
+- [ ] **Step 3: RefundPdfData** — REPLACE seluruh isi `app/Support/RefundPdfData.php`:
 ```php
 <?php
 
 namespace App\Support;
 
-use App\Models\Invoice;
+use App\Models\Payment;
 
 class RefundPdfData
 {
-    /** @return array{invoice:Invoice,order:?\App\Models\Order,detail:?\App\Models\OrderDetail,contact:mixed,payment:?\App\Models\Payment,amount:float,reason:?string,method:?string,account:?string,refunded_at:mixed} */
-    public static function for(Invoice $invoice): array
+    /** Data bukti refund dari Payment refund (order-based) + riwayat pembayaran. */
+    public static function for(Payment $refund): array
     {
-        $invoice->loadMissing('order.details', 'order.contact', 'refundPayment');
-        $order   = $invoice->order;
-        $detail  = $order?->details;
-        $contact = $order?->contact;
-        $payment = $invoice->refundPayment;
+        $refund->loadMissing('order.details', 'order.contact', 'order.payments');
+        $order    = $refund->order;
+        $detail   = $order?->details;
+        $contact  = $order?->contact;
+        $payments = $order ? $order->payments->sortBy('paid_at')->values() : collect();
+        $paidIn   = (float) ($order ? $order->payments->where('status', 'paid')->where('payment_type', '!=', 'refund')->sum('amount') : 0);
 
         return [
-            'invoice'     => $invoice,
-            'order'       => $order,
-            'detail'      => $detail,
-            'contact'     => $contact,
-            'payment'     => $payment,
-            'amount'      => (float) ($payment->amount ?? 0),
-            'reason'      => $invoice->refund_reason,
-            'method'      => $invoice->refund_method,
-            'account'     => $invoice->refund_account,
-            'refunded_at' => $invoice->refunded_at,
+            'refund'       => $refund,
+            'order'        => $order,
+            'detail'       => $detail,
+            'contact'      => $contact,
+            'payments'     => $payments,
+            'paidIn'       => $paidIn,
+            'refundAmount' => (float) $refund->amount,
+            'reason'       => $refund->refund_reason,
+            'method'       => $refund->refund_method,
+            'account'      => $refund->refund_account,
+            'refunded_at'  => $refund->paid_at,
         ];
     }
 }
 ```
 
-- [ ] **Step 4: View PDF** — buat `resources/views/payments/refunds/refund_pdf.blade.php`:
+- [ ] **Step 4: PDF view** — REPLACE seluruh isi `resources/views/payments/refunds/refund_pdf.blade.php`:
 ```blade
 <!DOCTYPE html>
 <html><head><meta charset="utf-8"><style>
 body{font-family:DejaVu Sans, sans-serif;font-size:12px;color:#222}
 h2{margin:0 0 2px}.muted{color:#666}
-.box{border:1px solid #ccc;padding:12px;margin-top:12px}
-table{width:100%;border-collapse:collapse}
-td{padding:4px 6px;vertical-align:top}.lbl{color:#666;width:160px}.big{font-size:16px;font-weight:bold}
+.box{border:1px solid #ccc;padding:10px;margin-top:12px}
+table{width:100%;border-collapse:collapse;margin-top:6px}
+th,td{border:1px solid #ccc;padding:4px 6px}th{background:#f0f0f0;text-align:left}
+.text-end{text-align:right}.lbl{color:#666;width:150px;border:0}.big{font-size:15px;font-weight:bold}
+.plain td{border:0;padding:3px 6px}
 </style></head><body>
-@php $rp = fn ($n) => 'Rp ' . number_format((float) $n, 0, ',', '.'); @endphp
+@php
+    $rp = fn ($n) => 'Rp ' . number_format((float) $n, 0, ',', '.');
+    $ptype = ['dp' => 'DP', 'lunas' => 'Lunas', 'pelunasan' => 'Pelunasan', 'refund' => 'Refund'];
+@endphp
 <h2>BUKTI REFUND</h2>
-<div class="muted">No. Invoice: {{ $invoice->invoice_no }} · Tanggal: {{ optional($refunded_at)->format('d/m/Y') }}</div>
-<div class="box"><table>
+<div class="muted">Order: {{ optional($order)->code_order ?? '-' }} · Tanggal Refund: {{ optional($refunded_at)->format('d/m/Y') }}</div>
+
+<table class="plain" style="margin-top:10px">
     <tr><td class="lbl">Customer</td><td>{{ optional($contact)->cp_name ?? '-' }}</td></tr>
-    <tr><td class="lbl">Order</td><td>{{ optional($order)->code_order ?? '-' }}</td></tr>
     <tr><td class="lbl">Judul</td><td>{{ optional($detail)->title ?? '-' }}</td></tr>
-    <tr><td class="lbl">Nominal Refund</td><td class="big">{{ $rp($amount) }}</td></tr>
-    <tr><td class="lbl">Metode</td><td>{{ $method ?? '-' }}</td></tr>
-    <tr><td class="lbl">Tujuan</td><td>{{ $account ?? '-' }}</td></tr>
-    <tr><td class="lbl">Alasan</td><td>{{ $reason ?? '-' }}</td></tr>
-</table></div>
+</table>
+
+<div style="margin-top:12px;font-weight:bold">Riwayat Pembayaran</div>
+<table>
+    <thead><tr><th>Tanggal</th><th>Jenis</th><th class="text-end">Nominal</th><th>Status</th></tr></thead>
+    <tbody>
+    @foreach($payments as $p)
+        <tr>
+            <td>{{ optional($p->paid_at)->format('d/m/Y') }}</td>
+            <td>{{ $ptype[$p->payment_type] ?? $p->payment_type }}</td>
+            <td class="text-end">{{ $p->payment_type === 'refund' ? '-' . $rp($p->amount) : $rp($p->amount) }}</td>
+            <td>{{ $p->status }}</td>
+        </tr>
+    @endforeach
+    </tbody>
+</table>
+
+<table class="plain" style="margin-top:10px">
+    <tr><td class="lbl">Total Dibayar</td><td>{{ $rp($paidIn) }}</td></tr>
+    <tr><td class="lbl">Nominal Refund</td><td class="big">{{ $rp($refundAmount) }}</td></tr>
+    <tr><td class="lbl">Sisa Setelah Refund</td><td>{{ $rp($paidIn - $refundAmount) }}</td></tr>
+</table>
+
+<div class="box">
+    <table class="plain">
+        <tr><td class="lbl">Metode</td><td>{{ $method ?? '-' }}</td></tr>
+        <tr><td class="lbl">Rekening/Tujuan</td><td>{{ $account ?? '-' }}</td></tr>
+        <tr><td class="lbl">Alasan</td><td>{{ $reason ?? '-' }}</td></tr>
+    </table>
+</div>
 <p style="margin-top:40px">Hormat kami,<br><br><br>Avidpedia</p>
 </body></html>
 ```
 
-- [ ] **Step 5: RefundMail** — buat `app/Mail/RefundMail.php`:
+- [ ] **Step 5: RefundMail** — REPLACE seluruh isi `app/Mail/RefundMail.php`:
 ```php
 <?php
 
 namespace App\Mail;
 
-use App\Models\Invoice;
+use App\Models\Payment;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -362,11 +301,11 @@ class RefundMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public function __construct(public Invoice $invoice, public array $data, public ?string $pdf = null) {}
+    public function __construct(public Payment $refund, public array $data, public ?string $pdf = null) {}
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: 'Bukti Refund — ' . $this->invoice->invoice_no);
+        return new Envelope(subject: 'Bukti Refund — Order ' . (optional($this->refund->order)->code_order ?? ''));
     }
 
     public function content(): Content
@@ -380,36 +319,36 @@ class RefundMail extends Mailable
             return [];
         }
         return [
-            Attachment::fromData(fn () => $this->pdf, 'Refund_' . $this->invoice->invoice_no . '.pdf')->withMime('application/pdf'),
+            Attachment::fromData(fn () => $this->pdf, 'Refund_' . (optional($this->refund->order)->code_order ?? 'order') . '.pdf')->withMime('application/pdf'),
         ];
     }
 }
 ```
 
-- [ ] **Step 6: View email** — buat `resources/views/pages/mails/refund_mail.blade.php`:
+- [ ] **Step 6: Email view** — REPLACE seluruh isi `resources/views/pages/mails/refund_mail.blade.php`:
 ```blade
 @php $rp = fn ($n) => 'Rp ' . number_format((float) $n, 0, ',', '.'); @endphp
 <p>Yth. {{ optional($data['contact'])->cp_name ?? 'Pelanggan' }},</p>
 <p>Kami telah memproses <strong>refund</strong> untuk pesanan Anda.</p>
 <ul>
-    <li>No. Invoice: {{ $invoice->invoice_no }}</li>
     <li>Order: {{ optional($data['order'])->code_order }}</li>
-    <li>Nominal refund: <strong>{{ $rp($data['amount']) }}</strong></li>
+    <li>Total dibayar: {{ $rp($data['paidIn']) }}</li>
+    <li>Nominal refund: <strong>{{ $rp($data['refundAmount']) }}</strong></li>
     <li>Metode: {{ $data['method'] }}</li>
     @if($data['account'])<li>Tujuan: {{ $data['account'] }}</li>@endif
     <li>Alasan: {{ $data['reason'] }}</li>
 </ul>
-<p>Bukti refund terlampir (PDF).</p>
+<p>Rincian & riwayat pembayaran ada di bukti refund terlampir (PDF).</p>
 <p>Terima kasih.</p>
 ```
 
-- [ ] **Step 7: SendRefundJob** — buat `app/Jobs/SendRefundJob.php`:
+- [ ] **Step 7: SendRefundJob** — REPLACE seluruh isi `app/Jobs/SendRefundJob.php`:
 ```php
 <?php
 
 namespace App\Jobs;
 
-use App\Models\Invoice;
+use App\Models\Payment;
 use App\Mail\RefundMail;
 use App\Support\RefundPdfData;
 use App\Services\GoogleDriveService;
@@ -426,26 +365,26 @@ class SendRefundJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public function __construct(protected int $invoiceId) {}
+    public function __construct(protected int $paymentId) {}
 
     public function handle(GoogleDriveService $drive): void
     {
-        $invoice = Invoice::with('order.contact', 'order.details', 'refundPayment')->find($this->invoiceId);
-        if (! $invoice || ! $invoice->refundPayment) {
+        $refund = Payment::with('order.contact', 'order.details', 'order.payments')->find($this->paymentId);
+        if (! $refund || $refund->payment_type !== 'refund') {
             return;
         }
 
-        $data   = RefundPdfData::for($invoice);
+        $data   = RefundPdfData::for($refund);
         $pdf    = Pdf::loadView('payments.refunds.refund_pdf', $data);
         $pdfOut = $pdf->output();
+        $code   = optional($refund->order)->code_order ?? 'order';
 
-        // Best-effort simpan + upload Drive (tak menggagalkan email bila Drive mati)
         try {
             $tempDir = storage_path('app/temp/refunds');
             if (! is_dir($tempDir)) {
                 mkdir($tempDir, 0755, true);
             }
-            $tempPath = $tempDir . '/Refund_' . $invoice->invoice_no . '.pdf';
+            $tempPath = $tempDir . '/Refund_' . $code . '.pdf';
             file_put_contents($tempPath, $pdfOut);
             $folderId = $drive->getOrCreateFolderByPath('Application/Refunds/' . now()->format('Y'));
             if ($folderId) {
@@ -458,30 +397,26 @@ class SendRefundJob implements ShouldQueue
             Log::warning('SendRefundJob Drive gagal: ' . $e->getMessage());
         }
 
-        $email = optional($invoice->order?->contact)->cp_email;
+        $email = optional($refund->order?->contact)->cp_email;
         if ($email) {
-            Mail::to($email)->send(new RefundMail($invoice, $data, $pdfOut));
+            Mail::to($email)->send(new RefundMail($refund, $data, $pdfOut));
         }
     }
 }
 ```
 
-- [ ] **Step 8: Run — lulus**
+- [ ] **Step 8: Run — lulus** — `php artisan test --filter=RefundDeliveryTest` → PASS.
 
-Run: `php artisan test --filter=RefundDeliveryTest`
-Expected: PASS (1 test).
-
-- [ ] **Step 9: view:cache bersih** — `php artisan view:cache` (sukses, tanpa error Blade) lalu `php artisan view:clear`.
+- [ ] **Step 9: view:cache bersih** — `php artisan view:cache` (sukses) lalu `php artisan view:clear`.
 
 - [ ] **Step 10: Commit**
-
 ```bash
 git add app/Support/RefundPdfData.php resources/views/payments/refunds/refund_pdf.blade.php app/Mail/RefundMail.php resources/views/pages/mails/refund_mail.blade.php app/Jobs/SendRefundJob.php tests/Feature/RefundDeliveryTest.php
 git commit --author="WellkitDev <rahmatpurnomo808@gmail.com>" -m "$(cat <<'EOF'
-feat(refund): RefundPdfData + PDF bukti + RefundMail + SendRefundJob
+refactor(refund): PDF/email/job berbasis Payment + riwayat pembayaran
 
-Tiru pola SendInvoiceJob (PDF dompdf → Drive best-effort → email dgn
-lampiran PDF ke customer).
+RefundPdfData::for(Payment) + tabel riwayat pembayaran & ringkasan di
+PDF; RefundMail/SendRefundJob pakai payment id.
 
 Co-authored-by: Mira <admin@avidpedia.com>
 EOF
@@ -490,13 +425,11 @@ EOF
 
 ---
 
-## Task 4: Alur refund (form + proses + PDF) + rute + view + test
+## Task R3: RefundController order-based + rute + tombol daftar order + hapus refund invoice
 
-**Files:** Modify `app/Http/Controllers/Pages/InvoiceController.php`, `routes/web.php`, `resources/views/payments/invoices/show.blade.php`; Create `resources/views/payments/invoices/refund_form.blade.php`, `tests/Feature/RefundFlowTest.php`; Modify `tests/Feature/InvoiceLifecycleTest.php`.
+**Files:** Create `app/Http/Controllers/Pages/RefundController.php`, `resources/views/payments/refunds/refund_form.blade.php`; Modify `routes/web.php`, `resources/views/orders/book/index.blade.php`, `app/Http/Controllers/Pages/InvoiceController.php`, `resources/views/payments/invoices/show.blade.php`, `tests/Feature/InvoiceLifecycleTest.php`, `tests/Feature/MarketingAccessTest.php`; Create `tests/Feature/RefundFlowTest.php` (replace); Delete `resources/views/payments/invoices/refund_form.blade.php`.
 
-- [ ] **Step 1: Tulis test gagal (RefundFlowTest)**
-
-Buat `tests/Feature/RefundFlowTest.php`:
+- [ ] **Step 1: Ganti RefundFlowTest (order-based)** — REPLACE seluruh isi `tests/Feature/RefundFlowTest.php`:
 ```php
 <?php
 
@@ -506,7 +439,6 @@ use Tests\TestCase;
 use App\Models\User;
 use App\Models\Order;
 use App\Models\Payment;
-use App\Models\Invoice;
 use App\Jobs\SendRefundJob;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -531,20 +463,18 @@ class RefundFlowTest extends TestCase
         return $u;
     }
 
-    /** @return array{0:Order,1:Invoice} */
-    private function lunasOrder(int $amount = 500000): array
+    private function paidOrder(int $amount = 500000): Order
     {
         $order = Order::factory()->create();
-        Payment::create(['order_id' => $order->id, 'payment_type' => 'lunas', 'amount' => $amount, 'status' => 'paid', 'paid_at' => '2026-06-01']);
-        $invoice = Invoice::factory()->create(['order_id' => $order->id, 'status' => 'lunas']);
-        return [$order, $invoice];
+        Payment::create(['order_id' => $order->id, 'payment_type' => 'dp', 'amount' => $amount, 'status' => 'paid', 'paid_at' => '2026-06-01']);
+        return $order;
     }
 
     /** @test */
     public function refund_form_loads_for_superadmin(): void
     {
-        [$order, $invoice] = $this->lunasOrder();
-        $this->actingAs($this->user('superadmin'))->get(route('invoice.refund.form', $invoice->id))
+        $order = $this->paidOrder();
+        $this->actingAs($this->user('superadmin'))->get(route('order.refund.form', $order->code_order))
             ->assertOk()->assertSee('Proses Refund');
     }
 
@@ -552,9 +482,10 @@ class RefundFlowTest extends TestCase
     public function superadmin_processes_refund(): void
     {
         Queue::fake();
-        [$order, $invoice] = $this->lunasOrder(500000);
+        $order = $this->paidOrder(500000);
+        $sa = $this->user('superadmin');
 
-        $this->actingAs($this->user('superadmin'))->post(route('invoice.refund', $invoice->id), [
+        $this->actingAs($sa)->post(route('order.refund.store', $order->code_order), [
             'amount' => 200000, 'reason' => 'Batal cetak', 'method' => 'transfer', 'account' => 'BCA 1', 'tanggal' => '2026-06-05',
         ])->assertRedirect();
 
@@ -562,88 +493,117 @@ class RefundFlowTest extends TestCase
         $this->assertNotNull($refund);
         $this->assertEquals(200000, $refund->amount);
         $this->assertSame('paid', $refund->status);
+        $this->assertSame('Batal cetak', $refund->refund_reason);
+        $this->assertSame($sa->id, $refund->refunded_by);
 
-        $invoice->refresh();
-        $this->assertSame('refund', $invoice->status);
-        $this->assertSame($refund->id, $invoice->refund_payment_id);
-        $this->assertSame('Batal cetak', $invoice->refund_reason);
-        $this->assertNotNull($invoice->refunded_at);
-
-        // pengeluaran otomatis di Jurnal Kas
+        // pengeluaran otomatis
         $this->assertDatabaseHas('tb_cash_entries', ['payment_id' => $refund->id, 'jenis' => 'pengeluaran']);
-
         Queue::assertPushed(SendRefundJob::class);
     }
 
     /** @test */
     public function refund_amount_cannot_exceed_paid(): void
     {
-        [$order, $invoice] = $this->lunasOrder(500000);
-        $this->actingAs($this->user('superadmin'))->post(route('invoice.refund', $invoice->id), [
+        $order = $this->paidOrder(500000);
+        $this->actingAs($this->user('superadmin'))->post(route('order.refund.store', $order->code_order), [
             'amount' => 999999, 'reason' => 'x', 'method' => 'transfer', 'tanggal' => '2026-06-05',
         ])->assertSessionHasErrors('amount');
         $this->assertSame(0, Payment::where('payment_type', 'refund')->count());
     }
 
     /** @test */
-    public function cannot_refund_non_lunas(): void
+    public function cannot_refund_without_paid_payment(): void
     {
-        $order = Order::factory()->create();
-        $invoice = Invoice::factory()->create(['order_id' => $order->id, 'status' => 'draft']);
-        $this->actingAs($this->user('superadmin'))->post(route('invoice.refund', $invoice->id), [
-            'amount' => 1000, 'reason' => 'x', 'method' => 'transfer', 'tanggal' => '2026-06-05',
-        ])->assertSessionHasErrors();
-        $this->assertSame('draft', $invoice->fresh()->status);
+        $order = Order::factory()->create(); // tanpa pembayaran paid
+        $this->actingAs($this->user('superadmin'))->get(route('order.refund.form', $order->code_order))
+            ->assertSessionHasErrors('refund');
     }
 
     /** @test */
-    public function only_superadmin_processes_refund(): void
+    public function cannot_refund_twice(): void
     {
-        [$order, $invoice] = $this->lunasOrder();
-        $this->actingAs($this->user('manager'))->post(route('invoice.refund', $invoice->id), [
+        Queue::fake();
+        $order = $this->paidOrder(500000);
+        $sa = $this->user('superadmin');
+        $payload = ['amount' => 100000, 'reason' => 'x', 'method' => 'transfer', 'tanggal' => '2026-06-05'];
+
+        $this->actingAs($sa)->post(route('order.refund.store', $order->code_order), $payload)->assertRedirect();
+        $this->actingAs($sa)->post(route('order.refund.store', $order->code_order), $payload)->assertSessionHasErrors('refund');
+        $this->assertSame(1, Payment::where('order_id', $order->id)->where('payment_type', 'refund')->count());
+    }
+
+    /** @test */
+    public function only_superadmin_can_refund(): void
+    {
+        $order = $this->paidOrder();
+        $this->actingAs($this->user('manager'))->get(route('order.refund.form', $order->code_order))->assertForbidden();
+        $this->actingAs($this->user('manager'))->post(route('order.refund.store', $order->code_order), [
             'amount' => 1000, 'reason' => 'x', 'method' => 'transfer', 'tanggal' => '2026-06-05',
         ])->assertForbidden();
     }
 }
 ```
 
-- [ ] **Step 2: Run — gagal**
+- [ ] **Step 2: Run — gagal** — `php artisan test --filter=RefundFlowTest` → FAIL (`Route [order.refund.form] not defined`).
 
-Run: `php artisan test --filter=RefundFlowTest`
-Expected: FAIL (`Route [invoice.refund.form] not defined`).
-
-- [ ] **Step 3: Kontroler** — di `app/Http/Controllers/Pages/InvoiceController.php`:
-- Tambah import: `use App\Jobs\SendRefundJob;`, `use App\Support\RefundPdfData;`, `use App\Services\Notifier;`
-- **Ganti** seluruh method `refund(Request $request, int $id)` yang lama dengan tiga method berikut:
+- [ ] **Step 3: RefundController** — buat `app/Http/Controllers/Pages/RefundController.php`:
 ```php
-    public function refundForm(int $id)
+<?php
+
+namespace App\Http\Controllers\Pages;
+
+use App\Http\Controllers\Controller;
+use App\Models\Order;
+use App\Models\Payment;
+use App\Jobs\SendRefundJob;
+use App\Services\Notifier;
+use App\Support\RefundPdfData;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+
+class RefundController extends Controller
+{
+    private function findOrder(string $code): Order
     {
-        if (! Auth::user()->hasRole('superadmin')) {
-            abort(403);
-        }
-
-        $invoice = Invoice::with('order.details', 'order.contact', 'order.payments')->findOrFail($id);
-        if ($invoice->status !== 'lunas') {
-            return back()->withErrors(['refund' => 'Invoice harus berstatus lunas untuk di-refund.']);
-        }
-
-        $paidIn = (int) $invoice->order->payments()->where('status', 'paid')->where('payment_type', '!=', 'refund')->sum('amount');
-
-        return view('payments.invoices.refund_form', compact('invoice', 'paidIn'));
+        return Order::with('details', 'contact', 'payments')->where('code_order', $code)->firstOrFail();
     }
 
-    public function refund(Request $request, int $id)
+    private function paidIn(Order $order): int
     {
-        if (! Auth::user()->hasRole('superadmin')) {
-            abort(403);
+        return (int) $order->payments->where('status', 'paid')->where('payment_type', '!=', 'refund')->sum('amount');
+    }
+
+    private function alreadyRefunded(Order $order): bool
+    {
+        return $order->payments->where('payment_type', 'refund')->isNotEmpty();
+    }
+
+    public function form(string $code)
+    {
+        abort_unless(Auth::user()->hasRole('superadmin'), 403);
+        $order = $this->findOrder($code);
+
+        if ($this->alreadyRefunded($order)) {
+            return back()->withErrors(['refund' => 'Order ini sudah pernah di-refund.']);
+        }
+        $paidIn = $this->paidIn($order);
+        if ($paidIn <= 0) {
+            return back()->withErrors(['refund' => 'Order belum memiliki pembayaran untuk di-refund.']);
         }
 
-        $invoice = Invoice::with('order')->findOrFail($id);
-        if ($invoice->status !== 'lunas') {
-            return back()->withErrors(['refund' => 'Invoice harus berstatus lunas untuk di-refund.']);
-        }
+        return view('payments.refunds.refund_form', compact('order', 'paidIn'));
+    }
 
-        $paidIn = (int) $invoice->order->payments()->where('status', 'paid')->where('payment_type', '!=', 'refund')->sum('amount');
+    public function store(Request $request, string $code)
+    {
+        abort_unless(Auth::user()->hasRole('superadmin'), 403);
+        $order = $this->findOrder($code);
+
+        if ($this->alreadyRefunded($order)) {
+            return back()->withErrors(['refund' => 'Order ini sudah pernah di-refund.']);
+        }
+        $paidIn = $this->paidIn($order);
 
         $data = $request->validate([
             'amount'  => 'required|numeric|min:1|max:' . $paidIn,
@@ -653,74 +613,61 @@ Expected: FAIL (`Route [invoice.refund.form] not defined`).
             'tanggal' => 'required|date',
         ]);
 
-        $payment = DB::transaction(function () use ($invoice, $data) {
-            $payment = Payment::create([
-                'order_id'     => $invoice->order_id,
-                'payment_type' => 'refund',
-                'amount'       => $data['amount'],
-                'status'       => 'paid',
-                'paid_at'      => $data['tanggal'],
-            ]);
+        $payment = Payment::create([
+            'order_id'       => $order->id,
+            'payment_type'   => 'refund',
+            'amount'         => $data['amount'],
+            'status'         => 'paid',
+            'paid_at'        => $data['tanggal'],
+            'refund_reason'  => $data['reason'],
+            'refund_method'  => $data['method'],
+            'refund_account' => $data['account'] ?? null,
+            'refunded_by'    => Auth::id(),
+        ]);
+        // observer (saved) → PaymentCashSyncService → entri pengeluaran
 
-            $invoice->update([
-                'status'            => 'refund',
-                'refunded_by'       => Auth::id(),
-                'refunded_at'       => now(),
-                'refund_reason'     => $data['reason'],
-                'refund_method'     => $data['method'],
-                'refund_account'    => $data['account'] ?? null,
-                'refund_payment_id' => $payment->id,
-            ]);
-
-            InvoiceLog::create([
-                'invoice_id'  => $invoice->id,
-                'from_status' => 'lunas',
-                'to_status'   => 'refund',
-                'changed_by'  => Auth::id(),
-                'note'        => 'Refund Rp ' . number_format($data['amount'], 0, ',', '.') . ' — ' . $data['reason'],
-            ]);
-
-            return $payment;
-        });
-
-        SendRefundJob::dispatch($invoice->id);
+        SendRefundJob::dispatch($payment->id);
         app(Notifier::class)->refundIssued($payment, Auth::user());
 
-        return redirect()->route('invoice.show', $invoice->id)->with('success', 'Refund diproses. Bukti refund dikirim ke customer.');
+        return redirect()->route('order.book.index')->with('success', 'Refund diproses. Bukti refund dikirim ke customer.');
     }
 
-    public function refundPdf(int $id)
+    public function pdf(string $code)
     {
-        $invoice = Invoice::with('order.details', 'order.contact', 'refundPayment')->findOrFail($id);
-        abort_if($invoice->status !== 'refund' || ! $invoice->refundPayment, 404, 'Belum ada refund untuk invoice ini.');
+        abort_unless(Auth::user()->hasRole('superadmin'), 403);
+        $order  = $this->findOrder($code);
+        $refund = $order->payments()->where('payment_type', 'refund')->latest('paid_at')->first();
+        abort_if(! $refund, 404, 'Belum ada refund untuk order ini.');
 
-        return Pdf::loadView('payments.refunds.refund_pdf', RefundPdfData::for($invoice))
-            ->stream('Refund_' . $invoice->invoice_no . '.pdf');
+        return Pdf::loadView('payments.refunds.refund_pdf', RefundPdfData::for($refund))
+            ->stream('Refund_' . $order->code_order . '.pdf');
     }
+}
 ```
 
-- [ ] **Step 4: Rute** — di `routes/web.php`, dalam grup `invoices` (setelah baris `Route::post('{id}/refund', ...)->name('refund')...`), tambahkan:
+- [ ] **Step 4: Rute** — di `routes/web.php`, dalam grup `Route::prefix('order')->name('order.')->group(...)` (tempat `book.create` dll), tambahkan:
 ```php
-        Route::get('{id}/refund',     [InvoiceController::class, 'refundForm'])->name('refund.form')->middleware('role:manager|superadmin');
-        Route::get('{id}/refund/pdf', [InvoiceController::class, 'refundPdf'])->name('refund.pdf')->middleware('role:manager|superadmin');
+        Route::get('refund/{code_order}', [\App\Http\Controllers\Pages\RefundController::class, 'form'])->name('refund.form')->middleware('role:superadmin');
+        Route::post('refund/{code_order}', [\App\Http\Controllers\Pages\RefundController::class, 'store'])->name('refund.store')->middleware('role:superadmin');
+        Route::get('refund/{code_order}/pdf', [\App\Http\Controllers\Pages\RefundController::class, 'pdf'])->name('refund.pdf')->middleware('role:superadmin');
 ```
 
-- [ ] **Step 5: View form** — buat `resources/views/payments/invoices/refund_form.blade.php`:
+- [ ] **Step 5: Form view** — buat `resources/views/payments/refunds/refund_form.blade.php`:
 ```blade
 @extends('layouts.master')
-@section('title', 'Refund Invoice - SiMAPA')
+@section('title', 'Refund Order - SiMAPA')
 
 @section('content')
 @php $rp = fn ($n) => 'Rp ' . number_format((float) $n, 0, ',', '.'); @endphp
 <div class="row"><div class="col-lg-8">
 <div class="card"><div class="card-body">
-    <h5 class="mb-3">Proses Refund — Invoice {{ $invoice->invoice_no }}</h5>
+    <h5 class="mb-3">Proses Refund — Order {{ $order->code_order }}</h5>
     <div class="mb-3 text-muted small">
-        Order: {{ optional($invoice->order)->code_order }} ·
-        Customer: {{ optional(optional($invoice->order)->contact)->cp_name ?? '-' }} ·
+        Customer: {{ optional($order->contact)->cp_name ?? '-' }} ·
+        Judul: {{ optional($order->details)->title ?? '-' }} ·
         <strong>Total sudah dibayar: {{ $rp($paidIn) }}</strong>
     </div>
-    <form method="POST" action="{{ route('invoice.refund', $invoice->id) }}" onsubmit="return confirm('Proses refund ini? Dana akan tercatat sebagai pengeluaran.')">
+    <form method="POST" action="{{ route('order.refund.store', $order->code_order) }}" onsubmit="return confirm('Proses refund ini? Dana akan tercatat sebagai pengeluaran.')">
         @csrf
         <div class="mb-3">
             <label class="form-label">Nominal Refund (Rp)</label>
@@ -750,95 +697,79 @@ Expected: FAIL (`Route [invoice.refund.form] not defined`).
             @error('reason')<div class="invalid-feedback">{{ $message }}</div>@enderror
         </div>
         <button class="btn btn-warning">Proses Refund</button>
-        <a href="{{ route('invoice.show', $invoice->id) }}" class="btn btn-outline-secondary">Batal</a>
+        <a href="{{ route('order.book.index') }}" class="btn btn-outline-secondary">Batal</a>
     </form>
 </div></div>
 </div></div>
 @endsection
 ```
 
-- [ ] **Step 6: Update `show.blade.php`** — ganti blok tombol Refund lama:
+- [ ] **Step 6: Tombol di daftar order** — di `resources/views/orders/book/index.blade.php`, di dalam blok KONDISI 3 (`@else` — order sudah ada pembayaran approved). Ganti:
 ```blade
-                        @if($invoice->status === 'lunas')
-                        <form method="POST" action="{{ route('invoice.refund', $invoice->id) }}"
-                              onsubmit="return confirm('Proses refund invoice ini?')">
-                            @csrf
-                            <input type="hidden" name="note" value="Refund diproses oleh superadmin.">
-                            <button type="submit" class="btn btn-sm btn-outline-warning">Refund</button>
-                        </form>
-                        @endif
+                                                    @else
+                                                    <a href="{{ route('order.book.edit', $order->code_order) }}"
+                                                        class="btn btn-icon btn-outline-primary">
+                                                        <i class="" data-feather="edit"></i>
+                                                    </a>
+                                                    @endif
+                                                @endif
 ```
 menjadi:
 ```blade
-                        @if($invoice->status === 'lunas')
-                        <a href="{{ route('invoice.refund.form', $invoice->id) }}" class="btn btn-sm btn-outline-warning">Refund</a>
-                        @endif
-```
-Dan pada blok alert refund yang ada, ganti:
-```blade
-                @if($invoice->status === 'refund')
-                    <div class="alert alert-info mt-3 py-2">
-                        Refund diproses oleh <strong>{{ $invoice->refundedBy->name ?? '-' }}</strong>
-                        pada {{ $invoice->refunded_at?->format('d/m/Y H:i') }}
-                    </div>
-                @endif
-```
-menjadi:
-```blade
-                @if($invoice->status === 'refund')
-                    <div class="alert alert-info mt-3 py-2">
-                        Refund diproses oleh <strong>{{ $invoice->refundedBy->name ?? '-' }}</strong>
-                        pada {{ $invoice->refunded_at?->format('d/m/Y H:i') }}
-                        @if($invoice->refund_payment_id)
-                            · Rp {{ number_format((float) optional($invoice->refundPayment)->amount, 0, ',', '.') }}
-                            · <a href="{{ route('invoice.refund.pdf', $invoice->id) }}" target="_blank">Bukti Refund (PDF)</a>
-                        @endif
-                    </div>
-                @endif
+                                                    @else
+                                                    <a href="{{ route('order.book.edit', $order->code_order) }}"
+                                                        class="btn btn-icon btn-outline-primary">
+                                                        <i class="" data-feather="edit"></i>
+                                                    </a>
+                                                    @endif
+                                                    @role('superadmin')
+                                                        @php
+                                                            $paidIn = $order->payments->where('status','paid')->where('payment_type','!=','refund')->sum('amount');
+                                                            $refunded = $order->payments->where('payment_type','refund')->isNotEmpty();
+                                                        @endphp
+                                                        @if($refunded)
+                                                            <a href="{{ route('order.refund.pdf', $order->code_order) }}" target="_blank" class="btn btn-icon btn-outline-secondary" title="Bukti Refund"><i class="" data-feather="file-text"></i></a>
+                                                        @elseif($paidIn > 0)
+                                                            <a href="{{ route('order.refund.form', $order->code_order) }}" class="btn btn-icon btn-outline-warning" title="Refund"><i class="" data-feather="corner-up-left"></i></a>
+                                                        @endif
+                                                    @endrole
+                                                @endif
 ```
 
-- [ ] **Step 7: Sesuaikan `InvoiceLifecycleTest`** — di `tests/Feature/InvoiceLifecycleTest.php`, ganti seluruh method `superadmin_can_refund_only_lunas_invoice` dengan:
+- [ ] **Step 7: Hapus refund invoice** —
+(a) `app/Http/Controllers/Pages/InvoiceController.php`: HAPUS ketiga method `refundForm`, `refund`, `refundPdf` (yang ditambahkan v1). Hapus import yang jadi tak terpakai: `use App\Jobs\SendRefundJob;`, `use App\Support\RefundPdfData;`, `use App\Services\Notifier;`. (Biarkan import `Pdf`, `Payment`, dll yang masih dipakai method lain.)
+(b) `routes/web.php`: HAPUS 3 baris rute invoice refund:
 ```php
-    /** @test */
-    public function superadmin_can_refund_only_lunas_invoice(): void
-    {
-        \Illuminate\Support\Facades\Queue::fake();
-        \App\Models\Payment::create(['order_id' => $this->order->id, 'payment_type' => 'lunas', 'amount' => 500000, 'status' => 'paid', 'paid_at' => '2026-06-01']);
-
-        $lunas = Invoice::factory()->create(['order_id' => $this->order->id, 'status' => 'lunas']);
-        $draft = Invoice::factory()->create(['order_id' => $this->order->id, 'status' => 'draft']);
-
-        $this->actingAs($this->superadmin);
-
-        $this->post(route('invoice.refund', $lunas->id), [
-            'amount' => 200000, 'reason' => 'Dana dikembalikan', 'method' => 'transfer', 'tanggal' => '2026-06-05',
-        ])->assertRedirect();
-        $this->assertDatabaseHas('tb_invoices', ['id' => $lunas->id, 'status' => 'refund']);
-
-        $this->post(route('invoice.refund', $draft->id), [
-            'amount' => 100000, 'reason' => 'Coba refund draft', 'method' => 'transfer', 'tanggal' => '2026-06-05',
-        ])->assertSessionHasErrors();
-    }
+        Route::post('{id}/refund', [InvoiceController::class, 'refund'])->name('refund')->middleware('role:manager|superadmin');
+        Route::get('{id}/refund',     [InvoiceController::class, 'refundForm'])->name('refund.form')->middleware('role:manager|superadmin');
+        Route::get('{id}/refund/pdf', [InvoiceController::class, 'refundPdf'])->name('refund.pdf')->middleware('role:manager|superadmin');
 ```
+(c) `resources/views/payments/invoices/show.blade.php`: HAPUS blok tombol Refund (`@if($invoice->status === 'lunas') <a ... invoice.refund.form ...> @endif`). Pada blok alert refund, HAPUS baris link PDF (`@if($invoice->refund_payment_id) ... invoice.refund.pdf ... @endif`) sehingga alert kembali hanya menampilkan "Refund diproses oleh … pada …".
+(d) Hapus file `resources/views/payments/invoices/refund_form.blade.php`.
 
-- [ ] **Step 8: Run — lulus**
+- [ ] **Step 8: Perbaiki test yang mengacu refund invoice** —
+(a) `tests/Feature/MarketingAccessTest.php` (baris ~48): ganti `$this->post(route('invoice.refund', 1))->assertForbidden();` → `$this->get(route('order.refund.form', 'X'))->assertForbidden();` (marketing tak boleh refund). *(Order tak perlu ada; role middleware `superadmin` menolak marketing lebih dulu → 403.)*
+(b) `tests/Feature/InvoiceLifecycleTest.php`: HAPUS seluruh method `superadmin_can_refund_only_lunas_invoice` (refund tak lagi lewat invoice).
 
-Run: `php artisan test --filter=RefundFlowTest`
-Run: `php artisan test --filter=InvoiceLifecycleTest`
-Expected: PASS semua.
+- [ ] **Step 9: Run — lulus** —
+```
+php artisan test --filter=RefundFlowTest
+php artisan test --filter=InvoiceLifecycleTest
+php artisan test --filter=MarketingAccessTest
+```
+Semua PASS. Lalu grep sanity: pastikan tak ada lagi referensi `invoice.refund` di luar docs (`resources/`, `routes/`, `app/`, `tests/`).
 
-- [ ] **Step 9: view:cache bersih** — `php artisan view:cache` (sukses) lalu `php artisan view:clear`.
+- [ ] **Step 10: view:cache bersih** — `php artisan view:cache` (sukses) lalu `php artisan view:clear`.
 
-- [ ] **Step 10: Commit**
-
+- [ ] **Step 11: Commit**
 ```bash
-git add app/Http/Controllers/Pages/InvoiceController.php routes/web.php resources/views/payments/invoices/refund_form.blade.php resources/views/payments/invoices/show.blade.php tests/Feature/RefundFlowTest.php tests/Feature/InvoiceLifecycleTest.php
+git add app/Http/Controllers/Pages/RefundController.php resources/views/payments/refunds/refund_form.blade.php routes/web.php resources/views/orders/book/index.blade.php app/Http/Controllers/Pages/InvoiceController.php resources/views/payments/invoices/show.blade.php tests/Feature/RefundFlowTest.php tests/Feature/MarketingAccessTest.php tests/Feature/InvoiceLifecycleTest.php resources/views/payments/invoices/refund_form.blade.php
 git commit --author="WellkitDev <rahmatpurnomo808@gmail.com>" -m "$(cat <<'EOF'
-feat(refund): alur refund invoice (form + proses + PDF cetak ulang)
+feat(refund): refund order-based dari daftar order (superadmin)
 
-Form refund → buat Payment refund (→ pengeluaran Jurnal Kas) → invoice
-refund + metadata → dispatch SendRefundJob + notif. Tombol show → form;
-link Bukti Refund PDF saat refund. superadmin only.
+Tombol Refund di daftar order (bila ada pembayaran paid & belum refund);
+RefundController form/proses/PDF by code_order → Payment refund →
+pengeluaran kas + PDF/email/notif. Hapus alur refund berbasis invoice.
 
 Co-authored-by: Mira <admin@avidpedia.com>
 EOF
@@ -847,19 +778,20 @@ EOF
 
 ---
 
-## Task 5: Regresi penuh + migrasi dev
+## Task R4: Regresi penuh + migrasi dev
 
-- [ ] **Step 1: Seluruh suite** — `php artisan test` → PASS semua. Bila gagal, perbaiki sebelum lanjut.
+- [ ] **Step 1: Seluruh suite** — `php artisan test` → PASS semua. Bila gagal, perbaiki dulu.
 - [ ] **Step 2: view:cache final** — `php artisan view:cache` (tanpa error) lalu `php artisan view:clear`.
-- [ ] **Step 3: Migrasi dev** — `php artisan migrate` di DB dev (`avidpedi_simapa`) untuk kolom refund baru.
-- [ ] **Step 4: (opsional) Verifikasi manual** — invoice lunas → tombol Refund → form → proses → cek: entri pengeluaran muncul di Jurnal Kas, invoice jadi refund, link Bukti Refund PDF tampil.
+- [ ] **Step 3: Migrasi dev** — `php artisan migrate` di DB dev (`avidpedi_simapa`): terapkan `2026_07_04_000011` (payments +kolom refund, invoices −kolom refund).
+- [ ] **Step 4: (opsional) Verifikasi manual** — daftar order (superadmin): order ber-pembayaran → tombol Refund → form → proses → cek entri pengeluaran di Jurnal Kas + tombol berubah jadi "Bukti Refund" (PDF berisi riwayat pembayaran).
 
 ---
 
-## Self-Review (penulis plan)
+## Self-Review
 
-**1. Spec coverage:** §2 migrasi+model → Task 1. §6 Notifier → Task 2. §4/§5 RefundPdfData/Job/Mail/view → Task 3. §3/§7 kontroler+rute+view form+show → Task 4. §8 test (RefundFlow + update InvoiceLifecycle) → Task 4; RefundInvoiceModel/RefundNotifier/RefundDelivery → Task 1/2/3. §9 komponen semua tercakup.
+**Spec coverage (order-based):** metadata di payments + drop invoice → R1. PDF+riwayat+email+job payment-based → R2. Controller order-based + rute + tombol daftar order + hapus refund invoice + test → R3. Regresi+migrate → R4. Notifier::refundIssued (dari v1) tetap dipakai apa adanya (menerima Payment).
 
-**2. Placeholder scan:** Tak ada TBD; semua step berisi kode utuh + perintah + expected. Satu verifikasi manual ditandai opsional.
+**Placeholder scan:** tak ada TBD; semua step berisi kode utuh + perintah + expected.
 
-**3. Type consistency:** `refund_payment_id`/`refundPayment()` konsisten (Task 1) dipakai di RefundPdfData (Task 3), refundPdf & show (Task 4). `RefundPdfData::for()` mengembalikan kunci `amount/reason/method/account/contact/order/detail/refunded_at` — dipakai konsisten di view PDF, email, dan Mail (Task 3). `SendRefundJob::dispatch($invoice->id)` (invoiceId) selaras dgn konstruktor & handle (Task 3/4). Rute `invoice.refund.form`/`invoice.refund.pdf` + existing `invoice.refund` konsisten di kontroler/view/test. Validasi `amount ≤ $paidIn` (non-refund) selaras dgn test cap. `Notifier::refundIssued(Payment,User)` selaras (Task 2/4).
+**Type consistency:** `RefundPdfData::for(Payment)` → keys `refund/order/detail/contact/payments/paidIn/refundAmount/reason/method/account/refunded_at` dipakai konsisten di PDF view, email view, RefundMail test (R2). `SendRefundJob::dispatch($payment->id)` (paymentId) selaras konstruktor/handle (R2/R3). Rute `order.refund.form/store/pdf` konsisten controller/rute/view/test/tombol (R3). Payment `refund_reason/method/account/refunded_by` + `refundedBy()` selaras (R1) dipakai di controller (R3) & test. Semua referensi `invoice.refund*` dihapus (R3 Step 7-8).
+```
