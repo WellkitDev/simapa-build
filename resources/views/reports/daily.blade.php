@@ -1,5 +1,5 @@
 @extends('layouts.master')
-@section('title', 'Report Harian - SiMAPA')
+@section('title', 'Laporan Harian - SiMAPA')
 
 @push('plugin-styles')
 <link href="{{ asset('assets/plugins/flatpickr/flatpickr.min.css') }}" rel="stylesheet" />

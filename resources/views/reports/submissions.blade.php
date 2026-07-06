@@ -1,5 +1,5 @@
 @extends('layouts.master')
-@section('title', 'Pemantauan Report - SiMAPA')
+@section('title', 'Pemantauan Laporan - SiMAPA')
 
 @push('plugin-styles')
 <link href="{{ asset('assets/libs/datatables.net-bs4/css/dataTables.bootstrap4.min.css') }}" rel="stylesheet" />

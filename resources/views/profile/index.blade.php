@@ -1,6 +1,6 @@
 @extends('layouts.master')
 <!-- Title pages active -->
-@section('title', 'Profile - SiMAPA')
+@section('title', 'Profil - SiMAPA')
 
 @push('plugin-styles')
     <!-- Plugin css import here -->

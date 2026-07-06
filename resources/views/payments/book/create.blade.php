@@ -1,5 +1,5 @@
 @extends('layouts.master')
-@section('title', 'Payment Order - SiMAPA')
+@section('title', 'Buat Pembayaran - SiMAPA')
 
 @push('plugin-styles')
 @endpush

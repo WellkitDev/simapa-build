@@ -1,5 +1,5 @@
 @extends('layouts.master')
-@section('title', 'Tugas - Board - SiMAPA')
+@section('title', 'Papan Tugas - SiMAPA')
 
 @section('content')
 @php

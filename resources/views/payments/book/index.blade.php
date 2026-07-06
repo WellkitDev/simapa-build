@@ -1,5 +1,5 @@
 @extends('layouts.master')
-@section('title', 'Payment Order Book - SiMAPA')
+@section('title', 'Pembayaran Order - SiMAPA')
 
 @push('plugin-styles')
     <link href="{{ asset('assets/plugins/select2/select2.min.css') }}" rel="stylesheet" />

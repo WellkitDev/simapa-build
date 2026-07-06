@@ -1,5 +1,5 @@
 @extends('layouts.master')
-@section('title', 'Manuscript Tracker - SiMAPA')
+@section('title', 'Pelacak Naskah - SiMAPA')
 
 @section('content')
 @php

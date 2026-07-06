@@ -1,5 +1,5 @@
 @extends('layouts.master')
-@section('title', 'Manuscript Tracker - SiMAPA')
+@section('title', 'Pelacak Naskah - SiMAPA')
 
 @push('plugin-styles')
     <link href="{{ URL::asset('assets/libs/datatables.net-bs4/css/dataTables.bootstrap4.min.css') }}" rel="stylesheet" />

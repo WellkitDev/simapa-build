@@ -1,5 +1,5 @@
 @extends('layouts.master')
-@section('title', 'Tugas - Kalender - SiMAPA')
+@section('title', 'Kalender Tugas - SiMAPA')
 
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">

@@ -1,6 +1,6 @@
 @extends('layouts.master')
 <!-- Title pages active -->
-@section('title', 'Detail Order Book - SiMAPA')
+@section('title', 'Detail Order Buku - SiMAPA')
 
 @push('plugin-styles')
     <!-- Plugin css import here -->

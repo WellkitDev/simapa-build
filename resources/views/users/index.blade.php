@@ -1,6 +1,6 @@
 @extends('layouts.master')
 <!-- Title pages active -->
-@section('title', 'User Management')
+@section('title', 'Manajemen User - SiMAPA')
 
 
 @push('plugin-styles')
