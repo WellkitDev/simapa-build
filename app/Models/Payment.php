@@ -14,7 +14,8 @@ class Payment extends Model
     protected $fillable = [
         'order_id', 'payment_type',
         'amount', 'paid_at',
-        'proof_url', 'status'
+        'proof_url', 'status',
+        'refund_reason', 'refund_method', 'refund_account', 'refunded_by',
     ];
 
     protected $dates = ['paid_at'];
@@ -32,6 +33,11 @@ class Payment extends Model
     public function approval()
     {
         return $this->hasOne(PaymentApproval::class);
+    }
+
+    public function refundedBy()
+    {
+        return $this->belongsTo(User::class, 'refunded_by');
     }
 
     /** Pembayaran yang dianggap "uang masuk" (di-set bersamaan approval saat approve). */
