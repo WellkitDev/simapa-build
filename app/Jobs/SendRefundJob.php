@@ -2,7 +2,7 @@
 
 namespace App\Jobs;
 
-use App\Models\Invoice;
+use App\Models\Payment;
 use App\Mail\RefundMail;
 use App\Support\RefundPdfData;
 use App\Services\GoogleDriveService;
@@ -19,26 +19,26 @@ class SendRefundJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public function __construct(protected int $invoiceId) {}
+    public function __construct(protected int $paymentId) {}
 
     public function handle(GoogleDriveService $drive): void
     {
-        $invoice = Invoice::with('order.contact', 'order.details', 'refundPayment')->find($this->invoiceId);
-        if (! $invoice || ! $invoice->refundPayment) {
+        $refund = Payment::with('order.contact', 'order.details', 'order.payments')->find($this->paymentId);
+        if (! $refund || $refund->payment_type !== 'refund') {
             return;
         }
 
-        $data   = RefundPdfData::for($invoice);
+        $data   = RefundPdfData::for($refund);
         $pdf    = Pdf::loadView('payments.refunds.refund_pdf', $data);
         $pdfOut = $pdf->output();
+        $code   = optional($refund->order)->code_order ?? 'order';
 
-        // Best-effort simpan + upload Drive (tak menggagalkan email bila Drive mati)
         try {
             $tempDir = storage_path('app/temp/refunds');
             if (! is_dir($tempDir)) {
                 mkdir($tempDir, 0755, true);
             }
-            $tempPath = $tempDir . '/Refund_' . $invoice->invoice_no . '.pdf';
+            $tempPath = $tempDir . '/Refund_' . $code . '.pdf';
             file_put_contents($tempPath, $pdfOut);
             $folderId = $drive->getOrCreateFolderByPath('Application/Refunds/' . now()->format('Y'));
             if ($folderId) {
@@ -51,9 +51,9 @@ class SendRefundJob implements ShouldQueue
             Log::warning('SendRefundJob Drive gagal: ' . $e->getMessage());
         }
 
-        $email = optional($invoice->order?->contact)->cp_email;
+        $email = optional($refund->order?->contact)->cp_email;
         if ($email) {
-            Mail::to($email)->send(new RefundMail($invoice, $data, $pdfOut));
+            Mail::to($email)->send(new RefundMail($refund, $data, $pdfOut));
         }
     }
 }

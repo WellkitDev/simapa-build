@@ -2,30 +2,32 @@
 
 namespace App\Support;
 
-use App\Models\Invoice;
+use App\Models\Payment;
 
 class RefundPdfData
 {
-    /** @return array{invoice:Invoice,order:?\App\Models\Order,detail:?\App\Models\OrderDetail,contact:mixed,payment:?\App\Models\Payment,amount:float,reason:?string,method:?string,account:?string,refunded_at:mixed} */
-    public static function for(Invoice $invoice): array
+    /** Data bukti refund dari Payment refund (order-based) + riwayat pembayaran. */
+    public static function for(Payment $refund): array
     {
-        $invoice->loadMissing('order.details', 'order.contact', 'refundPayment');
-        $order   = $invoice->order;
-        $detail  = $order?->details;
-        $contact = $order?->contact;
-        $payment = $invoice->refundPayment;
+        $refund->loadMissing('order.details', 'order.contact', 'order.payments');
+        $order    = $refund->order;
+        $detail   = $order?->details;
+        $contact  = $order?->contact;
+        $payments = $order ? $order->payments->sortBy('paid_at')->values() : collect();
+        $paidIn   = (float) ($order ? $order->payments->where('status', 'paid')->where('payment_type', '!=', 'refund')->sum('amount') : 0);
 
         return [
-            'invoice'     => $invoice,
-            'order'       => $order,
-            'detail'      => $detail,
-            'contact'     => $contact,
-            'payment'     => $payment,
-            'amount'      => (float) ($payment->amount ?? 0),
-            'reason'      => $invoice->refund_reason,
-            'method'      => $invoice->refund_method,
-            'account'     => $invoice->refund_account,
-            'refunded_at' => $invoice->refunded_at,
+            'refund'       => $refund,
+            'order'        => $order,
+            'detail'       => $detail,
+            'contact'      => $contact,
+            'payments'     => $payments,
+            'paidIn'       => $paidIn,
+            'refundAmount' => (float) $refund->amount,
+            'reason'       => $refund->refund_reason,
+            'method'       => $refund->refund_method,
+            'account'      => $refund->refund_account,
+            'refunded_at'  => $refund->paid_at,
         ];
     }
 }

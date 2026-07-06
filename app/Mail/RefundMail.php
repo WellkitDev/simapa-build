@@ -2,7 +2,7 @@
 
 namespace App\Mail;
 
-use App\Models\Invoice;
+use App\Models\Payment;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -14,11 +14,11 @@ class RefundMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public function __construct(public Invoice $invoice, public array $data, public ?string $pdf = null) {}
+    public function __construct(public Payment $refund, public array $data, public ?string $pdf = null) {}
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: 'Bukti Refund — ' . $this->invoice->invoice_no);
+        return new Envelope(subject: 'Bukti Refund — Order ' . (optional($this->refund->order)->code_order ?? ''));
     }
 
     public function content(): Content
@@ -32,7 +32,7 @@ class RefundMail extends Mailable
             return [];
         }
         return [
-            Attachment::fromData(fn () => $this->pdf, 'Refund_' . $this->invoice->invoice_no . '.pdf')->withMime('application/pdf'),
+            Attachment::fromData(fn () => $this->pdf, 'Refund_' . (optional($this->refund->order)->code_order ?? 'order') . '.pdf')->withMime('application/pdf'),
         ];
     }
 }
