@@ -20,6 +20,7 @@ use App\Http\Controllers\Pages\AnnouncementController;
 use App\Http\Controllers\Pages\TaskController;
 use App\Http\Controllers\Pages\DailyReportController;
 use App\Http\Controllers\Pages\TitleController;
+use App\Http\Controllers\Pages\AuthorController;
 use App\Http\Controllers\Pages\JournalController;
 use App\Http\Controllers\Pages\JournalSubmissionController;
 use App\Http\Controllers\Pages\BookIsbnController;
@@ -257,6 +258,12 @@ Route::middleware('auth')->group(function () {
     Route::middleware('role:superadmin|manager|admin')->group(function () {
         Route::put('titles/{id}/info', [TitleController::class, 'updateInfo'])->name('title.info.update')->whereNumber('id');
         Route::put('titles/{id}/chapter-authors', [TitleController::class, 'updateChapterAuthors'])->name('title.chapters.authors')->whereNumber('id');
+    });
+
+    // Direktori Author (read-only) — list + detail riwayat order
+    Route::middleware('role:superadmin|manager|admin|production|marketing')->group(function () {
+        Route::get('authors', [AuthorController::class, 'index'])->name('author.index');
+        Route::get('authors/{id}', [AuthorController::class, 'show'])->name('author.show')->whereNumber('id');
     });
 
     // Direktori Jurnal — index & show accessible to all authenticated roles
