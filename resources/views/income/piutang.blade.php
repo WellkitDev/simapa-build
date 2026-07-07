@@ -44,7 +44,7 @@
                         @foreach($detail as $o)
                         <tr>
                             <td>{{ $o->code_order }}</td>
-                            <td>{{ optional($o->details)->title ?? '-' }}<br><small class="text-muted">{{ optional($o->contact)->cp_email }}</small></td>
+                            <td class="dt-judul">{{ optional($o->details)->title ?? '-' }}<br><small class="text-muted">{{ optional($o->contact)->cp_email }}</small></td>
                             <td>Rp {{ number_format($o->nilai, 0, ',', '.') }}</td>
                             <td class="text-success">Rp {{ number_format($o->paid_amount, 0, ',', '.') }}</td>
                             <td class="text-danger">Rp {{ number_format($o->sisa, 0, ',', '.') }}</td>

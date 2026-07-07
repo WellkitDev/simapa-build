@@ -35,7 +35,7 @@
                         @foreach($detail as $o)
                         <tr>
                             <td>{{ $o->code_order }}</td>
-                            <td>{{ optional($o->details)->title ?? '-' }}<br><small class="text-muted">{{ optional($o->contact)->cp_email }}</small></td>
+                            <td class="dt-judul">{{ optional($o->details)->title ?? '-' }}<br><small class="text-muted">{{ optional($o->contact)->cp_email }}</small></td>
                             <td>Rp {{ number_format($o->nilai, 0, ',', '.') }}</td>
                             <td data-order="{{ optional($o->tanggal_lunas)->timestamp ?? 0 }}">{{ optional($o->tanggal_lunas)->format('d M Y') ?? '-' }}</td>
                         </tr>

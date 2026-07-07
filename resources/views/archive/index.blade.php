@@ -18,7 +18,7 @@
                 @foreach($pending as $t)
                     <tr>
                         <td>{{ $t->code ?? '—' }}</td>
-                        <td>{{ $t->title }}</td>
+                        <td class="dt-judul">{{ $t->title }}</td>
                         <td>{{ ucfirst($t->jenis) }}</td>
                         <td>{{ $t->archive->submitter?->name ?? '—' }} · {{ optional($t->archive->submitted_at)->format('d M Y') }}</td>
                         <td><a href="{{ route('archive.show', $t->id) }}" class="btn btn-xs btn-warning">Tinjau</a></td>
@@ -39,7 +39,7 @@
                 @foreach($approved as $t)
                     <tr>
                         <td>{{ $t->code ?? '—' }}</td>
-                        <td>{{ $t->title }}</td>
+                        <td class="dt-judul">{{ $t->title }}</td>
                         <td>{{ ucfirst($t->jenis) }}</td>
                         <td>{{ optional($t->archive->approved_at)->format('d M Y') ?? '—' }}</td>
                         <td>{{ $t->archive->approver?->name ?? '—' }}</td>

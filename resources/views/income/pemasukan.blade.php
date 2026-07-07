@@ -80,7 +80,7 @@
                         <tr>
                             <td data-order="{{ optional($p->paid_at)->timestamp ?? 0 }}">{{ optional($p->paid_at)->format('d M Y') ?? '-' }}</td>
                             <td>{{ optional($p->order)->code_order }}</td>
-                            <td>{{ optional(optional($p->order)->details)->title ?? '-' }}<br><small class="text-muted">{{ optional(optional($p->order)->contact)->cp_email }}</small></td>
+                            <td class="dt-judul">{{ optional(optional($p->order)->details)->title ?? '-' }}<br><small class="text-muted">{{ optional(optional($p->order)->contact)->cp_email }}</small></td>
                             <td>{{ ucfirst($p->payment_type) }}</td>
                             <td>Rp {{ number_format($p->amount, 0, ',', '.') }}</td>
                             <td>{{ optional($p->invoice)->invoice_no ?? '—' }}</td>

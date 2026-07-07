@@ -48,7 +48,7 @@
                 @foreach($rows as $task)
                 <tr>
                     <td>{{ $task->user?->name ?? '—' }}</td>
-                    <td>{{ $task->title }}</td>
+                    <td class="dt-judul">{{ $task->title }}</td>
                     <td><span class="badge {{ $sb[$task->status] }}">{{ $sl[$task->status] }}</span></td>
                     <td><span class="badge {{ $prioBadge[$task->priority] }}">{{ $prioLabel[$task->priority] }}</span></td>
                     <td>@if($task->due_date)<span class="@if($task->due_date->isPast() && $task->status !== 'done') text-danger fw-semibold @endif">{{ $task->due_date->format('d/m/Y') }}</span>@else<span class="text-muted">—</span>@endif</td>

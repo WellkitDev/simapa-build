@@ -64,7 +64,7 @@
                                 @foreach ($author->orderDetails as $d)
                                     <tr>
                                         <td>{{ optional($d->order)->code_order ?? '-' }}</td>
-                                        <td>{{ $d->title ?: '-' }}</td>
+                                        <td class="dt-judul">{{ $d->title ?: '-' }}</td>
                                         <td>{{ $jenis($d->type) }}</td>
                                         <td>{{ optional($d->order)->ordered_at ? \Carbon\Carbon::parse($d->order->ordered_at)->format('d/m/Y') : '-' }}</td>
                                         <td><span class="badge bg-secondary">{{ ucfirst(optional($d->order)->status ?? '-') }}</span></td>

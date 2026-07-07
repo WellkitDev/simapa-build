@@ -35,6 +35,17 @@
 
     <!-- end common css -->
 
+    <style>
+        /* Judul panjang di DataTables: batasi lebar & bungkus ke bawah (bukan memanjang horizontal) */
+        table.dataTable td.dt-judul,
+        table td.dt-judul {
+            white-space: normal !important;
+            max-width: 320px;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+        }
+    </style>
+
     @stack('style')
 </head>
 

@@ -39,7 +39,7 @@
             <tbody>
                 @forelse($journal->submissions as $s)
                     <tr>
-                        <td>{{ $s->title?->title ?? '—' }}</td>
+                        <td class="dt-judul">{{ $s->title?->title ?? '—' }}</td>
                         <td>{{ optional($s->tgl_submit)->format('d M Y') ?? '—' }}</td>
                         <td>{{ optional($s->tgl_terbit)->format('d M Y') ?? '—' }}</td>
                         <td><span class="badge {{ $sb[$s->status] ?? 'bg-secondary' }}">{{ $s->statusLabel() }}</span></td>

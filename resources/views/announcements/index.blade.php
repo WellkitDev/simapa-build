@@ -21,7 +21,7 @@
             <tbody>
                 @foreach($announcements as $a)
                     <tr>
-                        <td>{{ $a->title }}</td>
+                        <td class="dt-judul">{{ $a->title }}</td>
                         <td><span class="badge {{ $sb[$a->status] ?? 'bg-secondary' }}">{{ $sl[$a->status] ?? ucfirst($a->status) }}</span></td>
                         <td>@if($a->is_pinned)<i data-feather="bookmark" class="text-warning icon-sm"></i>@endif</td>
                         <td>{{ $a->creator?->name ?? '—' }}</td>

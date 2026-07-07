@@ -25,7 +25,7 @@
                 @foreach($titles as $t)
                     <tr>
                         <td><span class="badge bg-dark">{{ $t->code ?? '—' }}</span></td>
-                        <td>{{ $t->title }}</td>
+                        <td class="dt-judul">{{ $t->title }}</td>
                         <td>{{ ucfirst($t->jenis) }}</td>
                         <td>{{ $t->scope?->scope ?? '—' }}</td>
                         <td>{{ $t->indeksasi ?: '—' }}</td>

@@ -19,7 +19,7 @@
                 @foreach($books as $b)
                     <tr>
                         <td>{{ $b->code ?? '—' }}</td>
-                        <td>{{ $b->title }}</td>
+                        <td class="dt-judul">{{ $b->title }}</td>
                         <td>{{ $b->bookIsbn?->no_isbn ?: '—' }}</td>
                         <td>@if($b->bookIsbn)<span class="badge bg-info">{{ $b->bookIsbn->statusLabel() }}</span>@else<span class="badge bg-light text-dark border">Belum didaftarkan</span>@endif</td>
                         <td>{{ $b->bookIsbn?->penerbit ?: '—' }}</td>
