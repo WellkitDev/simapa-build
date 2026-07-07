@@ -36,31 +36,6 @@
                         </div>
                     </div>
                 </div>
-                <div class="d-flex justify-content-center p-3 rounded-bottom">
-                    <ul class="d-flex align-items-center m-0 p-0">
-                        {{-- <li class="d-flex align-items-center ">
-                            <i class="me-1 icon-md text-primary" data-feather="columns"></i>
-                            <a class="pt-1px d-none d-md-block text-primary" href="#">Timeline</a>
-                        </li> --}}
-                        <li class="ms-3 ps-3 border-start d-flex align-items-center active">
-                            <i class="me-1 icon-md" data-feather="user"></i>
-                            <a class="pt-1px d-none d-md-block text-body" href="#">About</a>
-                        </li>
-                        <li class="ms-3 ps-3 border-start d-flex align-items-center">
-                            <i class="me-1 icon-md" data-feather="users"></i>
-                            <a class="pt-1px d-none d-md-block text-body" href="#">Friends <span
-                                    class="text-muted tx-12">3,765</span></a>
-                        </li>
-                        <li class="ms-3 ps-3 border-start d-flex align-items-center">
-                            <i class="me-1 icon-md" data-feather="image"></i>
-                            <a class="pt-1px d-none d-md-block text-body" href="#">Photos</a>
-                        </li>
-                        <li class="ms-3 ps-3 border-start d-flex align-items-center">
-                            <i class="me-1 icon-md" data-feather="video"></i>
-                            <a class="pt-1px d-none d-md-block text-body" href="#">Videos</a>
-                        </li>
-                    </ul>
-                </div>
             </div>
         </div>
     </div>
