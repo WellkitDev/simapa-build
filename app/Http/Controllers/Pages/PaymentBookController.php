@@ -30,17 +30,21 @@ class PaymentBookController extends Controller
      */
     public function index()
     {
-        //
-        $payments = Payment::with(['order.user', 'invoice', 'approval'])
-            ->whereHas('order', function($q) {
-                $q->with('details')->when(Auth::user()->hasRole('marketing'), function ($query) {
-                    return $query->where('user_id', Auth::id());
-                });
+        // Pecah pembayaran per status persetujuan: yang perlu diproses (pending),
+        // sudah disetujui (approved), dan ditolak (rejected).
+        $byStatus = fn (string $status) => Payment::with(['order.user', 'invoice', 'approval'])
+            ->whereHas('order', function ($q) {
+                $q->when(Auth::user()->hasRole('marketing'), fn ($query) => $query->where('user_id', Auth::id()));
             })
+            ->whereHas('approval', fn ($q) => $q->where('status', $status))
             ->latest()
             ->get();
 
-        return view('payments.book.index', compact('payments'));
+        $pending  = $byStatus('pending');
+        $approved = $byStatus('approved');
+        $rejected = $byStatus('rejected');
+
+        return view('payments.book.index', compact('pending', 'approved', 'rejected'));
     }
 
     /**

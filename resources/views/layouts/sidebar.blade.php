@@ -70,7 +70,7 @@
                         <ul class="nav sub-menu">
                             <li class="nav-item"><a href="{{ route('payment.dp.index') }}" class="nav-link {{ nav_active('payment.dp.index') }}">DP/Pembayaran</a></li>
                             <li class="nav-item"><a href="{{ route('payment.fp.index') }}" class="nav-link {{ nav_active('payment.fp.index') }}">Pelunasan</a></li>
-                            <li class="nav-item"><a href="{{ route('payment.index') }}" class="nav-link {{ nav_active('payment.index') }}">Disetujui</a></li>
+                            <li class="nav-item"><a href="{{ route('payment.index') }}" class="nav-link {{ nav_active('payment.index') }}">Persetujuan</a></li>
                         </ul>
                     </div>
                 </li>
