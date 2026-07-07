@@ -15,7 +15,7 @@ class PaymentApproval extends Model
         'status', 'note', 'approved_at'
     ];
 
-    protected $dates = ['approved_at'];
+    protected $casts = ['approved_at' => 'datetime'];
 
     public function payment()
     {

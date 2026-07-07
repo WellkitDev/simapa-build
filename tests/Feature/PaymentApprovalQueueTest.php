@@ -29,7 +29,12 @@ class PaymentApprovalQueueTest extends TestCase
         $order = Order::factory()->create(['user_id' => $owner->id]);
         $payment = Payment::create(['order_id' => $order->id, 'payment_type' => 'dp', 'amount' => 100000, 'status' => $paymentStatus, 'paid_at' => now()]);
         Invoice::factory()->create(['order_id' => $order->id, 'payment_id' => $payment->id, 'invoice_no' => $inv]);
-        PaymentApproval::create(['payment_id' => $payment->id, 'status' => $approvalStatus, 'note' => $approvalStatus === 'rejected' ? 'Data tidak valid' : null]);
+        PaymentApproval::create([
+            'payment_id'  => $payment->id,
+            'status'      => $approvalStatus,
+            'note'        => $approvalStatus === 'rejected' ? 'Data tidak valid' : null,
+            'approved_at' => $approvalStatus === 'pending' ? null : now(),
+        ]);
 
         return $payment;
     }
@@ -61,5 +66,10 @@ class PaymentApprovalQueueTest extends TestCase
         // tombol Setujui hanya untuk yang pending
         $res->assertSee(route('payment.approve', $pending->id), false);
         $res->assertDontSee(route('payment.approve', $approved->id), false);
+
+        // approved_at ter-cast ke Carbon (bukan string) → tanggal tampil, bukan "-"
+        $approved->load('approval');
+        $this->assertInstanceOf(\Carbon\Carbon::class, $approved->approval->approved_at);
+        $res->assertSee(now()->format('d/m/Y'));
     }
 }
