@@ -60,7 +60,7 @@
 
                     <!-- Role -->
                     <div class="mb-3">
-                        <label class="form-label" for="role_id">Role <span class="text-danger">*</span></label>
+                        <label class="form-label" for="role_id">Peran <span class="text-danger">*</span></label>
                         <select class="form-select select2" name="role_id" id="role_id" required>
                             <option value="" disabled {{ old('role_id') ? '' : 'selected' }}>-- Pilih Role --
                             </option>

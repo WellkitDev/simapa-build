@@ -247,7 +247,7 @@
                                 @csrf
                                 @method('PATCH')
                                 <div class="mb-3">
-                                    <label for="name" class="form-label">Name</label>
+                                    <label for="name" class="form-label">Nama</label>
                                     <input type="text" class="form-control @error('name') is-invalid @enderror"
                                         id="name" name="name" autocomplete="off" placeholder="name"
                                         value="{{ old('name', Auth::user()->name) }}">
@@ -265,7 +265,7 @@
                                     @enderror
                                 </div>
                                 <div class="mb-3">
-                                    <label for="email" class="form-label">Email address</label>
+                                    <label for="email" class="form-label">Email</label>
                                     <input type="email" class="form-control @error('email') is-invalid @enderror"
                                         id="email" name="email" placeholder="Email"
                                         value="{{ old('email', Auth::user()->email) }}">
@@ -274,7 +274,7 @@
                                     @enderror
                                 </div>
                                 <div class="mb-3">
-                                    <label for="phone_number" class="form-label">Phone Number</label>
+                                    <label for="phone_number" class="form-label">No. Telepon</label>
                                     <input type="text" class="form-control @error('phone_number') is-invalid @enderror"
                                         id="phone_number" name="phone_number" autocomplete="off"
                                         placeholder="phone_number"
@@ -311,7 +311,7 @@
                                     @enderror
                                 </div>
                                 <div class="mb-3">
-                                    <label for="address" class="form-label">Address</label>
+                                    <label for="address" class="form-label">Alamat</label>
                                     <input type="text" class="form-control @error('address') is-invalid @enderror"
                                         id="address" name="address" placeholder="address"
                                         value="{{ old('address', Auth::user()->profile?->address) }}">
@@ -367,7 +367,7 @@
                                         </small>
                                     </div>
                                 </div>
-                                <button type="submit" class="btn btn-primary me-2">Save</button>
+                                <button type="submit" class="btn btn-primary me-2">Simpan</button>
                             </form>
                         </div>
                     </div>

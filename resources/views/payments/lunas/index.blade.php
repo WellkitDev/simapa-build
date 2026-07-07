@@ -28,7 +28,7 @@
                 <div class="card-body">
 
                     <div class="d-flex justify-content-between align-items-baseline mb-md-4">
-                        <h6 class="card-title mb-0">Payment Order Full</h6>
+                        <h6 class="card-title mb-0">Pembayaran Pelunasan</h6>
                     </div>
 
                     <div class="row mt-4">

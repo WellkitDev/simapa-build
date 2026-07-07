@@ -59,6 +59,27 @@
     <script src="{{ asset('assets/js/template.js') }}"></script>
     <!-- end common js -->
 
+    {{-- Bahasa Indonesia default untuk semua DataTables (dimuat setelah plugin, sebelum init per-halaman) --}}
+    <script>
+        if (window.jQuery && jQuery.fn && jQuery.fn.dataTable) {
+            jQuery.extend(true, jQuery.fn.dataTable.defaults, {
+                language: {
+                    emptyTable: "Tidak ada data.",
+                    zeroRecords: "Tidak ada data yang cocok.",
+                    info: "Menampilkan _START_–_END_ dari _TOTAL_ data",
+                    infoEmpty: "Menampilkan 0 dari 0 data",
+                    infoFiltered: "(disaring dari _MAX_ total data)",
+                    lengthMenu: "Tampilkan _MENU_ data",
+                    search: "Cari:",
+                    processing: "Memproses...",
+                    loadingRecords: "Memuat...",
+                    paginate: { first: "Pertama", last: "Terakhir", next: "Berikutnya", previous: "Sebelumnya" },
+                    aria: { sortAscending: ": aktifkan untuk urut naik", sortDescending: ": aktifkan untuk urut turun" }
+                }
+            });
+        }
+    </script>
+
     @stack('custom-scripts')
 </body>
 

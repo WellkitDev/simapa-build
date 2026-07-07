@@ -20,10 +20,10 @@
             <div class="card overflow-hidden">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-books-baseline  mb-md-4">
-                        <h6 class="card-title mb-0">Users & Roles</h6>
+                        <h6 class="card-title mb-0">Pengguna & Peran</h6>
                         <div class="btn-group" role="group" aria-label="Basic example">
                             <a href="#" type="button" class="btn btn-primary " data-bs-toggle="modal"
-                                data-bs-target="#addUserModal"></i>Create</a>
+                                data-bs-target="#addUserModal"></i>Tambah</a>
                         </div>
                     </div>
                     <div class="row mt-4">
@@ -31,11 +31,11 @@
                             <table class="table table-centered datatable dt-responsive nowrap">
                                 <thead class="table">
                                     <tr>
-                                        <th class="pt-0">Name</th>
+                                        <th class="pt-0">Nama</th>
                                         <th class="pt-0">Username</th>
-                                        <th class="pt-0">Roles</th>
+                                        <th class="pt-0">Peran</th>
                                         <th class="pt-0">Status</th>
-                                        <th class="pt-0">Action</th>
+                                        <th class="pt-0">Aksi</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -46,10 +46,10 @@
                                             <td>{{ ucfirst($item->getRoleNames()->implode(', ')) }}</td>
                                             <td>
                                                 @if ($item->trashed())
-                                                    <span class="badge bg-danger">Deleted</span>
+                                                    <span class="badge bg-danger">Dihapus</span>
                                                 @else
                                                     <span class="badge bg-{{ $item->is_active ? 'success' : 'secondary' }}">
-                                                        {{ $item->is_active ? 'Active' : 'Off' }}
+                                                        {{ $item->is_active ? 'Aktif' : 'Nonaktif' }}
                                                     </span>
                                                 @endif
                                             </td>

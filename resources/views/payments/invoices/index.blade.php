@@ -45,7 +45,7 @@
                         <thead>
                             <tr>
                                 <th>No Invoice</th><th>Order</th><th>Tipe</th>
-                                <th>Status</th><th>Nominal</th><th>Due Date</th><th>Aksi</th>
+                                <th>Status</th><th>Nominal</th><th>Jatuh Tempo</th><th>Aksi</th>
                             </tr>
                         </thead>
                         <tbody>

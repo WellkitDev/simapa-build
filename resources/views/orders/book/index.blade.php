@@ -15,7 +15,7 @@
                 <div class="card-body">
 
                     <div class="d-flex justify-content-between align-items-baseline mb-md-4">
-                        <h6 class="card-title mb-0">Management Order</h6>
+                        <h6 class="card-title mb-0">Manajemen Order</h6>
                     </div>
 
                     <div class="row mt-4">
@@ -24,12 +24,12 @@
                                 style="border-collapse: collapse; border-spacing: 0; width: 100%;">
                                 <thead>
                                     <tr>
-                                        <th>Order ID</th>
+                                        <th>Kode Order</th>
                                         <th>Judul</th>
-                                        <th>Authors</th>
-                                        <th>Type</th>
+                                        <th>Penulis</th>
+                                        <th>Jenis</th>
                                         <th>Status Order</th>
-                                        <th>Action</th>
+                                        <th>Aksi</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -65,9 +65,9 @@
                                             </td>
                                             <td>
                                                 @if ($order->status == 'pending')
-                                                    <span class="badge bg-warning text-dark">Pending</span>
+                                                    <span class="badge bg-warning text-dark">Menunggu</span>
                                                 @else
-                                                    <span class="badge bg-success">Processed</span>
+                                                    <span class="badge bg-success">Diproses</span>
                                                 @endif
                                             </td>
                                             <td>

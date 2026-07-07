@@ -26,14 +26,14 @@
                                     <tr>
 
                                         <th>INV</th>
-                                        <th>Type</th>
-                                        <th>Amount</th>
+                                        <th>Jenis</th>
+                                        <th>Nominal</th>
                                         <th>Proof</th>
                                         <th>Payment Status</th>
                                         <th>User</th>
                                         <th>Approval Status</th>
                                         @role(['superadmin', 'manager'])
-                                            <th>Action</th>
+                                            <th>Aksi</th>
                                         @endrole
                                     </tr>
                                 </thead>
