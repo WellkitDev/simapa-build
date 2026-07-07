@@ -29,11 +29,6 @@
 
                     <div class="d-flex justify-content-between align-items-baseline mb-md-4">
                         <h6 class="card-title mb-0">Payment Order Full</h6>
-                        <div class="btn-group" role="group">
-                            <a href="#" class="btn btn-primary">Trash</a>
-                            <a href="#" class="btn btn-outline-primary">Export</a>
-                            <a href="#" class="btn btn-primary">Create</a>
-                        </div>
                     </div>
 
                     <div class="row mt-4">

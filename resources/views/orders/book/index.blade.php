@@ -16,11 +16,6 @@
 
                     <div class="d-flex justify-content-between align-items-baseline mb-md-4">
                         <h6 class="card-title mb-0">Management Order</h6>
-                        <div class="btn-group" role="group">
-                            <a href="#" class="btn btn-primary">Trash</a>
-                            <a href="#" class="btn btn-outline-primary">Export</a>
-                            <a href="#" class="btn btn-primary">Create</a>
-                        </div>
                     </div>
 
                     <div class="row mt-4">
@@ -89,15 +84,6 @@
                                                         class="btn btn-icon btn-primary">
                                                         <i class="" data-feather="credit-card"></i>
                                                     </a>
-
-                                                    <form action="" method="POST" style="display:inline;">
-                                                        @csrf
-                                                        @method('DELETE')
-                                                        <button type="submit" class="btn btn-icon btn-danger"
-                                                            onclick="return confirm('Batalkan pesanan ini?')">
-                                                            <i class="" data-feather="x"></i>
-                                                        </button>
-                                                    </form>
 
                                                     {{-- KONDISI 2: Sudah upload pembayaran tapi belum di-approve (masih pending di tb_payments) --}}
                                                 @elseif($order->status == 'pending' && !$hasApprovedPayment)

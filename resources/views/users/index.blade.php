@@ -22,7 +22,6 @@
                     <div class="d-flex justify-content-between align-books-baseline  mb-md-4">
                         <h6 class="card-title mb-0">Users & Roles</h6>
                         <div class="btn-group" role="group" aria-label="Basic example">
-                            <a href="#" type="button" class="btn btn-outline-primary "></i>Export</a>
                             <a href="#" type="button" class="btn btn-primary " data-bs-toggle="modal"
                                 data-bs-target="#addUserModal"></i>Create</a>
                         </div>
