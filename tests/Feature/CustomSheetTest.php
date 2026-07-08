@@ -91,4 +91,13 @@ class CustomSheetTest extends TestCase
         $this->actingAs($a)->delete(route('sheet.destroy', $sheet->id))->assertRedirect();
         $this->assertNull(CustomSheet::find($sheet->id));
     }
+
+    /** @test */
+    public function index_and_show_render(): void
+    {
+        $u = $this->user('marketing');
+        $sheet = \App\Models\CustomSheet::create(['name' => 'Render Uji', 'owner_id' => $u->id, 'visibility' => 'private', 'data' => [['a', 'b']]]);
+        $this->actingAs($u)->get(route('sheet.index'))->assertOk()->assertSee('Lembar Kerja')->assertSee('Render Uji');
+        $this->actingAs($u)->get(route('sheet.show', $sheet->id))->assertOk()->assertSee('spreadsheet');
+    }
 }

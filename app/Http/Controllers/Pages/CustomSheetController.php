@@ -20,8 +20,7 @@ class CustomSheetController extends Controller
         $mine   = $sheets->where('owner_id', $user->id)->values();
         $shared = $sheets->where('owner_id', '!=', $user->id)->values();
 
-        // TODO(Task 3): return view('sheets.index', compact('mine', 'shared'));
-        return response($mine->concat($shared)->pluck('name')->implode(' | '));
+        return view('sheets.index', compact('mine', 'shared'));
     }
 
     public function store(Request $request)
@@ -46,8 +45,7 @@ class CustomSheetController extends Controller
 
         $canEdit = $sheet->canEdit(Auth::user());
 
-        // TODO(Task 3): return view('sheets.show', compact('sheet', 'canEdit'));
-        return response('SHEET ' . $sheet->name);
+        return view('sheets.show', compact('sheet', 'canEdit'));
     }
 
     public function update(Request $request, int $id)
