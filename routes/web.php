@@ -26,6 +26,7 @@ use App\Http\Controllers\Pages\JournalSubmissionController;
 use App\Http\Controllers\Pages\BookIsbnController;
 use App\Http\Controllers\Pages\DocRequirementController;
 use App\Http\Controllers\Pages\TitleDocCheckController;
+use App\Http\Controllers\Pages\DataAssetController;
 
 /*
 |--------------------------------------------------------------------------
@@ -347,6 +348,15 @@ Route::middleware('auth')->group(function () {
         Route::delete('accounting/account/{id}', [\App\Http\Controllers\Pages\CashAccountController::class, 'destroy'])->name('accounting.account.destroy')->whereNumber('id');
         Route::post('accounting/transfer', [\App\Http\Controllers\Pages\CashEntryController::class, 'transfer'])->name('accounting.transfer.store');
     });
+
+    //Gudang Data
+    Route::get('gudang', [DataAssetController::class, 'index'])->name('data.index');
+    Route::get('gudang/tambah', [DataAssetController::class, 'create'])->name('data.create');
+    Route::post('gudang', [DataAssetController::class, 'store'])->name('data.store');
+    Route::get('gudang/{id}/edit', [DataAssetController::class, 'edit'])->name('data.edit')->whereNumber('id');
+    Route::put('gudang/{id}', [DataAssetController::class, 'update'])->name('data.update')->whereNumber('id');
+    Route::get('gudang/{id}/download', [DataAssetController::class, 'download'])->name('data.download')->whereNumber('id');
+    Route::delete('gudang/{id}', [DataAssetController::class, 'destroy'])->name('data.destroy')->whereNumber('id');
 });
 
 
