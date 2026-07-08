@@ -4,15 +4,16 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class CustomSheet extends Model
+class DataAsset extends Model
 {
-    protected $table = 'custom_sheets';
+    protected $table = 'data_assets';
 
-    protected $fillable = ['name', 'owner_id', 'visibility', 'shared_roles', 'columns', 'data', 'updated_by'];
+    protected $fillable = ['name', 'description', 'type', 'url', 'file_path', 'file_name', 'file_size', 'owner_id', 'visibility', 'shared_roles', 'updated_by'];
 
-    protected $casts = ['shared_roles' => 'array', 'columns' => 'array', 'data' => 'array'];
+    protected $casts = ['shared_roles' => 'array', 'file_size' => 'integer'];
 
     const VISIBILITIES = ['private' => 'Pribadi', 'shared' => 'Dibagikan'];
+    const TYPES = ['link' => 'Link', 'file' => 'File'];
 
     public function owner()
     {
@@ -36,10 +37,5 @@ class CustomSheet extends Model
             return true;
         }
         return $user->getRoleNames()->intersect($this->shared_roles)->isNotEmpty();
-    }
-
-    public function canEdit(User $user): bool
-    {
-        return $this->canView($user);
     }
 }

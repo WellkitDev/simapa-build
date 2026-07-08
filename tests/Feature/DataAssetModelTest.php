@@ -4,11 +4,11 @@ namespace Tests\Feature;
 
 use Tests\TestCase;
 use App\Models\User;
-use App\Models\CustomSheet;
+use App\Models\DataAsset;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
 
-class CustomSheetModelTest extends TestCase
+class DataAssetModelTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -27,17 +27,16 @@ class CustomSheetModelTest extends TestCase
         $other = User::factory()->create(); $other->assignRole('marketing');
         $manager = User::factory()->create(); $manager->assignRole('manager');
 
-        $private = CustomSheet::create(['name' => 'P', 'owner_id' => $owner->id, 'visibility' => 'private']);
+        $private = DataAsset::create(['name' => 'P', 'type' => 'link', 'url' => 'https://x', 'owner_id' => $owner->id, 'visibility' => 'private']);
         $this->assertTrue($private->canView($owner));
         $this->assertFalse($private->canView($other));
+        $this->assertTrue($private->isOwner($owner));
 
-        $sharedAll = CustomSheet::create(['name' => 'S', 'owner_id' => $owner->id, 'visibility' => 'shared', 'shared_roles' => []]);
+        $sharedAll = DataAsset::create(['name' => 'S', 'type' => 'link', 'url' => 'https://x', 'owner_id' => $owner->id, 'visibility' => 'shared', 'shared_roles' => []]);
         $this->assertTrue($sharedAll->canView($other));
-        $this->assertTrue($sharedAll->canEdit($other));
 
-        $sharedMgr = CustomSheet::create(['name' => 'SM', 'owner_id' => $owner->id, 'visibility' => 'shared', 'shared_roles' => ['manager']]);
-        $this->assertFalse($sharedMgr->canView($other));   // marketing
+        $sharedMgr = DataAsset::create(['name' => 'SM', 'type' => 'link', 'url' => 'https://x', 'owner_id' => $owner->id, 'visibility' => 'shared', 'shared_roles' => ['manager']]);
+        $this->assertFalse($sharedMgr->canView($other));
         $this->assertTrue($sharedMgr->canView($manager));
-        $this->assertTrue($sharedMgr->isOwner($owner));
     }
 }

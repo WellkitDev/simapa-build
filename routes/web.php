@@ -18,7 +18,6 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Pages\MarketingTargetController;
 use App\Http\Controllers\Pages\AnnouncementController;
 use App\Http\Controllers\Pages\TaskController;
-use App\Http\Controllers\Pages\CustomSheetController;
 use App\Http\Controllers\Pages\DailyReportController;
 use App\Http\Controllers\Pages\TitleController;
 use App\Http\Controllers\Pages\AuthorController;
@@ -229,14 +228,6 @@ Route::middleware('auth')->group(function () {
     Route::middleware('role:manager|superadmin')->group(function () {
         Route::get('tasks/monitor', [TaskController::class, 'monitor'])->name('task.monitor');
     });
-
-    // Lembar Kerja (custom sheets) — every authenticated user, no role gate
-    Route::get('sheets', [CustomSheetController::class, 'index'])->name('sheet.index');
-    Route::post('sheets', [CustomSheetController::class, 'store'])->name('sheet.store');
-    Route::get('sheets/{id}', [CustomSheetController::class, 'show'])->name('sheet.show')->whereNumber('id');
-    Route::put('sheets/{id}', [CustomSheetController::class, 'update'])->name('sheet.update')->whereNumber('id');
-    Route::post('sheets/{id}/save', [CustomSheetController::class, 'save'])->name('sheet.save')->whereNumber('id');
-    Route::delete('sheets/{id}', [CustomSheetController::class, 'destroy'])->name('sheet.destroy')->whereNumber('id');
 
     Route::get('reports/daily', [DailyReportController::class, 'daily'])->name('report.daily');
     Route::post('reports/daily/note', [DailyReportController::class, 'saveNote'])->name('report.note');
