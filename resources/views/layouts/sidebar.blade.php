@@ -248,6 +248,15 @@
                 </li>
             @endrole
 
+            {{-- ===================== ALAT ===================== --}}
+            <li class="nav-item nav-category">Alat</li>
+            <li class="nav-item {{ nav_active('data.*') }}">
+                <a href="{{ route('data.index') }}" class="nav-link">
+                    <i class="link-icon" data-feather="database"></i>
+                    <span class="link-title">Gudang Data</span>
+                </a>
+            </li>
+
             {{-- ===================== AKUN & SISTEM ===================== --}}
             <li class="nav-item nav-category">Akun &amp; Sistem</li>
             @role(['superadmin', 'manager'])

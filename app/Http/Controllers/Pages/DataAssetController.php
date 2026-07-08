@@ -18,8 +18,7 @@ class DataAssetController extends Controller
             ->latest()->get()
             ->filter(fn ($a) => $a->canView($user))->values();
 
-        // TODO(Task 3): return view('data-assets.index', compact('assets'));
-        return response($assets->pluck('name')->implode(' | '));
+        return view('data-assets.index', compact('assets'));
     }
 
     public function create()
