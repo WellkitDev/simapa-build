@@ -43,7 +43,7 @@
 - Create: `app/Models/CashPeriodLock.php`
 - Create: `app/Models/CashLog.php`
 
-- [ ] **Step 1: Migrasi kunci periode**
+- [x] **Step 1: Migrasi kunci periode**
 
 ```php
 <?php
@@ -76,7 +76,7 @@ return new class extends Migration
 };
 ```
 
-- [ ] **Step 2: Migrasi log**
+- [x] **Step 2: Migrasi log**
 
 ```php
 <?php
@@ -113,7 +113,7 @@ return new class extends Migration
 };
 ```
 
-- [ ] **Step 3: Model**
+- [x] **Step 3: Model**
 
 `app/Models/CashPeriodLock.php`:
 
@@ -182,12 +182,12 @@ class CashLog extends Model
 }
 ```
 
-- [ ] **Step 4: Migrasi test DB jalan**
+- [x] **Step 4: Migrasi test DB jalan**
 
 Run: `php artisan test --filter=CashJournalServiceTest`
 Expected: PASS (membuktikan kedua migrasi baru tidak merusak apa pun).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add database/migrations/2026_07_17_000002_create_cash_period_locks_table.php database/migrations/2026_07_17_000003_create_cash_logs_table.php app/Models/CashPeriodLock.php app/Models/CashLog.php
@@ -204,7 +204,7 @@ git commit -F <path-pesan>   # feat(accounting): skema kunci periode + audit log
 - Create: `app/Services/CashPeriodService.php`
 - Modify: `app/Http/Controllers/Pages/CashEntryController.php` (store/transfer/update/destroy)
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `tests/Feature/CashPeriodLockTest.php`:
 
@@ -418,12 +418,12 @@ class CashPeriodLockTest extends TestCase
 }
 ```
 
-- [ ] **Step 2: Jalankan test — pastikan GAGAL**
+- [x] **Step 2: Jalankan test — pastikan GAGAL**
 
 Run: `php artisan test --filter=CashPeriodLockTest`
 Expected: **FAIL** — `Class "App\Services\CashPeriodService" not found`; `Route [accounting.period.lock] not defined`; dan `auto_entry_cannot_be_deleted` gagal karena entri **terhapus** (lubang yang terbukti lewat probe).
 
-- [ ] **Step 3: Exception**
+- [x] **Step 3: Exception**
 
 Buat `app/Exceptions/CashEntryGuardException.php`:
 
@@ -458,7 +458,7 @@ class CashEntryGuardException extends Exception
 }
 ```
 
-- [ ] **Step 4: Service**
+- [x] **Step 4: Service**
 
 Buat `app/Services/CashPeriodService.php`:
 
@@ -525,7 +525,7 @@ class CashPeriodService
 }
 ```
 
-- [ ] **Step 5: Pasang 4 penjaga di `CashEntryController`**
+- [x] **Step 5: Pasang 4 penjaga di `CashEntryController`**
 
 Tambah import:
 
@@ -571,7 +571,7 @@ use App\Services\CashPeriodService;
 
 > `update` **wajib** memeriksa dua tanggal. Kunci yang hanya memeriksa satu sisi bukan kunci: entri Juli bisa diseret ke Juni yang terkunci, atau entri Juni yang beku dikeluarkan ke Juli.
 
-- [ ] **Step 6: Rute lock/unlock**
+- [x] **Step 6: Rute lock/unlock**
 
 Di `routes/web.php`, **di dalam** grup `Route::middleware('role:superadmin|accounting')` yang memuat rute `accounting.*` (mulai baris ~318), tambahkan (peran diperketat per-rute):
 
@@ -583,7 +583,7 @@ Di `routes/web.php`, **di dalam** grup `Route::middleware('role:superadmin|accou
         Route::get('accounting/audit', [\App\Http\Controllers\Pages\CashPeriodController::class, 'audit'])->name('accounting.audit');
 ```
 
-- [ ] **Step 7: Controller lock/unlock (audit menyusul di Task 4)**
+- [x] **Step 7: Controller lock/unlock (audit menyusul di Task 4)**
 
 Buat `app/Http/Controllers/Pages/CashPeriodController.php`:
 
@@ -627,12 +627,12 @@ class CashPeriodController extends Controller
 }
 ```
 
-- [ ] **Step 8: Jalankan test — pastikan LULUS**
+- [x] **Step 8: Jalankan test — pastikan LULUS**
 
 Run: `php artisan test --filter=CashPeriodLockTest`
 Expected: **PASS**, 10 test.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add app/Exceptions/CashEntryGuardException.php app/Services/CashPeriodService.php app/Http/Controllers/Pages/CashPeriodController.php app/Http/Controllers/Pages/CashEntryController.php routes/web.php tests/Feature/CashPeriodLockTest.php
@@ -668,7 +668,7 @@ Co-authored-by: Mira <admin@avidpedia.com>
 - Create: `app/Observers/CashEntryObserver.php`
 - Modify: `app/Providers/AppServiceProvider.php` (baris ~24, setelah `Payment::observe`)
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `tests/Feature/CashAuditLogTest.php`:
 
@@ -809,12 +809,12 @@ class CashAuditLogTest extends TestCase
 }
 ```
 
-- [ ] **Step 2: Jalankan test — pastikan GAGAL**
+- [x] **Step 2: Jalankan test — pastikan GAGAL**
 
 Run: `php artisan test --filter=CashAuditLogTest`
 Expected: **FAIL** — nol baris `tb_cash_logs` (observer belum ada), jadi `count()` = 0 dan `firstOrFail()` melempar `ModelNotFoundException`.
 
-- [ ] **Step 3: Observer**
+- [x] **Step 3: Observer**
 
 Buat `app/Observers/CashEntryObserver.php`:
 
@@ -889,7 +889,7 @@ class CashEntryObserver
 }
 ```
 
-- [ ] **Step 4: Daftarkan observer**
+- [x] **Step 4: Daftarkan observer**
 
 Di `app/Providers/AppServiceProvider.php`, tepat **setelah** baris `\App\Models\Payment::observe(\App\Observers\PaymentObserver::class);` (±24):
 
@@ -897,12 +897,12 @@ Di `app/Providers/AppServiceProvider.php`, tepat **setelah** baris `\App\Models\
         \App\Models\CashEntry::observe(\App\Observers\CashEntryObserver::class);
 ```
 
-- [ ] **Step 5: Jalankan test — pastikan LULUS**
+- [x] **Step 5: Jalankan test — pastikan LULUS**
 
 Run: `php artisan test --filter=CashAuditLogTest`
 Expected: **PASS**, 6 test.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add app/Observers/CashEntryObserver.php app/Providers/AppServiceProvider.php tests/Feature/CashAuditLogTest.php
@@ -921,7 +921,7 @@ git commit -F <path-pesan>   # feat(accounting): audit log entri kas lewat obser
 - Modify: `resources/views/layouts/sidebar.blade.php` (menu, setelah blok `accounting.target` ±b.163)
 - Modify: `tests/Feature/CashAuditLogTest.php` (+test render)
 
-- [ ] **Step 1: Method `audit`**
+- [x] **Step 1: Method `audit`**
 
 Tambahkan ke `CashPeriodController`, dan import `use App\Models\CashLog;`:
 
@@ -939,7 +939,7 @@ Tambahkan ke `CashPeriodController`, dan import `use App\Models\CashLog;`:
     }
 ```
 
-- [ ] **Step 2: `CashEntryController@index` kirim status kunci**
+- [x] **Step 2: `CashEntryController@index` kirim status kunci**
 
 Tambah import `use App\Services\CashPeriodService;` (bila Step Task 2 belum menambahkannya). Pada `return view('accounting.journal', array_merge($data, [...]))`, tambahkan dua kunci:
 
@@ -950,7 +950,7 @@ Tambah import `use App\Services\CashPeriodService;` (bila Step Task 2 belum mena
 
 > `$month` null saat filter "semua bulan" → tombol kunci tak relevan, jadi `null`.
 
-- [ ] **Step 3: Badge + tombol di Jurnal Kas**
+- [x] **Step 3: Badge + tombol di Jurnal Kas**
 
 Di `resources/views/accounting/journal.blade.php`, sisipkan sebagai blok mandiri **di atas** baris `@foreach($balances['rows'] as $row)` (kartu saldo per akun, ±b.44) — jadi status kunci terbaca sebelum angkanya:
 
@@ -980,7 +980,7 @@ Di `resources/views/accounting/journal.blade.php`, sisipkan sebagai blok mandiri
 
 > Verifikasi titik sisip dgn `grep -n "balances\['rows'\]" resources/views/accounting/journal.blade.php` — letakkan blok ini **di atas** baris tersebut.
 
-- [ ] **Step 4: Halaman Riwayat Perubahan**
+- [x] **Step 4: Halaman Riwayat Perubahan**
 
 Buat `resources/views/accounting/audit.blade.php` (pola DataTables seperti view daftar lain):
 
@@ -1030,7 +1030,7 @@ Buat `resources/views/accounting/audit.blade.php` (pola DataTables seperti view 
 
 > **Verifikasi dulu** path plugin & nama stack dengan `grep -n "datatables\|@push" resources/views/titles/index.blade.php` (atau view index lain yang sudah pakai DataTables) dan **tiru persis** — jangan menebak.
 
-- [ ] **Step 5: Menu sidebar**
+- [x] **Step 5: Menu sidebar**
 
 Di `resources/views/layouts/sidebar.blade.php`, tepat **setelah** blok `<li>` menu `accounting.target` (±b.158-163) dan **sebelum** `@endrole`:
 
@@ -1043,7 +1043,7 @@ Di `resources/views/layouts/sidebar.blade.php`, tepat **setelah** blok `<li>` me
                 </li>
 ```
 
-- [ ] **Step 6: Test render**
+- [x] **Step 6: Test render**
 
 Tambahkan ke `tests/Feature/CashAuditLogTest.php`:
 
@@ -1068,12 +1068,12 @@ Tambahkan ke `tests/Feature/CashAuditLogTest.php`:
     }
 ```
 
-- [ ] **Step 7: Jalankan test**
+- [x] **Step 7: Jalankan test**
 
 Run: `php artisan test --filter=CashAuditLogTest`
 Expected: **PASS**, 7 test.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add app/Http/Controllers/Pages/CashPeriodController.php app/Http/Controllers/Pages/CashEntryController.php resources/views/accounting/audit.blade.php resources/views/accounting/journal.blade.php resources/views/layouts/sidebar.blade.php tests/Feature/CashAuditLogTest.php
@@ -1084,24 +1084,24 @@ git commit -F <path-pesan>   # feat(accounting): UI kunci periode + halaman Riwa
 
 ## Task 5: Regresi + migrasi dev + verifikasi sungguhan
 
-- [ ] **Step 1: Suite penuh**
+- [x] **Step 1: Suite penuh**
 
 Run: `php artisan test`
 Expected: PASS semua (**553** = 536 + 10 + 7).
 
 **Bila test lama GAGAL** (mis. test yang menghapus/menyunting entri kas kini tertolak penjaga baru, atau menghitung baris `tb_cash_logs`): itu **temuan** — baca, pastikan perilaku barunya benar, perbaiki, **sebutkan di laporan**. Jangan sesuaikan diam-diam.
 
-- [ ] **Step 2: Blade sehat**
+- [x] **Step 2: Blade sehat**
 
 Run: `php artisan view:cache && php artisan view:clear`
 Expected: tanpa error.
 
-- [ ] **Step 3: Migrasi DB dev — WAJIB**
+- [x] **Step 3: Migrasi DB dev — WAJIB**
 
 Run: `php artisan migrate`
 Expected: kedua migrasi `DONE`. Tanpa ini, `/accounting/journal` di dev **500** (tabel `tb_cash_period_locks` tak ada).
 
-- [ ] **Step 4: Verifikasi lewat HTTP**
+- [x] **Step 4: Verifikasi lewat HTTP**
 
 `php artisan serve --port=8127` di background; superadmin sementara; login via curl. Buktikan **empat** hal:
 
@@ -1110,11 +1110,11 @@ Expected: kedua migrasi `DONE`. Tanpa ini, `/accounting/journal` di dev **500** 
 3. DELETE entri `source=payment` mana pun → **ditolak**, entri tetap ada (lubang yang ditemukan probe, kini tertutup di data nyata).
 4. `/accounting/audit` → memuat baris log `locked`.
 
-- [ ] **Step 5: Bersihkan**
+- [x] **Step 5: Bersihkan**
 
 Buka kunci 2026-6 lagi, hapus user sementara, matikan server. Pastikan `CashEntry::count()` **132**, `CashPeriodLock::count()` **0**, dan `git status` bersih dari sampah uji. (Baris `tb_cash_logs` dari uji **boleh** tertinggal — itu jejak sah; sebutkan jumlahnya di laporan.)
 
-- [ ] **Step 6: Centang plan + commit**
+- [x] **Step 6: Centang plan + commit**
 
 ```bash
 git add docs/superpowers/plans/2026-07-17-cash-period-lock.md
