@@ -644,10 +644,10 @@ EOF
 
 ## Task 4: Regresi + migrasi dev
 
-- [ ] **Step 1** — `php artisan test` → PASS semua.
-- [ ] **Step 2** — `php artisan view:cache` (tanpa error) lalu `php artisan view:clear`.
-- [ ] **Step 3** — `php artisan migrate` di dev: `000002` drop custom_sheets + `000003` create data_assets.
-- [ ] **Step 4 (manual)** — buka `/gudang` (login): tambah **Link** (URL Sheets) → muncul, "Buka ↗"; tambah **File** (.xlsx) → "Unduh ⬇" berfungsi; setel Dibagikan+role → user lain lihat; Edit/Hapus (pemilik).
+- [x] **Step 1** — `php artisan test` → PASS semua (506 passed, 1510 assertions, 2026-07-17).
+- [x] **Step 2** — `php artisan view:cache` (tanpa error) lalu `php artisan view:clear`.
+- [x] **Step 3** — `php artisan migrate` di dev: `000002` drop custom_sheets + `000003` create data_assets.
+- [x] **Step 4 (manual)** — diverifikasi 2026-07-17 via HTTP sungguhan (`artisan serve` + sesi login + CSRF), dua user sementara (owner admin + viewer marketing), lalu dibersihkan. Hasil: Link Sheets tersimpan + "Buka" tampil · upload .xlsx → unduh **byte-identik** (md5 sama) + nama file asli via Content-Disposition · Dibagikan+role marketing → viewer lihat & unduh 200; link pribadi milik orang lain tak tampil & unduh langsung **403** · edit ganti role ke production → viewer langsung 403 (file lama tetap utuh saat tak unggah ulang) · non-pemilik edit/hapus **403** · hapus → baris hilang **dan file fisik terhapus** dari `storage/app/data-assets`.
 
 ## Self-Review
 - Coverage: hapus Lembar Kerja + skema/model (T1), controller+rute+akses+upload/download (T2), view+sidebar (T3), regresi+migrate (T4).

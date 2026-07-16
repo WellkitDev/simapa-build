@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Pages;
 
+use App\Exceptions\DataAssetAccessException;
 use App\Http\Controllers\Controller;
 use App\Models\DataAsset;
 use Illuminate\Http\Request;
@@ -39,16 +40,14 @@ class DataAssetController extends Controller
 
     public function edit(int $id)
     {
-        $asset = DataAsset::findOrFail($id);
-        abort_unless($asset->isOwner(Auth::user()), 403);
+        $asset = $this->findOwned($id);
 
         return view('data-assets.edit', compact('asset'));
     }
 
     public function update(Request $request, int $id)
     {
-        $asset = DataAsset::findOrFail($id);
-        abort_unless($asset->isOwner(Auth::user()), 403);
+        $asset = $this->findOwned($id);
 
         $data = $this->validated($request, false);
         $payload = $this->payload($request, $data, $asset);
@@ -59,8 +58,7 @@ class DataAssetController extends Controller
 
     public function download(int $id)
     {
-        $asset = DataAsset::findOrFail($id);
-        abort_unless($asset->canView(Auth::user()), 403);
+        $asset = $this->findViewable($id);
         abort_if($asset->type !== 'file' || ! $asset->file_path, 404);
 
         return Storage::download($asset->file_path, $asset->file_name);
@@ -68,14 +66,40 @@ class DataAssetController extends Controller
 
     public function destroy(int $id)
     {
-        $asset = DataAsset::findOrFail($id);
-        abort_unless($asset->isOwner(Auth::user()), 403);
+        $asset = $this->findOwned($id);
+
         if ($asset->type === 'file' && $asset->file_path) {
             Storage::delete($asset->file_path);
         }
         $asset->delete();
 
         return redirect()->route('data.index')->with('success', 'Data dihapus.');
+    }
+
+    private function findViewable(int $id): DataAsset
+    {
+        $asset = DataAsset::find($id);
+        if (! $asset) {
+            throw DataAssetAccessException::notFound();
+        }
+        if (! $asset->canView(Auth::user())) {
+            throw DataAssetAccessException::cannotView();
+        }
+
+        return $asset;
+    }
+
+    private function findOwned(int $id): DataAsset
+    {
+        $asset = DataAsset::find($id);
+        if (! $asset) {
+            throw DataAssetAccessException::notFound();
+        }
+        if (! $asset->isOwner(Auth::user())) {
+            throw DataAssetAccessException::notOwner();
+        }
+
+        return $asset;
     }
 
     private function validated(Request $request, bool $creating = true): array
