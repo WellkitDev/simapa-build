@@ -36,7 +36,7 @@
 - Create: `tests/Feature/ExpenseGapTest.php`
 - Create: `app/Services/ExpenseGapService.php`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `tests/Feature/ExpenseGapTest.php` (4 test aturan dulu; test render ditambah di Task 2):
 
@@ -127,12 +127,12 @@ class ExpenseGapTest extends TestCase
 }
 ```
 
-- [ ] **Step 2: Jalankan test — pastikan GAGAL**
+- [x] **Step 2: Jalankan test — pastikan GAGAL**
 
 Run: `php artisan test --filter=ExpenseGapTest`
 Expected: **FAIL** — `Class "App\Services\ExpenseGapService" not found` di semua test.
 
-- [ ] **Step 3: Buat service**
+- [x] **Step 3: Buat service**
 
 Buat `app/Services/ExpenseGapService.php`:
 
@@ -177,12 +177,12 @@ class ExpenseGapService
 }
 ```
 
-- [ ] **Step 4: Jalankan test — pastikan LULUS**
+- [x] **Step 4: Jalankan test — pastikan LULUS**
 
 Run: `php artisan test --filter=ExpenseGapTest`
 Expected: **PASS**, 4 test.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/Services/ExpenseGapService.php tests/Feature/ExpenseGapTest.php
@@ -216,7 +216,7 @@ Co-authored-by: Mira <admin@avidpedia.com>
 - Modify: `resources/views/accounting/overview.blade.php` (sisip sebelum `<div class="row">` baris 21)
 - Modify: `tests/Feature/ExpenseGapTest.php` (+3 test render)
 
-- [ ] **Step 1: Buat partial**
+- [x] **Step 1: Buat partial**
 
 Buat `resources/views/accounting/partials/expense-warning.blade.php`:
 
@@ -238,7 +238,7 @@ Buat `resources/views/accounting/partials/expense-warning.blade.php`:
 @endif
 ```
 
-- [ ] **Step 2: `ProfitDistributionController` — kirim data**
+- [x] **Step 2: `ProfitDistributionController` — kirim data**
 
 Tambah import di bagian `use`:
 
@@ -253,7 +253,7 @@ Di `index()`, tambahkan dua kunci pada array `view('accounting.distribution', [.
             'periodeLabel'  => 'pada ' . \Carbon\Carbon::create()->month($month)->translatedFormat('F') . ' ' . $year,
 ```
 
-- [ ] **Step 3: `AccountingDashboardController` — kirim data**
+- [x] **Step 3: `AccountingDashboardController` — kirim data**
 
 Tambah import `use App\Services\ExpenseGapService;`, lalu pada array `view('accounting.dashboard', [...])` di `index()` tambahkan:
 
@@ -262,7 +262,7 @@ Tambah import `use App\Services\ExpenseGapService;`, lalu pada array `view('acco
             'periodeLabel' => 'sepanjang ' . $year,
 ```
 
-- [ ] **Step 4: `AccountingOverviewController` — kirim data**
+- [x] **Step 4: `AccountingOverviewController` — kirim data**
 
 Tambah import `use App\Services\ExpenseGapService;`. `index()` memakai `compact(...)` — tambahkan dua variabel sebelum `return`:
 
@@ -275,7 +275,7 @@ lalu masukkan ke `compact`: `compact('year', 'balances', 'ytd', 'ytdRealisasi', 
 
 > `$fixedMonthly` yang sudah ada **dibiarkan** — ia menampilkan biaya tetap sebagai informasi, beda maksud dari peringatan (spec §3).
 
-- [ ] **Step 5: Sisipkan `@include` di 3 view**
+- [x] **Step 5: Sisipkan `@include` di 3 view**
 
 Di ketiga file, sisipkan baris berikut **tepat sebelum** `<div class="row">` pertama (distribution ±b.18, dashboard ±b.27, overview ±b.21):
 
@@ -283,7 +283,7 @@ Di ketiga file, sisipkan baris berikut **tepat sebelum** `<div class="row">` per
 @include('accounting.partials.expense-warning')
 ```
 
-- [ ] **Step 6: Tambah 3 test render**
+- [x] **Step 6: Tambah 3 test render**
 
 Tambahkan ke `tests/Feature/ExpenseGapTest.php`, sebelum `}` penutup class. Tambahkan juga import yang dibutuhkan di atas: `use App\Models\User;`.
 
@@ -340,14 +340,14 @@ Tambahkan ke `tests/Feature/ExpenseGapTest.php`, sebelum `}` penutup class. Tamb
     }
 ```
 
-- [ ] **Step 7: Jalankan test**
+- [x] **Step 7: Jalankan test**
 
 Run: `php artisan test --filter=ExpenseGapTest`
 Expected: **PASS**, 7 test.
 
 > Bila `warning_appears_on_three_pages` gagal dgn `Route [accounting.assumption] not defined`, periksa nama rute sebenarnya: `php artisan route:list --name=accounting` — sesuaikan **partial**, jangan hapus tautannya.
 
-- [ ] **Step 8: Suite penuh + Blade sehat**
+- [x] **Step 8: Suite penuh + Blade sehat**
 
 Run: `php artisan test`
 Expected: PASS semua (**536** = 529 + 7).
@@ -355,7 +355,7 @@ Expected: PASS semua (**536** = 529 + 7).
 Run: `php artisan view:cache && php artisan view:clear`
 Expected: "Blade templates cached successfully." tanpa error.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add resources/views/accounting/partials/expense-warning.blade.php resources/views/accounting/distribution.blade.php resources/views/accounting/dashboard.blade.php resources/views/accounting/overview.blade.php app/Http/Controllers/Pages/ProfitDistributionController.php app/Http/Controllers/Pages/AccountingDashboardController.php app/Http/Controllers/Pages/AccountingOverviewController.php tests/Feature/ExpenseGapTest.php
@@ -384,23 +384,23 @@ Co-authored-by: Mira <admin@avidpedia.com>
 
 **Files:** tak ada perubahan kode.
 
-- [ ] **Step 1: Buka ketiga halaman**
+- [x] **Step 1: Buka ketiga halaman**
 
 `php artisan serve --port=8126` di background; buat superadmin sementara; login via curl; GET `/accounting/distribution`, `/accounting/dashboard`, `/accounting/overview`.
 
 Expected: ketiganya 200 dan memuat teks "Belum ada pengeluaran tercatat" beserta "Rp 824.167/bulan" (DB dev: 6 biaya tetap aktif, pengeluaran = 0).
 
-- [ ] **Step 2: Buktikan peringatan hilang saat pengeluaran ada**
+- [x] **Step 2: Buktikan peringatan hilang saat pengeluaran ada**
 
 Buat 1 entri pengeluaran sementara di DB dev (mis. `2026-06-10`, 100.000, source manual), muat ulang `/accounting/dashboard?year=2026` → peringatan **hilang**. Lalu **hapus lagi entri itu** dan pastikan peringatan kembali muncul.
 
 > Ini menguji kedua arah di data nyata — peringatan yang tak pernah bisa hilang sama buruknya dgn yang tak pernah muncul.
 
-- [ ] **Step 3: Bersihkan**
+- [x] **Step 3: Bersihkan**
 
 Hapus user sementara + entri uji, matikan server, pastikan `CashEntry::count()` kembali **132** dan `git status` bersih dari sampah uji.
 
-- [ ] **Step 4: Centang plan + commit**
+- [x] **Step 4: Centang plan + commit**
 
 ```bash
 git add docs/superpowers/plans/2026-07-17-expense-gap-warning.md
