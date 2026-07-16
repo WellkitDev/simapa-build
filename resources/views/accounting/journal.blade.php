@@ -41,6 +41,28 @@
 
 {{-- Kartu saldo per akun --}}
 <div class="row">
+    @if($month)
+        <div class="mb-3 d-flex align-items-center gap-2 flex-wrap">
+            @if($periodLock)
+                <span class="badge bg-secondary">🔒 Periode {{ $month }}/{{ $year }} terkunci</span>
+                <span class="text-muted small">dikunci {{ $periodLock->lockedBy?->name ?? 'sistem' }} · {{ optional($periodLock->locked_at)->format('d/m/Y') }}</span>
+                @if($canLock)
+                    <form method="POST" action="{{ route('accounting.period.unlock') }}" data-confirm="Buka kunci periode ini? Perubahan setelahnya tercatat di Riwayat Perubahan." class="m-0">
+                        @csrf
+                        <input type="hidden" name="year" value="{{ $year }}"><input type="hidden" name="month" value="{{ $month }}">
+                        <button class="btn btn-xs btn-outline-secondary">Buka kunci</button>
+                    </form>
+                @endif
+            @elseif($canLock)
+                <form method="POST" action="{{ route('accounting.period.lock') }}" data-confirm="Kunci periode ini? Entri manual bulan ini tak bisa lagi ditambah/diubah/dihapus." class="m-0">
+                    @csrf
+                    <input type="hidden" name="year" value="{{ $year }}"><input type="hidden" name="month" value="{{ $month }}">
+                    <button class="btn btn-xs btn-outline-dark">🔒 Kunci periode {{ $month }}/{{ $year }}</button>
+                </form>
+            @endif
+        </div>
+    @endif
+
     @foreach($balances['rows'] as $row)
         <div class="col-md-3 col-6 grid-margin stretch-card">
             <div class="card"><div class="card-body py-3">

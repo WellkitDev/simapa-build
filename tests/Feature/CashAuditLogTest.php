@@ -131,4 +131,23 @@ class CashAuditLogTest extends TestCase
 
         $this->assertSame('periode terkunci', $log->note);
     }
+
+    /** @test */
+    public function audit_page_renders(): void
+    {
+        $this->entri();
+
+        $sa = User::factory()->create();
+        $sa->assignRole('superadmin');
+        $this->actingAs($sa)->get(route('accounting.audit', ['year' => now()->year]))
+            ->assertOk()->assertSee('Riwayat Perubahan');
+
+        $acc = User::factory()->create();
+        $acc->assignRole('accounting');
+        $this->actingAs($acc)->get(route('accounting.audit'))->assertOk();
+
+        $mk = User::factory()->create();
+        $mk->assignRole('marketing');
+        $this->actingAs($mk)->get(route('accounting.audit'))->assertForbidden();
+    }
 }

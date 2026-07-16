@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Pages;
 
 use App\Http\Controllers\Controller;
+use App\Models\CashLog;
 use App\Services\CashPeriodService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -25,6 +26,18 @@ class CashPeriodController extends Controller
         $this->service->unlock($data['year'], $data['month'], Auth::user());
 
         return back()->with('success', "Periode {$data['month']}/{$data['year']} dibuka.");
+    }
+
+    public function audit(Request $request)
+    {
+        $year = (int) $request->query('year', now()->year);
+
+        $logs = CashLog::with('user')
+            ->whereYear('created_at', $year)
+            ->latest('id')
+            ->get();
+
+        return view('accounting.audit', compact('logs', 'year'));
     }
 
     private function validatePeriod(Request $request): array

@@ -43,6 +43,9 @@ class CashEntryController extends Controller
             'month'         => $month,
             'jenis'         => $jenis,
             'accountId'     => $accountId,
+            // $month null saat filter "semua bulan" → tombol kunci tak relevan.
+            'periodLock'    => $month ? app(CashPeriodService::class)->lockFor($year, $month) : null,
+            'canLock'       => (bool) optional(auth()->user())->hasRole('superadmin'),
             'categories'    => CashCategory::active()->orderBy('jenis')->orderBy('position')->get(),
             'allCategories' => CashCategory::orderBy('jenis')->orderBy('position')->get(),
             'accounts'      => CashAccount::active()->orderBy('position')->get(),
