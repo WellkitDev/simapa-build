@@ -18,6 +18,8 @@
     </div>
 </div>
 
+@include('accounting.partials.expense-warning')
+
 <div class="row">
     <div class="col-md-3 col-6 grid-margin stretch-card"><div class="card bg-dark text-white"><div class="card-body py-3"><div class="small text-white-50">Total Saldo Semua Akun</div><div class="h5 mb-0">{{ $rp($balances['total']) }}</div></div></div></div>
     <div class="col-md-3 col-6 grid-margin stretch-card"><div class="card"><div class="card-body py-3"><div class="text-muted small">Pemasukan YTD</div><div class="h5 mb-0 text-success">{{ $rp($ytd['totalIn']) }}</div></div></div></div>

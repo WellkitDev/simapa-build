@@ -15,6 +15,8 @@
     </form>
 </div>
 
+@include('accounting.partials.expense-warning')
+
 <div class="row"><div class="col-md-8 col-12 grid-margin stretch-card"><div class="card"><div class="card-body">
     <p class="mb-2">Profit dihitung: <strong>{{ $rp($result['profit']) }}</strong> · Anggota tim: <strong>{{ $result['members'] }}</strong>
         <small class="text-muted">(kosongkan input profit untuk pakai laba kas bulan)</small></p>

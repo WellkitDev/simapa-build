@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Pages;
 
 use App\Http\Controllers\Controller;
 use App\Services\CashRecapService;
+use App\Services\ExpenseGapService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 
@@ -19,6 +20,8 @@ class AccountingDashboardController extends Controller
             'year'  => $year,
             'recap' => $this->service->monthlyRecap($year),
             'ytd'   => $this->service->ytd($year),
+            'gap'          => app(ExpenseGapService::class)->check($year),
+            'periodeLabel' => 'sepanjang ' . $year,
         ]);
     }
 

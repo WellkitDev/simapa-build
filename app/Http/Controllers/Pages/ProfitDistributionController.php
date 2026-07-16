@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\CashDistribution;
 use App\Models\CashSetting;
 use App\Services\CashRecapService;
+use App\Services\ExpenseGapService;
 use App\Services\ProfitDistributionService;
 use Illuminate\Http\Request;
 
@@ -32,6 +33,8 @@ class ProfitDistributionController extends Controller
             'year'    => $year,
             'month'   => $month,
             'profit'  => $profit,
+            'gap'          => app(ExpenseGapService::class)->check($year, $month),
+            'periodeLabel' => 'pada ' . \Carbon\Carbon::create()->month($month)->translatedFormat('F') . ' ' . $year,
             'result'  => $this->service->distribute($profit, null),
             'rules'   => CashDistribution::orderBy('position')->get(),
             'setting' => CashSetting::singleton(),

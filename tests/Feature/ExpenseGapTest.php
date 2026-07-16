@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\CashAccount;
 use App\Models\CashCategory;
 use App\Models\CashEntry;
+use App\Models\User;
 use App\Services\ExpenseGapService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
@@ -80,5 +81,56 @@ class ExpenseGapTest extends TestCase
         $this->assertFalse($svc->check(2026, 1)['hasGap'], 'Januari punya pengeluaran.');
         $this->assertTrue($svc->check(2026, 2)['hasGap'], 'Februari tidak.');
         $this->assertFalse($svc->check(2026)['hasGap'], 'Setahun penuh: ada pengeluaran di Januari.');
+    }
+
+    private function superadmin(): User
+    {
+        $u = User::factory()->create();
+        $u->assignRole('superadmin');
+
+        return $u;
+    }
+
+    /** @test */
+    public function warning_appears_on_three_pages(): void
+    {
+        $u = $this->superadmin();
+        $pesan = 'Belum ada pengeluaran tercatat';
+
+        $this->actingAs($u)->get(route('accounting.distribution', ['year' => 2026, 'month' => 6]))
+            ->assertOk()->assertSee($pesan);
+        $this->actingAs($u)->get(route('accounting.dashboard', ['year' => 2026]))
+            ->assertOk()->assertSee($pesan);
+        $this->actingAs($u)->get(route('accounting.overview', ['year' => 2026]))
+            ->assertOk()->assertSee($pesan);
+    }
+
+    /** @test */
+    public function warning_absent_when_expense_exists(): void
+    {
+        $this->pengeluaran('2026-06-10');
+        $u = $this->superadmin();
+        $pesan = 'Belum ada pengeluaran tercatat';
+
+        $this->actingAs($u)->get(route('accounting.distribution', ['year' => 2026, 'month' => 6]))
+            ->assertOk()->assertDontSee($pesan);
+        $this->actingAs($u)->get(route('accounting.dashboard', ['year' => 2026]))
+            ->assertOk()->assertDontSee($pesan);
+        $this->actingAs($u)->get(route('accounting.overview', ['year' => 2026]))
+            ->assertOk()->assertDontSee($pesan);
+    }
+
+    /** @test */
+    public function warning_does_not_change_distribution(): void
+    {
+        // Peringatan hanya bicara — tak boleh diam-diam memotong laba.
+        // Keputusan user: hanya pengeluaran nyata di Jurnal Kas yang memotong.
+        $u = $this->superadmin();
+
+        $profit = $this->actingAs($u)
+            ->get(route('accounting.distribution', ['year' => 2026, 'month' => 6, 'profit' => 5_050_000]))
+            ->assertOk()->viewData('profit');
+
+        $this->assertSame(5_050_000.0, (float) $profit, 'Laba yang dibagi tak boleh berubah karena peringatan.');
     }
 }

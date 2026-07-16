@@ -24,6 +24,8 @@
     </div>
 </div>
 
+@include('accounting.partials.expense-warning')
+
 <div class="row">
     <div class="col-md-3 col-6 grid-margin stretch-card"><div class="card"><div class="card-body py-3"><div class="text-muted small">Total Pemasukan</div><div class="h5 mb-0 text-success">{{ $rp($ytd['totalIn']) }}</div></div></div></div>
     <div class="col-md-3 col-6 grid-margin stretch-card"><div class="card"><div class="card-body py-3"><div class="text-muted small">Total Pengeluaran</div><div class="h5 mb-0 text-danger">{{ $rp($ytd['totalOut']) }}</div></div></div></div>
