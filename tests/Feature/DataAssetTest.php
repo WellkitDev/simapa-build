@@ -78,7 +78,9 @@ class DataAssetTest extends TestCase
         $shar = DataAsset::create(['name' => 'Bareng', 'type' => 'link', 'url' => 'https://x', 'owner_id' => $a->id, 'visibility' => 'shared', 'shared_roles' => []]);
 
         $this->actingAs($b)->get(route('data.index'))->assertOk()->assertDontSee('Rahasia')->assertSee('Bareng');
-        $this->actingAs($b)->get(route('data.download', $priv->id))->assertForbidden();
+        $this->actingAs($b)->get(route('data.download', $priv->id))
+            ->assertRedirect(route('data.index'))
+            ->assertSessionHas('error', 'Kamu tidak punya akses ke data ini.');
     }
 
     /** @test */
@@ -91,13 +93,50 @@ class DataAssetTest extends TestCase
         $this->actingAs($a)->post(route('data.store'), ['name' => 'Milik A', 'type' => 'file', 'file' => $file, 'visibility' => 'shared', 'shared_roles' => []])->assertRedirect();
         $asset = DataAsset::where('name', 'Milik A')->first();
 
-        $this->actingAs($b)->get(route('data.edit', $asset->id))->assertForbidden();
-        $this->actingAs($b)->put(route('data.update', $asset->id), ['name' => 'Ubah', 'type' => 'link', 'url' => 'https://x', 'visibility' => 'private'])->assertForbidden();
-        $this->actingAs($b)->delete(route('data.destroy', $asset->id))->assertForbidden();
+        $pesanPemilik = 'Hanya pemilik yang bisa mengubah atau menghapus data ini.';
+        $this->actingAs($b)->get(route('data.edit', $asset->id))
+            ->assertRedirect(route('data.index'))->assertSessionHas('error', $pesanPemilik);
+        $this->actingAs($b)->put(route('data.update', $asset->id), ['name' => 'Ubah', 'type' => 'link', 'url' => 'https://x', 'visibility' => 'private'])
+            ->assertRedirect(route('data.index'))->assertSessionHas('error', $pesanPemilik);
+        $this->actingAs($b)->delete(route('data.destroy', $asset->id))
+            ->assertRedirect(route('data.index'))->assertSessionHas('error', $pesanPemilik);
 
         $path = $asset->file_path;
         $this->actingAs($a)->delete(route('data.destroy', $asset->id))->assertRedirect();
         $this->assertNull(DataAsset::find($asset->id));
         Storage::assertMissing($path);
+    }
+
+    /** @test */
+    public function download_of_deleted_asset_shows_alert(): void
+    {
+        Storage::fake();
+        $a = $this->user('marketing');
+        $file = UploadedFile::fake()->create('hapus.xlsx', 10, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $this->actingAs($a)->post(route('data.store'), ['name' => 'Akan Dihapus', 'type' => 'file', 'file' => $file, 'visibility' => 'private'])->assertRedirect();
+        $asset = DataAsset::where('name', 'Akan Dihapus')->first();
+        $id = $asset->id;
+        $asset->delete();
+
+        $this->actingAs($a)->get(route('data.download', $id))
+            ->assertRedirect(route('data.index'))
+            ->assertSessionHas('error', 'Data tidak ditemukan atau sudah dihapus.');
+    }
+
+    /** @test */
+    public function alert_message_distinguishes_reason(): void
+    {
+        $a = $this->user('marketing');
+        $b = $this->user('manager');
+        $shared = DataAsset::create(['name' => 'Dibagikan', 'type' => 'link', 'url' => 'https://x', 'owner_id' => $a->id, 'visibility' => 'shared', 'shared_roles' => []]);
+        $private = DataAsset::create(['name' => 'Pribadi', 'type' => 'link', 'url' => 'https://x', 'owner_id' => $a->id, 'visibility' => 'private']);
+
+        // Boleh lihat (shared) tapi bukan pemilik → pesan kepemilikan.
+        $this->actingAs($b)->get(route('data.edit', $shared->id))
+            ->assertSessionHas('error', 'Hanya pemilik yang bisa mengubah atau menghapus data ini.');
+
+        // Tak boleh lihat sama sekali → pesan akses.
+        $this->actingAs($b)->get(route('data.download', $private->id))
+            ->assertSessionHas('error', 'Kamu tidak punya akses ke data ini.');
     }
 }
