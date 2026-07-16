@@ -22,6 +22,7 @@ class AppServiceProvider extends ServiceProvider
         \Illuminate\Pagination\Paginator::useBootstrapFive();
 
         \App\Models\Payment::observe(\App\Observers\PaymentObserver::class);
+        \App\Models\CashEntry::observe(\App\Observers\CashEntryObserver::class);
 
         \Illuminate\Support\Facades\View::composer('layouts.partials.notifications', function ($view) {
             $user = \Illuminate\Support\Facades\Auth::user();
