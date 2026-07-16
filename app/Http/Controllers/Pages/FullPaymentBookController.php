@@ -15,10 +15,10 @@ class FullPaymentBookController extends Controller
     public function index()
     {
         //
-        // Ambil order yang total pembayarannya (status paid) >= cost_amount
+        // Ambil order yang uang bersihnya (pembayaran - refund) >= cost_amount
         $orders = Order::with(['payments.approval', 'details', 'contact', 'invoices'])
             ->whereHas('details', function($query) {
-                $query->whereRaw('(SELECT SUM(amount) FROM tb_payments WHERE tb_payments.order_id = tb_orders.id AND status = "paid") >= tb_order_details.cost_amount')
+                $query->whereRaw(Order::PAID_NET_SQL . ' >= tb_order_details.cost_amount')
                 ->when(Auth::user()->hasRole('marketing'), function ($q) {
                     return $q->where('user_id', Auth::id());
                 });

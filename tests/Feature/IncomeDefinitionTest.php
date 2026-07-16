@@ -104,6 +104,23 @@ class IncomeDefinitionTest extends TestCase
     }
 
     /** @test */
+    public function main_dashboard_total_income_excludes_refund(): void
+    {
+        // Dashboard utama menghitung uang masuk sendiri (bukan lewat service) —
+        // ikut terdampak bug yang sama.
+        $superadmin = User::factory()->create();
+        $superadmin->assignRole('superadmin');
+
+        $data = $this->actingAs($superadmin)->get(route('dashboard'))
+            ->assertOk()->viewData('data');
+
+        $this->assertSame(10_000_000, (int) $data['total_income'], 'Refund tak boleh menambah total_income dashboard.');
+        $this->assertSame(10_000_000, (int) array_sum($data['series_income']), 'Refund tak boleh muncul di grafik pemasukan harian.');
+        // Refund bukan "pembayaran diterima" — cacahnya harus sama dgn Laporan Keuangan.
+        $this->assertSame(1, (int) $data['total_payment'], 'Hanya 1 pembayaran diterima; refund tak dihitung.');
+    }
+
+    /** @test */
     public function laporan_keuangan_matches_jurnal_kas(): void
     {
         // PaymentObserver sudah menyinkron kedua Payment ke tb_cash_entries.
