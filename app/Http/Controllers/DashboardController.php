@@ -60,15 +60,15 @@ class DashboardController extends Controller
             ->when($isMarketing, fn($q) => $q->where('user_id', $userId))
             ->groupBy('date')->pluck('total', 'date');
 
-        // B. Daily Income (Sum)
+        // B. Daily Income (Sum) — income() = uang masuk kanonik (paid, bukan refund).
         $dailyIncome = Payment::select(DB::raw('DATE(paid_at) as date'), DB::raw('sum(amount) as total'))
-            ->where('status', 'paid')->where('paid_at', '>=', $startDate)
+            ->income()->where('paid_at', '>=', $startDate)
             ->whereHas('order', fn($q) => $isMarketing ? $q->where('user_id', $userId) : $q)
             ->groupBy('date')->pluck('total', 'date');
 
-        // C. Daily Payments (Count)
+        // C. Daily Payments (Count) — pembayaran diterima, refund bukan pembayaran.
         $dailyPayments = Payment::select(DB::raw('DATE(paid_at) as date'), DB::raw('count(*) as total'))
-            ->where('status', 'paid')->where('paid_at', '>=', $startDate)
+            ->income()->where('paid_at', '>=', $startDate)
             ->whereHas('order', fn($q) => $isMarketing ? $q->where('user_id', $userId) : $q)
             ->groupBy('date')->pluck('total', 'date');
 
@@ -100,10 +100,10 @@ class DashboardController extends Controller
         // Masukkan ke array data utama
         $data = [
             'total_orders'  => Order::when($isMarketing, fn($q) => $q->where('user_id', $userId))->count(),
-            'total_income'  => Payment::where('status', 'paid')
+            'total_income'  => Payment::income()
                                 ->whereHas('order', fn($q) => $isMarketing ? $q->where('user_id', $userId) : $q)
                                 ->sum('amount'),
-            'total_payment' => Payment::where('status', 'paid')
+            'total_payment' => Payment::income()
                                 ->whereHas('order', fn($q) => $isMarketing ? $q->where('user_id', $userId) : $q)
                                 ->count(),
             'total_approve' => PaymentApproval::where('status', 'approved')

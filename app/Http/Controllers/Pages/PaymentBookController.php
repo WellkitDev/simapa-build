@@ -69,7 +69,7 @@ class PaymentBookController extends Controller
 
         // LOGIKA PERHITUNGAN
         $totalCost = $firstDetail->cost_amount;
-        $alreadyPaid = $order->payments->where('status', 'paid')->sum('amount');
+        $alreadyPaid = $order->paidNet();
         $remainingBalance = $totalCost - $alreadyPaid;
 
         // Jika sudah lunas tapi masih buka halaman ini
@@ -246,7 +246,7 @@ class PaymentBookController extends Controller
 
             $order = $payment->order;
             $cost  = $order->details->cost_amount ?? 0;
-            $paid  = $order->payments()->where('status', 'paid')->sum('amount');
+            $paid  = $order->paidNet();
             $order->update(['status' => ($cost - $paid) <= 0 ? 'lunas' : 'pending']);
         });
 

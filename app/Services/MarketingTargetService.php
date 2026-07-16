@@ -20,7 +20,7 @@ class MarketingTargetService
         $start = $target->start_date;
         $end   = $target->end_date;
 
-        $realisasi = (int) Payment::approved()->forOrdersOf($target->user)
+        $realisasi = (int) Payment::income()->forOrdersOf($target->user)
             ->whereBetween('paid_at', [$start->copy()->startOfDay(), $end->copy()->endOfDay()])
             ->sum('amount');
 

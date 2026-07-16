@@ -47,14 +47,28 @@ class Order extends Model
        return $this->belongsTo(User::class, 'user_id', 'id');
     }
 
-    /** Lunas bila ada invoice berstatus 'lunas' atau total pembayaran 'paid' >= biaya. */
+    /**
+     * Uang bersih yang diterima untuk order ini: pembayaran masuk - refund.
+     * Dipakai semua pertanyaan "sudah dibayar berapa" (lunas, sisa, arsip).
+     * BEDA dari Payment::income() (pelaporan, refund dikecualikan) — lihat
+     * docs/superpowers/specs/2026-07-17-paid-net-refund-design.md.
+     */
+    public function paidNet(): int
+    {
+        return (int) $this->payments()->income()->sum('amount')
+             - (int) $this->payments()->refund()->sum('amount');
+    }
+
+    /** Versi SQL dari paidNet() untuk filter di query (harus setara — dikunci PaidNetTest). */
+    public const PAID_NET_SQL = "(SELECT COALESCE(SUM(CASE WHEN payment_type = 'refund' THEN -amount ELSE amount END), 0) FROM tb_payments WHERE tb_payments.order_id = tb_orders.id AND tb_payments.status = 'paid')";
+
+    /** Lunas bila ada invoice berstatus 'lunas' atau uang bersih >= biaya. */
     public function isLunas(): bool
     {
         if ($this->invoices()->where('status', 'lunas')->exists()) {
             return true;
         }
-        $paid = (int) $this->payments()->where('status', 'paid')->sum('amount');
-        $cost = (int) optional($this->details)->cost_amount;
-        return $paid >= $cost;
+
+        return $this->paidNet() >= (int) optional($this->details)->cost_amount;
     }
 }

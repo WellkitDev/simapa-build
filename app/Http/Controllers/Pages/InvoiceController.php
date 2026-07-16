@@ -47,7 +47,7 @@ class InvoiceController extends Controller
         $payments = Payment::where('status', 'paid')->get();
 
         $totalCost        = (int) ($invoice->order->details->cost_amount ?? 0);
-        $alreadyPaid      = (int) $invoice->order->payments()->where('status', 'paid')->sum('amount');
+        $alreadyPaid      = $invoice->order->paidNet();
         $remainingBalance = max($totalCost - $alreadyPaid, 0);
 
         return view('payments.invoices.edit', compact('invoice', 'orders', 'payments', 'totalCost', 'alreadyPaid', 'remainingBalance'));
@@ -97,7 +97,7 @@ class InvoiceController extends Controller
 
                 $order = $invoice->order;
                 $cost  = $order->details->cost_amount ?? 0;
-                $paid  = $order->payments()->where('status', 'paid')->sum('amount');
+                $paid  = $order->paidNet();
                 $order->update(['status' => ($cost - $paid) <= 0 ? 'lunas' : 'pending']);
 
                 // status invoice tidak berubah; log mencatat koreksi pembayaran, bukan transisi status.

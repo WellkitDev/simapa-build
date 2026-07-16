@@ -331,12 +331,9 @@ class OrderBookController extends Controller
         $firstDetail = $order->details;
 
         // Hitung Keuangan
-        // Pastikan hanya menjumlahkan pembayaran yang statusnya 'paid' atau 'approved'
         $totalCost = $firstDetail->cost_amount ?? 0;
 
-        $alreadyPaid = $order->payments
-        ->where('status', 'paid')
-        ->sum('amount');
+        $alreadyPaid = $order->paidNet();
 
         $remainingBalance = $totalCost - $alreadyPaid;
 

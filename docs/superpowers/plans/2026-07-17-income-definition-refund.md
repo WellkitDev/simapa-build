@@ -10,6 +10,12 @@
 
 **Spec:** `docs/superpowers/specs/2026-07-17-income-definition-refund-design.md`
 
+> **Koreksi pasca-eksekusi (2026-07-17).** Dua premis di atas terbukti keliru saat Task 2 Step 2:
+> 1. **`approved()` ternyata NOL pemanggil** setelah 4 pemanggil pindah — cek lunas memakai `where('status','paid')` inline, tak pernah lewat scope. Scope-nya kemudian **dihapus** (jebakan: namanya mengundang pemakaian untuk menjumlahkan uang). Lihat `docs/superpowers/specs/2026-07-17-paid-net-refund-design.md` §3.
+> 2. **Pemanggil kelima terlewat:** `DashboardController` (dashboard utama) menghitung uang masuk sendiri di luar `app/Services/`. Diperbaiki di siklus lanjutan (commit `ab5a86b`).
+>
+> Selain itu ditemukan **bug kembar** di sisi kelunasan (refund membuat order tampak lunas) — ditangani `Order::paidNet()`, plan `2026-07-17-paid-net-refund.md`.
+
 ---
 
 ## Konvensi
@@ -40,7 +46,7 @@
 - Modify: `app/Services/MarketingDashboardService.php:22-23`
 - Modify: `app/Services/MarketingTargetService.php:23`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `tests/Feature/IncomeDefinitionTest.php`. Fixture meniru pola `PaymentCashSyncTest` (Order/OrderDetail dibuat eksplisit — factory OrderDetail tak dipakai di suite ini):
 
@@ -172,12 +178,12 @@ class IncomeDefinitionTest extends TestCase
 }
 ```
 
-- [ ] **Step 2: Jalankan test — pastikan GAGAL**
+- [x] **Step 2: Jalankan test — pastikan GAGAL**
 
 Run: `php artisan test --filter=IncomeDefinitionTest`
 Expected: **FAIL**. `pemasukan_excludes_refund` → `14000000 is not identical to 10000000`; `piutang_paid_excludes_refund` → dibayar 14jt, sisa -4jt; `marketing_dashboard_income_excludes_refund` → 14jt; `marketing_target_realisasi_excludes_refund` → realisasi 14jt, komisi 700rb; `laporan_keuangan_matches_jurnal_kas` → 14jt vs 10jt. `refund_still_recorded_as_expense` **LULUS** sejak awal (Jurnal Kas memang sudah benar) — itu memang perannya: penjaga agar sisi yang sudah benar tak ikut rusak.
 
-- [ ] **Step 3: Tambah scope kanonik**
+- [x] **Step 3: Tambah scope kanonik**
 
 Di `app/Models/Payment.php`, sisipkan tepat **setelah** `scopeApproved()` (yang berakhir di baris 47) dan **sebelum** `scopeForOrdersOf()`:
 
@@ -196,7 +202,7 @@ Di `app/Models/Payment.php`, sisipkan tepat **setelah** `scopeApproved()` (yang 
 
 **JANGAN** ubah atau hapus `scopeApproved()` — ia berarti "pembayaran sudah disetujui" dan sah dipakai di konteks non-pemasukan (mis. menghitung apakah order lunas, di mana refund justru relevan).
 
-- [ ] **Step 4: Pindahkan `FinancialReportService` (2 baris)**
+- [x] **Step 4: Pindahkan `FinancialReportService` (2 baris)**
 
 Baris 23, di `pemasukan()`:
 
@@ -210,7 +216,7 @@ Baris 52, di `piutang()`:
             ->withSum(['payments as total_paid' => fn ($q) => $q->income()], 'amount')
 ```
 
-- [ ] **Step 5: Pindahkan `MarketingDashboardService` (komentar + 1 baris)**
+- [x] **Step 5: Pindahkan `MarketingDashboardService` (komentar + 1 baris)**
 
 Ganti baris 22-23:
 
@@ -219,7 +225,7 @@ Ganti baris 22-23:
         $income = fn () => Payment::income()->forOrdersOf($user);
 ```
 
-- [ ] **Step 6: Pindahkan `MarketingTargetService` (1 baris)**
+- [x] **Step 6: Pindahkan `MarketingTargetService` (1 baris)**
 
 Baris 23, di `progressFor()`:
 
@@ -227,12 +233,12 @@ Baris 23, di `progressFor()`:
         $realisasi = (int) Payment::income()->forOrdersOf($target->user)
 ```
 
-- [ ] **Step 7: Jalankan test — pastikan LULUS**
+- [x] **Step 7: Jalankan test — pastikan LULUS**
 
 Run: `php artisan test --filter=IncomeDefinitionTest`
 Expected: **PASS**, 6 test.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add app/Models/Payment.php app/Services/FinancialReportService.php app/Services/MarketingDashboardService.php app/Services/MarketingTargetService.php tests/Feature/IncomeDefinitionTest.php
@@ -263,25 +269,25 @@ Co-authored-by: Mira <admin@avidpedia.com>
 
 **Files:** tak ada perubahan kode kecuali bila Step 2 menemukan sesuatu.
 
-- [ ] **Step 1: Suite penuh**
+- [x] **Step 1: Suite penuh**
 
 Run: `php artisan test`
 Expected: PASS semua (**514** = 508 + 6 test baru).
 
 **Bila ada test lama yang GAGAL:** kemungkinan besar ia mengunci angka lama yang mengandung refund. Itu **temuan, bukan gangguan** — baca test itu, pastikan angka barunya memang benar (refund dikecualikan), perbaiki, dan **sebutkan di laporan**. Jangan sesuaikan angka diam-diam sampai hijau.
 
-- [ ] **Step 2: Tinjau sisa pemakai `approved()`**
+- [x] **Step 2: Tinjau sisa pemakai `approved()`**
 
 Run: `grep -rn "approved()" app/ --include=*.php`
 
 Untuk tiap hasil, putuskan: apakah ia bertanya *"berapa uang masuk"* (harusnya `income()`) atau *"apakah pembayaran ini disetujui/lunas"* (tetap `approved()`)? Yang diketahui saat plan ditulis: `FinancialReportService`, `MarketingDashboardService`, `MarketingTargetService` — ketiganya sudah dipindah di Task 1. Bila muncul pemakai lain yang menghitung uang masuk, **laporkan ke user** sebelum mengubahnya (di luar scope spec, perlu keputusan).
 
-- [ ] **Step 3: Blade tetap sehat**
+- [x] **Step 3: Blade tetap sehat**
 
 Run: `php artisan view:cache && php artisan view:clear`
 Expected: "Blade templates cached successfully." tanpa error.
 
-- [ ] **Step 4: Centang plan + commit**
+- [x] **Step 4: Centang plan + commit**
 
 ```bash
 git add docs/superpowers/plans/2026-07-17-income-definition-refund.md
