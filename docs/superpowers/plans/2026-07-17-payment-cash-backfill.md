@@ -34,7 +34,7 @@
 - Create: `tests/Feature/PaymentCashBackfillTest.php`
 - Create: `app/Services/PaymentCashBackfillService.php`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `tests/Feature/PaymentCashBackfillTest.php`. Fixture meniru `PaymentCashSyncTest`. Catatan penting: `PaymentObserver` aktif, jadi membuat payment **otomatis** membuat entri kas — untuk meniru "payment lama tanpa entri", entri dikosongkan dulu dengan `CashEntry::query()->delete()`.
 
@@ -197,12 +197,12 @@ class PaymentCashBackfillTest extends TestCase
 }
 ```
 
-- [ ] **Step 2: Jalankan test — pastikan GAGAL**
+- [x] **Step 2: Jalankan test — pastikan GAGAL**
 
 Run: `php artisan test --filter=PaymentCashBackfillTest`
 Expected: **FAIL** — `Class "App\Services\PaymentCashBackfillService" not found` di semua test.
 
-- [ ] **Step 3: Buat service**
+- [x] **Step 3: Buat service**
 
 Buat `app/Services/PaymentCashBackfillService.php`:
 
@@ -263,14 +263,14 @@ class PaymentCashBackfillService
 }
 ```
 
-- [ ] **Step 4: Jalankan test — pastikan LULUS**
+- [x] **Step 4: Jalankan test — pastikan LULUS**
 
 Run: `php artisan test --filter=PaymentCashBackfillTest`
 Expected: **PASS**, 6 test.
 
 > Bila `refuses_when_opening_balance_set` gagal karena nama kolom saldo awal per akun bukan `opening_balance`, baca `database/migrations/2026_07_04_000009_create_cash_accounts_and_transfer_fields.php` + `app/Models/CashAccount.php` dan sesuaikan **service dan test** ke nama sebenarnya — jangan melemahkan guard-nya.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/Services/PaymentCashBackfillService.php tests/Feature/PaymentCashBackfillTest.php
@@ -300,7 +300,7 @@ Co-authored-by: Mira <admin@avidpedia.com>
 **Files:**
 - Create: `database/migrations/2026_07_17_000001_backfill_payments_to_cash_entries.php`
 
-- [ ] **Step 1: Buat migrasi**
+- [x] **Step 1: Buat migrasi**
 
 ```php
 <?php
@@ -323,14 +323,14 @@ return new class extends Migration
 };
 ```
 
-- [ ] **Step 2: Suite penuh**
+- [x] **Step 2: Suite penuh**
 
 Run: `php artisan test`
 Expected: PASS semua (**529** = 523 + 6 test baru).
 
 **Bila test lama GAGAL** karena kini ada entri kas yang dulu tak ada (migrasi ikut jalan di `RefreshDatabase`): itu **temuan** — baca test itu, pastikan perilaku barunya benar, perbaiki, **sebutkan di laporan**. Jangan sesuaikan diam-diam sampai hijau.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add database/migrations/2026_07_17_000001_backfill_payments_to_cash_entries.php
@@ -343,7 +343,7 @@ git commit -F <path-pesan>   # feat(accounting): migrasi data backfill payment k
 
 **Files:** tak ada perubahan kode. **Ini inti pekerjaannya** — test membuktikan aturannya benar; langkah ini membuktikan data nyatanya sembuh.
 
-- [ ] **Step 1: Ukur SEBELUM**
+- [x] **Step 1: Ukur SEBELUM**
 
 ```bash
 php artisan tinker --execute="
@@ -355,19 +355,19 @@ echo 'Entri kas: '.\App\Models\CashEntry::count().PHP_EOL;"
 
 Expected (per pengukuran 2026-07-17): Laporan 80.600.000 | Jurnal 6.500.000 | Selisih 74.100.000 | Entri kas 1.
 
-- [ ] **Step 2: Migrasi dev**
+- [x] **Step 2: Migrasi dev**
 
 Run: `php artisan migrate`
 Expected: `2026_07_17_000001_backfill_payments_to_cash_entries .... DONE`, tanpa exception (saldo awal dev = 0, guard tak menyala).
 
-- [ ] **Step 3: Ukur SESUDAH — selisih harus NOL**
+- [x] **Step 3: Ukur SESUDAH — selisih harus NOL**
 
 Jalankan perintah tinker yang sama seperti Step 1.
 Expected: **Selisih: 0**, entri kas ≈ 135 (semua payment `paid`).
 
 **Bila selisih ≠ 0:** JANGAN dilanjutkan. Selidiki — kemungkinan ada payment `paid` dengan `paid_at` null (tak masuk `whereYear`) atau entri kas manual. Laporkan temuannya.
 
-- [ ] **Step 4: Periksa kategori tak terpetakan**
+- [x] **Step 4: Periksa kategori tak terpetakan**
 
 ```bash
 php artisan tinker --execute="
@@ -377,12 +377,12 @@ echo 'Entri tanpa akun    : '.\App\Models\CashEntry::whereNull('account_id')->co
 
 Bila banyak yang null, **laporkan** (tipe order tak dikenal / akun income-default belum ada) — bukan penggugur backfill, tapi user perlu tahu.
 
-- [ ] **Step 5: Lihat halaman Keuangan sungguhan**
+- [x] **Step 5: Lihat halaman Keuangan sungguhan**
 
 `php artisan serve --port=8125` di background, login superadmin (buat user sementara bila perlu, hapus setelahnya), buka `/accounting/journal` dan `/accounting/dashboard`.
 Expected: Jurnal Kas berisi banyak baris (bukan 1); Dashboard menampilkan tren beberapa bulan. Matikan server + bersihkan user sementara setelah selesai.
 
-- [ ] **Step 6: Centang plan + commit**
+- [x] **Step 6: Centang plan + commit**
 
 ```bash
 git add docs/superpowers/plans/2026-07-17-payment-cash-backfill.md
