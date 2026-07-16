@@ -19,8 +19,8 @@ class MarketingDashboardService
         $uid   = $user->id;
         $today = Carbon::today();
 
-        // Definisi kanonik (sama dengan FinancialReportService): uang masuk = Payment status paid, scoped order user.
-        $income = fn () => Payment::approved()->forOrdersOf($user);
+        // Uang masuk = definisi kanonik Payment::income() (paid, bukan refund), scoped order user.
+        $income = fn () => Payment::income()->forOrdersOf($user);
 
         $prog = fn () => TitleProgress::query()
             ->whereHas('orderDetail.order', fn ($q) => $q->where('user_id', $uid));

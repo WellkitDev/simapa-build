@@ -20,7 +20,7 @@ class FinancialReportService
     public function pemasukan(?User $scopeUser): array
     {
         $year = now()->year;
-        $q = fn () => Payment::approved()->forOrdersOf($scopeUser);
+        $q = fn () => Payment::income()->forOrdersOf($scopeUser);
 
         $kpi = [
             'total'      => (int) $q()->whereYear('paid_at', $year)->sum('amount'),
@@ -49,7 +49,7 @@ class FinancialReportService
         $orders = Order::where('status', '!=', 'lunas')
             ->when($scopeUser, fn ($q) => $q->where('user_id', $scopeUser->id))
             ->with(['details', 'contact'])
-            ->withSum(['payments as total_paid' => fn ($q) => $q->approved()], 'amount')
+            ->withSum(['payments as total_paid' => fn ($q) => $q->income()], 'amount')
             ->orderByDesc('updated_at')
             ->get()
             ->map(function ($o) {

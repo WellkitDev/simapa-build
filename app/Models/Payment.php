@@ -46,6 +46,17 @@ class Payment extends Model
         return $query->where('status', 'paid');
     }
 
+    /**
+     * Uang masuk kanonik: pembayaran diterima, BUKAN refund.
+     * Refund = uang keluar → dicatat sebagai pengeluaran di Jurnal Kas
+     * (PaymentCashSyncService). Dipakai semua tempat yang bertanya
+     * "berapa uang masuk": Laporan Keuangan, Dashboard & Target Marketing.
+     */
+    public function scopeIncome($query)
+    {
+        return $query->where('status', 'paid')->where('payment_type', '!=', 'refund');
+    }
+
     /** Scope ke order milik $user (marketing). Bila null → tanpa filter (manager/superadmin). */
     public function scopeForOrdersOf($query, ?User $user)
     {
