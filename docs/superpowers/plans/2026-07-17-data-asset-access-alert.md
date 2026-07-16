@@ -35,7 +35,7 @@
 - Modify: `app/Http/Controllers/Pages/DataAssetController.php` (method `edit`/`update`/`download`/`destroy` + 2 helper baru)
 - Test: `tests/Feature/DataAssetTest.php` (baris 81, 94-96 + 2 test baru)
 
-- [ ] **Step 1: Ubah 4 assertion existing jadi redirect+alert (fase merah)**
+- [x] **Step 1: Ubah 4 assertion existing jadi redirect+alert (fase merah)**
 
 Di `tests/Feature/DataAssetTest.php`, ganti baris 81 (di dalam `private_hidden_shared_visible`):
 
@@ -59,7 +59,7 @@ Ganti baris 94-96 (di dalam `only_owner_edits_and_deletes`):
 
 > Perhatikan: assertion setelahnya (`$this->assertNull(DataAsset::find($asset->id))` + `Storage::assertMissing($path)`) **tetap** — itu yang membuktikan akses sungguh diblokir, bukan cuma dialihkan. Jangan hapus.
 
-- [ ] **Step 2: Tambah 2 test baru (masih fase merah)**
+- [x] **Step 2: Tambah 2 test baru (masih fase merah)**
 
 Tambahkan di akhir class `DataAssetTest`, sebelum `}` penutup:
 
@@ -98,12 +98,12 @@ Tambahkan di akhir class `DataAssetTest`, sebelum `}` penutup:
     }
 ```
 
-- [ ] **Step 3: Jalankan test — pastikan GAGAL**
+- [x] **Step 3: Jalankan test — pastikan GAGAL**
 
 Run: `php artisan test --filter=DataAssetTest`
 Expected: **FAIL**. `private_hidden_shared_visible` & `only_owner_edits_and_deletes` gagal karena respons masih 403 (`Response status code [403] is not a redirect status code`); `download_of_deleted_asset_shows_alert` gagal karena `findOrFail` melempar 404; `alert_message_distinguishes_reason` gagal karena session tak punya `error`.
 
-- [ ] **Step 4: Buat exception**
+- [x] **Step 4: Buat exception**
 
 Buat `app/Exceptions/DataAssetAccessException.php`:
 
@@ -143,7 +143,7 @@ class DataAssetAccessException extends Exception
 }
 ```
 
-- [ ] **Step 5: Pasang helper di controller**
+- [x] **Step 5: Pasang helper di controller**
 
 Di `app/Http/Controllers/Pages/DataAssetController.php`, tambah import di bawah `use App\Models\DataAsset;`:
 
@@ -181,7 +181,7 @@ Tambahkan 2 helper privat tepat sebelum `private function validated(`:
     }
 ```
 
-- [ ] **Step 6: Pakai helper di 4 method**
+- [x] **Step 6: Pakai helper di 4 method**
 
 `edit` — ganti 2 baris pertama:
 
@@ -237,12 +237,12 @@ Tambahkan 2 helper privat tepat sebelum `private function validated(`:
     }
 ```
 
-- [ ] **Step 7: Jalankan test — pastikan LULUS**
+- [x] **Step 7: Jalankan test — pastikan LULUS**
 
 Run: `php artisan test --filter=DataAssetTest`
 Expected: **PASS**, 7 test (5 lama + 2 baru).
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add app/Exceptions/DataAssetAccessException.php app/Http/Controllers/Pages/DataAssetController.php tests/Feature/DataAssetTest.php
@@ -271,17 +271,17 @@ Co-authored-by: Mira <admin@avidpedia.com>
 
 **Files:** tak ada perubahan kode; hanya menjalankan & mengamati.
 
-- [ ] **Step 1: Suite penuh**
+- [x] **Step 1: Suite penuh**
 
 Run: `php artisan test`
 Expected: PASS semua (**508** = 506 sebelumnya + 2 test baru).
 
-- [ ] **Step 2: Blade tetap sehat**
+- [x] **Step 2: Blade tetap sehat**
 
 Run: `php artisan view:cache && php artisan view:clear`
 Expected: "Blade templates cached successfully." tanpa error.
 
-- [ ] **Step 3: Verifikasi alert sungguhan lewat HTTP**
+- [x] **Step 3: Verifikasi alert sungguhan lewat HTTP**
 
 Alert adalah perilaku **browser** — test hanya membuktikan `session('error')` terisi, bukan bahwa popupnya muncul. Buktikan HTML-nya benar-benar memanggil `swalError`:
 
@@ -299,11 +299,11 @@ curl -s -b penyusup.jar http://127.0.0.1:8123/gudang | grep -o "swalError(.*)"
 
 Expected: redirect 302 ke `/gudang`, dan halaman berikutnya memuat `window.swalError("Kamu tidak punya akses ke data ini.")`.
 
-- [ ] **Step 4: Bersihkan**
+- [x] **Step 4: Bersihkan**
 
 Hapus 2 user sementara (`forceDelete`) + aset ujinya, matikan server, pastikan `DataAsset::count()` dan `storage/app/data-assets/` kembali seperti semula, dan `git status` bersih dari sampah uji.
 
-- [ ] **Step 5: Centang plan ini + commit**
+- [x] **Step 5: Centang plan ini + commit**
 
 ```bash
 git add docs/superpowers/plans/2026-07-17-data-asset-access-alert.md
