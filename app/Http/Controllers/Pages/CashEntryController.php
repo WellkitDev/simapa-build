@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers\Pages;
 
+use App\Exceptions\CashEntryGuardException;
 use App\Http\Controllers\Controller;
 use App\Models\CashAccount;
 use App\Models\CashCategory;
 use App\Models\CashEntry;
 use App\Services\CashJournalService;
+use App\Services\CashPeriodService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -106,6 +108,7 @@ class CashEntryController extends Controller
     public function store(Request $request)
     {
         $data = $this->validated($request);
+        app(CashPeriodService::class)->assertUnlocked($data['tanggal']);
         $data['account_id'] = $data['account_id'] ?? optional(CashAccount::incomeDefault())->id;
         $data['kode']       = $this->service->deriveKode(Carbon::parse($data['tanggal']));
         $data['source']     = 'manual';
@@ -125,6 +128,8 @@ class CashEntryController extends Controller
             'tanggal'         => 'required|date',
             'catatan'         => 'nullable|string',
         ]);
+
+        app(CashPeriodService::class)->assertUnlocked($data['tanggal']);
 
         $from = CashAccount::find($data['from_account_id']);
         $to   = CashAccount::find($data['to_account_id']);
@@ -147,7 +152,13 @@ class CashEntryController extends Controller
     public function update(Request $request, int $id)
     {
         $entry = CashEntry::findOrFail($id);
+        if ($entry->source === 'payment') {
+            throw CashEntryGuardException::autoEntry();
+        }
         $data = $this->validated($request);
+        $periode = app(CashPeriodService::class);
+        $periode->assertUnlocked($entry->tanggal);   // tanggal LAMA
+        $periode->assertUnlocked($data['tanggal']);  // tanggal BARU
         $data['account_id'] = $data['account_id'] ?? optional(CashAccount::incomeDefault())->id;
         $data['kode'] = $this->service->deriveKode(Carbon::parse($data['tanggal']));
         $entry->update($data);
@@ -158,6 +169,11 @@ class CashEntryController extends Controller
     public function destroy(int $id)
     {
         $entry = CashEntry::findOrFail($id);
+        if ($entry->source === 'payment') {
+            throw CashEntryGuardException::autoEntry();
+        }
+        app(CashPeriodService::class)->assertUnlocked($entry->tanggal);
+
         if ($entry->is_transfer && $entry->transfer_group) {
             CashEntry::where('transfer_group', $entry->transfer_group)->delete();
             return back()->with('success', 'Transfer dihapus (kedua sisi).');

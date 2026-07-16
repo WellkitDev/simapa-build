@@ -347,6 +347,13 @@ Route::middleware('auth')->group(function () {
         Route::put('accounting/account/{id}', [\App\Http\Controllers\Pages\CashAccountController::class, 'update'])->name('accounting.account.update')->whereNumber('id');
         Route::delete('accounting/account/{id}', [\App\Http\Controllers\Pages\CashAccountController::class, 'destroy'])->name('accounting.account.destroy')->whereNumber('id');
         Route::post('accounting/transfer', [\App\Http\Controllers\Pages\CashEntryController::class, 'transfer'])->name('accounting.transfer.store');
+
+        // Kunci/buka kunci periode = tata kelola, bukan pembukuan harian → superadmin saja.
+        Route::middleware('role:superadmin')->group(function () {
+            Route::post('accounting/period/lock', [\App\Http\Controllers\Pages\CashPeriodController::class, 'lock'])->name('accounting.period.lock');
+            Route::post('accounting/period/unlock', [\App\Http\Controllers\Pages\CashPeriodController::class, 'unlock'])->name('accounting.period.unlock');
+        });
+        Route::get('accounting/audit', [\App\Http\Controllers\Pages\CashPeriodController::class, 'audit'])->name('accounting.audit');
     });
 
     //Gudang Data
