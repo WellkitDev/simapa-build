@@ -8,6 +8,7 @@ use App\Models\CashSetting;
 use App\Services\BudgetTargetService;
 use App\Services\CashJournalService;
 use App\Services\CashRecapService;
+use App\Services\ExpenseGapService;
 use Illuminate\Http\Request;
 
 class AccountingOverviewController extends Controller
@@ -31,6 +32,9 @@ class AccountingOverviewController extends Controller
         $pct = $ytdTarget > 0 ? (int) round($ytdRealisasi / $ytdTarget * 100) : 0;
         $fixedMonthly = CashFixedExpense::where('active', true)->get()->sum(fn ($e) => $e->monthlyAmount());
 
-        return view('accounting.overview', compact('year', 'balances', 'ytd', 'ytdRealisasi', 'ytdTarget', 'pct', 'fixedMonthly'));
+        $gap = app(ExpenseGapService::class)->check($year);
+        $periodeLabel = 'sepanjang ' . $year;
+
+        return view('accounting.overview', compact('year', 'balances', 'ytd', 'ytdRealisasi', 'ytdTarget', 'pct', 'fixedMonthly', 'gap', 'periodeLabel'));
     }
 }
