@@ -6,6 +6,7 @@ use App\Models\Invoice;
 use App\Models\Order;
 use App\Models\OrderDetail;
 use App\Models\Payment;
+use App\Models\Title;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -138,6 +139,25 @@ class PaidNetTest extends TestCase
 
             $this->assertSame($php, $sql, "SQL dan PHP harus sepakat (bayar $bayar, refund $refund).");
         }
+    }
+
+    /** @test */
+    public function refunded_order_not_archive_eligible(): void
+    {
+        // isPaidOff() adalah gerbang kelayakan Arsip Judul — order yang uangnya
+        // sebagian dikembalikan tak boleh lolos.
+        $order = $this->order(10_000_000);
+        $this->pay($order, 10_000_000);
+        $this->pay($order, 4_000_000, 'refund');
+
+        $title = Title::create([
+            'title' => 'Judul Arsip Uji', 'jenis' => 'buku', 'tipe_naskah' => 'mandiri',
+            'status' => 'disetujui', 'asal' => 'order', 'code' => 'JAU1', // kolom code max 16 char
+            'slug' => 'jau-' . uniqid(),
+        ]);
+        $order->details->update(['title_id' => $title->id]);
+
+        $this->assertFalse($title->fresh()->isPaidOff(), 'Order direfund → judul belum lunas → tak layak arsip.');
     }
 
     /** @test */

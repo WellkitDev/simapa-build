@@ -37,7 +37,7 @@
 - Modify: `app/Models/Payment.php` (setelah `scopeIncome`; hapus `scopeApproved` baris 44-47)
 - Modify: `app/Models/Order.php` (`isLunas()` baris 51-59)
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `tests/Feature/PaidNetTest.php`:
 
@@ -195,12 +195,12 @@ class PaidNetTest extends TestCase
 }
 ```
 
-- [ ] **Step 2: Jalankan test — pastikan GAGAL**
+- [x] **Step 2: Jalankan test — pastikan GAGAL**
 
 Run: `php artisan test --filter=PaidNetTest`
 Expected: **FAIL**. `paidNet()` belum ada → `BadMethodCallException`/`Error: Call to undefined method`; `Order::PAID_NET_SQL` belum ada → `Undefined constant`; `approved_scope_is_gone` gagal karena scope masih ada. `no_refund_is_unaffected` & `lunas_invoice_shortcut_still_wins` juga gagal (memanggil `paidNet()`).
 
-- [ ] **Step 3: Tambah `scopeRefund`, hapus `scopeApproved`**
+- [x] **Step 3: Tambah `scopeRefund`, hapus `scopeApproved`**
 
 Di `app/Models/Payment.php`: **hapus seluruh** method `scopeApproved()` (baris 44-47, termasuk docblock bila ada). Lalu tambahkan `scopeRefund` tepat setelah `scopeIncome()`:
 
@@ -212,7 +212,7 @@ Di `app/Models/Payment.php`: **hapus seluruh** method `scopeApproved()` (baris 4
     }
 ```
 
-- [ ] **Step 4: Tambah `paidNet()` + `PAID_NET_SQL` + pakai di `isLunas()`**
+- [x] **Step 4: Tambah `paidNet()` + `PAID_NET_SQL` + pakai di `isLunas()`**
 
 Di `app/Models/Order.php`, ganti seluruh `isLunas()` (baris 50-59) dengan:
 
@@ -245,12 +245,12 @@ Di `app/Models/Order.php`, ganti seluruh `isLunas()` (baris 50-59) dengan:
 
 > Konstanta harus berada di dalam class `Order` (boleh di atas method — PHP tak peduli urutan), namun letakkan bersebelahan dengan `paidNet()` agar keduanya dibaca bersamaan.
 
-- [ ] **Step 5: Jalankan test — pastikan LULUS**
+- [x] **Step 5: Jalankan test — pastikan LULUS**
 
 Run: `php artisan test --filter=PaidNetTest`
 Expected: **PASS**, 7 test.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add app/Models/Payment.php app/Models/Order.php tests/Feature/PaidNetTest.php
@@ -287,7 +287,7 @@ Co-authored-by: Mira <admin@avidpedia.com>
 - Modify: `app/Http/Controllers/Pages/OrderBookController.php:336-340`
 - Modify: `app/Http/Controllers/Pages/FullPaymentBookController.php:21`
 
-- [ ] **Step 1: `InvoiceController` (2 titik)**
+- [x] **Step 1: `InvoiceController` (2 titik)**
 
 Baris 50 (`edit`):
 
@@ -301,7 +301,7 @@ Baris 100 (penetapan status order):
                 $paid  = $order->paidNet();
 ```
 
-- [ ] **Step 2: `PaymentBookController` (2 titik)**
+- [x] **Step 2: `PaymentBookController` (2 titik)**
 
 Baris 72:
 
@@ -315,7 +315,7 @@ Baris 249:
             $paid  = $order->paidNet();
 ```
 
-- [ ] **Step 3: `OrderBookController` (1 titik)**
+- [x] **Step 3: `OrderBookController` (1 titik)**
 
 Ganti baris 336-340 (`$alreadyPaid = $order->payments->where(...)->sum('amount');` yang terpecah beberapa baris) menjadi:
 
@@ -325,7 +325,7 @@ Ganti baris 336-340 (`$alreadyPaid = $order->payments->where(...)->sum('amount')
 
 Hapus juga komentar usang di atasnya ("Pastikan hanya menjumlahkan pembayaran yang statusnya 'paid' atau 'approved'") — menyesatkan, dan `approved()` sudah tak ada.
 
-- [ ] **Step 4: `FullPaymentBookController` (SQL mentah)**
+- [x] **Step 4: `FullPaymentBookController` (SQL mentah)**
 
 Tambah import di bagian `use` bila belum ada: `use App\Models\Order;` (periksa dulu — kemungkinan sudah ada karena file ini memakai `Order::with(...)`).
 
@@ -335,25 +335,25 @@ Ganti baris 21:
                 $query->whereRaw(Order::PAID_NET_SQL . ' >= tb_order_details.cost_amount')
 ```
 
-- [ ] **Step 5: Jalankan suite penuh**
+- [x] **Step 5: Jalankan suite penuh**
 
 Run: `php artisan test`
 Expected: PASS semua (**521** = 514 + 7 test baru).
 
 **Bila test lama GAGAL:** kemungkinan ia mengunci perilaku lama (refund bikin lunas). Itu **temuan, bukan gangguan** — baca test itu, pastikan perilaku barunya memang benar, perbaiki, dan **sebutkan di laporan**. Jangan sesuaikan diam-diam sampai hijau.
 
-- [ ] **Step 6: Pastikan tak ada sisa penjumlahan mentah**
+- [x] **Step 6: Pastikan tak ada sisa penjumlahan mentah**
 
 Run: `grep -rn "where('status', 'paid')" app/ --include=*.php`
 
 Yang **boleh tersisa**: `InvoiceController:47` (daftar pilihan, bukan penjumlahan), `RefundController:24` (batas maksimal refund — sengaja kotor), `Payment::scopeIncome`/`scopeRefund` (definisinya sendiri). Bila ada penjumlahan `sum('amount')` lain yang menjawab "sudah dibayar berapa", **laporkan** sebelum mengubah.
 
-- [ ] **Step 7: Blade tetap sehat**
+- [x] **Step 7: Blade tetap sehat**
 
 Run: `php artisan view:cache && php artisan view:clear`
 Expected: "Blade templates cached successfully." tanpa error.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add app/Http/Controllers/Pages/InvoiceController.php app/Http/Controllers/Pages/PaymentBookController.php app/Http/Controllers/Pages/OrderBookController.php app/Http/Controllers/Pages/FullPaymentBookController.php
@@ -380,7 +380,7 @@ Co-authored-by: Mira <admin@avidpedia.com>
 
 **Files:** tak ada perubahan kode.
 
-- [ ] **Step 1: Buktikan gerbang arsip ikut terkunci**
+- [x] **Step 1: Buktikan gerbang arsip ikut terkunci**
 
 Tambahkan ke `tests/Feature/PaidNetTest.php`:
 
@@ -407,12 +407,12 @@ Expected: PASS, 8 test.
 
 > Bila `Title::create` menolak karena kolom wajib lain, baca `app/Models/Title.php` + migrasi `tb_titles` dan lengkapi — jangan melemahkan assertion-nya.
 
-- [ ] **Step 2: Suite penuh**
+- [x] **Step 2: Suite penuh**
 
 Run: `php artisan test`
 Expected: PASS semua (**522** = 514 + 8).
 
-- [ ] **Step 3: Commit + centang kedua plan**
+- [x] **Step 3: Commit + centang kedua plan**
 
 ```bash
 git add tests/Feature/PaidNetTest.php docs/superpowers/plans/2026-07-17-paid-net-refund.md docs/superpowers/plans/2026-07-17-income-definition-refund.md
