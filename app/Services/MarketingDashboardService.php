@@ -78,14 +78,19 @@ class MarketingDashboardService
         ];
     }
 
-    /** Indikator naik/turun: pct (null bila pembanding 0) + arah up/down/flat. */
+    /** Indikator naik/turun: pct (null bila pembanding 0) + arah + penanda lonjakan ekstrem. */
     private function delta(int $current, int $previous): array
     {
         if ($previous === 0) {
-            return ['pct' => null, 'dir' => $current > 0 ? 'up' : 'flat'];
+            return ['pct' => null, 'dir' => $current > 0 ? 'up' : 'flat', 'capped' => false];
         }
         $pct = round(($current - $previous) / $previous * 100, 1);
-        return ['pct' => abs($pct), 'dir' => $pct > 0 ? 'up' : ($pct < 0 ? 'down' : 'flat')];
+
+        return [
+            'pct'    => abs($pct),
+            'dir'    => $pct > 0 ? 'up' : ($pct < 0 ? 'down' : 'flat'),
+            'capped' => abs($pct) > 999,
+        ];
     }
 
     /** Rata-rata nilai order (cost_amount) tahun berjalan; 0 bila tanpa order. */

@@ -175,4 +175,26 @@ class MarketingDashboardServiceTest extends TestCase
         $this->assertSame(0, $d['rata_rata_order']);
         $this->assertSame(0, $d['total_piutang']);
     }
+
+    /** @test */
+    public function delta_menandai_lonjakan_ekstrem_sebagai_capped(): void
+    {
+        $m = new \ReflectionMethod($this->svc, 'delta');
+        $m->setAccessible(true);
+
+        // 50rb -> 5jt = +9900%: benar tapi tak bermakna dibaca.
+        $d = $m->invoke($this->svc, 5_000_000, 50_000);
+        $this->assertTrue($d['capped']);
+        $this->assertSame('up', $d['dir']);
+
+        // Kenaikan wajar tidak di-cap.
+        $d2 = $m->invoke($this->svc, 120, 100);
+        $this->assertFalse($d2['capped']);
+        $this->assertSame(20.0, $d2['pct']);
+
+        // Pembanding nol tetap "baru" (pct null), bukan capped.
+        $d3 = $m->invoke($this->svc, 100, 0);
+        $this->assertNull($d3['pct']);
+        $this->assertFalse($d3['capped']);
+    }
 }
