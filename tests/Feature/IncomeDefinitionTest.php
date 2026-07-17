@@ -9,7 +9,7 @@ use App\Models\Payment;
 use App\Models\User;
 use App\Services\CashRecapService;
 use App\Services\FinancialReportService;
-use App\Services\MarketingDashboardService;
+use App\Services\SalesDashboardService;
 use App\Services\MarketingTargetService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
@@ -81,7 +81,7 @@ class IncomeDefinitionTest extends TestCase
     /** @test */
     public function marketing_dashboard_income_excludes_refund(): void
     {
-        $kpi = app(MarketingDashboardService::class)->forUser($this->marketing);
+        $kpi = app(SalesDashboardService::class)->forUser($this->marketing);
 
         $this->assertSame(10_000_000, $kpi['pemasukan_tahun_ini'], 'Refund tak boleh menambah KPI dashboard.');
     }

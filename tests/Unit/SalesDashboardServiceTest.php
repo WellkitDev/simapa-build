@@ -1,5 +1,5 @@
 <?php
-// tests/Unit/MarketingDashboardServiceTest.php
+// tests/Unit/SalesDashboardServiceTest.php
 
 namespace Tests\Unit;
 
@@ -9,15 +9,15 @@ use App\Models\Order;
 use App\Models\Payment;
 use App\Models\OrderDetail;
 use App\Models\TitleProgress;
-use App\Services\MarketingDashboardService;
+use App\Services\SalesDashboardService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
 
-class MarketingDashboardServiceTest extends TestCase
+class SalesDashboardServiceTest extends TestCase
 {
     use RefreshDatabase;
 
-    private MarketingDashboardService $svc;
+    private SalesDashboardService $svc;
 
     protected function setUp(): void
     {
@@ -25,7 +25,7 @@ class MarketingDashboardServiceTest extends TestCase
         foreach (['marketing', 'manager', 'superadmin', 'production'] as $r) {
             Role::create(['name' => $r, 'guard_name' => 'web']);
         }
-        $this->svc = new MarketingDashboardService();
+        $this->svc = new SalesDashboardService();
     }
 
     private function marketing(): User

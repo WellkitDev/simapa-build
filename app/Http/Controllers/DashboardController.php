@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use App\Services\ProductionDashboardService;
 use App\Services\PerformanceService;
-use App\Services\MarketingDashboardService;
+use App\Services\SalesDashboardService;
 
 class DashboardController extends Controller
 {
@@ -42,7 +42,7 @@ class DashboardController extends Controller
         if ($isMarketingOnly) {
             return view('dashboard', [
                 'dashboardView' => 'marketing',
-                'mkt' => app(MarketingDashboardService::class)->forUser($user),
+                'mkt' => app(SalesDashboardService::class)->forUser($user),
             ]);
         }
 

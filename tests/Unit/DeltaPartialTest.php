@@ -1,7 +1,7 @@
 <?php
 // tests/Unit/DeltaPartialTest.php
 // Render tests untuk resources/views/dashboard/partials/delta.blade.php.
-// Ini melengkapi MarketingDashboardServiceTest: yang di sana menguji bentuk array
+// Ini melengkapi SalesDashboardServiceTest: yang di sana menguji bentuk array
 // delta(), yang di sini menguji bagaimana array itu dirender jadi HTML — termasuk
 // pembalikan warna invertGood (piutang naik = buruk) dan tampilan cap >999%.
 

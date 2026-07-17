@@ -1,5 +1,5 @@
 <?php
-// app/Services/MarketingDashboardService.php
+// app/Services/SalesDashboardService.php
 
 namespace App\Services;
 
@@ -11,7 +11,7 @@ use App\Models\TitleProgressLog;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
-class MarketingDashboardService
+class SalesDashboardService
 {
     /** KPI pemasukan + order + progres naskah + data chart untuk satu marketing (ter-scope order.user_id). */
     public function forUser(User $user): array
