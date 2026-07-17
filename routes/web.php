@@ -354,6 +354,7 @@ Route::middleware('auth')->group(function () {
             Route::post('accounting/period/unlock', [\App\Http\Controllers\Pages\CashPeriodController::class, 'unlock'])->name('accounting.period.unlock');
         });
         Route::get('accounting/audit', [\App\Http\Controllers\Pages\CashPeriodController::class, 'audit'])->name('accounting.audit');
+        Route::get('accounting/profit', [\App\Http\Controllers\Pages\ProfitAnalysisController::class, 'index'])->name('accounting.profit');
     });
 
     //Gudang Data

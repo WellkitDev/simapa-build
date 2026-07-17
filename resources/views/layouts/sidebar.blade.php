@@ -161,6 +161,12 @@
                         <span class="link-title">Anggaran & Target</span>
                     </a>
                 </li>
+                <li class="nav-item {{ nav_active('accounting.profit') }}">
+                    <a href="{{ route('accounting.profit') }}" class="nav-link">
+                        <i class="link-icon" data-feather="trending-up"></i>
+                        <span class="link-title">Analisa Profit</span>
+                    </a>
+                </li>
                 <li class="nav-item {{ nav_active('accounting.audit') }}">
                     <a href="{{ route('accounting.audit') }}" class="nav-link">
                         <i class="link-icon" data-feather="clock"></i>
