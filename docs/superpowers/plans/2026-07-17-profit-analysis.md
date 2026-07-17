@@ -36,7 +36,7 @@
 - Create: `tests/Feature/ProfitAnalysisTest.php`
 - Create: `app/Services/ProfitAnalysisService.php`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `tests/Feature/ProfitAnalysisTest.php`:
 
@@ -243,12 +243,12 @@ class ProfitAnalysisTest extends TestCase
 }
 ```
 
-- [ ] **Step 2: Jalankan test — pastikan GAGAL**
+- [x] **Step 2: Jalankan test — pastikan GAGAL**
 
 Run: `php artisan test --filter=ProfitAnalysisTest`
 Expected: **FAIL** — `Class "App\Services\ProfitAnalysisService" not found` (BindingResolutionException) di semua test.
 
-- [ ] **Step 3: Buat service**
+- [x] **Step 3: Buat service**
 
 Buat `app/Services/ProfitAnalysisService.php`:
 
@@ -398,14 +398,14 @@ class ProfitAnalysisService
 }
 ```
 
-- [ ] **Step 4: Jalankan test — pastikan LULUS**
+- [x] **Step 4: Jalankan test — pastikan LULUS**
 
 Run: `php artisan test --filter=ProfitAnalysisTest`
 Expected: **PASS**, 12 test.
 
 > Bila `payment_without_order_is_counted_separately` gagal karena `order_id` tak boleh null di skema, hapus test itu **dan** cabang `noOrder` dari service + catatan `noOrder` di spec/view — jangan memaksakan kolom nullable. Laporkan bila terjadi.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/Services/ProfitAnalysisService.php tests/Feature/ProfitAnalysisTest.php
@@ -440,7 +440,7 @@ Co-authored-by: Mira <admin@avidpedia.com>
 - Modify: `resources/views/layouts/sidebar.blade.php` (setelah menu `accounting.audit`)
 - Modify: `tests/Feature/ProfitAnalysisTest.php` (+test render)
 
-- [ ] **Step 1: Controller**
+- [x] **Step 1: Controller**
 
 ```php
 <?php
@@ -471,7 +471,7 @@ class ProfitAnalysisController extends Controller
 }
 ```
 
-- [ ] **Step 2: Rute**
+- [x] **Step 2: Rute**
 
 Di `routes/web.php`, tepat **setelah** baris rute `accounting.audit`:
 
@@ -479,7 +479,7 @@ Di `routes/web.php`, tepat **setelah** baris rute `accounting.audit`:
         Route::get('accounting/profit', [\App\Http\Controllers\Pages\ProfitAnalysisController::class, 'index'])->name('accounting.profit');
 ```
 
-- [ ] **Step 3: View**
+- [x] **Step 3: View**
 
 Buat `resources/views/accounting/profit-analysis.blade.php`:
 
@@ -602,7 +602,7 @@ Buat `resources/views/accounting/profit-analysis.blade.php`:
 @endpush
 ```
 
-- [ ] **Step 4: Menu sidebar**
+- [x] **Step 4: Menu sidebar**
 
 Di `resources/views/layouts/sidebar.blade.php`, tepat **setelah** blok `<li>` menu `accounting.audit` (Riwayat Perubahan) dan **sebelum** `@endrole`:
 
@@ -615,7 +615,7 @@ Di `resources/views/layouts/sidebar.blade.php`, tepat **setelah** blok `<li>` me
                 </li>
 ```
 
-- [ ] **Step 5: Test render**
+- [x] **Step 5: Test render**
 
 Tambahkan ke `tests/Feature/ProfitAnalysisTest.php`:
 
@@ -643,12 +643,12 @@ Tambahkan ke `tests/Feature/ProfitAnalysisTest.php`:
     }
 ```
 
-- [ ] **Step 6: Jalankan test**
+- [x] **Step 6: Jalankan test**
 
 Run: `php artisan test --filter=ProfitAnalysisTest`
 Expected: **PASS**, 13 test.
 
-- [ ] **Step 7: Suite penuh + Blade**
+- [x] **Step 7: Suite penuh + Blade**
 
 Run: `php artisan test`
 Expected: PASS semua (**566** = 553 + 13).
@@ -658,7 +658,7 @@ Expected: tanpa error.
 
 **Bila test lama gagal:** temuan — laporkan, jangan sesuaikan diam-diam.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add app/Http/Controllers/Pages/ProfitAnalysisController.php resources/views/accounting/profit-analysis.blade.php routes/web.php resources/views/layouts/sidebar.blade.php tests/Feature/ProfitAnalysisTest.php
@@ -671,7 +671,7 @@ git commit -F <path-pesan>   # feat(accounting): halaman Analisa Profit + akumul
 
 **Files:** tak ada perubahan kode.
 
-- [ ] **Step 1: Hitung dgn data dev**
+- [x] **Step 1: Hitung dgn data dev**
 
 ```bash
 php artisan tinker --execute="
@@ -686,17 +686,17 @@ Expected: angka masuk cocok dgn Rekap Bulanan (Jan 15.350.000 · Feb 6.300.000 �
 
 **Bila "masuk" tak cocok dgn Rekap Bulanan**, selidiki — keduanya membaca payment yang sama. Laporkan.
 
-- [ ] **Step 2: Buka halamannya**
+- [x] **Step 2: Buka halamannya**
 
 `php artisan serve --port=8128` di background; superadmin sementara; login via curl; GET `/accounting/profit?year=2026&month=4`.
 Expected: 200; memuat "Siap Dibagi"; tabel akumulasi memuat 12 baris; tautan `accounting.distribution` ber-`profit=`.
 
-- [ ] **Step 3: Ikuti tombolnya**
+- [x] **Step 3: Ikuti tombolnya**
 
 Ambil URL dari tautan "Bagi profit ini", GET URL itu.
 Expected: 200, halaman Distribusi Profit memakai angka tsb (`viewData('profit')` = angka yang sama). Membuktikan sambungan ke fitur lama benar-benar bekerja, bukan cuma tautan yang tampak benar.
 
-- [ ] **Step 4: Bersihkan + commit**
+- [x] **Step 4: Bersihkan + commit**
 
 Hapus user sementara, matikan server, pastikan `git status` bersih (**`data-excel/` tak boleh ter-stage**).
 
