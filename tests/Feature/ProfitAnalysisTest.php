@@ -204,4 +204,27 @@ class ProfitAnalysisTest extends TestCase
         $this->assertSame(0.0, $tahun[0]['totalMargin'], 'Januari kosong.');
         $this->assertSame(750_000.0, array_sum(array_column($tahun, 'totalMargin')), 'Akumulasi setahun.');
     }
+
+    /** @test */
+    public function page_renders_and_links_to_distribution(): void
+    {
+        $this->pay($this->order('at_kolab', 'sinta 2'), 1_500_000);
+
+        $sa = User::factory()->create();
+        $sa->assignRole('superadmin');
+        $this->actingAs($sa)->get(route('accounting.profit', ['year' => 2026, 'month' => 6]))
+            ->assertOk()
+            ->assertSee('Siap Dibagi')
+            ->assertSee('Akumulasi 2026')
+            // Blade meng-escape '&' jadi '&amp;' di href → bandingkan versi ter-escape.
+            ->assertSee(e(route('accounting.distribution', ['year' => 2026, 'month' => 6, 'profit' => 375000])), false);
+
+        $acc = User::factory()->create();
+        $acc->assignRole('accounting');
+        $this->actingAs($acc)->get(route('accounting.profit'))->assertOk();
+
+        $mk = User::factory()->create();
+        $mk->assignRole('marketing');
+        $this->actingAs($mk)->get(route('accounting.profit'))->assertForbidden();
+    }
 }
