@@ -16,28 +16,45 @@ class SalesDashboardService
     /** KPI pemasukan + order + progres naskah + data chart untuk satu marketing (ter-scope order.user_id). */
     public function forUser(User $user): array
     {
-        $uid   = $user->id;
+        return $this->build($user);
+    }
+
+    /**
+     * KPI penjualan tingkat perusahaan.
+     * $filter null = seluruh marketing; diisi = satu marketing (hasil identik dengan forUser).
+     */
+    public function forCompany(?User $filter = null): array
+    {
+        return $this->build($filter);
+    }
+
+    /** $scopeUser null = tanpa filter (seluruh perusahaan) — idiom yang sama dengan Payment::forOrdersOf(). */
+    private function build(?User $scopeUser): array
+    {
+        $uid   = $scopeUser?->id;
         $today = Carbon::today();
 
-        // Uang masuk = definisi kanonik Payment::income() (paid, bukan refund), scoped order user.
-        $income = fn () => Payment::income()->forOrdersOf($user);
+        // Uang masuk = definisi kanonik Payment::income() (paid, bukan refund).
+        $income = fn () => Payment::income()->forOrdersOf($scopeUser);
+
+        $orders = fn () => Order::query()->when($uid, fn ($q) => $q->where('user_id', $uid));
 
         $prog = fn () => TitleProgress::query()
-            ->whereHas('orderDetail.order', fn ($q) => $q->where('user_id', $uid));
+            ->when($uid, fn ($q) => $q->whereHas('orderDetail.order', fn ($o) => $o->where('user_id', $uid)));
 
         // Nilai periode berjalan (dipakai kartu + sebagai 'current' delta).
         $incHari   = (int) $income()->whereDate('paid_at', $today)->sum('amount');
         $incMinggu = (int) $income()->whereBetween('paid_at', [$today->copy()->startOfWeek(), $today->copy()->endOfWeek()])->sum('amount');
         $incTahun  = (int) $income()->whereYear('paid_at', $today->year)->sum('amount');
-        $jmlOrder    = Order::where('user_id', $uid)->whereYear('ordered_at', $today->year)->count();
-        $jmlOrderBln = Order::where('user_id', $uid)->whereYear('ordered_at', $today->year)->whereMonth('ordered_at', $today->month)->count();
+        $jmlOrder    = $orders()->whereYear('ordered_at', $today->year)->count();
+        $jmlOrderBln = $orders()->whereYear('ordered_at', $today->year)->whereMonth('ordered_at', $today->month)->count();
 
         // Pembanding setara (period-to-date pada periode sebelumnya).
         $incHariPrev    = (int) $income()->whereDate('paid_at', $today->copy()->subDay())->sum('amount');
         $incMingguPrev  = (int) $income()->whereBetween('paid_at', [$today->copy()->startOfWeek()->subWeek(), $today->copy()->endOfDay()->subWeek()])->sum('amount');
         $incTahunPrev   = (int) $income()->whereBetween('paid_at', [$today->copy()->startOfYear()->subYear(), $today->copy()->endOfDay()->subYear()])->sum('amount');
-        $jmlOrderPrev   = Order::where('user_id', $uid)->whereBetween('ordered_at', [$today->copy()->startOfYear()->subYear(), $today->copy()->endOfDay()->subYear()])->count();
-        $jmlOrderBlnPrev = Order::where('user_id', $uid)->whereBetween('ordered_at', [$today->copy()->startOfMonth()->subMonthNoOverflow(), $today->copy()->endOfDay()->subMonthNoOverflow()])->count();
+        $jmlOrderPrev    = $orders()->whereBetween('ordered_at', [$today->copy()->startOfYear()->subYear(), $today->copy()->endOfDay()->subYear()])->count();
+        $jmlOrderBlnPrev = $orders()->whereBetween('ordered_at', [$today->copy()->startOfMonth()->subMonthNoOverflow(), $today->copy()->endOfDay()->subMonthNoOverflow()])->count();
 
         return [
             // Pemasukan (tiap Payment paid dihitung — termasuk DP/parsial/pelunasan)
@@ -55,12 +72,14 @@ class SalesDashboardService
             'jumlah_order_bulan_ini_delta' => $this->delta($jmlOrderBln, $jmlOrderBlnPrev),
 
             // KPI baru
-            'total_piutang'   => (int) ((new FinancialReportService())->piutang($user)['kpi']['sisa']),
+            'total_piutang'   => (int) ((new FinancialReportService())->piutang($scopeUser)['kpi']['sisa']),
             'rata_rata_order' => $this->avgOrderValue($uid, $today->year),
-            'target'          => app(\App\Services\MarketingTargetService::class)->currentForMarketing($user),
+            'target'          => $scopeUser
+                                    ? app(\App\Services\MarketingTargetService::class)->currentForMarketing($scopeUser)
+                                    : null,
 
             'income_trend'           => $this->dailySum($income(), 'paid_at', 'amount'),
-            'order_trend'            => $this->dailyCount(Order::where('user_id', $uid), 'ordered_at'),
+            'order_trend'            => $this->dailyCount($orders(), 'ordered_at'),
 
             // Progres naskah (dari order milik marketing)
             'naskah_aktif'      => (clone $prog())->whereNotIn('status', TitleProgress::FINAL_STAGES)->where('status', '!=', 'menunggu_proses')->count(),
@@ -74,7 +93,7 @@ class SalesDashboardService
                                     (clone $prog())->whereNotIn('status', TitleProgress::FINAL_STAGES)->where('status', '!=', 'menunggu_proses')->get(['status'])->groupBy('status')->map->count()
                                    ),
             'completion_trend'  => $this->completionTrend($uid),
-            'deadline_rows'     => $this->deadlineRows($user),
+            'deadline_rows'     => $this->deadlineRows($scopeUser),
         ];
     }
 
@@ -93,10 +112,11 @@ class SalesDashboardService
         ];
     }
 
-    /** Rata-rata nilai order (cost_amount) tahun berjalan; 0 bila tanpa order. */
-    private function avgOrderValue(int $uid, int $year): int
+    /** Rata-rata nilai order (cost_amount) tahun berjalan; 0 bila tanpa order. $uid null = seluruh perusahaan. */
+    private function avgOrderValue(?int $uid, int $year): int
     {
-        $orders = Order::where('user_id', $uid)->whereYear('ordered_at', $year)->with('details')->get();
+        $orders = Order::query()->when($uid, fn ($q) => $q->where('user_id', $uid))
+            ->whereYear('ordered_at', $year)->with('details')->get();
         $count = $orders->count();
         if ($count === 0) {
             return 0;
@@ -105,15 +125,15 @@ class SalesDashboardService
         return intdiv($sum, $count);
     }
 
-    /** Baris tabel naskah aktif mendekati/lewat deadline (ter-scope order marketing). */
-    public function deadlineRows(User $user): \Illuminate\Support\Collection
+    /** Baris tabel naskah aktif mendekati/lewat deadline: satu marketing, atau seluruh perusahaan bila null. */
+    public function deadlineRows(?User $scopeUser): \Illuminate\Support\Collection
     {
         $today = Carbon::today();
 
         return TitleProgress::query()
             ->whereNotIn('status', TitleProgress::FINAL_STAGES)
             ->whereNotNull('target_date')
-            ->whereHas('orderDetail.order', fn ($q) => $q->where('user_id', $user->id))
+            ->when($scopeUser, fn ($q) => $q->whereHas('orderDetail.order', fn ($o) => $o->where('user_id', $scopeUser->id)))
             ->with('orderDetail.order')
             ->get()
             ->map(function (TitleProgress $tp) use ($today) {
@@ -183,13 +203,13 @@ class SalesDashboardService
         ];
     }
 
-    /** Penyelesaian naskah marketing per hari 90 hari (log to_value Terbit/Publish, scoped). */
-    private function completionTrend(int $uid): array
+    /** Penyelesaian naskah per hari 90 hari. $uid null = seluruh perusahaan. */
+    private function completionTrend(?int $uid): array
     {
         $days = collect(range(89, 0))->map(fn ($i) => Carbon::now()->subDays($i)->format('Y-m-d'));
         // to_value is title-cased by TitleProgressService::log() (e.g. 'Terbit'/'Publish')
         $byDate = TitleProgressLog::whereIn('to_value', ['Terbit', 'Publish'])
-            ->whereHas('titleProgress.orderDetail.order', fn ($q) => $q->where('user_id', $uid))
+            ->when($uid, fn ($q) => $q->whereHas('titleProgress.orderDetail.order', fn ($o) => $o->where('user_id', $uid)))
             ->where('created_at', '>=', Carbon::now()->subDays(89)->startOfDay())
             ->get(['created_at'])
             ->groupBy(fn ($l) => $l->created_at->format('Y-m-d'))->map->count();

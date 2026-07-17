@@ -177,6 +177,42 @@ class SalesDashboardServiceTest extends TestCase
     }
 
     /** @test */
+    public function for_company_menjumlahkan_seluruh_marketing(): void
+    {
+        $a = $this->marketing();
+        $b = $this->marketing();
+
+        $oa = $this->orderFor($a);
+        $ob = $this->orderFor($b);
+        $this->paid($oa, 1_000_000);
+        $this->paid($ob, 3_000_000);
+
+        $company = $this->svc->forCompany();
+
+        $this->assertSame(4_000_000, $company['pemasukan_tahun_ini']);
+    }
+
+    /** @test */
+    public function for_company_dengan_filter_identik_dengan_for_user(): void
+    {
+        $a = $this->marketing();
+        $b = $this->marketing();
+
+        $oa = $this->orderFor($a);
+        $ob = $this->orderFor($b);
+        $this->paid($oa, 1_000_000);
+        $this->paid($ob, 3_000_000);
+
+        $filtered = $this->svc->forCompany($a);
+        $mine     = $this->svc->forUser($a);
+
+        // Inilah yang mengunci janji "kode yang sama", bukan sekadar mirip.
+        $this->assertSame($mine['pemasukan_tahun_ini'], $filtered['pemasukan_tahun_ini']);
+        $this->assertSame($mine['jumlah_order_tahun_ini'], $filtered['jumlah_order_tahun_ini']);
+        $this->assertSame(1_000_000, $filtered['pemasukan_tahun_ini']);
+    }
+
+    /** @test */
     public function delta_menandai_lonjakan_ekstrem_sebagai_capped(): void
     {
         $m = new \ReflectionMethod($this->svc, 'delta');
