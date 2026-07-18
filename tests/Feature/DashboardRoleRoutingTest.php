@@ -67,4 +67,41 @@ class DashboardRoleRoutingTest extends TestCase
     {
         $this->actingAs(User::factory()->create())->get(route('dashboard'))->assertOk();
     }
+
+    /** @test */
+    public function superadmin_melihat_tabel_target_tim_dan_dropdown_filter(): void
+    {
+        $mkt = $this->user('marketing');
+        $mkt->update(['name' => 'Marketing Satu']);
+        \App\Models\MarketingTarget::create([
+            'user_id' => $mkt->id,
+            'start_date' => now()->startOfMonth()->toDateString(),
+            'end_date' => now()->endOfMonth()->toDateString(),
+            'target_amount' => 10_000_000, 'commission_rate' => 5,
+        ]);
+
+        $this->actingAs($this->user('superadmin'))->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Target Tim')
+            ->assertSee('Marketing Satu')
+            ->assertSee('Semua marketing');
+    }
+
+    /** @test */
+    public function filter_marketing_asing_jatuh_ke_semua(): void
+    {
+        $this->actingAs($this->user('superadmin'))->get(route('dashboard', ['marketing' => 999999]))
+            ->assertOk()
+            ->assertViewHas('filterId', null);
+    }
+
+    /** @test */
+    public function filter_menolak_id_user_yang_bukan_marketing(): void
+    {
+        $prod = $this->user('production');
+
+        $this->actingAs($this->user('superadmin'))->get(route('dashboard', ['marketing' => $prod->id]))
+            ->assertOk()
+            ->assertViewHas('filterId', null);
+    }
 }
