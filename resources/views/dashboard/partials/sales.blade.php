@@ -188,47 +188,12 @@
 
 <h6 class="text-muted mb-2 mt-2">Naskah Mendekati Deadline</h6>
 <div class="row">
-    <div class="col-12 grid-margin stretch-card">
-        <div class="card"><div class="card-body">
-            <ul class="nav nav-pills mb-3" id="deadlineTabs">
-                <li class="nav-item"><a class="nav-link active" href="#" data-bucket="all">Semua</a></li>
-                <li class="nav-item"><a class="nav-link" href="#" data-bucket="overdue">Lewat target</a></li>
-                <li class="nav-item"><a class="nav-link" href="#" data-bucket="d7">≤7 hari</a></li>
-                <li class="nav-item"><a class="nav-link" href="#" data-bucket="month">Bulan ini</a></li>
-            </ul>
-            <div class="table-responsive">
-                <table class="table table-hover" id="deadlineTable" style="width:100%">
-                    <thead>
-                        <tr>
-                            <th>Judul</th><th>Kode Order</th><th>Tahap</th>
-                            <th>Target</th><th>Sisa Hari</th><th>Prioritas</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($mkt['deadline_rows'] as $r)
-                            <tr data-overdue="{{ $r['overdue'] }}" data-d7="{{ $r['d7'] }}" data-month="{{ $r['month'] }}">
-                                <td>{{ $r['title'] }}</td>
-                                <td><a href="{{ route('order.indexJudul.progress', $r['order_detail_id']) }}">{{ $r['code_order'] }}</a></td>
-                                <td><span class="badge bg-secondary">{{ $r['stage'] }}</span></td>
-                                <td data-order="{{ $r['target_date'] }}">{{ $r['target_label'] }}</td>
-                                <td data-order="{{ $r['days'] }}">
-                                    <span class="badge {{ $r['overdue'] ? 'bg-danger' : ($r['d7'] ? 'bg-warning' : 'bg-light text-dark') }}">{{ $r['days_label'] }}</span>
-                                </td>
-                                <td>
-                                    @php $pc = ['low' => 'bg-secondary', 'normal' => 'bg-info', 'high' => 'bg-danger'][$r['priority']] ?? 'bg-secondary'; @endphp
-                                    <span class="badge {{ $pc }}">{{ $r['priority'] ? ucfirst($r['priority']) : '-' }}</span>
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        </div></div>
-    </div>
+    @include('dashboard.partials.deadline-table', ['rows' => $mkt['deadline_rows'], 'tableId' => 'salesDeadline'])
 </div>
 
 @push('plugin-scripts')
     <script src="{{ asset('assets/plugins/apexcharts/apexcharts.min.js') }}"></script>
+    <script src="{{ asset('assets/js/dashboard-charts.js') }}"></script>
     <script src="{{ URL::asset('assets/libs/datatables.net/js/jquery.dataTables.min.js') }}"></script>
     <script src="{{ URL::asset('assets/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
     <script src="{{ URL::asset('assets/libs/datatables.net-responsive/js/dataTables.responsive.min.js') }}"></script>
@@ -297,27 +262,6 @@
             document.querySelector('#mktCompletionChart'),
             areaOpts('Terbit/Publish', slice({ labels: @json($mkt['completion_trend']['labels']), series: @json($mkt['completion_trend']['series']) }, n0), '#fbbc06', false)
         ).render();
-    });
-
-    // ---- Tabel deadline: DataTables + filter tab ----
-    $(function () {
-        if (!$.fn.DataTable) return;
-        window.deadlineBucket = 'all';
-        $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
-            if (settings.nTable.id !== 'deadlineTable') return true;
-            if (window.deadlineBucket === 'all') return true;
-            var node = settings.aoData[dataIndex].nTr;
-            return node.getAttribute('data-' + window.deadlineBucket) === '1';
-        });
-        var table = $('#deadlineTable').DataTable({ pageLength: 10, order: [[4, 'asc']] });
-        $('.dataTables_length select, .dataTables_filter input').addClass('form-control mb-2');
-        $('#deadlineTabs a').on('click', function (e) {
-            e.preventDefault();
-            $('#deadlineTabs a').removeClass('active');
-            $(this).addClass('active');
-            window.deadlineBucket = $(this).data('bucket');
-            table.draw();
-        });
     });
 </script>
 @endpush
