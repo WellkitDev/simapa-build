@@ -206,9 +206,8 @@ class SalesDashboardServiceTest extends TestCase
         $filtered = $this->svc->forCompany($a);
         $mine     = $this->svc->forUser($a);
 
-        // Inilah yang mengunci janji "kode yang sama", bukan sekadar mirip.
-        $this->assertSame($mine['pemasukan_tahun_ini'], $filtered['pemasukan_tahun_ini']);
-        $this->assertSame($mine['jumlah_order_tahun_ini'], $filtered['jumlah_order_tahun_ini']);
+        // Inilah yang mengunci janji "kode yang sama", bukan sekadar mirip: seluruh payload, bukan sebagian key.
+        $this->assertEquals($mine, $filtered);
         $this->assertSame(1_000_000, $filtered['pemasukan_tahun_ini']);
     }
 

@@ -81,7 +81,7 @@ class SalesDashboardService
             'income_trend'           => $this->dailySum($income(), 'paid_at', 'amount'),
             'order_trend'            => $this->dailyCount($orders(), 'ordered_at'),
 
-            // Progres naskah (dari order milik marketing)
+            // Progres naskah (sesuai scope: satu marketing, atau seluruh perusahaan bila null)
             'naskah_aktif'      => (clone $prog())->whereNotIn('status', TitleProgress::FINAL_STAGES)->where('status', '!=', 'menunggu_proses')->count(),
             'belum_diproses'    => (clone $prog())->where('status', 'menunggu_proses')->count(),
             'lewat_target'      => (clone $prog())->whereNotIn('status', TitleProgress::FINAL_STAGES)->whereNotNull('target_date')->whereDate('target_date', '<', $today)->count(),
