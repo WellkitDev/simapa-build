@@ -19,7 +19,7 @@
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
                         <h6 class="card-title mb-0">{{ $label }}</h6>
-                        <h4 class="mt-2 mb-0 text-{{ $tone }}">Rp {{ number_format((int) $val, 0, ',', '.') }}</h4>
+                        <h4 class="mt-2 mb-0 text-{{ $tone }}">Rp {{ number_format((float) $val, 0, ',', '.') }}</h4>
                     </div>
                     <div class="bg-{{ $tone }} bg-opacity-10 rounded p-2">
                         <i data-feather="{{ $icon }}" class="text-{{ $tone }}"></i>
