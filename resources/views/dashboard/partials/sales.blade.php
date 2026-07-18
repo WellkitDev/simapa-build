@@ -1,4 +1,4 @@
-{{-- resources/views/dashboard/partials/marketing.blade.php --}}
+{{-- resources/views/dashboard/partials/sales.blade.php --}}
 @push('plugin-styles')
     <link href="{{ URL::asset('assets/libs/datatables.net-bs4/css/dataTables.bootstrap4.min.css') }}" rel="stylesheet" />
     <link href="{{ URL::asset('assets/libs/datatables.net-responsive-bs4/css/responsive.bootstrap4.min.css') }}" rel="stylesheet" />
