@@ -167,6 +167,15 @@
     @include('dashboard.partials.deadline-table', ['rows' => $mkt['deadline_rows'], 'tableId' => 'coDeadline'])
 </div>
 
+@if($cash)
+    @include('dashboard.partials.cash-block')
+@elseif(auth()->user()->hasRole('superadmin'))
+    <div class="card grid-margin"><div class="card-body">
+        <h6 class="card-title mb-1">Kas</h6>
+        <p class="text-muted mb-0">Data kas tidak tersedia saat ini.</p>
+    </div></div>
+@endif
+
 @push('plugin-scripts')
     <script src="{{ asset('assets/plugins/apexcharts/apexcharts.min.js') }}"></script>
     <script src="{{ asset('assets/js/dashboard-charts.js') }}"></script>

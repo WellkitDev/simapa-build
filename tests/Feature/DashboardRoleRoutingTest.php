@@ -104,4 +104,24 @@ class DashboardRoleRoutingTest extends TestCase
             ->assertOk()
             ->assertViewHas('filterId', null);
     }
+
+    /** @test */
+    public function manager_tidak_menerima_data_kas_sama_sekali(): void
+    {
+        $this->actingAs($this->user('manager'))->get(route('dashboard'))
+            ->assertOk()
+            // Bukan sekadar tersembunyi CSS — datanya memang tidak diambil.
+            ->assertViewHas('cash', null)
+            ->assertDontSee('Saldo Akhir')
+            ->assertDontSee('Laba Tahun Berjalan');
+    }
+
+    /** @test */
+    public function superadmin_menerima_blok_kas(): void
+    {
+        $res = $this->actingAs($this->user('superadmin'))->get(route('dashboard'))->assertOk();
+
+        $this->assertNotNull($res->viewData('cash'));
+        $res->assertSee('Saldo Akhir')->assertSee('Laba Tahun Berjalan');
+    }
 }
