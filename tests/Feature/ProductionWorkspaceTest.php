@@ -102,15 +102,15 @@ class ProductionWorkspaceTest extends TestCase
     {
         // Sejak peta role eksplisit (dashboard per role): manager sekarang dapat
         // dashboardView 'company', bukan lagi kartu keuangan generik lama. Partial
-        // `company` baru berisi penanda minimal — isi asli (kartu pembayaran + Progres
-        // Naskah global) dipindah ke task pengisian partial company berikutnya. Assertion
-        // di sini disesuaikan ke realitas interim; invarian yang tersisa: manager bukan
-        // dashboard marketing/produksi.
+        // `company` baru berisi penanda minimal — assertion di sini sengaja tipis untuk
+        // sementara, bukan terlupa: Task 8 (isi partial company) menambah assertion
+        // positif (Target Tim, Produksi Global); Task 9 menambah assertion bahwa manager
+        // TIDAK melihat blok kas/laba (hanya superadmin) — manager memang dirancang tetap
+        // melihat "Ringkasan Pemasukan" perusahaan, jadi jangan assertDontSee itu di sini.
         $this->actingAs($this->user('manager'));
         $this->get(route('dashboard'))
             ->assertOk()
             ->assertViewHas('dashboardView', 'company')
-            ->assertDontSee('Ringkasan Pemasukan')   // bukan dashboard marketing
             ->assertDontSee('Antrian Saya');          // bukan dashboard produksi
     }
 
