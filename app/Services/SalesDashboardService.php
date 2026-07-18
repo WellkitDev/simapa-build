@@ -132,12 +132,27 @@ class SalesDashboardService
     /** Baris tabel naskah aktif mendekati/lewat deadline: satu marketing, atau seluruh perusahaan bila null. */
     public function deadlineRows(?User $scopeUser): \Illuminate\Support\Collection
     {
+        return $this->deadlineFrom(
+            TitleProgress::query()->when($scopeUser,
+                fn ($q) => $q->whereHas('orderDetail.order', fn ($o) => $o->where('user_id', $scopeUser->id)))
+        );
+    }
+
+    /** Baris deadline milik satu editor (scope assigned_user_id, bukan kepemilikan order). */
+    public function deadlineRowsForEditor(User $editor): \Illuminate\Support\Collection
+    {
+        return $this->deadlineFrom(
+            TitleProgress::query()->where('assigned_user_id', $editor->id)
+        );
+    }
+
+    private function deadlineFrom($query): \Illuminate\Support\Collection
+    {
         $today = Carbon::today();
 
-        return TitleProgress::query()
+        return $query
             ->whereNotIn('status', TitleProgress::FINAL_STAGES)
             ->whereNotNull('target_date')
-            ->when($scopeUser, fn ($q) => $q->whereHas('orderDetail.order', fn ($o) => $o->where('user_id', $scopeUser->id)))
             ->with('orderDetail.order')
             ->orderBy('target_date')
             ->limit(200)

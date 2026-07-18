@@ -76,4 +76,20 @@ class ProductionDashboardServiceTest extends TestCase
 
         $this->assertEquals(1, $this->svc->forUser($me)['jatuh_tempo_7']);
     }
+
+    /** @test */
+    public function for_user_menyertakan_total_selesai_dan_baris_deadline(): void
+    {
+        $editor = User::factory()->create();
+        $tp = $this->progress(['assigned_user_id' => $editor->id, 'status' => 'editing',
+                             'target_date' => now()->addDays(3)->toDateString()]);
+        $this->progress(['assigned_user_id' => $editor->id, 'status' => 'terbit',
+                       'started_at' => now()->subMonths(6)]);
+
+        $d = app(ProductionDashboardService::class)->forUser($editor);
+
+        $this->assertSame(1, $d['total_selesai']);
+        $this->assertCount(1, $d['deadline_rows']);
+        $this->assertSame($tp->order_detail_id, $d['deadline_rows']->first()['order_detail_id']);
+    }
 }
