@@ -212,6 +212,25 @@ class SalesDashboardServiceTest extends TestCase
     }
 
     /** @test */
+    public function tren_dan_rata_rata_tidak_menarik_seluruh_baris_ke_php(): void
+    {
+        $a = $this->marketing();
+        $o = $this->orderFor($a);
+        $this->paid($o, 500_000);
+
+        \Illuminate\Support\Facades\DB::enableQueryLog();
+        $this->svc->forCompany();
+        $log = \Illuminate\Support\Facades\DB::getQueryLog();
+        \Illuminate\Support\Facades\DB::disableQueryLog();
+
+        $agg = collect($log)->filter(fn ($q) => str_contains(strtolower($q['query']), 'group by'));
+        $this->assertGreaterThanOrEqual(3, $agg->count(), 'dailySum/dailyCount/completionTrend harus GROUP BY di SQL');
+
+        $avg = collect($log)->contains(fn ($q) => str_contains(strtolower($q['query']), 'avg('));
+        $this->assertTrue($avg, 'avgOrderValue harus AVG di SQL');
+    }
+
+    /** @test */
     public function delta_menandai_lonjakan_ekstrem_sebagai_capped(): void
     {
         $m = new \ReflectionMethod($this->svc, 'delta');

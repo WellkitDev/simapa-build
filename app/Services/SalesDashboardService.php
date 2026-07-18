@@ -9,6 +9,7 @@ use App\Models\Payment;
 use App\Models\TitleProgress;
 use App\Models\TitleProgressLog;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class SalesDashboardService
@@ -115,14 +116,13 @@ class SalesDashboardService
     /** Rata-rata nilai order (cost_amount) tahun berjalan; 0 bila tanpa order. $uid null = seluruh perusahaan. */
     private function avgOrderValue(?int $uid, int $year): int
     {
-        $orders = Order::query()->when($uid, fn ($q) => $q->where('user_id', $uid))
-            ->whereYear('ordered_at', $year)->with('details')->get();
-        $count = $orders->count();
-        if ($count === 0) {
-            return 0;
-        }
-        $sum = (int) $orders->sum(fn ($o) => (int) ($o->details->cost_amount ?? 0));
-        return intdiv($sum, $count);
+        $avg = Order::query()
+            ->when($uid, fn ($q) => $q->where('tb_orders.user_id', $uid))
+            ->whereYear('tb_orders.ordered_at', $year)
+            ->leftJoin('tb_order_details', 'tb_order_details.order_id', '=', 'tb_orders.id')
+            ->avg(DB::raw('COALESCE(tb_order_details.cost_amount, 0)'));
+
+        return (int) round((float) ($avg ?? 0));
     }
 
     /** Baris tabel naskah aktif mendekati/lewat deadline: satu marketing, atau seluruh perusahaan bila null. */
@@ -135,6 +135,8 @@ class SalesDashboardService
             ->whereNotNull('target_date')
             ->when($scopeUser, fn ($q) => $q->whereHas('orderDetail.order', fn ($o) => $o->where('user_id', $scopeUser->id)))
             ->with('orderDetail.order')
+            ->orderBy('target_date')
+            ->limit(200)
             ->get()
             ->map(function (TitleProgress $tp) use ($today) {
                 $target  = Carbon::parse($tp->target_date)->startOfDay();
@@ -173,14 +175,14 @@ class SalesDashboardService
         ];
     }
 
-    /** Σ kolom per hari 90 hari → {labels, series}. */
+    /** Σ kolom per hari 90 hari → {labels, series}. Agregasi di SQL. */
     private function dailySum($query, string $dateCol, string $sumCol): array
     {
         $days = collect(range(89, 0))->map(fn ($i) => Carbon::now()->subDays($i)->format('Y-m-d'));
         $byDate = $query->where($dateCol, '>=', Carbon::now()->subDays(89)->startOfDay())
-            ->get([$dateCol, $sumCol])
-            ->groupBy(fn ($r) => Carbon::parse($r->$dateCol)->format('Y-m-d'))
-            ->map(fn ($g) => (int) $g->sum($sumCol));
+            ->selectRaw("DATE($dateCol) as d, SUM($sumCol) as total")
+            ->groupBy('d')
+            ->pluck('total', 'd');
 
         return [
             'labels' => $days->map(fn ($d) => Carbon::parse($d)->format('M d'))->all(),
@@ -188,14 +190,14 @@ class SalesDashboardService
         ];
     }
 
-    /** Count per hari 90 hari → {labels, series}. */
+    /** Count per hari 90 hari → {labels, series}. Agregasi di SQL. */
     private function dailyCount($query, string $dateCol): array
     {
         $days = collect(range(89, 0))->map(fn ($i) => Carbon::now()->subDays($i)->format('Y-m-d'));
         $byDate = $query->where($dateCol, '>=', Carbon::now()->subDays(89)->startOfDay())
-            ->get([$dateCol])
-            ->groupBy(fn ($r) => Carbon::parse($r->$dateCol)->format('Y-m-d'))
-            ->map->count();
+            ->selectRaw("DATE($dateCol) as d, COUNT(*) as total")
+            ->groupBy('d')
+            ->pluck('total', 'd');
 
         return [
             'labels' => $days->map(fn ($d) => Carbon::parse($d)->format('M d'))->all(),
@@ -203,7 +205,7 @@ class SalesDashboardService
         ];
     }
 
-    /** Penyelesaian naskah per hari 90 hari. $uid null = seluruh perusahaan. */
+    /** Penyelesaian naskah per hari 90 hari. $uid null = seluruh perusahaan. Agregasi di SQL. */
     private function completionTrend(?int $uid): array
     {
         $days = collect(range(89, 0))->map(fn ($i) => Carbon::now()->subDays($i)->format('Y-m-d'));
@@ -211,8 +213,9 @@ class SalesDashboardService
         $byDate = TitleProgressLog::whereIn('to_value', ['Terbit', 'Publish'])
             ->when($uid, fn ($q) => $q->whereHas('titleProgress.orderDetail.order', fn ($o) => $o->where('user_id', $uid)))
             ->where('created_at', '>=', Carbon::now()->subDays(89)->startOfDay())
-            ->get(['created_at'])
-            ->groupBy(fn ($l) => $l->created_at->format('Y-m-d'))->map->count();
+            ->selectRaw('DATE(created_at) as d, COUNT(*) as total')
+            ->groupBy('d')
+            ->pluck('total', 'd');
 
         return [
             'labels' => $days->map(fn ($d) => Carbon::parse($d)->format('M d'))->all(),
