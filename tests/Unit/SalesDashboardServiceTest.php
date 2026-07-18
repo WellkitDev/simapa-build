@@ -177,6 +177,21 @@ class SalesDashboardServiceTest extends TestCase
     }
 
     /** @test */
+    public function rata_rata_order_truncates_bukan_membulatkan(): void
+    {
+        $rep = $this->marketing();
+        foreach ([100_000, 100_000, 225_000] as $cost) {
+            $o = $this->orderFor($rep);
+            OrderDetail::factory()->create(['order_id' => $o->id, 'cost_amount' => $cost]);
+        }
+
+        $d = $this->svc->forUser($rep);
+
+        // sum=425.000, count=3 -> 141666,67 -> truncate ke 141666 (bukan round ke 141667).
+        $this->assertSame(141666, $d['rata_rata_order']);
+    }
+
+    /** @test */
     public function for_company_menjumlahkan_seluruh_marketing(): void
     {
         $a = $this->marketing();

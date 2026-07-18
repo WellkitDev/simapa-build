@@ -119,10 +119,14 @@ class SalesDashboardService
         $avg = Order::query()
             ->when($uid, fn ($q) => $q->where('tb_orders.user_id', $uid))
             ->whereYear('tb_orders.ordered_at', $year)
+            // Asumsi 1 OrderDetail per Order (invarian alur pembuatan order). Bila kelak
+            // satu order bisa banyak detail, AVG lewat leftJoin ini akan menghitung ganda.
             ->leftJoin('tb_order_details', 'tb_order_details.order_id', '=', 'tb_orders.id')
             ->avg(DB::raw('COALESCE(tb_order_details.cost_amount, 0)'));
 
-        return (int) round((float) ($avg ?? 0));
+        // (int) cast truncates toward zero — matches the old intdiv() semantics exactly.
+        // cost_amount is always >= 0, so truncation here equals floor.
+        return (int) ($avg ?? 0);
     }
 
     /** Baris tabel naskah aktif mendekati/lewat deadline: satu marketing, atau seluruh perusahaan bila null. */
