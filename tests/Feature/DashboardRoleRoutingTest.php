@@ -144,4 +144,14 @@ class DashboardRoleRoutingTest extends TestCase
         // ke gatherData() daripada viewData().
         $this->assertArrayNotHasKey('mkt', $res->original->gatherData());
     }
+
+    /** @test */
+    public function accounting_mendapat_rekap_kas_di_dashboard_utama(): void
+    {
+        $this->actingAs($this->user('accounting'))->get(route('dashboard'))
+            ->assertOk()
+            ->assertViewHas('dashboardView', 'accounting')
+            ->assertViewHas('recap')
+            ->assertViewHas('ytd');
+    }
 }
