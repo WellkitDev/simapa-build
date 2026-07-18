@@ -1,5 +1,5 @@
 <?php
-// tests/Unit/MarketingDashboardServiceTest.php
+// tests/Unit/SalesDashboardServiceTest.php
 
 namespace Tests\Unit;
 
@@ -9,15 +9,15 @@ use App\Models\Order;
 use App\Models\Payment;
 use App\Models\OrderDetail;
 use App\Models\TitleProgress;
-use App\Services\MarketingDashboardService;
+use App\Services\SalesDashboardService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
 
-class MarketingDashboardServiceTest extends TestCase
+class SalesDashboardServiceTest extends TestCase
 {
     use RefreshDatabase;
 
-    private MarketingDashboardService $svc;
+    private SalesDashboardService $svc;
 
     protected function setUp(): void
     {
@@ -25,7 +25,7 @@ class MarketingDashboardServiceTest extends TestCase
         foreach (['marketing', 'manager', 'superadmin', 'production'] as $r) {
             Role::create(['name' => $r, 'guard_name' => 'web']);
         }
-        $this->svc = new MarketingDashboardService();
+        $this->svc = new SalesDashboardService();
     }
 
     private function marketing(): User
@@ -174,5 +174,96 @@ class MarketingDashboardServiceTest extends TestCase
         $d = $this->svc->forUser($this->marketing());
         $this->assertSame(0, $d['rata_rata_order']);
         $this->assertSame(0, $d['total_piutang']);
+    }
+
+    /** @test */
+    public function rata_rata_order_truncates_bukan_membulatkan(): void
+    {
+        $rep = $this->marketing();
+        foreach ([100_000, 100_000, 225_000] as $cost) {
+            $o = $this->orderFor($rep);
+            OrderDetail::factory()->create(['order_id' => $o->id, 'cost_amount' => $cost]);
+        }
+
+        $d = $this->svc->forUser($rep);
+
+        // sum=425.000, count=3 -> 141666,67 -> truncate ke 141666 (bukan round ke 141667).
+        $this->assertSame(141666, $d['rata_rata_order']);
+    }
+
+    /** @test */
+    public function for_company_menjumlahkan_seluruh_marketing(): void
+    {
+        $a = $this->marketing();
+        $b = $this->marketing();
+
+        $oa = $this->orderFor($a);
+        $ob = $this->orderFor($b);
+        $this->paid($oa, 1_000_000);
+        $this->paid($ob, 3_000_000);
+
+        $company = $this->svc->forCompany();
+
+        $this->assertSame(4_000_000, $company['pemasukan_tahun_ini']);
+    }
+
+    /** @test */
+    public function for_company_dengan_filter_identik_dengan_for_user(): void
+    {
+        $a = $this->marketing();
+        $b = $this->marketing();
+
+        $oa = $this->orderFor($a);
+        $ob = $this->orderFor($b);
+        $this->paid($oa, 1_000_000);
+        $this->paid($ob, 3_000_000);
+
+        $filtered = $this->svc->forCompany($a);
+        $mine     = $this->svc->forUser($a);
+
+        // Inilah yang mengunci janji "kode yang sama", bukan sekadar mirip: seluruh payload, bukan sebagian key.
+        $this->assertEquals($mine, $filtered);
+        $this->assertSame(1_000_000, $filtered['pemasukan_tahun_ini']);
+    }
+
+    /** @test */
+    public function tren_dan_rata_rata_tidak_menarik_seluruh_baris_ke_php(): void
+    {
+        $a = $this->marketing();
+        $o = $this->orderFor($a);
+        $this->paid($o, 500_000);
+
+        \Illuminate\Support\Facades\DB::enableQueryLog();
+        $this->svc->forCompany();
+        $log = \Illuminate\Support\Facades\DB::getQueryLog();
+        \Illuminate\Support\Facades\DB::disableQueryLog();
+
+        $agg = collect($log)->filter(fn ($q) => str_contains(strtolower($q['query']), 'group by'));
+        $this->assertGreaterThanOrEqual(3, $agg->count(), 'dailySum/dailyCount/completionTrend harus GROUP BY di SQL');
+
+        $avg = collect($log)->contains(fn ($q) => str_contains(strtolower($q['query']), 'avg('));
+        $this->assertTrue($avg, 'avgOrderValue harus AVG di SQL');
+    }
+
+    /** @test */
+    public function delta_menandai_lonjakan_ekstrem_sebagai_capped(): void
+    {
+        $m = new \ReflectionMethod($this->svc, 'delta');
+        $m->setAccessible(true);
+
+        // 50rb -> 5jt = +9900%: benar tapi tak bermakna dibaca.
+        $d = $m->invoke($this->svc, 5_000_000, 50_000);
+        $this->assertTrue($d['capped']);
+        $this->assertSame('up', $d['dir']);
+
+        // Kenaikan wajar tidak di-cap.
+        $d2 = $m->invoke($this->svc, 120, 100);
+        $this->assertFalse($d2['capped']);
+        $this->assertSame(20.0, $d2['pct']);
+
+        // Pembanding nol tetap "baru" (pct null), bukan capped.
+        $d3 = $m->invoke($this->svc, 100, 0);
+        $this->assertNull($d3['pct']);
+        $this->assertFalse($d3['capped']);
     }
 }

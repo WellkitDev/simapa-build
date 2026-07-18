@@ -51,15 +51,20 @@ class MarketingDashboardTest extends TestCase
     /** @test */
     public function manager_dashboard_shows_cleaned_generic_plus_global(): void
     {
+        // Sejak peta role eksplisit (dashboard per role): manager sekarang dapat
+        // dashboardView 'company', bukan lagi kartu keuangan generik lama. Task 8 mengisi
+        // partial `company` (sebelumnya penanda minimal) — narrowing sementara di sini
+        // sekarang dipulihkan ke assertion positif nyata. Task 9 menambah assertion bahwa
+        // manager TIDAK melihat blok kas/laba (hanya superadmin) — manager memang
+        // dirancang tetap melihat "Ringkasan Pemasukan" perusahaan, jadi jangan
+        // assertDontSee itu di sini.
         $this->actingAs($this->user('manager'));
         $this->get(route('dashboard'))
             ->assertOk()
-            ->assertSee('Total Pembayaran')          // judul kartu dirapikan
-            ->assertSee('Menunggu Persetujuan')      // typo "Panding" diganti
-            ->assertSee('Progres Naskah')            // seksi global
-            ->assertDontSee('Ringkasan Pemasukan')   // bukan dashboard marketing
-            ->assertDontSee('+3.3%')                 // angka tren palsu template dihapus
-            ->assertDontSee('Total Panding Approved'); // typo lama hilang
+            ->assertSee('Target Tim')
+            ->assertSee('Produksi Global')
+            ->assertDontSee('Dashboard Marketing')
+            ->assertViewHas('dashboardView', 'company');
     }
 
     /** @test */

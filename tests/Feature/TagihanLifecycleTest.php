@@ -200,7 +200,7 @@ class TagihanLifecycleTest extends TestCase
         $owner = $this->user('marketing');
         Tagihan::factory()->create(['created_by' => $owner->id, 'status' => 'disetujui', 'amount' => 5000000]);
 
-        $svc = app(\App\Services\MarketingDashboardService::class)->forUser($owner);
+        $svc = app(\App\Services\SalesDashboardService::class)->forUser($owner);
         $this->assertEquals(0, $svc['pemasukan_tahun_ini']);
     }
 

@@ -6,6 +6,7 @@ namespace App\Services;
 use App\Models\User;
 use App\Models\TitleProgress;
 use App\Models\TitleProgressLog;
+use App\Services\SalesDashboardService;
 use Illuminate\Support\Carbon;
 
 class ProductionDashboardService
@@ -33,8 +34,23 @@ class ProductionDashboardService
             'selesai_bulan_ini' => TitleProgress::where('assigned_user_id', $user->id)
                                     ->whereIn('status', TitleProgress::FINAL_STAGES)
                                     ->whereYear('started_at', $today->year)->whereMonth('started_at', $today->month)->count(),
+            'total_selesai'     => TitleProgress::where('assigned_user_id', $user->id)
+                                    ->whereIn('status', TitleProgress::FINAL_STAGES)->count(),
+            'selesai_bulan_ini_delta' => $this->delta(
+                                    TitleProgress::where('assigned_user_id', $user->id)
+                                        ->whereIn('status', TitleProgress::FINAL_STAGES)
+                                        ->whereYear('started_at', $today->year)
+                                        ->whereMonth('started_at', $today->month)->count(),
+                                    TitleProgress::where('assigned_user_id', $user->id)
+                                        ->whereIn('status', TitleProgress::FINAL_STAGES)
+                                        ->whereBetween('started_at', [
+                                            $today->copy()->startOfMonth()->subMonthNoOverflow(),
+                                            $today->copy()->endOfDay()->subMonthNoOverflow(),
+                                        ])->count()
+                                   ),
+            'deadline_rows'     => app(SalesDashboardService::class)->deadlineRowsForEditor($user),
             'per_stage'         => $this->stageChart($perStage),
-            'activity_30d'      => $this->activitySeries($user->id),
+            'activity_trend'    => $this->activitySeries($user->id),
         ];
     }
 
@@ -63,6 +79,21 @@ class ProductionDashboardService
         ];
     }
 
+    /** Indikator naik/turun: pct (null bila pembanding 0) + arah + penanda lonjakan ekstrem. */
+    private function delta(int $current, int $previous): array
+    {
+        if ($previous === 0) {
+            return ['pct' => null, 'dir' => $current > 0 ? 'up' : 'flat', 'capped' => false];
+        }
+        $pct = round(($current - $previous) / $previous * 100, 1);
+
+        return [
+            'pct'    => abs($pct),
+            'dir'    => $pct > 0 ? 'up' : ($pct < 0 ? 'down' : 'flat'),
+            'capped' => abs($pct) > 999,
+        ];
+    }
+
     /** {labels:[stage], series:[count]} untuk donut. */
     private function stageChart($perStage): array
     {
@@ -72,12 +103,12 @@ class ProductionDashboardService
         ];
     }
 
-    /** Aktivitas harian user (log) 30 hari → {labels, series}. */
+    /** Aktivitas harian user (log) 90 hari → {labels, series}. Diperpanjang agar toggle 7/30/90 punya data. */
     private function activitySeries(int $userId): array
     {
-        $days = collect(range(29, 0))->map(fn ($i) => Carbon::now()->subDays($i)->format('Y-m-d'));
+        $days = collect(range(89, 0))->map(fn ($i) => Carbon::now()->subDays($i)->format('Y-m-d'));
         $byDate = TitleProgressLog::where('changed_by', $userId)
-            ->where('created_at', '>=', Carbon::now()->subDays(29)->startOfDay())
+            ->where('created_at', '>=', Carbon::now()->subDays(89)->startOfDay())
             ->get(['created_at'])
             ->groupBy(fn ($l) => $l->created_at->format('Y-m-d'))->map->count();
 

@@ -119,7 +119,7 @@ class FinancialReportTest extends TestCase
         $this->orderWithPayment($me, 'ORD-B', 3000000, 3000000, 'lunas');
 
         $fr   = app(\App\Services\FinancialReportService::class)->pemasukan($me);
-        $dash = app(\App\Services\MarketingDashboardService::class)->forUser($me);
+        $dash = app(\App\Services\SalesDashboardService::class)->forUser($me);
 
         $this->assertEquals($dash['pemasukan_tahun_ini'], $fr['kpi']['total']);
         $this->assertEquals(5000000, $fr['kpi']['total']); // 2jt + 3jt, by paid_at tahun ini

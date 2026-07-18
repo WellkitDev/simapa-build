@@ -1,5 +1,5 @@
 <?php
-// app/Services/MarketingDashboardService.php
+// app/Services/SalesDashboardService.php
 
 namespace App\Services;
 
@@ -9,35 +9,53 @@ use App\Models\Payment;
 use App\Models\TitleProgress;
 use App\Models\TitleProgressLog;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
-class MarketingDashboardService
+class SalesDashboardService
 {
     /** KPI pemasukan + order + progres naskah + data chart untuk satu marketing (ter-scope order.user_id). */
     public function forUser(User $user): array
     {
-        $uid   = $user->id;
+        return $this->build($user);
+    }
+
+    /**
+     * KPI penjualan tingkat perusahaan.
+     * $filter null = seluruh marketing; diisi = satu marketing (hasil identik dengan forUser).
+     */
+    public function forCompany(?User $filter = null): array
+    {
+        return $this->build($filter);
+    }
+
+    /** $scopeUser null = tanpa filter (seluruh perusahaan) — idiom yang sama dengan Payment::forOrdersOf(). */
+    private function build(?User $scopeUser): array
+    {
+        $uid   = $scopeUser?->id;
         $today = Carbon::today();
 
-        // Uang masuk = definisi kanonik Payment::income() (paid, bukan refund), scoped order user.
-        $income = fn () => Payment::income()->forOrdersOf($user);
+        // Uang masuk = definisi kanonik Payment::income() (paid, bukan refund).
+        $income = fn () => Payment::income()->forOrdersOf($scopeUser);
+
+        $orders = fn () => Order::query()->when($uid, fn ($q) => $q->where('user_id', $uid));
 
         $prog = fn () => TitleProgress::query()
-            ->whereHas('orderDetail.order', fn ($q) => $q->where('user_id', $uid));
+            ->when($uid, fn ($q) => $q->whereHas('orderDetail.order', fn ($o) => $o->where('user_id', $uid)));
 
         // Nilai periode berjalan (dipakai kartu + sebagai 'current' delta).
         $incHari   = (int) $income()->whereDate('paid_at', $today)->sum('amount');
         $incMinggu = (int) $income()->whereBetween('paid_at', [$today->copy()->startOfWeek(), $today->copy()->endOfWeek()])->sum('amount');
         $incTahun  = (int) $income()->whereYear('paid_at', $today->year)->sum('amount');
-        $jmlOrder    = Order::where('user_id', $uid)->whereYear('ordered_at', $today->year)->count();
-        $jmlOrderBln = Order::where('user_id', $uid)->whereYear('ordered_at', $today->year)->whereMonth('ordered_at', $today->month)->count();
+        $jmlOrder    = $orders()->whereYear('ordered_at', $today->year)->count();
+        $jmlOrderBln = $orders()->whereYear('ordered_at', $today->year)->whereMonth('ordered_at', $today->month)->count();
 
         // Pembanding setara (period-to-date pada periode sebelumnya).
         $incHariPrev    = (int) $income()->whereDate('paid_at', $today->copy()->subDay())->sum('amount');
         $incMingguPrev  = (int) $income()->whereBetween('paid_at', [$today->copy()->startOfWeek()->subWeek(), $today->copy()->endOfDay()->subWeek()])->sum('amount');
         $incTahunPrev   = (int) $income()->whereBetween('paid_at', [$today->copy()->startOfYear()->subYear(), $today->copy()->endOfDay()->subYear()])->sum('amount');
-        $jmlOrderPrev   = Order::where('user_id', $uid)->whereBetween('ordered_at', [$today->copy()->startOfYear()->subYear(), $today->copy()->endOfDay()->subYear()])->count();
-        $jmlOrderBlnPrev = Order::where('user_id', $uid)->whereBetween('ordered_at', [$today->copy()->startOfMonth()->subMonthNoOverflow(), $today->copy()->endOfDay()->subMonthNoOverflow()])->count();
+        $jmlOrderPrev    = $orders()->whereBetween('ordered_at', [$today->copy()->startOfYear()->subYear(), $today->copy()->endOfDay()->subYear()])->count();
+        $jmlOrderBlnPrev = $orders()->whereBetween('ordered_at', [$today->copy()->startOfMonth()->subMonthNoOverflow(), $today->copy()->endOfDay()->subMonthNoOverflow()])->count();
 
         return [
             // Pemasukan (tiap Payment paid dihitung — termasuk DP/parsial/pelunasan)
@@ -55,14 +73,16 @@ class MarketingDashboardService
             'jumlah_order_bulan_ini_delta' => $this->delta($jmlOrderBln, $jmlOrderBlnPrev),
 
             // KPI baru
-            'total_piutang'   => (int) ((new FinancialReportService())->piutang($user)['kpi']['sisa']),
+            'total_piutang'   => (int) ((new FinancialReportService())->piutang($scopeUser)['kpi']['sisa']),
             'rata_rata_order' => $this->avgOrderValue($uid, $today->year),
-            'target'          => app(\App\Services\MarketingTargetService::class)->currentForMarketing($user),
+            'target'          => $scopeUser
+                                    ? app(\App\Services\MarketingTargetService::class)->currentForMarketing($scopeUser)
+                                    : null,
 
             'income_trend'           => $this->dailySum($income(), 'paid_at', 'amount'),
-            'order_trend'            => $this->dailyCount(Order::where('user_id', $uid), 'ordered_at'),
+            'order_trend'            => $this->dailyCount($orders(), 'ordered_at'),
 
-            // Progres naskah (dari order milik marketing)
+            // Progres naskah (sesuai scope: satu marketing, atau seluruh perusahaan bila null)
             'naskah_aktif'      => (clone $prog())->whereNotIn('status', TitleProgress::FINAL_STAGES)->where('status', '!=', 'menunggu_proses')->count(),
             'belum_diproses'    => (clone $prog())->where('status', 'menunggu_proses')->count(),
             'lewat_target'      => (clone $prog())->whereNotIn('status', TitleProgress::FINAL_STAGES)->whereNotNull('target_date')->whereDate('target_date', '<', $today)->count(),
@@ -74,42 +94,68 @@ class MarketingDashboardService
                                     (clone $prog())->whereNotIn('status', TitleProgress::FINAL_STAGES)->where('status', '!=', 'menunggu_proses')->get(['status'])->groupBy('status')->map->count()
                                    ),
             'completion_trend'  => $this->completionTrend($uid),
-            'deadline_rows'     => $this->deadlineRows($user),
+            'deadline_rows'     => $this->deadlineRows($scopeUser),
         ];
     }
 
-    /** Indikator naik/turun: pct (null bila pembanding 0) + arah up/down/flat. */
+    /** Indikator naik/turun: pct (null bila pembanding 0) + arah + penanda lonjakan ekstrem. */
     private function delta(int $current, int $previous): array
     {
         if ($previous === 0) {
-            return ['pct' => null, 'dir' => $current > 0 ? 'up' : 'flat'];
+            return ['pct' => null, 'dir' => $current > 0 ? 'up' : 'flat', 'capped' => false];
         }
         $pct = round(($current - $previous) / $previous * 100, 1);
-        return ['pct' => abs($pct), 'dir' => $pct > 0 ? 'up' : ($pct < 0 ? 'down' : 'flat')];
+
+        return [
+            'pct'    => abs($pct),
+            'dir'    => $pct > 0 ? 'up' : ($pct < 0 ? 'down' : 'flat'),
+            'capped' => abs($pct) > 999,
+        ];
     }
 
-    /** Rata-rata nilai order (cost_amount) tahun berjalan; 0 bila tanpa order. */
-    private function avgOrderValue(int $uid, int $year): int
+    /** Rata-rata nilai order (cost_amount) tahun berjalan; 0 bila tanpa order. $uid null = seluruh perusahaan. */
+    private function avgOrderValue(?int $uid, int $year): int
     {
-        $orders = Order::where('user_id', $uid)->whereYear('ordered_at', $year)->with('details')->get();
-        $count = $orders->count();
-        if ($count === 0) {
-            return 0;
-        }
-        $sum = (int) $orders->sum(fn ($o) => (int) ($o->details->cost_amount ?? 0));
-        return intdiv($sum, $count);
+        $avg = Order::query()
+            ->when($uid, fn ($q) => $q->where('tb_orders.user_id', $uid))
+            ->whereYear('tb_orders.ordered_at', $year)
+            // Asumsi 1 OrderDetail per Order (invarian alur pembuatan order). Bila kelak
+            // satu order bisa banyak detail, AVG lewat leftJoin ini akan menghitung ganda.
+            ->leftJoin('tb_order_details', 'tb_order_details.order_id', '=', 'tb_orders.id')
+            ->avg(DB::raw('COALESCE(tb_order_details.cost_amount, 0)'));
+
+        // (int) cast truncates toward zero — matches the old intdiv() semantics exactly.
+        // cost_amount is always >= 0, so truncation here equals floor.
+        return (int) ($avg ?? 0);
     }
 
-    /** Baris tabel naskah aktif mendekati/lewat deadline (ter-scope order marketing). */
-    public function deadlineRows(User $user): \Illuminate\Support\Collection
+    /** Baris tabel naskah aktif mendekati/lewat deadline: satu marketing, atau seluruh perusahaan bila null. */
+    public function deadlineRows(?User $scopeUser): \Illuminate\Support\Collection
+    {
+        return $this->deadlineFrom(
+            TitleProgress::query()->when($scopeUser,
+                fn ($q) => $q->whereHas('orderDetail.order', fn ($o) => $o->where('user_id', $scopeUser->id)))
+        );
+    }
+
+    /** Baris deadline milik satu editor (scope assigned_user_id, bukan kepemilikan order). */
+    public function deadlineRowsForEditor(User $editor): \Illuminate\Support\Collection
+    {
+        return $this->deadlineFrom(
+            TitleProgress::query()->where('assigned_user_id', $editor->id)
+        );
+    }
+
+    private function deadlineFrom($query): \Illuminate\Support\Collection
     {
         $today = Carbon::today();
 
-        return TitleProgress::query()
+        return $query
             ->whereNotIn('status', TitleProgress::FINAL_STAGES)
             ->whereNotNull('target_date')
-            ->whereHas('orderDetail.order', fn ($q) => $q->where('user_id', $user->id))
             ->with('orderDetail.order')
+            ->orderBy('target_date')
+            ->limit(200)
             ->get()
             ->map(function (TitleProgress $tp) use ($today) {
                 $target  = Carbon::parse($tp->target_date)->startOfDay();
@@ -148,14 +194,14 @@ class MarketingDashboardService
         ];
     }
 
-    /** Σ kolom per hari 90 hari → {labels, series}. */
+    /** Σ kolom per hari 90 hari → {labels, series}. Agregasi di SQL. */
     private function dailySum($query, string $dateCol, string $sumCol): array
     {
         $days = collect(range(89, 0))->map(fn ($i) => Carbon::now()->subDays($i)->format('Y-m-d'));
         $byDate = $query->where($dateCol, '>=', Carbon::now()->subDays(89)->startOfDay())
-            ->get([$dateCol, $sumCol])
-            ->groupBy(fn ($r) => Carbon::parse($r->$dateCol)->format('Y-m-d'))
-            ->map(fn ($g) => (int) $g->sum($sumCol));
+            ->selectRaw("DATE($dateCol) as d, SUM($sumCol) as total")
+            ->groupBy('d')
+            ->pluck('total', 'd');
 
         return [
             'labels' => $days->map(fn ($d) => Carbon::parse($d)->format('M d'))->all(),
@@ -163,14 +209,14 @@ class MarketingDashboardService
         ];
     }
 
-    /** Count per hari 90 hari → {labels, series}. */
+    /** Count per hari 90 hari → {labels, series}. Agregasi di SQL. */
     private function dailyCount($query, string $dateCol): array
     {
         $days = collect(range(89, 0))->map(fn ($i) => Carbon::now()->subDays($i)->format('Y-m-d'));
         $byDate = $query->where($dateCol, '>=', Carbon::now()->subDays(89)->startOfDay())
-            ->get([$dateCol])
-            ->groupBy(fn ($r) => Carbon::parse($r->$dateCol)->format('Y-m-d'))
-            ->map->count();
+            ->selectRaw("DATE($dateCol) as d, COUNT(*) as total")
+            ->groupBy('d')
+            ->pluck('total', 'd');
 
         return [
             'labels' => $days->map(fn ($d) => Carbon::parse($d)->format('M d'))->all(),
@@ -178,16 +224,17 @@ class MarketingDashboardService
         ];
     }
 
-    /** Penyelesaian naskah marketing per hari 90 hari (log to_value Terbit/Publish, scoped). */
-    private function completionTrend(int $uid): array
+    /** Penyelesaian naskah per hari 90 hari. $uid null = seluruh perusahaan. Agregasi di SQL. */
+    private function completionTrend(?int $uid): array
     {
         $days = collect(range(89, 0))->map(fn ($i) => Carbon::now()->subDays($i)->format('Y-m-d'));
         // to_value is title-cased by TitleProgressService::log() (e.g. 'Terbit'/'Publish')
         $byDate = TitleProgressLog::whereIn('to_value', ['Terbit', 'Publish'])
-            ->whereHas('titleProgress.orderDetail.order', fn ($q) => $q->where('user_id', $uid))
+            ->when($uid, fn ($q) => $q->whereHas('titleProgress.orderDetail.order', fn ($o) => $o->where('user_id', $uid)))
             ->where('created_at', '>=', Carbon::now()->subDays(89)->startOfDay())
-            ->get(['created_at'])
-            ->groupBy(fn ($l) => $l->created_at->format('Y-m-d'))->map->count();
+            ->selectRaw('DATE(created_at) as d, COUNT(*) as total')
+            ->groupBy('d')
+            ->pluck('total', 'd');
 
         return [
             'labels' => $days->map(fn ($d) => Carbon::parse($d)->format('M d'))->all(),

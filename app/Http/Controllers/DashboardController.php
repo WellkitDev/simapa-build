@@ -2,137 +2,119 @@
 
 namespace App\Http\Controllers;
 
-use Carbon\Carbon;
-use App\Models\Order;
-use App\Models\Payment;
+use App\Models\User;
 use Illuminate\Http\Request;
-use App\Models\PaymentApproval;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use App\Services\ProductionDashboardService;
 use App\Services\PerformanceService;
-use App\Services\MarketingDashboardService;
+use App\Services\SalesDashboardService;
+use App\Services\AdminDashboardService;
+use App\Services\MarketingTargetService;
+use App\Services\CashRecapService;
+use App\Services\ExpenseGapService;
 
 class DashboardController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        //
-        // Filter dasar jika user adalah marketing
-        // Filter dasar Marketing
-        $isMarketing = Auth::user()->hasRole('marketing');
-        $userId = Auth::id();
-
         $user = Auth::user();
-        $isProductionOnly = $user->hasRole('production') && ! $user->hasAnyRole(['manager', 'superadmin', 'marketing']);
 
-        if ($isProductionOnly) {
-            return view('dashboard', [
-                'dashboardView' => 'production',
-                'prod' => app(ProductionDashboardService::class)->forUser($user),
-                'perf' => app(PerformanceService::class)->forEditor($user),
-            ]);
+        // Peta berurutan prioritas: role pertama yang cocok menang.
+        // Menggantikan rentetan if yang tumpang tindih, yang membuat admin dan
+        // accounting mendarat di kartu keuangan tanpa pernah dirancang ke sana.
+        return match (true) {
+            $user->hasRole('superadmin') => $this->company($request, true),
+            $user->hasRole('manager')    => $this->company($request, false),
+            $user->hasRole('accounting') => $this->accounting(),
+            $user->hasRole('admin')      => $this->admin(),
+            $user->hasRole('marketing')  => $this->sales($user),
+            $user->hasRole('production') => $this->production($user),
+            default                      => view('dashboard', ['dashboardView' => 'none']),
+        };
+    }
+
+    private function sales($user)
+    {
+        return view('dashboard', [
+            'dashboardView' => 'sales',
+            'mkt' => app(SalesDashboardService::class)->forUser($user),
+        ]);
+    }
+
+    private function production($user)
+    {
+        return view('dashboard', [
+            'dashboardView' => 'production',
+            'prod' => app(ProductionDashboardService::class)->forUser($user),
+            'perf' => app(PerformanceService::class)->forEditor($user),
+        ]);
+    }
+
+    private function admin()
+    {
+        return view('dashboard', [
+            'dashboardView' => 'admin',
+            'adm'    => app(AdminDashboardService::class)->forAdmin(),
+            'global' => app(ProductionDashboardService::class)->global(),
+        ]);
+    }
+
+    private function accounting()
+    {
+        $year = now()->year;
+
+        return view('dashboard', [
+            'dashboardView' => 'accounting',
+            'year'  => $year,
+            'recap' => app(CashRecapService::class)->monthlyRecap($year),
+            'ytd'   => app(CashRecapService::class)->ytd($year),
+            'gap'   => app(ExpenseGapService::class)->check($year),
+        ]);
+    }
+
+    private function company(Request $request, bool $withCash)
+    {
+        // Id asing / bukan marketing → null = "Semua marketing", bukan error.
+        $filter = null;
+        if ($request->filled('marketing')) {
+            $filter = User::role('marketing')->find((int) $request->query('marketing'));
         }
 
-        $isMarketingOnly = $user->hasRole('marketing') && ! $user->hasAnyRole(['manager', 'superadmin']);
-
-        if ($isMarketingOnly) {
-            return view('dashboard', [
-                'dashboardView' => 'marketing',
-                'mkt' => app(MarketingDashboardService::class)->forUser($user),
-            ]);
-        }
-
-        // 1. Rentang waktu 14 hari terakhir
-        $days = collect(range(29, 0))->map(function($i) {
-            return Carbon::now()->subDays($i)->format('Y-m-d');
-        });
-        $startDate = Carbon::now()->subDays(29)->startOfDay();
-
-        // --- QUERY DATA HARIAN ---
-
-        // A. Daily Orders
-        $dailyOrders = Order::select(DB::raw('DATE(ordered_at) as date'), DB::raw('count(*) as total'))
-            ->where('ordered_at', '>=', $startDate)
-            ->when($isMarketing, fn($q) => $q->where('user_id', $userId))
-            ->groupBy('date')->pluck('total', 'date');
-
-        // B. Daily Income (Sum) — income() = uang masuk kanonik (paid, bukan refund).
-        $dailyIncome = Payment::select(DB::raw('DATE(paid_at) as date'), DB::raw('sum(amount) as total'))
-            ->income()->where('paid_at', '>=', $startDate)
-            ->whereHas('order', fn($q) => $isMarketing ? $q->where('user_id', $userId) : $q)
-            ->groupBy('date')->pluck('total', 'date');
-
-        // C. Daily Payments (Count) — pembayaran diterima, refund bukan pembayaran.
-        $dailyPayments = Payment::select(DB::raw('DATE(paid_at) as date'), DB::raw('count(*) as total'))
-            ->income()->where('paid_at', '>=', $startDate)
-            ->whereHas('order', fn($q) => $isMarketing ? $q->where('user_id', $userId) : $q)
-            ->groupBy('date')->pluck('total', 'date');
-
-        // D. Daily Approvals (Approved, Pending, Rejected)
-        // Kita ambil data dari table PaymentApproval
-        $dailyStatus = PaymentApproval::select(
-                DB::raw('DATE(approved_at) as date'),
-                'status',
-                DB::raw('count(*) as total')
-            )
-            ->where('approved_at', '>=', $startDate)
-            ->whereHas('payment.order', fn($q) => $isMarketing ? $q->where('user_id', $userId) : $q)
-            ->groupBy('date', 'status')
-            ->get();
-
-        // --- MAPPING DATA KE SERIES ---
-
-        $seriesOrder   = $days->map(fn($date) => (int) $dailyOrders->get($date, 0));
-        $seriesIncome  = $days->map(fn($date) => (int) $dailyIncome->get($date, 0));
-        $seriesPayment = $days->map(fn($date) => (int) $dailyPayments->get($date, 0));
-
-        // Mapping status approval dari hasil collection get()
-        $seriesApprove = $days->map(fn($date) => (int) $dailyStatus->where('date', $date)->where('status', 'approved')->first()?->total ?? 0);
-        $seriesPending = $days->map(fn($date) => (int) $dailyStatus->where('date', $date)->where('status', 'pending')->first()?->total ?? 0);
-        $seriesReject  = $days->map(fn($date) => (int) $dailyStatus->where('date', $date)->where('status', 'rejected')->first()?->total ?? 0);
-
-        $chartLabels   = $days->map(fn($date) => Carbon::parse($date)->format('M d'));
-
-        // Masukkan ke array data utama
         $data = [
-            'total_orders'  => Order::when($isMarketing, fn($q) => $q->where('user_id', $userId))->count(),
-            'total_income'  => Payment::income()
-                                ->whereHas('order', fn($q) => $isMarketing ? $q->where('user_id', $userId) : $q)
-                                ->sum('amount'),
-            'total_payment' => Payment::income()
-                                ->whereHas('order', fn($q) => $isMarketing ? $q->where('user_id', $userId) : $q)
-                                ->count(),
-            'total_approve' => PaymentApproval::where('status', 'approved')
-                                ->whereHas('payment.order', fn($q) => $isMarketing ? $q->where('user_id', $userId) : $q)
-                                ->count(),
-            'total_pending' => PaymentApproval::where('status', 'pending')
-                                ->whereHas('payment.order', fn($q) => $isMarketing ? $q->where('user_id', $userId) : $q)
-                                ->count(),
-            'total_reject'  => PaymentApproval::where('status', 'rejected')
-                                ->whereHas('payment.order', fn($q) => $isMarketing ? $q->where('user_id', $userId) : $q)
-                                ->count(),
-            'chart_labels'   => $chartLabels->values()->all(),
-            'series_order'   => $seriesOrder->values()->all(),
-            'series_income'  => $seriesIncome->values()->all(),
-            'series_payment' => $seriesPayment->values()->all(),
-            'series_approve' => $seriesApprove->values()->all(),
-            'series_pending' => $seriesPending->values()->all(),
-            'series_reject'  => $seriesReject->values()->all(),
+            'dashboardView' => 'company',
+            'mkt'           => app(SalesDashboardService::class)->forCompany($filter),
+            'global'        => app(ProductionDashboardService::class)->global(),
+            'editors'       => app(PerformanceService::class)->allEditors(),
+            'marketers'     => User::role('marketing')->orderBy('name')->get(['id', 'name']),
+            'filterId'      => $filter?->id,
+            'teamTargets'   => $filter ? collect() : app(MarketingTargetService::class)->adminList('aktif'),
+            'cash'          => null,
         ];
 
-        $dashboardView = 'financial';
-        $global  = null;
-        $editors = collect();
-        if ($user->hasAnyRole(['manager', 'superadmin'])) {
-            $global  = app(ProductionDashboardService::class)->global();
-            $editors = app(PerformanceService::class)->allEditors();
+        if ($withCash) {
+            $data['cash'] = $this->cashSummary();
         }
 
-        return view('dashboard', compact('data', 'dashboardView', 'global', 'editors'));
+        return view('dashboard', $data);
+    }
+
+    /** Blok kas superadmin. Kegagalan akuntansi tidak boleh menjatuhkan seluruh dashboard. */
+    private function cashSummary(): ?array
+    {
+        try {
+            $year = now()->year;
+            return [
+                'year' => $year,
+                'ytd'  => app(CashRecapService::class)->ytd($year),
+                'gap'  => app(ExpenseGapService::class)->check($year),
+            ];
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Blok kas dashboard gagal: ' . $e->getMessage());
+            return null;
+        }
     }
 
     /**

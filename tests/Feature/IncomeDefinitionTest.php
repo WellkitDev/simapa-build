@@ -9,7 +9,7 @@ use App\Models\Payment;
 use App\Models\User;
 use App\Services\CashRecapService;
 use App\Services\FinancialReportService;
-use App\Services\MarketingDashboardService;
+use App\Services\SalesDashboardService;
 use App\Services\MarketingTargetService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
@@ -81,7 +81,7 @@ class IncomeDefinitionTest extends TestCase
     /** @test */
     public function marketing_dashboard_income_excludes_refund(): void
     {
-        $kpi = app(MarketingDashboardService::class)->forUser($this->marketing);
+        $kpi = app(SalesDashboardService::class)->forUser($this->marketing);
 
         $this->assertSame(10_000_000, $kpi['pemasukan_tahun_ini'], 'Refund tak boleh menambah KPI dashboard.');
     }
@@ -106,18 +106,18 @@ class IncomeDefinitionTest extends TestCase
     /** @test */
     public function main_dashboard_total_income_excludes_refund(): void
     {
-        // Dashboard utama menghitung uang masuk sendiri (bukan lewat service) —
-        // ikut terdampak bug yang sama.
+        // Sejak peta role eksplisit (dashboard per role): dashboard superadmin tak lagi
+        // menghitung uang masuk sendiri — ia mendelegasikan ke CashRecapService::ytd() lewat
+        // blok 'cash' pada view company. Kunci yang sama tetap diuji: refund tak boleh
+        // menggelembungkan pemasukan, dan tetap tercatat sebagai pengeluaran.
         $superadmin = User::factory()->create();
         $superadmin->assignRole('superadmin');
 
-        $data = $this->actingAs($superadmin)->get(route('dashboard'))
-            ->assertOk()->viewData('data');
+        $cash = $this->actingAs($superadmin)->get(route('dashboard'))
+            ->assertOk()->viewData('cash');
 
-        $this->assertSame(10_000_000, (int) $data['total_income'], 'Refund tak boleh menambah total_income dashboard.');
-        $this->assertSame(10_000_000, (int) array_sum($data['series_income']), 'Refund tak boleh muncul di grafik pemasukan harian.');
-        // Refund bukan "pembayaran diterima" — cacahnya harus sama dgn Laporan Keuangan.
-        $this->assertSame(1, (int) $data['total_payment'], 'Hanya 1 pembayaran diterima; refund tak dihitung.');
+        $this->assertSame(10_000_000.0, (float) $cash['ytd']['totalIn'], 'Refund tak boleh menambah totalIn Jurnal Kas di dashboard.');
+        $this->assertSame(4_000_000.0, (float) $cash['ytd']['totalOut'], 'Refund harus tetap tercatat sebagai pengeluaran.');
     }
 
     /** @test */
