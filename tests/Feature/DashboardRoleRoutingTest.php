@@ -124,4 +124,24 @@ class DashboardRoleRoutingTest extends TestCase
         $this->assertNotNull($res->viewData('cash'));
         $res->assertSee('Saldo Akhir')->assertSee('Laba Tahun Berjalan');
     }
+
+    /** @test */
+    public function admin_melihat_papan_dokumen_tanpa_angka_uang(): void
+    {
+        $res = $this->actingAs($this->user('admin'))->get(route('dashboard'))->assertOk();
+
+        $res->assertSee('Dokumen Belum Lengkap')
+            ->assertSee('Arsip Menunggu Artefak')
+            ->assertSee('Pengumuman Aktif');
+
+        // Cacat asal yang diperbaiki spec ini: admin tak pernah lagi melihat angka uang.
+        $res->assertDontSee('Total Pemasukan')
+            ->assertDontSee('Total Piutang');
+
+        // viewData('mkt') melempar ErrorException (undefined array key) kalau key
+        // sama sekali tak diset — ?? tak menangkapnya karena lemparannya di dalam
+        // method call. admin() memang tak pernah menaruh 'mkt', jadi cek langsung
+        // ke gatherData() daripada viewData().
+        $this->assertArrayNotHasKey('mkt', $res->original->gatherData());
+    }
 }
