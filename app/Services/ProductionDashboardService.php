@@ -50,7 +50,7 @@ class ProductionDashboardService
                                    ),
             'deadline_rows'     => app(SalesDashboardService::class)->deadlineRowsForEditor($user),
             'per_stage'         => $this->stageChart($perStage),
-            'activity_30d'      => $this->activitySeries($user->id),
+            'activity_trend'    => $this->activitySeries($user->id),
         ];
     }
 

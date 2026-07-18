@@ -30,8 +30,6 @@
                     <h3 class="mt-2 mb-0 text-{{ $tone }}">{{ $val }}</h3>
                     @if($label === 'Selesai Bulan Ini')
                         @include('dashboard.partials.delta', ['delta' => $prod['selesai_bulan_ini_delta']])
-                    @elseif($label === 'Lewat Target')
-                        @include('dashboard.partials.delta', ['delta' => ['dir' => 'flat', 'pct' => null, 'capped' => false], 'invertGood' => true])
                     @endif
                 </div>
             </div>
@@ -104,7 +102,7 @@
         }).render();
 
         var C = window.SimapaCharts;
-        var fullActivity = { labels: @json($prod['activity_30d']['labels']), series: @json($prod['activity_30d']['series']) };
+        var fullActivity = { labels: @json($prod['activity_trend']['labels']), series: @json($prod['activity_trend']['series']) };
         var n0 = 30;
         var sliced = C.slice(fullActivity, n0);
         var activityChart = C.render('#prodActivityChart', C.area('Aktivitas', sliced, C.PALETTE.primary, false), sliced.series);
