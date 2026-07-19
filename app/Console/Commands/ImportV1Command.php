@@ -55,8 +55,10 @@ class ImportV1Command extends Command
         $this->fixInvoices();
         $this->regenerateDerived();
         $this->seedProgressAndLogs();
+        $this->resetAutoIncrements();
+        $this->printSummary();
 
-        $this->info('Reset + seed dasar selesai.');
+        $this->info('Impor v1 → v2 selesai.');
         return self::SUCCESS;
     }
 
@@ -180,5 +182,31 @@ class ImportV1Command extends Command
             \DB::table('tb_invoice_logs')->insert($chunk);
         }
         $this->line('  ✓ invoice_logs: ' . count($logs) . ' baris');
+    }
+
+    private function resetAutoIncrements(): void
+    {
+        $tables = array_merge(self::BUSINESS_TABLES, [
+            'tb_title_progress', 'tb_invoice_logs', 'tb_titles',
+        ]);
+        foreach ($tables as $t) {
+            if (! \DB::getSchemaBuilder()->hasColumn($t, 'id')) {
+                continue; // tabel pivot murni (mis. tb_scope_orders) tak punya kolom id/AUTO_INCREMENT.
+            }
+            $next = ((int) \DB::table($t)->max('id')) + 1;
+            \DB::statement("ALTER TABLE `{$t}` AUTO_INCREMENT = {$next}");
+        }
+        $this->line('  ✓ AUTO_INCREMENT direset dinamis (MAX(id)+1)');
+    }
+
+    private function printSummary(): void
+    {
+        $rows = [];
+        foreach (array_merge(self::BUSINESS_TABLES, [
+            'tb_titles', 'tb_cash_entries', 'tb_title_progress', 'tb_invoice_logs', 'users',
+        ]) as $t) {
+            $rows[] = [$t, \DB::table($t)->count()];
+        }
+        $this->table(['Tabel', 'Baris'], $rows);
     }
 }
