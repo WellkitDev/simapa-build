@@ -38,7 +38,7 @@
 </div>
 
 <div class="row">
-    <div class="col-md-4 grid-margin stretch-card">
+    <div class="col-md-6 grid-margin stretch-card">
         <div class="card"><div class="card-body">
             <h6 class="card-title">Performa Saya</h6>
             <div id="prodPerfChart"></div>
@@ -48,13 +48,7 @@
             </div>
         </div></div>
     </div>
-    <div class="col-md-4 grid-margin stretch-card">
-        <div class="card"><div class="card-body">
-            <h6 class="card-title">Naskah Saya per Tahap</h6>
-            <div id="prodStageChart"></div>
-        </div></div>
-    </div>
-    <div class="col-md-4 grid-margin stretch-card">
+    <div class="col-md-6 grid-margin stretch-card">
         <div class="card"><div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <h6 class="card-title mb-0">Aktivitas Saya</h6>
@@ -68,6 +62,9 @@
         </div></div>
     </div>
 </div>
+
+<h6 class="text-muted mb-2 mt-2">Naskah Saya per Tahap</h6>
+@include('dashboard.partials.stage-donuts', ['stats' => $stageStats, 'idPrefix' => 'prod'])
 
 <h6 class="text-muted mb-2 mt-2">Naskah Saya Mendekati Deadline</h6>
 <div class="row">
@@ -92,13 +89,6 @@
             labels: ['On-time'],
             plotOptions: { radialBar: { dataLabels: { value: { formatter: function(){ return rate === null ? '—' : rate + '%'; } } } } },
             colors: ['#05a34a'],
-        }).render();
-
-        new ApexCharts(document.querySelector("#prodStageChart"), {
-            chart: { type: 'donut', height: 240 },
-            series: @json($prod['per_stage']['series']),
-            labels: @json($prod['per_stage']['labels']),
-            legend: { position: 'bottom' },
         }).render();
 
         var C = window.SimapaCharts;

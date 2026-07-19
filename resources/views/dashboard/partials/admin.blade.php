@@ -72,25 +72,9 @@
         </div>
     @endforeach
 </div>
-<div class="row">
-    <div class="col-md-6 grid-margin stretch-card">
-        <div class="card"><div class="card-body">
-            <h6 class="card-title">Naskah per Tahap</h6>
-            <div id="admStageChart"></div>
-        </div></div>
-    </div>
-</div>
+@include('dashboard.partials.stage-donuts', ['stats' => $stageStats, 'idPrefix' => 'adm'])
 
 @push('plugin-scripts')
     <script src="{{ asset('assets/plugins/apexcharts/apexcharts.min.js') }}"></script>
     <script src="{{ asset('assets/js/dashboard-charts.js') }}"></script>
-@endpush
-@push('custom-scripts')
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    var C = window.SimapaCharts;
-    var d = { labels: @json($global['per_stage']['labels']), series: @json($global['per_stage']['series']) };
-    C.render('#admStageChart', C.donut(d, 'Dalam Produksi'), d.series);
-});
-</script>
 @endpush

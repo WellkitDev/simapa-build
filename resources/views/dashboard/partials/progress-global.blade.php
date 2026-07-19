@@ -29,14 +29,10 @@
     @endforeach
 </div>
 
+@include('dashboard.partials.stage-donuts', ['stats' => $stageStats, 'idPrefix' => 'co'])
+
 <div class="row">
-    <div class="col-md-5 grid-margin stretch-card">
-        <div class="card"><div class="card-body">
-            <h6 class="card-title">Distribusi per Tahap</h6>
-            <div id="globalStageChart"></div>
-        </div></div>
-    </div>
-    <div class="col-md-7 grid-margin stretch-card">
+    <div class="col-12 grid-margin stretch-card">
         <div class="card"><div class="card-body">
             <h6 class="card-title">Penyelesaian (30 hari)</h6>
             <div id="globalTrendChart"></div>
@@ -78,15 +74,6 @@
 @push('custom-scripts')
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        new ApexCharts(document.querySelector("#globalStageChart"), {
-            chart: { type: 'donut', height: 260 },
-            series: @json($global['per_stage']['series']),
-            labels: @json($global['per_stage']['labels']),
-            legend: { position: 'bottom' },
-            dataLabels: { enabled: true, formatter: function (v) { return Math.round(v) + '%'; } },
-            plotOptions: { pie: { donut: { labels: { show: true, total: { show: true, label: 'Dalam Produksi' } } } } },
-        }).render();
-
         new ApexCharts(document.querySelector("#globalTrendChart"), {
             chart: { type: 'area', height: 260, toolbar: { show: false } },
             series: [{ name: 'Selesai', data: @json($global['completion_trend']['series']) }],
