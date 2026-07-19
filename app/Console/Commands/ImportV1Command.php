@@ -2,6 +2,8 @@
 
 namespace App\Console\Commands;
 
+use App\Services\PaymentCashBackfillService;
+use App\Services\TitleBackfillService;
 use Illuminate\Console\Command;
 
 class ImportV1Command extends Command
@@ -51,6 +53,7 @@ class ImportV1Command extends Command
         $this->importBusinessData($sql);
         $this->reconcileUsers($sql);
         $this->fixInvoices();
+        $this->regenerateDerived();
 
         $this->info('Reset + seed dasar selesai.');
         return self::SUCCESS;
@@ -129,5 +132,14 @@ class ImportV1Command extends Command
         \DB::table('tb_invoices')->update(['type' => 'regular']);
         $n = \DB::table('tb_invoices')->where('status', 'pending')->update(['status' => 'diterbitkan']);
         $this->line("  ✓ invoices: type=regular, {$n} status pending→diterbitkan");
+    }
+
+    private function regenerateDerived(): void
+    {
+        $titles = (new TitleBackfillService())->run();
+        $this->line("  ✓ Title Directory: {$titles} order detail ter-backfill ke Title");
+
+        $cash = (new PaymentCashBackfillService())->run();
+        $this->line("  ✓ Kas: {$cash['synced']} payment 'paid' → entri kas");
     }
 }
