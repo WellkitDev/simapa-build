@@ -50,6 +50,7 @@ class ImportV1Command extends Command
 
         $this->importBusinessData($sql);
         $this->reconcileUsers($sql);
+        $this->fixInvoices();
 
         $this->info('Reset + seed dasar selesai.');
         return self::SUCCESS;
@@ -121,5 +122,12 @@ class ImportV1Command extends Command
         } finally {
             \DB::statement('DROP TEMPORARY TABLE IF EXISTS _v1_users');
         }
+    }
+
+    private function fixInvoices(): void
+    {
+        \DB::table('tb_invoices')->update(['type' => 'regular']);
+        $n = \DB::table('tb_invoices')->where('status', 'pending')->update(['status' => 'diterbitkan']);
+        $this->line("  ✓ invoices: type=regular, {$n} status pending→diterbitkan");
     }
 }
