@@ -154,4 +154,27 @@ class DashboardRoleRoutingTest extends TestCase
             ->assertViewHas('recap')
             ->assertViewHas('ytd');
     }
+
+    /** @test */
+    public function dashboard_menyediakan_data_stage_stats_dan_perbandingan_marketing(): void
+    {
+        $res = $this->actingAs($this->user('superadmin'))->get(route('dashboard'))->assertOk();
+
+        $stage = $res->viewData('stageStats');
+        $this->assertArrayHasKey('buku', $stage);
+        $this->assertArrayHasKey('artikel', $stage);
+        $this->assertArrayHasKey('labels', $stage['buku']);
+
+        $this->assertNotNull($res->viewData('perMarketing'));
+    }
+
+    /** @test */
+    public function admin_dan_production_menerima_stage_stats(): void
+    {
+        $this->actingAs($this->user('admin'))->get(route('dashboard'))
+            ->assertOk()->assertViewHas('stageStats');
+
+        $this->actingAs($this->user('production'))->get(route('dashboard'))
+            ->assertOk()->assertViewHas('stageStats');
+    }
 }

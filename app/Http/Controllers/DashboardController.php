@@ -12,6 +12,7 @@ use App\Services\AdminDashboardService;
 use App\Services\MarketingTargetService;
 use App\Services\CashRecapService;
 use App\Services\ExpenseGapService;
+use App\Services\ManuscriptStageStatsService;
 
 class DashboardController extends Controller
 {
@@ -50,6 +51,7 @@ class DashboardController extends Controller
             'dashboardView' => 'production',
             'prod' => app(ProductionDashboardService::class)->forUser($user),
             'perf' => app(PerformanceService::class)->forEditor($user),
+            'stageStats' => app(ManuscriptStageStatsService::class)->forEditor($user),
         ]);
     }
 
@@ -59,6 +61,7 @@ class DashboardController extends Controller
             'dashboardView' => 'admin',
             'adm'    => app(AdminDashboardService::class)->forAdmin(),
             'global' => app(ProductionDashboardService::class)->global(),
+            'stageStats' => app(ManuscriptStageStatsService::class)->global(),
         ]);
     }
 
@@ -87,6 +90,8 @@ class DashboardController extends Controller
             'dashboardView' => 'company',
             'mkt'           => app(SalesDashboardService::class)->forCompany($filter),
             'global'        => app(ProductionDashboardService::class)->global(),
+            'stageStats'    => app(ManuscriptStageStatsService::class)->global(),
+            'perMarketing'  => app(SalesDashboardService::class)->perMarketingComparison(),
             'editors'       => app(PerformanceService::class)->allEditors(),
             'marketers'     => User::role('marketing')->orderBy('name')->get(['id', 'name']),
             'filterId'      => $filter?->id,
