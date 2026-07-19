@@ -54,6 +54,7 @@ class ImportV1Command extends Command
         $this->reconcileUsers($sql);
         $this->fixInvoices();
         $this->regenerateDerived();
+        $this->seedProgressAndLogs();
 
         $this->info('Reset + seed dasar selesai.');
         return self::SUCCESS;
@@ -141,5 +142,43 @@ class ImportV1Command extends Command
 
         $cash = (new PaymentCashBackfillService())->run();
         $this->line("  ✓ Kas: {$cash['synced']} payment 'paid' → entri kas");
+    }
+
+    private function seedProgressAndLogs(): void
+    {
+        // Title progress: 1 per order detail, tahap awal.
+        $progress = [];
+        foreach (\DB::table('tb_order_details')->orderBy('id')->get(['id', 'created_at']) as $d) {
+            $progress[] = [
+                'order_detail_id' => $d->id,
+                'status'          => 'menunggu_proses',
+                'assigned_role'   => 'marketing',
+                'updated_by'      => 1,
+                'started_at'      => $d->created_at,
+                'created_at'      => $d->created_at,
+                'updated_at'      => $d->created_at,
+            ];
+        }
+        foreach (array_chunk($progress, 100) as $chunk) {
+            \DB::table('tb_title_progress')->insert($chunk);
+        }
+        $this->line('  ✓ title_progress: ' . count($progress) . ' baris');
+
+        // Invoice logs: 1 entri awal per invoice.
+        $logs = [];
+        foreach (\DB::table('tb_invoices')->orderBy('id')->get(['id', 'created_at']) as $inv) {
+            $logs[] = [
+                'invoice_id'  => $inv->id,
+                'from_status' => '',
+                'to_status'   => 'diterbitkan',
+                'changed_by'  => 1,
+                'note'        => 'Import data produksi v1.',
+                'created_at'  => $inv->created_at,
+            ];
+        }
+        foreach (array_chunk($logs, 100) as $chunk) {
+            \DB::table('tb_invoice_logs')->insert($chunk);
+        }
+        $this->line('  ✓ invoice_logs: ' . count($logs) . ' baris');
     }
 }
