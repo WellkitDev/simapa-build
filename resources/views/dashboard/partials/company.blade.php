@@ -138,6 +138,16 @@
     </div>
 </div>
 
+<h6 class="text-muted mb-2 mt-2">Perbandingan per Marketing (tahun ini)</h6>
+<div class="row">
+    <div class="col-12 grid-margin stretch-card">
+        <div class="card"><div class="card-body">
+            <h6 class="card-title">Pemasukan &amp; Refund (atas) · Jumlah Order (bawah)</h6>
+            <div id="coMarketingCompare" style="height:420px"></div>
+        </div></div>
+    </div>
+</div>
+
 <div class="d-flex justify-content-between align-items-center mt-2 mb-2">
     <h6 class="text-muted mb-0">Traffic</h6>
     <div class="btn-group btn-group-sm" id="coRangeToggle">
@@ -149,18 +159,28 @@
 <div class="row">
     <div class="col-md-6 grid-margin stretch-card">
         <div class="card"><div class="card-body">
-            <h6 class="card-title">Tren Pemasukan</h6><div id="coIncomeChart"></div>
+            <h6 class="card-title">Tren Pemasukan</h6><div id="coIncomeChart" style="height:260px"></div>
         </div></div>
     </div>
     <div class="col-md-6 grid-margin stretch-card">
         <div class="card"><div class="card-body">
-            <h6 class="card-title">Tren Jumlah Order</h6><div id="coOrderChart"></div>
+            <h6 class="card-title">Tren Jumlah Order</h6><div id="coOrderChart" style="height:260px"></div>
         </div></div>
     </div>
 </div>
 
 <h6 class="text-muted mb-2 mt-2">Produksi Global</h6>
 @include('dashboard.partials.progress-global')
+
+<h6 class="text-muted mb-2 mt-2">Ketepatan Produksi (30 hari)</h6>
+<div class="row">
+    <div class="col-12 grid-margin stretch-card">
+        <div class="card"><div class="card-body">
+            <h6 class="card-title">On-time % (atas) · Jumlah Selesai (bawah) per staf produksi</h6>
+            <div id="coProdAccuracy" style="height:420px"></div>
+        </div></div>
+    </div>
+</div>
 
 <h6 class="text-muted mb-2 mt-2">Naskah Mendekati Deadline</h6>
 <div class="row">
@@ -179,6 +199,8 @@
 @push('plugin-scripts')
     <script src="{{ asset('assets/plugins/apexcharts/apexcharts.min.js') }}"></script>
     <script src="{{ asset('assets/js/dashboard-charts.js') }}"></script>
+    <script src="{{ asset('assets/plugins/echarts/echarts.min.js') }}"></script>
+    <script src="{{ asset('assets/js/simapa-echarts.js') }}"></script>
     <script src="{{ URL::asset('assets/libs/datatables.net/js/jquery.dataTables.min.js') }}"></script>
     <script src="{{ URL::asset('assets/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
     <script src="{{ URL::asset('assets/libs/datatables.net-responsive/js/dataTables.responsive.min.js') }}"></script>
@@ -187,16 +209,55 @@
 @push('custom-scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    var C = window.SimapaCharts;
+    var E = window.SimapaECharts;
+
+    // ---- (1) Perbandingan per marketing — satu dataset, dua grid berbagi ----
+    var marketing = @json($perMarketing);
+    E.init('#coMarketingCompare',
+        E.sharedDualGrid(marketing, 'name',
+            { title: 'Rp', money: true, series: [
+                { name: 'Pemasukan', dim: 'pemasukan', color: E.PALETTE.success },
+                { name: 'Refund',    dim: 'refund',    color: E.PALETTE.danger },
+            ] },
+            { title: 'Order', money: false, series: [
+                { name: 'Jumlah Order', dim: 'order', color: E.PALETTE.primary },
+            ] }
+        ), marketing, ['pemasukan', 'refund', 'order']);
+
+    // ---- (2) Ketepatan produksi — satu dataset, dua grid berbagi ----
+    var editors = @json($editors).map(function (e) {
+        return { name: e.name, on_time: e.stats.on_time_rate == null ? 0 : e.stats.on_time_rate, selesai: e.stats.completed };
+    }).sort(function (a, b) { return b.on_time - a.on_time; });
+    E.init('#coProdAccuracy',
+        E.sharedDualGrid(editors, 'name',
+            { title: '%', money: false, max: 100, series: [
+                { name: 'On-time %', dim: 'on_time', color: E.PALETTE.success },
+            ] },
+            { title: 'Selesai', money: false, series: [
+                { name: 'Jumlah Selesai', dim: 'selesai', color: E.PALETTE.info },
+            ] }
+        ), editors, ['on_time', 'selesai']);
+
+    // ---- (3) Traffic (restyle ECharts) + toggle 7/30/90 ----
     var full = {
         inc: { labels: @json($mkt['income_trend']['labels']), series: @json($mkt['income_trend']['series']) },
         ord: { labels: @json($mkt['order_trend']['labels']),  series: @json($mkt['order_trend']['series']) },
     };
-    var n0 = 30;
-    var si = C.slice(full.inc, n0), so = C.slice(full.ord, n0);
-    var inc = C.render('#coIncomeChart', C.area('Pemasukan', si, C.PALETTE.success, true), si.series);
-    var ord = C.render('#coOrderChart',  C.area('Order', so, C.PALETTE.primary, false), so.series);
-    C.rangeToggle('#coRangeToggle', [{ chart: inc, key: 'inc' }, { chart: ord, key: 'ord' }], full);
+    function sliceArr(a, n) { return a.slice(-n); }
+    var incChart = E.init('#coIncomeChart', E.areaTrend(sliceArr(full.inc.labels, 30), sliceArr(full.inc.series, 30), E.PALETTE.success, true));
+    var ordChart = E.init('#coOrderChart',  E.areaTrend(sliceArr(full.ord.labels, 30), sliceArr(full.ord.series, 30), E.PALETTE.primary, false));
+
+    document.querySelectorAll('#coRangeToggle [data-range]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var n = +this.dataset.range;
+            if (incChart) incChart.setOption(E.areaTrend(sliceArr(full.inc.labels, n), sliceArr(full.inc.series, n), E.PALETTE.success, true), true);
+            if (ordChart) ordChart.setOption(E.areaTrend(sliceArr(full.ord.labels, n), sliceArr(full.ord.series, n), E.PALETTE.primary, false), true);
+            document.querySelectorAll('#coRangeToggle [data-range]').forEach(function (b) {
+                b.classList.remove('btn-primary', 'active'); b.classList.add('btn-outline-primary');
+            });
+            this.classList.remove('btn-outline-primary'); this.classList.add('btn-primary', 'active');
+        });
+    });
 });
 $(function () {
     if ($.fn.DataTable && document.getElementById('teamTargetTable')) {
