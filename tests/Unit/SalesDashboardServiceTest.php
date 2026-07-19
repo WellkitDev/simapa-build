@@ -266,4 +266,44 @@ class SalesDashboardServiceTest extends TestCase
         $this->assertNull($d3['pct']);
         $this->assertFalse($d3['capped']);
     }
+
+    /** @test */
+    public function per_marketing_comparison_memisah_income_refund_order_per_marketing(): void
+    {
+        $a = $this->marketing(); $a->update(['name' => 'Andi']);
+        $b = $this->marketing(); $b->update(['name' => 'Budi']);
+
+        $oa = $this->orderFor($a);
+        $this->paid($oa, 1_000_000, 'dp');
+        $this->paid($oa, 500_000, 'pelunasan');
+        Payment::create(['order_id' => $oa->id, 'payment_type' => 'refund',
+            'amount' => 200_000, 'paid_at' => now(), 'status' => 'paid']); // refund → bukan income
+
+        $this->orderFor($b); // Budi punya 1 order, tanpa pembayaran
+
+        $rows = $this->svc->perMarketingComparison();
+
+        $andi = $rows->firstWhere('name', 'Andi');
+        $this->assertSame(1_500_000, $andi['pemasukan']); // dp + pelunasan, TANPA refund
+        $this->assertSame(200_000, $andi['refund']);
+        $this->assertSame(1, $andi['order']);
+
+        $budi = $rows->firstWhere('name', 'Budi');
+        $this->assertSame(0, $budi['pemasukan']);
+        $this->assertSame(0, $budi['refund']);
+        $this->assertSame(1, $budi['order']);
+    }
+
+    /** @test */
+    public function per_marketing_comparison_diurutkan_pemasukan_desc(): void
+    {
+        $kecil = $this->marketing(); $kecil->update(['name' => 'Kecil']);
+        $besar = $this->marketing(); $besar->update(['name' => 'Besar']);
+        $this->paid($this->orderFor($kecil), 100_000);
+        $this->paid($this->orderFor($besar), 900_000);
+
+        $rows = $this->svc->perMarketingComparison();
+
+        $this->assertSame('Besar', $rows->first()['name']);
+    }
 }

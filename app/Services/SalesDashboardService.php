@@ -9,6 +9,7 @@ use App\Models\Payment;
 use App\Models\TitleProgress;
 use App\Models\TitleProgressLog;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -27,6 +28,26 @@ class SalesDashboardService
     public function forCompany(?User $filter = null): array
     {
         return $this->build($filter);
+    }
+
+    /**
+     * Satu baris per marketing untuk chart perbandingan (YTD tahun berjalan):
+     * [ ['name','pemasukan','refund','order'], ... ] urut pemasukan desc.
+     * Refund TIDAK mengurangi pemasukan (kolom terpisah).
+     */
+    public function perMarketingComparison(): Collection
+    {
+        $year = Carbon::today()->year;
+
+        return User::role('marketing')->orderBy('name')->get()
+            ->map(fn (User $m) => [
+                'name'      => $m->name,
+                'pemasukan' => (int) Payment::income()->forOrdersOf($m)->whereYear('paid_at', $year)->sum('amount'),
+                'refund'    => (int) Payment::refund()->forOrdersOf($m)->whereYear('paid_at', $year)->sum('amount'),
+                'order'     => Order::where('user_id', $m->id)->whereYear('ordered_at', $year)->count(),
+            ])
+            ->sortByDesc('pemasukan')
+            ->values();
     }
 
     /** $scopeUser null = tanpa filter (seluruh perusahaan) — idiom yang sama dengan Payment::forOrdersOf(). */
