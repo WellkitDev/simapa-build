@@ -48,6 +48,8 @@ class ImportV1Command extends Command
 
         $this->resetAndSeed();
 
+        $this->importBusinessData($sql);
+
         $this->info('Reset + seed dasar selesai.');
         return self::SUCCESS;
     }
@@ -59,5 +61,39 @@ class ImportV1Command extends Command
 
         $this->line('→ seed PermissionSeed ...');
         $this->call('db:seed', ['--class' => 'PermissionSeed', '--force' => true]);
+    }
+
+    /** Tabel bisnis yang diimpor apa adanya, urut aman-FK. */
+    private const BUSINESS_TABLES = [
+        'tb_scopes',
+        'tb_authors',
+        'tb_orders',
+        'tb_order_contacts',
+        'tb_order_details',
+        'tb_scope_orders',
+        'tb_author_orders',
+        'tb_payments',
+        'tb_payment_approvals',
+        'tb_invoices',
+    ];
+
+    private function importBusinessData(string $sql): void
+    {
+        \DB::statement('SET FOREIGN_KEY_CHECKS=0');
+        try {
+            foreach (self::BUSINESS_TABLES as $table) {
+                $stmts = self::extractInserts($sql, $table);
+                if ($stmts === []) {
+                    $this->warn("  ! Tidak ada INSERT untuk {$table} di dump.");
+                    continue;
+                }
+                foreach ($stmts as $stmt) {
+                    \DB::unprepared($stmt);
+                }
+                $this->line("  ✓ {$table}: " . \DB::table($table)->count() . ' baris');
+            }
+        } finally {
+            \DB::statement('SET FOREIGN_KEY_CHECKS=1');
+        }
     }
 }
