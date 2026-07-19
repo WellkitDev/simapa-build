@@ -67,9 +67,13 @@ window.SimapaECharts = (function () {
                 },
             },
             dataset: { source: source },
+            // Kedua grid pakai `left` identik & TANPA containLabel supaya kolom kategori
+            // (marketing/staf) di grid atas & bawah sejajar vertikal — inti "bandingkan
+            // per baris". containLabel akan memberi inset kiri berbeda (label Rp lebar vs
+            // angka hitungan sempit) sehingga batang tak sebaris. `left` cukup untuk label Rp.
             grid: [
-                { left: 8, right: 16, top: 44, height: '36%', containLabel: true },
-                { left: 8, right: 16, bottom: 8, height: '30%', containLabel: true },
+                { left: 100, right: 16, top: 40, height: '34%' },
+                { left: 100, right: 16, bottom: 44, height: '30%' },
             ],
             xAxis: [
                 { type: 'category', gridIndex: 0, axisTick: { show: false },
@@ -81,10 +85,10 @@ window.SimapaECharts = (function () {
             yAxis: [
                 { type: 'value', gridIndex: 0, name: top.title, nameTextStyle: { color: INK },
                   splitLine: { lineStyle: { color: GRID, type: 'dashed' } },
-                  axisLabel: { color: INK, formatter: top.money ? function (v) { return rupiah(v); } : function (v) { return count(v); } } },
+                  axisLabel: { color: INK, fontSize: 10, formatter: top.money ? function (v) { return rupiah(v); } : function (v) { return count(v); } } },
                 { type: 'value', gridIndex: 1, name: bottom.title, nameTextStyle: { color: INK }, max: bottom.max,
                   splitLine: { lineStyle: { color: GRID, type: 'dashed' } },
-                  axisLabel: { color: INK, formatter: bottom.money ? function (v) { return rupiah(v); } : function (v) { return count(v); } } },
+                  axisLabel: { color: INK, fontSize: 10, formatter: bottom.money ? function (v) { return rupiah(v); } : function (v) { return count(v); } } },
             ],
             series: mkSeries(top, 0).concat(mkSeries(bottom, 1)),
         };
