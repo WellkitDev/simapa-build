@@ -49,6 +49,7 @@ class ImportV1Command extends Command
         $this->resetAndSeed();
 
         $this->importBusinessData($sql);
+        $this->reconcileUsers($sql);
 
         $this->info('Reset + seed dasar selesai.');
         return self::SUCCESS;
@@ -94,6 +95,31 @@ class ImportV1Command extends Command
             }
         } finally {
             \DB::statement('SET FOREIGN_KEY_CHECKS=1');
+        }
+    }
+
+    private function reconcileUsers(string $sql): void
+    {
+        // Buat tabel sementara berstruktur sama, isi dari dump, lalu salin kolom kredensial.
+        \DB::statement('CREATE TEMPORARY TABLE _v1_users LIKE users');
+        try {
+            foreach (self::extractInserts($sql, 'users') as $stmt) {
+                \DB::unprepared(str_replace('INSERT INTO `users`', 'INSERT INTO `_v1_users`', $stmt));
+            }
+
+            $rows = \DB::table('_v1_users')->get(['id', 'password', 'remember_token', 'email_verified_at', 'created_at', 'updated_at']);
+            foreach ($rows as $r) {
+                \DB::table('users')->where('id', $r->id)->update([
+                    'password'          => $r->password,
+                    'remember_token'    => $r->remember_token,
+                    'email_verified_at' => $r->email_verified_at,
+                    'created_at'        => $r->created_at,
+                    'updated_at'        => $r->updated_at,
+                ]);
+            }
+            $this->line('  ✓ kredensial ' . count($rows) . ' user disinkron dari v1');
+        } finally {
+            \DB::statement('DROP TEMPORARY TABLE IF EXISTS _v1_users');
         }
     }
 }
