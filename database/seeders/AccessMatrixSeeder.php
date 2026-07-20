@@ -17,20 +17,16 @@ use Spatie\Permission\PermissionRegistrar;
  *
  * Superadmin sengaja TIDAK diberi hibah: ia lolos lewat Gate::before di AuthServiceProvider.
  *
- * CATATAN paritas yang sengaja TIDAK sempurna (dilaporkan, bukan disembunyikan):
- * Beberapa route TANPA middleware role: dibundel jadi permission YANG SAMA dengan route
- * lain yang DIJAGA role: (mis. order.indexJudul.detail/progress dibundel bareng
- * order.book.index di bawah "order.view"; title.progress.logs dibundel bareng
- * manuscript.board di bawah "manuscript.view"). Satu permission tidak bisa mewakili dua
- * tingkat akses berbeda sekaligus:
- *  - order.view  : dipersempit mengikuti gerbang order.book.index (marketing|manager) —
- *    production/admin/accounting hari ini SEBENARNYA bisa buka order.indexJudul.detail
- *    & .progress (tanpa role:), tapi TIDAK dapat order.view di sini. Ini demi lulus test
- *    "production TIDAK boleh menembus listing order" — lihat PermissionMapTest.
- *  - manuscript.view : sebaliknya, dilebarkan ke SEMUA role mengikuti keterbukaan
- *    title.progress.logs — efek sampingnya marketing/admin/accounting jadi ikut dapat
- *    izin melihat papan manuscript.board (route manuscript.board sendiri hari ini
- *    dijaga role:production|manager|superadmin).
+ * "order.view" dan "manuscript.view" DULU masing-masing mencampur route berpenjagaan
+ * role: dengan route yang sama sekali tanpa penjagaan (order.indexJudul.detail/.progress,
+ * title.progress.logs) — satu permission tidak bisa mewakili dua tingkat akses berbeda.
+ * Sudah diperbaiki di config/permissions.php: ketiga route tanpa penjagaan itu dipindah
+ * ke action baru "manuscript.detail" ("lihat detail progres satu judul"), yang memang
+ * ditautkan dari papan manuskrip (resources/views/manuscript/list.blade.php &
+ * partials/card.blade.php) — production perlu route ini utk alur kerja mereka. Dengan
+ * pemisahan ini, order.view dan manuscript.view sekarang murni mengikuti gerbang role:
+ * aslinya tanpa kompromi, dan manuscript.detail digelar ke SEMUA role sesuai keterbukaannya
+ * hari ini.
  */
 class AccessMatrixSeeder extends Seeder
 {
@@ -46,14 +42,18 @@ class AccessMatrixSeeder extends Seeder
             // marketing TIDAK ikut (hanya marketing-target.me, yang public, di luar modul ini).
             'title.view', 'journal.view', 'isbn.view', 'archive.view',
             'author.view',
-            'manuscript.target', 'manuscript.view',
+            // manuscript.view (papan Kanban) TIDAK utk marketing — route manuscript.board
+            // dijaga role:production|manager|superadmin. manuscript.detail (lihat progres
+            // satu judul) TETAP dapat — route sumbernya tanpa penjagaan role: sama sekali.
+            'manuscript.target', 'manuscript.detail',
             'data.*',
         ],
         'production' => [
             // manuscript.* SENGAJA tidak dipakai sebagai wildcard: modul manuscript juga
             // memuat 'review' (route manuscript.reviewed, dijaga role:manager|superadmin —
             // production tidak ikut) dan 'clear-log' (superadmin only).
-            'manuscript.view', 'manuscript.move', 'manuscript.assign', 'manuscript.priority', 'manuscript.target',
+            'manuscript.view', 'manuscript.detail', 'manuscript.move', 'manuscript.assign',
+            'manuscript.priority', 'manuscript.target',
             'chapter.*',
             'title.view', 'title.create', 'title.edit', 'title.delete', 'title.submit',
             'journal.view', 'isbn.*', 'archive.view', 'archive.artifacts', 'archive.submit',
@@ -65,14 +65,19 @@ class AccessMatrixSeeder extends Seeder
             'title.doc.*',
             'journal.*', 'isbn.*', 'author.view',
             'archive.view', 'archive.artifacts', 'archive.submit',
+            // manuscript.detail (lihat progres satu judul) terbuka utk semua role login —
+            // bukan manuscript.view (papan Kanban), yang admin TIDAK punya hari ini.
+            'manuscript.detail',
             'data.*',
         ],
         'accounting' => [
             'accounting.*',
-            // title.view/journal.view/isbn.view/archive.view/manuscript.view: route sumbernya
-            // (title.index, journal.index, isbn.index, archive.index, title.progress.logs)
-            // tanpa role: middleware sama sekali — terbuka utk SEMUA role yang login.
-            'title.view', 'journal.view', 'isbn.view', 'archive.view', 'manuscript.view',
+            // title.view/journal.view/isbn.view/archive.view/manuscript.detail: route
+            // sumbernya (title.index, journal.index, isbn.index, archive.index,
+            // order.indexJudul.detail/.progress, title.progress.logs) tanpa role: middleware
+            // sama sekali — terbuka utk SEMUA role yang login. manuscript.view (papan Kanban)
+            // BUKAN bagian dari ini — accounting tidak punya akses ke situ hari ini.
+            'title.view', 'journal.view', 'isbn.view', 'archive.view', 'manuscript.detail',
             'data.*',
         ],
         'manager' => [

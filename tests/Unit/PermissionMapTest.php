@@ -64,5 +64,17 @@ class PermissionMapTest extends TestCase
         // accounting hanya keuangan.
         $this->assertTrue(Role::findByName('accounting')->hasPermissionTo('accounting.journal.view'));
         $this->assertFalse(Role::findByName('accounting')->hasPermissionTo('order.view'));
+
+        // manuscript.detail ("lihat detail progres satu judul") tanpa penjagaan role: sama
+        // sekali di routes/web.php hari ini — terbuka utk SEMUA role yang login.
+        foreach (['manager', 'accounting', 'admin', 'marketing', 'production'] as $r) {
+            $this->assertTrue(
+                Role::findByName($r)->hasPermissionTo('manuscript.detail'),
+                "$r seharusnya punya manuscript.detail (route sumbernya tanpa penjagaan role)"
+            );
+        }
+        // manuscript.view (papan Kanban) tetap dijaga role:production|manager|superadmin —
+        // marketing TIDAK boleh menembusnya.
+        $this->assertFalse(Role::findByName('marketing')->hasPermissionTo('manuscript.view'));
     }
 }

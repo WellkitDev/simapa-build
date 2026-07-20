@@ -24,7 +24,7 @@ return [
             'label'   => 'Order',
             'actions' => [
                 'view'   => ['order.book.index', 'order.book.indexJudul', 'order.book.show',
-                             'order.journal.show', 'order.indexJudul.detail', 'order.indexJudul.progress'],
+                             'order.journal.show'],
                 'create' => ['order.book.create', 'order.book.store',
                              'order.journal.create', 'order.journal.store'],
                 'edit'   => ['order.book.edit', 'order.book.update',
@@ -147,9 +147,13 @@ return [
         'manuscript' => [
             'label'   => 'Papan Manuskrip',
             'actions' => [
-                // title.progress.logs ikut di sini: log progres judul adalah bagian dari
-                // pelacakan manuskrip yang sama; sebelumnya route ini tanpa penjagaan sama sekali.
-                'view'      => ['manuscript.board', 'title.progress.logs'],
+                'view'      => ['manuscript.board'],
+                // "Lihat detail progres satu judul" — order.indexJudul.detail/.progress dan
+                // title.progress.logs SAMA-SAMA tanpa middleware role: sama sekali hari ini
+                // (terbuka utk semua role yang login), beda dgn manuscript.board yang dijaga
+                // role:production|manager|superadmin. Dipisah jadi action sendiri supaya satu
+                // permission tidak mencampur route berpenjagaan dgn route tanpa penjagaan.
+                'detail'    => ['order.indexJudul.detail', 'order.indexJudul.progress', 'title.progress.logs'],
                 // title.progress.update memakai penjaga role yang identik dengan manuscript.move
                 // (production|manager|superadmin) dan sama-sama "pindah tahap" — disatukan di sini.
                 'move'      => ['manuscript.move', 'title.progress.update'],
