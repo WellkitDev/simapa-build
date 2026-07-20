@@ -33,9 +33,10 @@ class AuthServiceProvider extends ServiceProvider
             return Auth::check() && Auth::user()->hasAnyRole($roles);
         });
 
+        // Sebelumnya keliru memeriksa hasAnyRole() padahal namanya permission.
         Blade::if('permission', function ($permission) {
             $permission = \is_array($permission) ? $permission : explode('|', $permission);
-             return Auth::check() && Auth::user()->hasAnyRole($permission);
+            return Auth::check() && Auth::user()->hasAnyPermission($permission);
         });
 
         Gate::before(function ($user, $ability) {
