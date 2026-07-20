@@ -43,9 +43,9 @@ Route::get('/', function () {
     return redirect()->route('login');
 });
 
-Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard')->middleware(['auth', 'verified']);
+Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard')->middleware(['auth', 'verified', 'access']);
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'access'])->group(function () {
     //profile
     Route::prefix('profile')->group(function() {
         Route::get('', [ProfileController::class, 'index'])->name('profile');
