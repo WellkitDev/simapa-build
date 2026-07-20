@@ -27,10 +27,15 @@
                             <p class="text-muted mb-1">Marketing</p>
                             <h5>{{ $detail->order->user->name ?? '-' }}</h5>
                         </div>
+                        {{-- Angka uang hanya untuk role yang berwenang atas order/pembayaran.
+                             Halaman ini sengaja terbuka bagi production/admin (butuh konteks naskah),
+                             tapi admin & production tidak boleh melihat nilai order. --}}
+                        @hasanyrole('marketing|manager|superadmin')
                         <div class="col-sm-4">
                             <p class="text-muted mb-1">Total Biaya</p>
                             <h5 class="text-success">Rp {{ number_format($detail->cost_amount, 0, ',', '.') }}</h5>
                         </div>
+                        @endhasanyrole
                     </div>
                 </div>
             </div>

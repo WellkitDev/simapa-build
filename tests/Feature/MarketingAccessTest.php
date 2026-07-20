@@ -17,8 +17,8 @@ class MarketingAccessTest extends TestCase
     {
         parent::setUp();
         $this->mock(GoogleDriveService::class);
-        foreach (['marketing', 'manager', 'superadmin', 'production'] as $r) {
-            Role::create(['name' => $r, 'guard_name' => 'web']);
+        foreach (['marketing', 'manager', 'superadmin', 'production', 'admin'] as $r) {
+            Role::firstOrCreate(['name' => $r, 'guard_name' => 'web']);
         }
     }
 
@@ -27,6 +27,44 @@ class MarketingAccessTest extends TestCase
         $u = User::factory()->create();
         $u->assignRole($role);
         return $u;
+    }
+
+    /**
+     * Detail progres naskah sengaja terbuka bagi production/admin (mereka butuh konteks
+     * naskah, dan papan Manuscript menaut ke sini), TAPI nilai order tidak boleh terlihat
+     * oleh mereka — sejalan dengan aturan "admin tak pernah melihat angka uang".
+     *
+     * @test
+     */
+    public function production_dan_admin_tidak_melihat_nilai_order_di_detail_progres(): void
+    {
+        $detail = \App\Models\OrderDetail::factory()->create([
+            'type' => 'bk_mandiri', 'cost_amount' => 1234567,
+        ]);
+        \App\Models\TitleProgress::create([
+            'order_detail_id' => $detail->id,
+            'status'          => 'editing',
+            'assigned_role'   => 'production',
+            'started_at'      => now(),
+        ]);
+
+        // Halaman tetap dapat dibuka, tapi tanpa angka uang.
+        foreach (['production', 'admin'] as $role) {
+            $this->actingAs($this->user($role))
+                ->get(route('order.indexJudul.progress', $detail->id))
+                ->assertOk()
+                ->assertDontSee('Total Biaya')
+                ->assertDontSee('1.234.567');
+        }
+
+        // Role yang berwenang atas order tetap melihat nilainya.
+        foreach (['manager', 'superadmin'] as $role) {
+            $this->actingAs($this->user($role))
+                ->get(route('order.indexJudul.progress', $detail->id))
+                ->assertOk()
+                ->assertSee('Total Biaya')
+                ->assertSee('1.234.567');
+        }
     }
 
     /** @test */
