@@ -16,7 +16,6 @@ return [
         'task.store', 'task.update', 'task.destroy', 'task.status', 'task.schedule',
         'report.daily', 'report.note', 'report.submit',
         'report.files.store', 'report.files.destroy', 'report.monthly',
-        'marketing-target.me',
     ],
 
     'modules' => [
@@ -82,6 +81,11 @@ return [
                 'create' => ['marketing-target.store'],
                 'edit'   => ['marketing-target.paid'],
                 'delete' => ['marketing-target.destroy'],
+                // marketing-target.me ("Target Saya") dijaga role:marketing|manager|superadmin
+                // aslinya — beda dari view/create/edit/delete di atas (manager|superadmin saja,
+                // marketing TIDAK ikut). Dipisah jadi action sendiri karena satu permission
+                // tidak bisa mewakili dua tingkat akses berbeda.
+                'me'     => ['marketing-target.me'],
             ],
         ],
 

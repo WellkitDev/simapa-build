@@ -39,7 +39,9 @@ class AccessMatrixSeeder extends Seeder
             'tagihan.*',
             'income.*',
             // marketing-target.index/store/paid/destroy dijaga role:manager|superadmin —
-            // marketing TIDAK ikut (hanya marketing-target.me, yang public, di luar modul ini).
+            // marketing TIDAK ikut. marketing-target.me ("Target Saya") beda gerbang
+            // (role:marketing|manager|superadmin) — marketing IKUT di situ.
+            'marketing-target.me',
             'title.view', 'journal.view', 'isbn.view', 'archive.view',
             'author.view',
             // manuscript.view (papan Kanban) TIDAK utk marketing — route manuscript.board
