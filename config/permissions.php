@@ -315,5 +315,10 @@ return [
                 'view' => ['accounting.profit'],
             ],
         ],
+
+        'permission' => [
+            'label'   => 'Hak Akses',
+            'actions' => ['manage' => ['permission.index', 'permission.update']],
+        ],
     ],
 ];

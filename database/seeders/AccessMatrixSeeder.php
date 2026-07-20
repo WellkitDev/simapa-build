@@ -98,6 +98,7 @@ class AccessMatrixSeeder extends Seeder
         'accounting.period.lock',
         'doc-req.create', 'doc-req.edit', 'doc-req.delete',
         'manuscript.clear-log',
+        'permission.manage',
         // CATATAN: user.view/create/edit/delete/restore TIDAK di sini walau kelihatan
         // "sensitif" — gate 'access-usermanagement' (AuthServiceProvider) adalah
         // superadmin|manager, jadi manager memang berhak dan permission ini justru harus
