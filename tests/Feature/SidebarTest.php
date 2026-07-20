@@ -66,6 +66,7 @@ class SidebarTest extends TestCase
     {
         $this->actingAsRole('production');
         $this->get(route('dashboard'))->assertOk()
-            ->assertSee('Meja Kerja Saya')->assertSee('Direktori Judul');
+            ->assertSee('Meja Kerja Saya')->assertSee('Direktori Judul')
+            ->assertDontSee('Direktori Author');   // dibatasi untuk production
     }
 }

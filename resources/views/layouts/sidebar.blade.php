@@ -97,12 +97,14 @@
                         <span class="link-title">Direktori ISBN</span>
                     </a>
                 </li>
-                <li class="nav-item {{ nav_active('author.*') }}">
-                    <a href="{{ route('author.index') }}" class="nav-link">
-                        <i class="link-icon" data-feather="users"></i>
-                        <span class="link-title">Direktori Author</span>
-                    </a>
-                </li>
+                @role(['superadmin', 'manager', 'admin', 'marketing'])
+                    <li class="nav-item {{ nav_active('author.*') }}">
+                        <a href="{{ route('author.index') }}" class="nav-link">
+                            <i class="link-icon" data-feather="users"></i>
+                            <span class="link-title">Direktori Author</span>
+                        </a>
+                    </li>
+                @endrole
                 <li class="nav-item {{ nav_active('archive.*') }}">
                     <a href="{{ route('archive.index') }}" class="nav-link">
                         <i class="link-icon" data-feather="archive"></i>

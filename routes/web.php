@@ -262,7 +262,8 @@ Route::middleware('auth')->group(function () {
     });
 
     // Direktori Author (read-only) — list + detail riwayat order
-    Route::middleware('role:superadmin|manager|admin|production|marketing')->group(function () {
+    // Dibatasi: production & accounting tidak boleh akses.
+    Route::middleware('role:superadmin|manager|admin|marketing')->group(function () {
         Route::get('authors', [AuthorController::class, 'index'])->name('author.index');
         Route::get('authors/{id}', [AuthorController::class, 'show'])->name('author.show')->whereNumber('id');
     });
