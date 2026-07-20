@@ -3,6 +3,7 @@
 
 @push('plugin-styles')
 <link href="{{ asset('assets/libs/datatables.net-bs4/css/dataTables.bootstrap4.min.css') }}" rel="stylesheet" />
+<link href="{{ asset('assets/libs/datatables.net-responsive-bs4/css/responsive.bootstrap4.min.css') }}" rel="stylesheet" />
 @endpush
 
 @section('content')
@@ -38,7 +39,7 @@
 
 <div class="card"><div class="card-body">
     <div class="table-responsive">
-        <table class="table table-hover datatable" style="width:100%">
+        <table class="table table-hover datatable dt-responsive nowrap" style="width:100%">
             <thead><tr><th>Tanggal</th><th>Selesai</th><th>Status</th><th>Catatan</th><th></th></tr></thead>
             <tbody>
                 @php
@@ -57,7 +58,7 @@
                             <td>{{ $cur->translatedFormat('d M (D)') }}</td>
                             <td>{{ $selesai }}</td>
                             <td>@if($rep && $rep->isSubmitted())<span class="badge bg-success">Terkirim</span>@elseif($rep)<span class="badge bg-secondary">Draf</span>@else<span class="text-muted">—</span>@endif</td>
-                            <td><small>{{ \Illuminate\Support\Str::limit($rep->note ?? '', 60) }}</small></td>
+                            <td class="dt-judul"><small>{{ \Illuminate\Support\Str::limit($rep->note ?? '', 60) }}</small></td>
                             <td><a href="{{ route('report.daily', array_filter(['user_id' => $owner->id !== auth()->id() ? $owner->id : null, 'date' => $key])) }}" class="btn btn-xs btn-outline-primary">Buka</a></td>
                         </tr>
                     @endif
@@ -71,7 +72,9 @@
 @push('plugin-scripts')
 <script src="{{ asset('assets/libs/datatables.net/js/jquery.dataTables.min.js') }}"></script>
 <script src="{{ asset('assets/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
+<script src="{{ asset('assets/libs/datatables.net-responsive/js/dataTables.responsive.min.js') }}"></script>
+<script src="{{ asset('assets/libs/datatables.net-responsive-bs4/js/responsive.bootstrap4.min.js') }}"></script>
 @endpush
 @push('custom-scripts')
-<script>$(function () { $('.datatable').DataTable({ pageLength: 31, order: [], language: { emptyTable: 'Belum ada aktivitas bulan ini.' } }); });</script>
+<script>$(function () { $('.datatable').DataTable({ pageLength: 31, responsive: true, order: [], language: { emptyTable: 'Belum ada aktivitas bulan ini.' } }); });</script>
 @endpush

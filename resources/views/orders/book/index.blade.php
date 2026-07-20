@@ -151,6 +151,7 @@
         $(function() {
             $(".datatable").DataTable({
                 pageLength: 10,
+                responsive: true,
                 order: [
                     [1, "asc"]
                 ],

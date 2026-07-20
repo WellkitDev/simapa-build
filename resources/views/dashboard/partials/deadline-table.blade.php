@@ -14,7 +14,7 @@
                 <li class="nav-item"><a class="nav-link" href="#" data-bucket="month">Bulan ini</a></li>
             </ul>
             <div class="table-responsive">
-                <table class="table table-hover" id="{{ $tid }}" style="width:100%">
+                <table class="table table-hover dt-responsive nowrap" id="{{ $tid }}" style="width:100%">
                     <thead>
                         <tr>
                             <th>Judul</th><th>Kode Order</th><th>Tahap</th>
@@ -24,7 +24,7 @@
                     <tbody>
                         @foreach($rows as $r)
                             <tr data-overdue="{{ $r['overdue'] }}" data-d7="{{ $r['d7'] }}" data-month="{{ $r['month'] }}">
-                                <td>{{ $r['title'] }}</td>
+                                <td class="dt-judul">{{ $r['title'] }}</td>
                                 <td><a href="{{ route('order.indexJudul.progress', $r['order_detail_id']) }}">{{ $r['code_order'] }}</a></td>
                                 <td><span class="badge bg-secondary">{{ $r['stage'] }}</span></td>
                                 <td data-order="{{ $r['target_date'] }}">{{ $r['target_label'] }}</td>
@@ -54,7 +54,7 @@ $(function () {
         if (bucket === 'all') return true;
         return settings.aoData[dataIndex].nTr.getAttribute('data-' + bucket) === '1';
     });
-    var table = $('#{{ $tid }}').DataTable({ pageLength: 10, order: [[4, 'asc']] });
+    var table = $('#{{ $tid }}').DataTable({ pageLength: 10, responsive: true, order: [[4, 'asc']] });
     $('#{{ $tid }}_wrapper .dataTables_length select, #{{ $tid }}_wrapper .dataTables_filter input').addClass('form-control mb-2');
     $('#{{ $tid }}Tabs a').on('click', function (e) {
         e.preventDefault();

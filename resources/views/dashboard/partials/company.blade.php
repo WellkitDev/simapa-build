@@ -72,7 +72,7 @@
                 <p class="text-muted mb-0">Belum ada target berjalan untuk tim.</p>
             @else
                 <div class="table-responsive">
-                    <table class="table table-hover" id="teamTargetTable" style="width:100%">
+                    <table class="table table-hover dt-responsive nowrap" id="teamTargetTable" style="width:100%">
                         <thead>
                             <tr>
                                 <th>Marketing</th><th>Periode</th><th>Target</th>
@@ -261,7 +261,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 $(function () {
     if ($.fn.DataTable && document.getElementById('teamTargetTable')) {
-        $('#teamTargetTable').DataTable({ pageLength: 10, order: [[4, 'desc']] });
+        $('#teamTargetTable').DataTable({ pageLength: 10, responsive: true, order: [[4, 'desc']] });
         $('#teamTargetTable_wrapper .dataTables_length select, #teamTargetTable_wrapper .dataTables_filter input').addClass('form-control mb-2');
     }
 });

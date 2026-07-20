@@ -66,6 +66,7 @@
     $(function () {
         var table = $(".datatable").DataTable({
             pageLength: 25,
+            responsive: true,
             order: [[1, "desc"]], // terbaru di atas
             columnDefs: [
                 { targets: 0, orderable: false, searchable: false }

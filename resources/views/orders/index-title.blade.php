@@ -95,6 +95,7 @@
     $(function () {
         var table = $(".datatable").DataTable({
             pageLength: 10,
+            responsive: true,
             order: [[1, "asc"]],
             // Kolom No (index 0) tidak ikut diurut/dicari; dinomori ulang via event di bawah.
             columnDefs: [

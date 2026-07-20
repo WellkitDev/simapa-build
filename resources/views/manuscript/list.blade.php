@@ -86,6 +86,7 @@
     $(function () {
         var table = $(".datatable").DataTable({
             pageLength: 10,
+            responsive: true,
             order: [], // pertahankan urutan server (overdue → prioritas → target)
             // Kolom No (index 0) tidak ikut diurut/dicari; dinomori ulang via event di bawah.
             columnDefs: [

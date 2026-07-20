@@ -178,6 +178,7 @@
         $(function() {
             $(".datatable").DataTable({
                 pageLength: 10,
+                responsive: true,
                 order: []
             });
             $(".dataTables_length select, .dataTables_filter input").addClass("form-control mb-2");

@@ -3,6 +3,7 @@
 
 @push('plugin-styles')
 <link href="{{ asset('assets/libs/datatables.net-bs4/css/dataTables.bootstrap4.min.css') }}" rel="stylesheet" />
+<link href="{{ asset('assets/libs/datatables.net-responsive-bs4/css/responsive.bootstrap4.min.css') }}" rel="stylesheet" />
 @endpush
 
 @section('content')
@@ -183,14 +184,14 @@
     </div>
 
     <div class="table-responsive">
-        <table class="table table-hover table-sm datatable" style="width:100%">
+        <table class="table table-hover table-sm datatable dt-responsive nowrap" style="width:100%">
             <thead><tr><th>Tgl</th><th>Kode</th><th>Keterangan</th><th>Akun</th><th>Kategori</th><th>Produk</th><th class="text-end">Pemasukan</th><th class="text-end">Pengeluaran</th><th class="text-end">Saldo</th><th>Ref</th><th>Aksi</th></tr></thead>
             <tbody>
                 @foreach($entries as $e)
                     <tr>
                         <td>{{ optional($e->tanggal)->format('d/m/y') }}</td>
                         <td>{{ $e->kode }}</td>
-                        <td>
+                        <td class="dt-judul">
                             {{ $e->keterangan }}
                             @if($e->isTransfer())<br><span class="badge bg-info text-dark" title="Pemindahan dana antar akun sendiri — bukan pemasukan/pengeluaran">🔁 Transfer (internal)</span>@endif
                         </td>
@@ -246,7 +247,9 @@
 @push('plugin-scripts')
 <script src="{{ asset('assets/libs/datatables.net/js/jquery.dataTables.min.js') }}"></script>
 <script src="{{ asset('assets/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
+<script src="{{ asset('assets/libs/datatables.net-responsive/js/dataTables.responsive.min.js') }}"></script>
+<script src="{{ asset('assets/libs/datatables.net-responsive-bs4/js/responsive.bootstrap4.min.js') }}"></script>
 @endpush
 @push('custom-scripts')
-<script>$(function () { $('.datatable').DataTable({ pageLength: 25, order: [], language: { emptyTable: 'Belum ada transaksi.' } }); });</script>
+<script>$(function () { $('.datatable').DataTable({ pageLength: 25, responsive: true, order: [], language: { emptyTable: 'Belum ada transaksi.' } }); });</script>
 @endpush

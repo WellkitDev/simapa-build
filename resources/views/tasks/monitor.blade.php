@@ -3,6 +3,7 @@
 
 @push('plugin-styles')
 <link href="{{ asset('assets/libs/datatables.net-bs4/css/dataTables.bootstrap4.min.css') }}" rel="stylesheet" />
+<link href="{{ asset('assets/libs/datatables.net-responsive-bs4/css/responsive.bootstrap4.min.css') }}" rel="stylesheet" />
 <link href="{{ asset('assets/plugins/select2/select2.min.css') }}" rel="stylesheet" />
 @endpush
 
@@ -42,7 +43,7 @@
         <div class="col-md-2"><button class="btn btn-sm btn-primary w-100">Filter</button></div>
     </form>
     <div class="table-responsive">
-        <table class="table table-hover datatable" style="width:100%">
+        <table class="table table-hover datatable dt-responsive nowrap" style="width:100%">
             <thead><tr><th>Karyawan</th><th>Judul</th><th>Status</th><th>Prioritas</th><th>Tenggat</th><th></th></tr></thead>
             <tbody>
                 @foreach($rows as $task)
@@ -64,12 +65,14 @@
 @push('plugin-scripts')
 <script src="{{ asset('assets/libs/datatables.net/js/jquery.dataTables.min.js') }}"></script>
 <script src="{{ asset('assets/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
+<script src="{{ asset('assets/libs/datatables.net-responsive/js/dataTables.responsive.min.js') }}"></script>
+<script src="{{ asset('assets/libs/datatables.net-responsive-bs4/js/responsive.bootstrap4.min.js') }}"></script>
 <script src="{{ asset('assets/plugins/select2/select2.min.js') }}"></script>
 @endpush
 @push('custom-scripts')
 <script>
 $(function () {
-    $('.datatable').DataTable({ pageLength: 15, order: [], language: { emptyTable: 'Belum ada tugas.' } });
+    $('.datatable').DataTable({ pageLength: 15, responsive: true, order: [], language: { emptyTable: 'Belum ada tugas.' } });
     $('.select2-filter').select2();
 });
 </script>

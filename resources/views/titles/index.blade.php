@@ -3,6 +3,7 @@
 
 @push('plugin-styles')
 <link href="{{ asset('assets/libs/datatables.net-bs4/css/dataTables.bootstrap4.min.css') }}" rel="stylesheet" />
+<link href="{{ asset('assets/libs/datatables.net-responsive-bs4/css/responsive.bootstrap4.min.css') }}" rel="stylesheet" />
 @endpush
 
 @section('content')
@@ -19,7 +20,7 @@
 
 <div class="row"><div class="col-12 grid-margin stretch-card"><div class="card"><div class="card-body">
     <div class="table-responsive">
-        <table class="table table-hover datatable" style="width:100%">
+        <table class="table table-hover datatable dt-responsive nowrap" style="width:100%">
             <thead><tr><th>Kode</th><th>Judul</th><th>Jenis</th><th>Bidang Ilmu</th><th>Indeksasi</th><th>Tipe</th><th>Jml Order</th><th>Jml Author</th><th>Manuskrip</th><th>Distribusi</th><th>Status</th><th>Pembuat</th><th>Aksi</th></tr></thead>
             <tbody>
                 @foreach($titles as $t)
@@ -58,7 +59,9 @@
 @push('plugin-scripts')
 <script src="{{ asset('assets/libs/datatables.net/js/jquery.dataTables.min.js') }}"></script>
 <script src="{{ asset('assets/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
+<script src="{{ asset('assets/libs/datatables.net-responsive/js/dataTables.responsive.min.js') }}"></script>
+<script src="{{ asset('assets/libs/datatables.net-responsive-bs4/js/responsive.bootstrap4.min.js') }}"></script>
 @endpush
 @push('custom-scripts')
-<script>$(function () { $('.datatable').DataTable({ pageLength: 10, order: [], language: { emptyTable: 'Belum ada judul.' } }); });</script>
+<script>$(function () { $('.datatable').DataTable({ pageLength: 10, responsive: true, order: [], language: { emptyTable: 'Belum ada judul.' } }); });</script>
 @endpush

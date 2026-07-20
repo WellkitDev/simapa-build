@@ -83,7 +83,7 @@
 @push('custom-scripts')
     <script>
         $(function() {
-            $(".datatable").DataTable({ pageLength: 25, order: [[0, "asc"]] });
+            $(".datatable").DataTable({ pageLength: 25, responsive: true, order: [[0, "asc"]] });
             $(".dataTables_length select, .dataTables_filter input").addClass("form-control mb-2");
         });
     </script>

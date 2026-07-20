@@ -3,6 +3,7 @@
 
 @push('plugin-styles')
     <link href="{{ URL::asset('assets/libs/datatables.net-bs4/css/dataTables.bootstrap4.min.css') }}" rel="stylesheet" />
+    <link href="{{ URL::asset('assets/libs/datatables.net-responsive-bs4/css/responsive.bootstrap4.min.css') }}" rel="stylesheet" />
 @endpush
 
 @section('content')
@@ -16,7 +17,7 @@
         <a href="{{ route('announcement.create') }}" class="btn btn-primary btn-sm">Buat Pengumuman</a>
     </div>
     <div class="table-responsive">
-        <table class="table table-hover datatable" style="width:100%">
+        <table class="table table-hover datatable dt-responsive nowrap" style="width:100%">
             <thead><tr><th>Judul</th><th>Status</th><th>Pin</th><th>Dibuat oleh</th><th>Tanggal</th><th>Aksi</th></tr></thead>
             <tbody>
                 @foreach($announcements as $a)
@@ -54,11 +55,13 @@
 @push('plugin-scripts')
     <script src="{{ URL::asset('assets/libs/datatables.net/js/jquery.dataTables.min.js') }}"></script>
     <script src="{{ URL::asset('assets/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
+    <script src="{{ URL::asset('assets/libs/datatables.net-responsive/js/dataTables.responsive.min.js') }}"></script>
+    <script src="{{ URL::asset('assets/libs/datatables.net-responsive-bs4/js/responsive.bootstrap4.min.js') }}"></script>
 @endpush
 @push('custom-scripts')
 <script>
     $(function () {
-        $('.datatable').DataTable({ pageLength: 10, order: [], language: { emptyTable: 'Belum ada pengumuman.' } });
+        $('.datatable').DataTable({ pageLength: 10, responsive: true, order: [], language: { emptyTable: 'Belum ada pengumuman.' } });
     });
 </script>
 @endpush

@@ -3,6 +3,7 @@
 
 @push('plugin-styles')
 <link href="{{ asset('assets/libs/datatables.net-bs4/css/dataTables.bootstrap4.min.css') }}" rel="stylesheet" />
+<link href="{{ asset('assets/libs/datatables.net-responsive-bs4/css/responsive.bootstrap4.min.css') }}" rel="stylesheet" />
 @endpush
 
 @section('content')
@@ -21,7 +22,7 @@
         satu-satunya jalur yang menembus kunci (jurnal adalah cerminan pembayaran, bukan sumbernya).
     </p>
     <div class="table-responsive">
-        <table class="table table-sm table-hover datatable">
+        <table class="table table-sm table-hover datatable dt-responsive nowrap" style="width:100%">
             <thead><tr><th>Waktu</th><th>Aksi</th><th>Entri</th><th>Pelaku</th><th>Perubahan</th><th>Catatan</th></tr></thead>
             <tbody>
                 @foreach($logs as $log)
@@ -30,10 +31,10 @@
                         <td>{{ $log->actionLabel() }}</td>
                         <td>{{ $log->cash_entry_id ? '#' . $log->cash_entry_id : '—' }}</td>
                         <td>{{ $log->actorName() }}</td>
-                        <td class="small text-muted" style="max-width:420px;word-break:break-word">
+                        <td class="small text-muted dt-judul">
                             {{ $log->changes ? json_encode($log->changes, JSON_UNESCAPED_UNICODE) : '—' }}
                         </td>
-                        <td>@if($log->note)<span class="badge bg-warning text-dark">{{ $log->note }}</span>@endif</td>
+                        <td class="dt-judul">@if($log->note)<span class="badge bg-warning text-dark">{{ $log->note }}</span>@endif</td>
                     </tr>
                 @endforeach
             </tbody>
@@ -45,8 +46,10 @@
 @push('plugin-scripts')
 <script src="{{ asset('assets/libs/datatables.net/js/jquery.dataTables.min.js') }}"></script>
 <script src="{{ asset('assets/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
+<script src="{{ asset('assets/libs/datatables.net-responsive/js/dataTables.responsive.min.js') }}"></script>
+<script src="{{ asset('assets/libs/datatables.net-responsive-bs4/js/responsive.bootstrap4.min.js') }}"></script>
 @endpush
 
 @push('custom-scripts')
-<script>$(function () { $('.datatable').DataTable({ pageLength: 25, order: [[0, 'desc']], language: { emptyTable: 'Belum ada perubahan tercatat.' } }); });</script>
+<script>$(function () { $('.datatable').DataTable({ pageLength: 25, responsive: true, order: [[0, 'desc']], language: { emptyTable: 'Belum ada perubahan tercatat.' } }); });</script>
 @endpush

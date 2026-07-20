@@ -86,7 +86,7 @@
             grid: { borderColor: '#f1f1f1', strokeDashArray: 4 },
         }).render();
 
-        $(".datatable").DataTable({ pageLength: 10, searching: true, ordering: true });
+        $(".datatable").DataTable({ pageLength: 10, responsive: true, searching: true, ordering: true });
     });
 </script>
 @endpush

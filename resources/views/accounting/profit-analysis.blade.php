@@ -3,6 +3,7 @@
 
 @push('plugin-styles')
 <link href="{{ asset('assets/libs/datatables.net-bs4/css/dataTables.bootstrap4.min.css') }}" rel="stylesheet" />
+<link href="{{ asset('assets/libs/datatables.net-responsive-bs4/css/responsive.bootstrap4.min.css') }}" rel="stylesheet" />
 @endpush
 
 @section('content')
@@ -78,14 +79,14 @@
         sistem belum bisa menautkan pengeluaran ke order tertentu. Pemasukan non-order tidak dihitung karena tak punya margin.
     </p>
     <div class="table-responsive">
-        <table class="table table-sm table-hover datatable">
+        <table class="table table-sm table-hover datatable dt-responsive nowrap" style="width:100%">
             <thead><tr><th>Tgl</th><th>Order</th><th>Judul</th><th>Jenis</th><th>Indeksasi</th><th class="text-end">Margin</th><th class="text-end">Masuk</th><th class="text-end">Cadangan APC</th><th class="text-end">Siap Dibagi</th></tr></thead>
             <tbody>
                 @foreach($rows as $r)
                     <tr>
                         <td>{{ $r['tanggal'] }}</td>
                         <td>{{ $r['code_order'] ?? '—' }}</td>
-                        <td style="max-width:260px;word-break:break-word">{{ $r['judul'] }}</td>
+                        <td class="dt-judul">{{ $r['judul'] }}</td>
                         <td>{{ $r['type'] }}</td>
                         <td>
                             {{ $r['indexation'] ?? '—' }}
@@ -109,8 +110,10 @@
 @push('plugin-scripts')
 <script src="{{ asset('assets/libs/datatables.net/js/jquery.dataTables.min.js') }}"></script>
 <script src="{{ asset('assets/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
+<script src="{{ asset('assets/libs/datatables.net-responsive/js/dataTables.responsive.min.js') }}"></script>
+<script src="{{ asset('assets/libs/datatables.net-responsive-bs4/js/responsive.bootstrap4.min.js') }}"></script>
 @endpush
 
 @push('custom-scripts')
-<script>$(function () { $('.datatable').DataTable({ pageLength: 25, order: [], language: { emptyTable: 'Belum ada pembayaran bulan ini.' } }); });</script>
+<script>$(function () { $('.datatable').DataTable({ pageLength: 25, responsive: true, order: [], language: { emptyTable: 'Belum ada pembayaran bulan ini.' } }); });</script>
 @endpush
