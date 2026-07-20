@@ -18,14 +18,9 @@ use Illuminate\Support\Facades\Auth;
 
 class OrderJournalController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        //
-        return view('pages.order.journals.index');
-    }
+    // Catatan: index() dihapus — tak ada route yang menunjuk ke sana dan view-nya
+    // ('pages.order.journals.index') sudah tidak ada. Daftar order untuk semua
+    // jenis order dilayani OrderBookController@index.
 
     /**
      * Show the form for creating a new resource.
@@ -225,12 +220,16 @@ class OrderJournalController extends Controller
     }
 
     /**
-     * Display the specified resource.
+     * Detail order jurnal.
+     *
+     * Halaman detail order bersifat generik (orders/book/show) — sudah menangani
+     * tipe at_mandiri/at_kolab dan dipakai daftar order untuk semua jenis order.
+     * View lama 'pages.order.journals.show' ikut terhapus saat views dirapikan,
+     * jadi route ini diarahkan ke sana alih-alih 500.
      */
-    public function show(string $id)
+    public function show(string $code_order)
     {
-        //
-        return view('pages.order.journals.show');
+        return redirect()->route('order.book.show', ['code_order' => $code_order]);
     }
 
     /**

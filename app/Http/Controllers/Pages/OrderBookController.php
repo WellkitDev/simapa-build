@@ -345,11 +345,8 @@ class OrderBookController extends Controller
         'remainingBalance'
         ));
     }
-    public function inv()
-    {
-        //
-        return view('pages.invoices.inv_book');
-    }
+    // Catatan: inv() dihapus — tak ada route/referensi ke method ini dan
+    // view-nya ('pages.invoices.inv_book') sudah tidak ada.
 
     /**
      * Show the form for editing the specified resource.

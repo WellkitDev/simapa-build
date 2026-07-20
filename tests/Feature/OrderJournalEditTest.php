@@ -51,6 +51,22 @@ class OrderJournalEditTest extends TestCase
     }
 
     /** @test */
+    public function journal_show_opens_order_detail_instead_of_erroring(): void
+    {
+        // Dulu 500: view 'pages.order.journals.show' sudah dihapus tapi controller
+        // masih menunjuk ke sana. Detail order jurnal memakai halaman detail order
+        // generik (orders/book/show) yang sudah menangani tipe at_*.
+        $u = $this->user('marketing');
+        $order = $this->journalOrder($u);
+
+        $this->actingAs($u)->get(route('order.journal.show', $order->code_order))
+            ->assertRedirect(route('order.book.show', $order->code_order));
+
+        $this->actingAs($u)->get(route('order.book.show', $order->code_order))
+            ->assertOk()->assertSee('Judul Lama');
+    }
+
+    /** @test */
     public function marketing_can_open_and_update_journal_order(): void
     {
         $u = $this->user('marketing');
