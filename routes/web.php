@@ -322,6 +322,17 @@ Route::middleware(['auth', 'access'])->group(function () {
     Route::put('gudang/{id}', [DataAssetController::class, 'update'])->name('data.update')->whereNumber('id');
     Route::get('gudang/{id}/download', [DataAssetController::class, 'download'])->name('data.download')->whereNumber('id');
     Route::delete('gudang/{id}', [DataAssetController::class, 'destroy'])->name('data.destroy')->whereNumber('id');
+
+    // Slip Gaji Karyawan (superadmin/accounting) — admin
+    Route::get('salary/slip', [\App\Http\Controllers\Pages\SalarySlipController::class, 'index'])->name('salary.slip.index');
+    Route::get('salary/slip/create', [\App\Http\Controllers\Pages\SalarySlipController::class, 'create'])->name('salary.slip.create');
+    Route::post('salary/slip', [\App\Http\Controllers\Pages\SalarySlipController::class, 'store'])->name('salary.slip.store');
+    Route::get('salary/slip/{id}', [\App\Http\Controllers\Pages\SalarySlipController::class, 'show'])->name('salary.slip.show')->whereNumber('id');
+    Route::get('salary/slip/{id}/edit', [\App\Http\Controllers\Pages\SalarySlipController::class, 'edit'])->name('salary.slip.edit')->whereNumber('id');
+    Route::put('salary/slip/{id}', [\App\Http\Controllers\Pages\SalarySlipController::class, 'update'])->name('salary.slip.update')->whereNumber('id');
+    Route::delete('salary/slip/{id}', [\App\Http\Controllers\Pages\SalarySlipController::class, 'destroy'])->name('salary.slip.destroy')->whereNumber('id');
+    Route::get('salary/slip/{id}/pdf', [\App\Http\Controllers\Pages\SalarySlipController::class, 'pdf'])->name('salary.slip.pdf')->whereNumber('id');
+    Route::post('salary/slip/{id}/send', [\App\Http\Controllers\Pages\SalarySlipController::class, 'send'])->name('salary.slip.send')->whereNumber('id');
 });
 
 

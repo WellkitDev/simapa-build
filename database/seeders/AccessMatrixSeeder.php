@@ -74,6 +74,7 @@ class AccessMatrixSeeder extends Seeder
         ],
         'accounting' => [
             'accounting.*',
+            'salary.*',
             // title.view/journal.view/isbn.view/archive.view/manuscript.detail: route
             // sumbernya (title.index, journal.index, isbn.index, archive.index,
             // order.indexJudul.detail/.progress, title.progress.logs) tanpa role: middleware

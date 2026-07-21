@@ -16,6 +16,8 @@ return [
         'task.store', 'task.update', 'task.destroy', 'task.status', 'task.schedule',
         'report.daily', 'report.note', 'report.submit',
         'report.files.store', 'report.files.destroy', 'report.monthly',
+        // Slip gaji milik-sendiri (self-service) — terbuka utk semua user login.
+        'salary.slip.me', 'salary.slip.me.pdf',
     ],
 
     'modules' => [
@@ -317,6 +319,18 @@ return [
             'label'   => 'Keuangan — Analisa Profit',
             'actions' => [
                 'view' => ['accounting.profit'],
+            ],
+        ],
+
+        'salary' => [
+            'label'   => 'Slip Gaji',
+            'actions' => [
+                'view'   => ['salary.slip.index', 'salary.slip.show'],
+                'create' => ['salary.slip.create', 'salary.slip.store'],
+                'edit'   => ['salary.slip.edit', 'salary.slip.update'],
+                'delete' => ['salary.slip.destroy'],
+                'send'   => ['salary.slip.send'],
+                'export' => ['salary.slip.pdf'],
             ],
         ],
 
