@@ -42,4 +42,12 @@ class SalarySlipAccessTest extends TestCase
             ->get(route('salary.slip.index'))
             ->assertForbidden();
     }
+
+    /** @test */
+    public function manager_cannot_view_index(): void
+    {
+        $this->actingAs($this->user('manager'))
+            ->get(route('salary.slip.index'))
+            ->assertForbidden();
+    }
 }

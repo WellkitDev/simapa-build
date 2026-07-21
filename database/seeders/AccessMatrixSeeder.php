@@ -126,8 +126,11 @@ class AccessMatrixSeeder extends Seeder
             Permission::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
         }
 
-        $accountingPermissions = array_values(array_filter($all,
-            fn ($n) => str_starts_with($n, 'accounting.')));
+        // Permission ber-scope khusus yang dikecualikan dari hibah wildcard '*' milik manager:
+        // seluruh accounting.* (route accounting/* dijaga role:superadmin|accounting) DAN
+        // seluruh salary.* (slip gaji sengaja hanya superadmin|accounting — manager TIDAK ikut).
+        $financeScopedPermissions = array_values(array_filter($all,
+            fn ($n) => str_starts_with($n, 'accounting.') || str_starts_with($n, 'salary.')));
 
         foreach ($this->grants as $roleName => $patterns) {
             $role = Role::where('name', $roleName)->first();
@@ -139,7 +142,7 @@ class AccessMatrixSeeder extends Seeder
                 ? array_values(array_unique(array_merge(
                     $this->superadminOnly,
                     $this->managerAlsoExcluded,
-                    $accountingPermissions
+                    $financeScopedPermissions
                 )))
                 : $this->superadminOnly;
 

@@ -25,7 +25,7 @@ class SalarySlipController extends Controller
         $employeeId = ($eq === null || $eq === '' || $eq === 'all') ? null : (int) $eq;
         $status = in_array($request->query('status'), ['draft', 'terbit'], true) ? $request->query('status') : null;
 
-        $slips = SalarySlip::with('employee')
+        $slips = SalarySlip::query()
             ->where('period_year', $year)
             ->when($month, fn ($q) => $q->where('period_month', $month))
             ->when($employeeId, fn ($q) => $q->where('user_id', $employeeId))
