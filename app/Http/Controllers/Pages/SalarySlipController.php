@@ -87,7 +87,7 @@ class SalarySlipController extends Controller
 
     public function show(int $id)
     {
-        $slip = SalarySlip::with('earnings', 'deductions', 'employee', 'creator')->findOrFail($id);
+        $slip = SalarySlip::with('earnings', 'deductions')->findOrFail($id);
         return view('salary.slips.show', compact('slip'));
     }
 
@@ -144,6 +144,8 @@ class SalarySlipController extends Controller
 
     public function destroy(int $id)
     {
+        // Sengaja TIDAK dibatasi status: alur koreksi slip yang sudah 'terbit' adalah
+        // hapus (soft-delete) lalu buat ulang — sesuai desain. Hanya superadmin/accounting.
         $slip = SalarySlip::findOrFail($id);
         $slip->delete();
         return redirect()->route('salary.slip.index')->with('success', 'Slip gaji dihapus.');

@@ -74,4 +74,33 @@ class SalarySlipCrudTest extends TestCase
         $this->actingAs($this->user('accounting'))->get(route('salary.slip.show', $slip->id))
             ->assertOk()->assertSee('TAKE HOME PAY');
     }
+
+    /** @test */
+    public function terbit_slip_cannot_be_updated_via_put(): void
+    {
+        $slip = SalarySlip::factory()->create(['status' => 'terbit', 'net_pay' => 1234000]);
+        $this->actingAs($this->user('accounting'))->put(route('salary.slip.update', $slip->id), [
+            'user_id' => $slip->user_id, 'period_year' => 2026, 'period_month' => 9,
+            'earnings' => [['label' => 'Hack', 'amount' => 999]],
+        ])->assertRedirect(route('salary.slip.show', $slip->id))->assertSessionHas('error');
+
+        $slip->refresh();
+        $this->assertEquals(1234000, $slip->net_pay);   // tidak berubah
+        $this->assertCount(0, $slip->lines);            // tidak tersinkron
+    }
+
+    /** @test */
+    public function update_to_period_held_by_another_slip_is_rejected(): void
+    {
+        $emp = User::factory()->create();
+        $a = SalarySlip::factory()->create(['user_id' => $emp->id, 'period_year' => 2026, 'period_month' => 7, 'status' => 'draft']);
+        SalarySlip::factory()->create(['user_id' => $emp->id, 'period_year' => 2026, 'period_month' => 8, 'status' => 'draft']);
+
+        $this->actingAs($this->user('accounting'))->put(route('salary.slip.update', $a->id), [
+            'user_id' => $emp->id, 'period_year' => 2026, 'period_month' => 8,
+            'earnings' => [['label' => 'Gaji Pokok', 'amount' => 1000000]],
+        ])->assertSessionHasErrors('user_id');
+
+        $this->assertSame(7, $a->fresh()->period_month); // tetap Juli
+    }
 }
