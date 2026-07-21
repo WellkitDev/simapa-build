@@ -28,4 +28,18 @@ class IdempotencyKeyModelTest extends TestCase
         $this->assertNotNull($row->fresh()->created_at);
         $this->assertInstanceOf(\Carbon\Carbon::class, $row->fresh()->created_at);
     }
+
+    /** @test */
+    public function prune_command_deletes_keys_older_than_24_hours(): void
+    {
+        $old = IdempotencyKey::create(['key' => 'old', 'method' => 'POST', 'path' => 'x']);
+        $old->forceFill(['created_at' => now()->subHours(25)])->save();
+
+        IdempotencyKey::create(['key' => 'fresh', 'method' => 'POST', 'path' => 'x']); // created_at = now
+
+        $this->artisan('idempotency:prune')->assertExitCode(0);
+
+        $this->assertNull(IdempotencyKey::where('key', 'old')->first());
+        $this->assertNotNull(IdempotencyKey::where('key', 'fresh')->first());
+    }
 }
