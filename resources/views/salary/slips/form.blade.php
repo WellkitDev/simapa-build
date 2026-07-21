@@ -108,8 +108,14 @@ const PRESET = {
 };
 const rp = n => 'Rp ' + (Number(n) || 0).toLocaleString('id-ID');
 
+function escapeHtml(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 function rowHtml(group, label, amount) {
-    const safe = String(label || '').replace(/"/g, '&quot;');
+    const safe = escapeHtml(label);
     return `<tr>
         <td><input type="text" name="${group}[__i__][label]" class="form-control form-control-sm" value="${safe}" required></td>
         <td><input type="number" name="${group}[__i__][amount]" class="form-control form-control-sm amount" min="0" step="1" value="${amount || 0}" required></td>

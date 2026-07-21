@@ -58,6 +58,8 @@ class SalarySlipController extends Controller
         $this->normalizeAmounts($request);
         $data = $request->validate($this->baseRules());
 
+        // Duplikat dicek di lapisan validasi (bukan unique index DB — tabel soft-delete). Race TOCTOU
+        // diterima untuk alat internal berpengguna tunggal (satu accountant).
         if ($this->periodTaken($data['user_id'], $data['period_year'], $data['period_month'])) {
             return back()->withInput()->withErrors(['user_id' => 'Slip untuk karyawan & periode ini sudah ada.']);
         }
@@ -93,10 +95,10 @@ class SalarySlipController extends Controller
             'note'                => 'nullable|string',
             'earnings'            => 'required|array|min:1',
             'earnings.*.label'    => 'required|string|max:150',
-            'earnings.*.amount'   => 'required|numeric|min:0',
+            'earnings.*.amount'   => 'required|numeric|min:0|max:9999999999999.99',
             'deductions'          => 'nullable|array',
             'deductions.*.label'  => 'required|string|max:150',
-            'deductions.*.amount' => 'required|numeric|min:0',
+            'deductions.*.amount' => 'required|numeric|min:0|max:9999999999999.99',
         ];
     }
 
@@ -110,7 +112,9 @@ class SalarySlipController extends Controller
             }
             foreach ($rows as $i => $row) {
                 if (isset($row['amount'])) {
-                    $rows[$i]['amount'] = preg_replace('/[^\d]/', '', (string) $row['amount']);
+                    // Hanya buang pemisah ribuan (titik/koma/spasi); pertahankan tanda minus
+                    // agar nominal negatif tetap DITOLAK oleh aturan min:0 (bukan diam-diam dibalik).
+                    $rows[$i]['amount'] = preg_replace('/[.,\s]/', '', (string) $row['amount']);
                 }
             }
             $request->merge([$group => $rows]);

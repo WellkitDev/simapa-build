@@ -75,4 +75,37 @@ class SalarySlipStoreTest extends TestCase
         $this->actingAs($this->user('accounting'))->get(route('salary.slip.create'))
             ->assertOk()->assertSee('Rincian Penghasilan')->assertSee('Rincian Potongan');
     }
+
+    /** @test */
+    public function oversized_amount_is_rejected_not_500(): void
+    {
+        $emp = User::factory()->create();
+        $this->actingAs($this->user('accounting'))->post(route('salary.slip.store'), [
+            'user_id' => $emp->id, 'period_year' => 2026, 'period_month' => 8,
+            'earnings' => [['label' => 'Gaji Pokok', 'amount' => '999999999999999999']],
+        ])->assertSessionHasErrors('earnings.0.amount');
+        $this->assertSame(0, SalarySlip::count());
+    }
+
+    /** @test */
+    public function negative_amount_is_rejected(): void
+    {
+        $emp = User::factory()->create();
+        $this->actingAs($this->user('accounting'))->post(route('salary.slip.store'), [
+            'user_id' => $emp->id, 'period_year' => 2026, 'period_month' => 8,
+            'earnings' => [['label' => 'Gaji Pokok', 'amount' => '-500000']],
+        ])->assertSessionHasErrors('earnings.0.amount');
+        $this->assertSame(0, SalarySlip::count());
+    }
+
+    /** @test */
+    public function thousand_separated_amount_is_normalized(): void
+    {
+        $emp = User::factory()->create();
+        $this->actingAs($this->user('accounting'))->post(route('salary.slip.store'), [
+            'user_id' => $emp->id, 'period_year' => 2026, 'period_month' => 8,
+            'earnings' => [['label' => 'Gaji Pokok', 'amount' => '5.000.000']],
+        ])->assertRedirect(route('salary.slip.index'));
+        $this->assertEquals(5000000, SalarySlip::first()->total_earnings);
+    }
 }
