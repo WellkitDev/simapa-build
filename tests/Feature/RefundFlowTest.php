@@ -105,6 +105,6 @@ class RefundFlowTest extends TestCase
         $this->actingAs($this->user('manager'))->get(route('order.refund.form', $order->code_order))->assertForbidden();
         $this->actingAs($this->user('manager'))->post(route('order.refund.store', $order->code_order), [
             'amount' => 1000, 'reason' => 'x', 'method' => 'transfer', 'tanggal' => '2026-06-05',
-        ])->assertForbidden();
+        ])->assertRedirect()->assertSessionHas('error');
     }
 }

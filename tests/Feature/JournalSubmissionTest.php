@@ -96,6 +96,6 @@ class JournalSubmissionTest extends TestCase
         $j = $this->journal();
         $this->actingAs($this->user('marketing'))
             ->post(route('journal.submission.store', $j->id), ['status' => 'submitted'])
-            ->assertForbidden();
+            ->assertRedirect()->assertSessionHas('error');
     }
 }

@@ -101,7 +101,7 @@ class BookIsbnTest extends TestCase
         $book = $this->bookAtStage('isbn');
         $this->actingAs($this->user('marketing'))->post(route('isbn.store'), [
             'title_id' => $book->id, 'status' => 'pendaftaran',
-        ])->assertForbidden();
+        ])->assertRedirect()->assertSessionHas('error');
     }
 
     /** @test */

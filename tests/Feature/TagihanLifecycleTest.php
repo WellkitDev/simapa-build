@@ -92,7 +92,7 @@ class TagihanLifecycleTest extends TestCase
     {
         $this->actingAs($this->user('production'));
         $this->get(route('tagihan.index'))->assertStatus(403);
-        $this->post(route('tagihan.store'), $this->validPayload())->assertStatus(403);
+        $this->post(route('tagihan.store'), $this->validPayload())->assertRedirect()->assertSessionHas('error');
     }
 
     /** @test */

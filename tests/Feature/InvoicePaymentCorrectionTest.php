@@ -81,7 +81,7 @@ class InvoicePaymentCorrectionTest extends TestCase
         $this->actingAs($this->user('marketing'))->put(route('invoice.update', $invoice->id), [
             'invoice_no' => 'INV-1', 'issued_at' => today()->toDateString(), 'due_at' => today()->addDays(7)->toDateString(),
             'amount' => 999, 'payment_type' => 'dp', 'payment_id' => $payment->id,
-        ])->assertForbidden();
+        ])->assertRedirect()->assertSessionHas('error');
     }
 
     /** @test */

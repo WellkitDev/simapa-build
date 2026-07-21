@@ -53,7 +53,7 @@ class DocChecklistTest extends TestCase
     /** @test */
     public function non_superadmin_cannot_crud_template(): void
     {
-        $this->actingAs($this->user('admin'))->post(route('doc-req.store'), ['category' => 'penerbit', 'label' => 'X'])->assertForbidden();
+        $this->actingAs($this->user('admin'))->post(route('doc-req.store'), ['category' => 'penerbit', 'label' => 'X'])->assertRedirect()->assertSessionHas('error');
     }
 
     /** @test */
@@ -94,7 +94,7 @@ class DocChecklistTest extends TestCase
         $book = $this->book();
         foreach (['manager', 'marketing'] as $role) {
             $this->actingAs($this->user($role))->put(route('title.doc.save', $book->id), ['marks' => []])
-                ->assertForbidden();
+                ->assertRedirect()->assertSessionHas('error');
         }
     }
 

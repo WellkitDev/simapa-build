@@ -83,6 +83,6 @@ class JournalControllerTest extends TestCase
         $this->actingAs($mkt)->get(route('journal.index'))->assertOk()->assertSee('Lihat Saja');
         $this->actingAs($mkt)->get(route('journal.show', $j->id))->assertOk();
         $this->actingAs($mkt)->get(route('journal.create'))->assertForbidden();
-        $this->actingAs($mkt)->post(route('journal.store'), $this->payload())->assertForbidden();
+        $this->actingAs($mkt)->post(route('journal.store'), $this->payload())->assertRedirect()->assertSessionHas('error');
     }
 }

@@ -59,7 +59,7 @@ class AccountingJournalTest extends TestCase
         $this->actingAs($this->user('marketing'))->get(route('accounting.journal'))->assertForbidden();
         $this->actingAs($this->user('marketing'))->post(route('accounting.entry.store'), [
             'tanggal' => '2026-06-05', 'jenis' => 'pemasukan', 'amount' => 1, 'keterangan' => 'x',
-        ])->assertForbidden();
+        ])->assertRedirect()->assertSessionHas('error');
     }
 
     /** @test */

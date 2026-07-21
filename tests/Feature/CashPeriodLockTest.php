@@ -155,7 +155,7 @@ class CashPeriodLockTest extends TestCase
         $acc->assignRole('accounting');
 
         $this->actingAs($acc)->post(route('accounting.period.lock'), ['year' => 2026, 'month' => 6])
-            ->assertForbidden();
+            ->assertRedirect()->assertSessionHas('error');
 
         $this->actingAs($this->superadmin())->post(route('accounting.period.lock'), ['year' => 2026, 'month' => 6]);
         $this->assertTrue(app(CashPeriodService::class)->isLocked(2026, 6));

@@ -60,7 +60,7 @@ class ChapterProgressControllerTest extends TestCase
         $cp = $this->firstChapter();
         $this->actingAs($this->user('marketing'))
             ->post(route('chapter.advance', $cp->id), ['status' => 'layout'])
-            ->assertForbidden();
+            ->assertRedirect()->assertSessionHas('error');
     }
 
     /** @test */

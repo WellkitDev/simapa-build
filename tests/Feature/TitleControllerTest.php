@@ -69,7 +69,7 @@ class TitleControllerTest extends TestCase
         $mgr  = $this->user('manager');
         $title = $this->title($prod, 'menunggu');
 
-        $this->actingAs($prod)->post(route('title.approve', $title->id))->assertForbidden();
+        $this->actingAs($prod)->post(route('title.approve', $title->id))->assertRedirect()->assertSessionHas('error');
         $this->actingAs($mgr)->post(route('title.approve', $title->id))->assertRedirect();
         $this->assertSame('disetujui', $title->fresh()->status);
     }

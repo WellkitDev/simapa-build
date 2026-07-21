@@ -242,7 +242,7 @@ class DetailOrderPaymentInvoiceTest extends TestCase
             'amount'       => 1,
             'payment_type' => 'dp',
             'paid_at'      => now()->toDateString(),
-        ])->assertStatus(403);
+        ])->assertRedirect()->assertSessionHas('error');
     }
 
     /** @test */

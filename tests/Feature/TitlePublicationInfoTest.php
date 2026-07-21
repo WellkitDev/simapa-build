@@ -63,7 +63,7 @@ class TitlePublicationInfoTest extends TestCase
         $title = $this->title();
 
         $this->actingAs($prod)->get(route('title.show', $title->id))->assertOk()->assertSee('Informasi Publikasi');
-        $this->actingAs($prod)->put(route('title.info.update', $title->id), ['jurnal_target' => 'X'])->assertForbidden();
+        $this->actingAs($prod)->put(route('title.info.update', $title->id), ['jurnal_target' => 'X'])->assertRedirect()->assertSessionHas('error');
     }
 
     /** @test */

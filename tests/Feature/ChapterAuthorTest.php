@@ -58,7 +58,7 @@ class ChapterAuthorTest extends TestCase
         $book = $this->book();
         $this->actingAs($this->user('marketing'))
             ->put(route('title.chapters.authors', $book->id), ['chapter_authors' => []])
-            ->assertForbidden();
+            ->assertRedirect()->assertSessionHas('error');
     }
 
     /** @test */

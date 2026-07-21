@@ -89,7 +89,7 @@ class TitleArchiveTest extends TestCase
     public function admin_cannot_approve(): void
     {
         $book = $this->eligibleBook();
-        $this->actingAs($this->user('admin'))->post(route('archive.approve', $book->id), ['approval_note' => 'x'])->assertForbidden();
+        $this->actingAs($this->user('admin'))->post(route('archive.approve', $book->id), ['approval_note' => 'x'])->assertRedirect()->assertSessionHas('error');
     }
 
     /** @test */

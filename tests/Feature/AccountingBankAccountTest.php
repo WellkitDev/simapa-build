@@ -67,7 +67,7 @@ class AccountingBankAccountTest extends TestCase
     {
         $this->actingAs($this->user('marketing'))->post(route('accounting.account.store'), [
             'name' => 'X', 'opening_balance' => 0,
-        ])->assertForbidden();
+        ])->assertRedirect()->assertSessionHas('error');
     }
 
     /** @test */
@@ -126,7 +126,7 @@ class AccountingBankAccountTest extends TestCase
         $a = CashAccount::incomeDefault();
         $this->actingAs($this->user('marketing'))->post(route('accounting.transfer.store'), [
             'from_account_id' => $a->id, 'to_account_id' => $a->id, 'amount' => 1, 'tanggal' => '2026-06-01',
-        ])->assertForbidden();
+        ])->assertRedirect()->assertSessionHas('error');
     }
 
     /** @test */
