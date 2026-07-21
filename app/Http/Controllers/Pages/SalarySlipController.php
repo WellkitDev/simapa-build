@@ -85,6 +85,70 @@ class SalarySlipController extends Controller
         return redirect()->route('salary.slip.index')->with('success', 'Slip gaji dibuat.');
     }
 
+    public function show(int $id)
+    {
+        $slip = SalarySlip::with('earnings', 'deductions', 'employee', 'creator')->findOrFail($id);
+        return view('salary.slips.show', compact('slip'));
+    }
+
+    public function edit(int $id)
+    {
+        $slip = SalarySlip::with('earnings', 'deductions')->findOrFail($id);
+        if (! $slip->isDraft()) {
+            return redirect()->route('salary.slip.show', $slip->id)->with('error', 'Slip yang sudah terbit tidak bisa diedit.');
+        }
+        $employees = User::where('is_active', true)->orderBy('name')->get(['id', 'name']);
+
+        return view('salary.slips.form', [
+            'slip'       => $slip,
+            'employees'  => $employees,
+            'earnings'   => $slip->earnings,
+            'deductions' => $slip->deductions,
+            'mode'       => 'edit',
+        ]);
+    }
+
+    public function update(Request $request, int $id)
+    {
+        $slip = SalarySlip::findOrFail($id);
+        if (! $slip->isDraft()) {
+            return redirect()->route('salary.slip.show', $slip->id)->with('error', 'Slip yang sudah terbit tidak bisa diedit.');
+        }
+
+        $this->normalizeAmounts($request);
+        $data = $request->validate($this->baseRules());
+
+        if ($this->periodTaken($data['user_id'], $data['period_year'], $data['period_month'], $slip->id)) {
+            return back()->withInput()->withErrors(['user_id' => 'Slip untuk karyawan & periode ini sudah ada.']);
+        }
+
+        $employee = User::with('profile')->findOrFail($data['user_id']);
+
+        DB::transaction(function () use ($slip, $data, $employee) {
+            $slip->update([
+                'user_id'           => $employee->id,
+                'employee_name'     => $employee->name,
+                'employee_position' => optional($employee->profile)->job_name,
+                'period_year'       => $data['period_year'],
+                'period_month'      => $data['period_month'],
+                'note'              => $data['note'] ?? null,
+                'updated_by'        => Auth::id(),
+            ]);
+            $slip->lines()->delete();
+            $this->syncLines($slip, $data);
+            $slip->recalcTotals();
+        });
+
+        return redirect()->route('salary.slip.show', $slip->id)->with('success', 'Slip gaji diperbarui.');
+    }
+
+    public function destroy(int $id)
+    {
+        $slip = SalarySlip::findOrFail($id);
+        $slip->delete();
+        return redirect()->route('salary.slip.index')->with('success', 'Slip gaji dihapus.');
+    }
+
     /** Aturan validasi bersama create & update. */
     private function baseRules(): array
     {
