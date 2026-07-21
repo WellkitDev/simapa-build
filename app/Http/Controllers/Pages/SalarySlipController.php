@@ -151,6 +151,13 @@ class SalarySlipController extends Controller
         return redirect()->route('salary.slip.index')->with('success', 'Slip gaji dihapus.');
     }
 
+    public function pdf(int $id)
+    {
+        $slip = SalarySlip::with('earnings', 'deductions', 'employee')->findOrFail($id);
+        return Pdf::loadView('salary.slips.salary_slip_pdf', SalarySlipPdfData::for($slip))
+            ->stream('SlipGaji_' . $slip->slip_no . '.pdf');
+    }
+
     /** Aturan validasi bersama create & update. */
     private function baseRules(): array
     {
