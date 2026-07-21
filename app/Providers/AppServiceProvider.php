@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -20,6 +21,10 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         \Illuminate\Pagination\Paginator::useBootstrapFive();
+
+        Blade::directive('idempotent', function () {
+            return '<input type="hidden" name="_idempotency_key" value="<?php echo e(\Illuminate\Support\Str::uuid()); ?>">';
+        });
 
         \App\Models\Payment::observe(\App\Observers\PaymentObserver::class);
         \App\Models\CashEntry::observe(\App\Observers\CashEntryObserver::class);
