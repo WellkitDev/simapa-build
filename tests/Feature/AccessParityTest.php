@@ -106,8 +106,14 @@ class AccessParityTest extends TestCase
         if ($allowed) {
             $this->assertNotSame(403, $res->getStatusCode(),
                 "$role seharusnya BOLEH $routeName, tapi 403");
-        } else {
+        } elseif ($verb === 'get') {
+            // Navigasi GET terlarang → halaman 403 ramah (status 403).
             $res->assertForbidden();
+        } else {
+            // Submit terlarang → diblok middleware: redirect balik + flash error
+            // (bukan 403 mentah). Keputusan aksesnya tetap sama: DIBLOK.
+            $res->assertRedirect();
+            $res->assertSessionHas('error');
         }
     }
 
@@ -147,5 +153,32 @@ class AccessParityTest extends TestCase
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
         $this->actingAs($mkt)->get(route('order.book.index'))->assertForbidden();
+    }
+
+    /**
+     * Perilaku penolakan (UX): submit form terlarang → redirect + flash error (SweetAlert);
+     * navigasi GET terlarang → halaman 403 ramah; request JSON/AJAX → 403 murni.
+     *
+     * @test
+     */
+    public function penolakan_ramah_untuk_form_dan_json_403_untuk_ajax(): void
+    {
+        // production tak punya izin membuat marketing-target (view saja pun tidak).
+        $prod = $this->user('production');
+
+        // Submit form terlarang → redirect balik + flash, TIDAK mengeksekusi aksi.
+        $this->actingAs($prod)
+            ->post(route('marketing-target.store'), [])
+            ->assertRedirect()
+            ->assertSessionHas('error');
+        $this->assertDatabaseCount('tb_marketing_targets', 0);
+
+        // Navigasi GET terlarang → halaman 403 ramah (status 403).
+        $this->actingAs($prod)->get(route('marketing-target.index'))->assertForbidden();
+
+        // Request JSON (AJAX) → 403 murni, bukan redirect.
+        $this->actingAs($prod)
+            ->postJson(route('marketing-target.store'), [])
+            ->assertForbidden();
     }
 }

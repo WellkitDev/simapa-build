@@ -71,19 +71,23 @@ class MarketingAccessTest extends TestCase
     public function marketing_cannot_approve_or_reject_payments(): void
     {
         $this->actingAs($this->user('marketing'));
-        $this->post(route('payment.approve', 1))->assertForbidden();
-        $this->post(route('payment.reject', 1))->assertForbidden();
+        // Submit terlarang → diblok middleware sebelum controller: redirect balik + flash
+        // error (SweetAlert), bukan 403 mentah. Aksinya tetap tak pernah dijalankan.
+        $this->post(route('payment.approve', 1))->assertRedirect()->assertSessionHas('error');
+        $this->post(route('payment.reject', 1))->assertRedirect()->assertSessionHas('error');
     }
 
     /** @test */
     public function marketing_cannot_mutate_invoice(): void
     {
         $this->actingAs($this->user('marketing'));
+        // GET ke halaman terlarang → halaman 403 ramah (status tetap 403).
         $this->get(route('invoice.edit', 1))->assertForbidden();
-        $this->put(route('invoice.update', 1))->assertForbidden();
-        $this->post(route('invoice.updateStatus', 1))->assertForbidden();
-        $this->post(route('invoice.cancel', 1))->assertForbidden();
         $this->get(route('order.refund.form', 'X'))->assertForbidden();
+        // Submit terlarang → redirect balik + flash error.
+        $this->put(route('invoice.update', 1))->assertRedirect()->assertSessionHas('error');
+        $this->post(route('invoice.updateStatus', 1))->assertRedirect()->assertSessionHas('error');
+        $this->post(route('invoice.cancel', 1))->assertRedirect()->assertSessionHas('error');
     }
 
     /** @test */
