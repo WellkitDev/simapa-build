@@ -49,14 +49,16 @@
     // Form yang ditambahkan dinamis: stempel saat submit (fallback).
     document.addEventListener('submit', function (e) {
         var form = e.target;
-        if (form && form.tagName === 'FORM') {
-            stamp(form);
-            // Nonaktifkan tombol submit setelah event ini selesai (agar nilainya tetap terkirim).
-            var btns = form.querySelectorAll('button[type="submit"], input[type="submit"]');
-            setTimeout(function () {
-                for (var i = 0; i < btns.length; i++) btns[i].disabled = true;
-            }, 0);
-        }
+        if (!form || form.tagName !== 'FORM') return;
+        stamp(form);
+        // Jika submit di-preventDefault (mis. dialog data-confirm yang belum dikonfirmasi),
+        // JANGAN nonaktifkan tombol — kalau dibatalkan, tombol akan terkunci selamanya.
+        if (e.defaultPrevented) return;
+        // Nonaktifkan tombol submit setelah event ini selesai (agar nilainya tetap terkirim).
+        var btns = form.querySelectorAll('button[type="submit"], input[type="submit"]');
+        setTimeout(function () {
+            for (var i = 0; i < btns.length; i++) btns[i].disabled = true;
+        }, 0);
     }, false);
 
     // Kembali via tombol back (bfcache): aktifkan lagi tombol submit.
