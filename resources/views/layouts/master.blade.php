@@ -78,6 +78,8 @@
 
     <!-- common js -->
     <script src="{{ asset('assets/js/template.js') }}"></script>
+    <!-- idempotency guard -->
+    <script src="{{ asset('js/idempotency.js') }}"></script>
     <!-- end common js -->
 
     {{-- Bahasa Indonesia default untuk semua DataTables (dimuat setelah plugin, sebelum init per-halaman) --}}
@@ -117,8 +119,10 @@
         }, true);
         window.swalError = function (msg) { Swal.fire({ icon: 'error', title: 'Gagal', text: msg }); };
         window.swalSuccess = function (msg) { Swal.fire({ icon: 'success', title: 'Berhasil', text: msg, timer: 2000, showConfirmButton: false }); };
+        window.swalInfo = function (msg) { Swal.fire({ icon: 'info', title: 'Info', text: msg }); };
         @if(session('success')) window.swalSuccess(@json(session('success'))); @endif
         @if(session('error')) window.swalError(@json(session('error'))); @endif
+        @if(session('info')) window.swalInfo(@json(session('info'))); @endif
     })();
     </script>
 </body>
