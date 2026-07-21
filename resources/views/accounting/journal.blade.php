@@ -119,6 +119,7 @@
     <div class="collapse mb-3" id="transferForm">
         <form method="POST" action="{{ route('accounting.transfer.store') }}" class="border rounded p-3">
             @csrf
+            @idempotent
             <div class="alert alert-info py-2 mb-3 small">
                 <strong>Transfer = pemindahan dana antar akun sendiri</strong> (mis. dari <em>Kas Pemasukan</em> ke <em>Operational</em>/<em>Harta</em>).
                 Ini <strong>BUKAN pemasukan/pengeluaran</strong> — tidak menambah atau mengurangi laba, hanya <strong>memindahkan saldo</strong> antar akun. Tercatat sebagai dua baris (keluar dari akun asal, masuk ke akun tujuan).
@@ -144,6 +145,7 @@
     <div class="collapse mb-3" id="entryForm">
         <form method="POST" action="{{ route('accounting.entry.store') }}" class="border rounded p-3">
             @csrf
+            @idempotent
             <div class="row g-2">
                 <div class="col-md-2"><label class="form-label small mb-1">Tanggal</label><input type="date" name="tanggal" value="{{ now()->format('Y-m-d') }}" class="form-control form-control-sm" required></div>
                 <div class="col-md-2"><label class="form-label small mb-1">Jenis</label><select name="jenis" class="form-select form-select-sm"><option value="pemasukan">Pemasukan</option><option value="pengeluaran">Pengeluaran</option></select></div>

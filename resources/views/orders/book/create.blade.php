@@ -17,6 +17,7 @@
 
     <form method="POST" action="{{ route('order.book.store') }}" enctype="multipart/form-data">
         @csrf
+        @idempotent
         @php($ft = old('from_tagihan', $fromTagihan ?? null))
         @if(!empty($ft))<input type="hidden" name="from_tagihan" value="{{ $ft }}">@endif
 

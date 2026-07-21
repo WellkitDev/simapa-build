@@ -13,6 +13,7 @@
     </div>
     <form method="POST" action="{{ route('order.refund.store', $order->code_order) }}" onsubmit="return confirm('Proses refund ini? Dana akan tercatat sebagai pengeluaran.')">
         @csrf
+        @idempotent
         <div class="mb-3">
             <label class="form-label">Nominal Refund (Rp)</label>
             <input type="number" name="amount" value="{{ old('amount', $paidIn) }}" min="1" max="{{ $paidIn }}" class="form-control @error('amount') is-invalid @enderror" required>
