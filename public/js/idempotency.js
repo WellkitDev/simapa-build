@@ -3,7 +3,6 @@
  * - Stempel setiap <form> non-GET dengan hidden _idempotency_key (UUID) saat DOM siap,
  *   sehingga submit apa pun (termasuk form.submit() programatik dari data-confirm) membawanya.
  * - Nonaktifkan tombol submit setelah submit dimulai (cegah double-click); re-enable saat bfcache.
- * - Tambah header Idempotency-Key ke request AJAX non-GET (jQuery & fetch).
  * Server tetap fail-open: token hanya dedupe bila hadir.
  */
 (function () {
@@ -68,30 +67,9 @@
         for (var i = 0; i < btns.length; i++) btns[i].disabled = false;
     });
 
-    // Header untuk AJAX jQuery (non-GET).
-    if (window.jQuery) {
-        jQuery(document).ajaxSend(function (event, xhr, settings) {
-            var m = (settings.type || 'GET').toUpperCase();
-            if (m !== 'GET' && m !== 'HEAD') {
-                xhr.setRequestHeader('Idempotency-Key', uuid());
-            }
-        });
-    }
-
-    // Header untuk fetch (non-GET).
-    if (window.fetch) {
-        var _fetch = window.fetch;
-        window.fetch = function (input, init) {
-            init = init || {};
-            var m = (init.method || 'GET').toUpperCase();
-            if (m !== 'GET' && m !== 'HEAD') {
-                var headers = new Headers(init.headers || {});
-                if (!headers.has('Idempotency-Key')) {
-                    headers.set('Idempotency-Key', uuid());
-                    init.headers = headers;
-                }
-            }
-            return _fetch(input, init);
-        };
-    }
+    // Catatan: sengaja TIDAK menyuntik header Idempotency-Key ke AJAX. Token acak
+    // per-panggilan tak memberi dedupe apa pun (kunci beda tiap kirim) tapi tetap
+    // menulis+menyimpan baris klaim, sehingga aksi board (drag/drop) menggemukkan
+    // tabel tanpa manfaat. Middleware tetap membaca header bila suatu saat ada kode
+    // yang sengaja mengirim key stabil (fail-open).
 })();

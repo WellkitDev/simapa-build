@@ -175,7 +175,15 @@ class PaymentBookController extends Controller
 
                 return $invoice->id;
             });
-            app(Notifier::class)->paymentSubmitted($payment, Auth::user());
+            // Notifikasi di luar transaksi & non-fatal: pembayaran + invoice sudah
+            // ter-commit. Jangan biarkan kegagalan notifikasi jatuh ke catch dan
+            // mengubah respons jadi 'error' — idempotency akan salah melepas klaim
+            // sehingga submit ulang token yang sama tak lagi ter-dedupe (pembayaran ganda).
+            try {
+                app(Notifier::class)->paymentSubmitted($payment, Auth::user());
+            } catch (\Throwable $e) {
+                Log::warning('Notifikasi pembayaran gagal: ' . $e->getMessage());
+            }
             return redirect()->route('order.book.create')
                 ->with('success', 'Pembayaran berhasil diajukan, menunggu approval');
         } catch (\Exception $e) {

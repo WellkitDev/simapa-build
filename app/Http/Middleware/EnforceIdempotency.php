@@ -21,11 +21,16 @@ class EnforceIdempotency
         }
 
         // Fail-open: hanya bekerja bila token hadir (form field atau header AJAX).
-        $token = $request->input('_idempotency_key') ?: $request->header('Idempotency-Key');
-        if (! $token) {
+        // Wajib skalar — abaikan bila _idempotency_key dikirim sebagai array
+        // (mis. _idempotency_key[]=...) agar tak menyatu jadi satu key "Array".
+        $token = $request->input('_idempotency_key');
+        if (! is_string($token) || $token === '') {
+            $token = $request->header('Idempotency-Key');
+        }
+        if (! is_string($token) || $token === '') {
             return $next($request);
         }
-        $token = Str::limit((string) $token, 191, '');
+        $token = Str::limit($token, 191, '');
 
         // Klaim atomik: unique index pada `key`. Dua request paralel -> hanya satu
         // yang berhasil INSERT; yang kalah menabrak duplicate-key -> short-circuit.
@@ -71,13 +76,15 @@ class EnforceIdempotency
         if ($response->getStatusCode() >= 400) {
             return true;
         }
-        $session = $request->session();
-        if ($session->has('errors') && optional($session->get('errors'))->any()) {
-            return true;
-        }
-        if ($session->has('error')) {
-            return true;
-        }
-        return false;
+
+        // Anggap gagal HANYA bila flash 'errors'/'error' dibuat oleh request INI —
+        // yaitu ada di _flash.new. Jangan pakai session()->has(): flash sisa dari
+        // request sebelumnya masih terbaca di sini (flash-aging Laravel terjadi di
+        // StartSession yang membungkus middleware ini), sehingga has() bisa positif
+        // palsu dan salah melepas klaim dari penulisan yang sebenarnya sukses.
+        $freshFlash = (array) $request->session()->get('_flash.new', []);
+
+        return in_array('errors', $freshFlash, true)
+            || in_array('error', $freshFlash, true);
     }
 }

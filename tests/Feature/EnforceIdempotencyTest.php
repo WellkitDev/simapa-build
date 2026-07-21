@@ -77,4 +77,28 @@ class EnforceIdempotencyTest extends TestCase
             ->post('/__idem_ok', ['_idempotency_key' => $token]);
         $this->assertSame(1, CashCategory::where('name', 'X')->count());
     }
+
+    /** @test */
+    public function stale_error_flash_from_prior_request_does_not_release_claim(): void
+    {
+        $user = User::factory()->create();
+        $token = 'tok-stale';
+
+        // Simulasi flash 'error' SISA dari request sebelumnya: terbaca session()->has('error')
+        // tapi BUKAN dibuat oleh request penulisan ini (tak masuk _flash.new). Request ini
+        // SUKSES menulis -> klaim WAJIB dipertahankan, bukan dilepas.
+        $first = $this->actingAs($user)->from('/origin')
+            ->withSession(['error' => 'pesan lama'])
+            ->post('/__idem_ok', ['_idempotency_key' => $token]);
+        $first->assertRedirect('/origin');
+
+        $this->assertSame(1, IdempotencyKey::where('key', $token)->count());
+
+        // Karena klaim dipertahankan, submit kedua token sama harus di-dedupe.
+        $this->actingAs($user)->from('/origin')
+            ->post('/__idem_ok', ['_idempotency_key' => $token])
+            ->assertSessionHas('info');
+
+        $this->assertSame(1, CashCategory::where('name', 'X')->count());
+    }
 }
