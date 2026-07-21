@@ -63,29 +63,39 @@
         <div class="card">
             <div class="card-body">
                 <h6 class="card-title">Aksi</h6>
-                @if($tagihan->isDownloadable())
-                    <a href="{{ route('tagihan.pdf', $tagihan->id) }}" target="_blank" class="btn btn-outline-secondary w-100 mb-2">Download PDF</a>
-                @endif
-                @if($tagihan->canConvert() && $isOwner)
-                    <a href="{{ route('tagihan.buatOrder', $tagihan->id) }}" class="btn btn-success w-100 mb-2">Buat Order dari Tagihan</a>
-                @endif
-                @if($tagihan->isEditable() && ($isOwner || auth()->user()->hasAnyRole(['manager','superadmin'])))
-                    <a href="{{ route('tagihan.edit', $tagihan->id) }}" class="btn btn-outline-primary w-100 mb-2">Edit</a>
-                @endif
-                @if($isSuperadmin && $tagihan->status === 'diajukan')
-                    <form method="POST" action="{{ route('tagihan.approve', $tagihan->id) }}" class="mb-2">@csrf
-                        <button class="btn btn-success w-100">Approve</button>
-                    </form>
-                    <form method="POST" action="{{ route('tagihan.reject', $tagihan->id) }}">@csrf
-                        <input type="text" name="note" class="form-control form-control-sm mb-1" placeholder="Alasan tolak" required>
-                        <button class="btn btn-danger w-100">Tolak</button>
-                    </form>
-                @endif
-                @if(in_array($tagihan->status, ['diajukan','disetujui']) && ($isOwner || auth()->user()->hasAnyRole(['manager','superadmin'])))
-                    <form method="POST" action="{{ route('tagihan.cancel', $tagihan->id) }}" class="mt-2">@csrf
-                        <button class="btn btn-outline-dark w-100">Batalkan</button>
-                    </form>
-                @endif
+                @can('tagihan.export')
+                    @if($tagihan->isDownloadable())
+                        <a href="{{ route('tagihan.pdf', $tagihan->id) }}" target="_blank" class="btn btn-outline-secondary w-100 mb-2">Download PDF</a>
+                    @endif
+                @endcan
+                @can('tagihan.create')
+                    @if($tagihan->canConvert() && $isOwner)
+                        <a href="{{ route('tagihan.buatOrder', $tagihan->id) }}" class="btn btn-success w-100 mb-2">Buat Order dari Tagihan</a>
+                    @endif
+                @endcan
+                @can('tagihan.edit')
+                    @if($tagihan->isEditable() && ($isOwner || auth()->user()->hasAnyRole(['manager','superadmin'])))
+                        <a href="{{ route('tagihan.edit', $tagihan->id) }}" class="btn btn-outline-primary w-100 mb-2">Edit</a>
+                    @endif
+                @endcan
+                @can('tagihan.approve')
+                    @if($tagihan->status === 'diajukan')
+                        <form method="POST" action="{{ route('tagihan.approve', $tagihan->id) }}" class="mb-2">@csrf
+                            <button class="btn btn-success w-100">Approve</button>
+                        </form>
+                        <form method="POST" action="{{ route('tagihan.reject', $tagihan->id) }}">@csrf
+                            <input type="text" name="note" class="form-control form-control-sm mb-1" placeholder="Alasan tolak" required>
+                            <button class="btn btn-danger w-100">Tolak</button>
+                        </form>
+                    @endif
+                @endcan
+                @can('tagihan.cancel')
+                    @if(in_array($tagihan->status, ['diajukan','disetujui']) && ($isOwner || auth()->user()->hasAnyRole(['manager','superadmin'])))
+                        <form method="POST" action="{{ route('tagihan.cancel', $tagihan->id) }}" class="mt-2">@csrf
+                            <button class="btn btn-outline-dark w-100">Batalkan</button>
+                        </form>
+                    @endif
+                @endcan
             </div>
         </div>
     </div>

@@ -19,7 +19,9 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-baseline mb-3">
                     <h6 class="card-title mb-0">Daftar Tagihan</h6>
+                    @can('tagihan.create')
                     <a href="{{ route('tagihan.create') }}" class="btn btn-sm btn-primary">+ Buat Tagihan</a>
+                    @endcan
                 </div>
                 <div class="table-responsive">
                     <table class="table table-centered datatable dt-responsive nowrap" style="width:100%">
@@ -42,11 +44,15 @@
                                 <td>
                                     <a href="{{ route('tagihan.show', $t->id) }}" class="btn btn-xs btn-primary">Detail</a>
                                     @if($t->isDownloadable())
+                                        @can('tagihan.export')
                                         <a href="{{ route('tagihan.pdf', $t->id) }}" class="btn btn-xs btn-outline-secondary" target="_blank">PDF</a>
+                                        @endcan
                                     @endif
-                                    @if($t->canConvert() && $t->created_by === auth()->id())
-                                        <a href="{{ route('tagihan.buatOrder', $t->id) }}" class="btn btn-xs btn-success">Buat Order</a>
-                                    @endif
+                                    @can('tagihan.create')
+                                        @if($t->canConvert() && $t->created_by === auth()->id())
+                                            <a href="{{ route('tagihan.buatOrder', $t->id) }}" class="btn btn-xs btn-success">Buat Order</a>
+                                        @endif
+                                    @endcan
                                 </td>
                             </tr>
                             @endforeach

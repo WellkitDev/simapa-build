@@ -191,16 +191,16 @@
                                                 <a href="{{ route('invoice.pdf', $payment->invoice->id) }}" target="_blank"
                                                    class="btn btn-sm btn-outline-success">Download Invoice</a>
                                             @endif
-                                            @hasanyrole('manager|superadmin')
+                                            @can('payment.edit')
                                                 @if ($appStatus === 'pending')
                                                     <button type="button" class="btn btn-sm btn-outline-warning"
                                                             data-bs-toggle="modal" data-bs-target="#editPayment{{ $payment->id }}">Edit</button>
                                                 @endif
-                                            @endhasanyrole
+                                            @endcan
                                         </td>
                                     </tr>
 
-                                    @hasanyrole('manager|superadmin')
+                                    @can('payment.edit')
                                         @if ($appStatus === 'pending')
                                             <div class="modal fade" id="editPayment{{ $payment->id }}" tabindex="-1" aria-hidden="true">
                                                 <div class="modal-dialog">
@@ -244,7 +244,7 @@
                                                 </div>
                                             </div>
                                         @endif
-                                    @endhasanyrole
+                                    @endcan
                                 @empty
                                     <tr>
                                         <td colspan="7" class="text-center text-muted">Belum ada riwayat pembayaran.</td>

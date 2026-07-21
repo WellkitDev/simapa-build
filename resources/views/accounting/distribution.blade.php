@@ -43,6 +43,7 @@
 </div></div></div></div>
 
 <div class="row"><div class="col-md-8 col-12 grid-margin stretch-card"><div class="card"><div class="card-body">
+    @can('accounting.distribution.edit')
     <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#distConfig">Kelola Aturan & Anggota</button>
     <div class="collapse mt-3" id="distConfig">
         <form method="POST" action="{{ route('accounting.distribution.settings') }}" class="d-flex gap-2 align-items-end mb-3">
@@ -81,6 +82,7 @@
             <button class="btn btn-xs btn-outline-success">+ Tambah</button>
         </form>
     </div>
+    @endcan
 </div></div></div></div>
 @include('accounting.partials.money-mask')
 @endsection

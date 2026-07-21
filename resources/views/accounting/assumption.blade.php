@@ -15,6 +15,7 @@
                     <tr>
                         <td colspan="5" class="p-1">
                             <div class="d-flex gap-2 align-items-center flex-wrap">
+                                @can('accounting.assumption.edit')
                                 <form method="POST" action="{{ route('accounting.assumption.margin.update', $m->id) }}" class="d-flex gap-2 align-items-center flex-wrap flex-grow-1 m-0">
                                     @csrf @method('PUT')
                                     <input name="code" value="{{ $m->code }}" class="form-control form-control-sm" style="max-width:120px" placeholder="Kode">
@@ -23,7 +24,10 @@
                                     <label class="small mb-0"><input type="checkbox" name="active" value="1" {{ $m->active ? 'checked' : '' }}> aktif</label>
                                     <button class="btn btn-xs btn-outline-primary">Simpan</button>
                                 </form>
+                                @endcan
+                                @can('accounting.assumption.delete')
                                 <form method="POST" action="{{ route('accounting.assumption.margin.destroy', $m->id) }}" data-confirm="Hapus margin ini?" class="m-0">@csrf @method('DELETE')<button class="btn btn-xs btn-outline-danger">×</button></form>
+                                @endcan
                             </div>
                         </td>
                     </tr>
@@ -31,6 +35,7 @@
             </tbody>
         </table>
     </div>
+    @can('accounting.assumption.create')
     <form method="POST" action="{{ route('accounting.assumption.margin.store') }}" class="d-flex gap-2 align-items-center flex-wrap mt-2">
         @csrf
         <input name="code" placeholder="Kode" class="form-control form-control-sm" style="max-width:120px">
@@ -38,6 +43,7 @@
         <input type="number" step="0.01" name="margin_pct" placeholder="%" class="form-control form-control-sm" style="max-width:100px">
         <button class="btn btn-xs btn-outline-success">+ Tambah Margin</button>
     </form>
+    @endcan
 </div></div></div></div>
 
 <div class="row"><div class="col-12 grid-margin stretch-card"><div class="card"><div class="card-body">
@@ -50,6 +56,7 @@
                     <tr>
                         <td colspan="6" class="p-1">
                             <div class="d-flex gap-2 align-items-center flex-wrap">
+                                @can('accounting.assumption.edit')
                                 <form method="POST" action="{{ route('accounting.assumption.expense.update', $e->id) }}" class="d-flex gap-2 align-items-center flex-wrap flex-grow-1 m-0">
                                     @csrf @method('PUT')
                                     <input name="name" value="{{ $e->name }}" class="form-control form-control-sm" style="max-width:220px">
@@ -59,7 +66,10 @@
                                     <label class="small mb-0"><input type="checkbox" name="active" value="1" {{ $e->active ? 'checked' : '' }}> aktif</label>
                                     <button class="btn btn-xs btn-outline-primary">Simpan</button>
                                 </form>
+                                @endcan
+                                @can('accounting.assumption.delete')
                                 <form method="POST" action="{{ route('accounting.assumption.expense.destroy', $e->id) }}" data-confirm="Hapus biaya ini?" class="m-0">@csrf @method('DELETE')<button class="btn btn-xs btn-outline-danger">×</button></form>
+                                @endcan
                             </div>
                         </td>
                     </tr>
@@ -68,6 +78,7 @@
             <tfoot><tr class="fw-bold"><td colspan="3">Total Biaya Tetap / Bulan</td><td class="text-end">{{ $rp($totalMonthly) }}</td><td colspan="2"></td></tr></tfoot>
         </table>
     </div>
+    @can('accounting.assumption.create')
     <form method="POST" action="{{ route('accounting.assumption.expense.store') }}" class="d-flex gap-2 align-items-center flex-wrap mt-2">
         @csrf
         <input name="name" placeholder="Nama biaya…" class="form-control form-control-sm" style="max-width:220px">
@@ -75,6 +86,7 @@
         <input type="text" name="amount" placeholder="Nominal" class="form-control form-control-sm money-mask" inputmode="numeric" style="max-width:140px">
         <button class="btn btn-xs btn-outline-success">+ Tambah Biaya</button>
     </form>
+    @endcan
 </div></div></div></div>
 @include('accounting.partials.money-mask')
 @endsection

@@ -10,7 +10,9 @@
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <h5 class="mb-0">Direktori Jurnal</h5>
     @if($canManage)
+        @can('journal.create')
         <a href="{{ route('journal.create') }}" class="btn btn-sm btn-primary">Tambah Jurnal</a>
+        @endcan
     @endif
 </div>
 
@@ -31,8 +33,12 @@
                         <td>
                             <a href="{{ route('journal.show', $j->id) }}" class="btn btn-xs btn-outline-primary">Lihat</a>
                             @if($canManage)
+                                @can('journal.edit')
                                 <a href="{{ route('journal.edit', $j->id) }}" class="btn btn-xs btn-outline-secondary">Edit</a>
+                                @endcan
+                                @can('journal.delete')
                                 <form action="{{ route('journal.destroy', $j->id) }}" method="POST" class="d-inline m-0" data-confirm="Hapus jurnal ini?">@csrf @method('DELETE')<button class="btn btn-xs btn-outline-danger">Hapus</button></form>
+                                @endcan
                             @endif
                         </td>
                     </tr>

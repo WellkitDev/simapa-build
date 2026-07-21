@@ -35,7 +35,7 @@
                                     <th>Nominal</th>
                                     <th>Bukti</th>
                                     <th>Pemesan</th>
-                                    @role(['superadmin', 'manager'])<th>Aksi</th>@endrole
+                                    @can('payment.approve')<th>Aksi</th>@endcan
                                 </tr>
                             </thead>
                             <tbody>
@@ -52,7 +52,7 @@
                                             @endif
                                         </td>
                                         <td>{{ optional(optional($payment->order)->user)->name ?? '-' }}</td>
-                                        @role(['superadmin', 'manager'])
+                                        @can('payment.approve')
                                             <td>
                                                 <div class="btn-group">
                                                     <form action="{{ route('payment.approve', $payment->id) }}" method="POST" data-confirm="Setujui pembayaran ini?">
@@ -65,7 +65,7 @@
                                                     </form>
                                                 </div>
                                             </td>
-                                        @endrole
+                                        @endcan
                                     </tr>
                                 @endforeach
                             </tbody>

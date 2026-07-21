@@ -14,7 +14,9 @@
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <h5 class="mb-0">Direktori Judul</h5>
     @if($canManage)
+        @can('title.create')
         <a href="{{ route('title.create') }}" class="btn btn-sm btn-primary">Buat Judul</a>
+        @endcan
     @endif
 </div>
 
@@ -41,11 +43,17 @@
                         <td>
                             <a href="{{ route('title.show', $t->id) }}" class="btn btn-xs btn-outline-primary">Lihat</a>
                             @if($canManage && $t->isEditable())
+                                @can('title.edit')
                                 <a href="{{ route('title.edit', $t->id) }}" class="btn btn-xs btn-outline-secondary">Edit</a>
+                                @endcan
+                                @can('title.submit')
                                 <form action="{{ route('title.submit', $t->id) }}" method="POST" class="d-inline m-0">@csrf<button class="btn btn-xs btn-outline-info">Ajukan</button></form>
+                                @endcan
                             @endif
                             @if($isApprover && $t->status === 'menunggu')
+                                @can('title.approve')
                                 <form action="{{ route('title.approve', $t->id) }}" method="POST" class="d-inline m-0">@csrf<button class="btn btn-xs btn-outline-success">Setujui</button></form>
+                                @endcan
                             @endif
                         </td>
                     </tr>

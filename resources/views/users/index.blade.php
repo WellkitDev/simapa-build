@@ -22,8 +22,10 @@
                     <div class="d-flex justify-content-between align-books-baseline  mb-md-4">
                         <h6 class="card-title mb-0">Pengguna & Peran</h6>
                         <div class="btn-group" role="group" aria-label="Basic example">
+                            @can('user.create')
                             <a href="#" type="button" class="btn btn-primary " data-bs-toggle="modal"
                                 data-bs-target="#addUserModal"></i>Tambah</a>
+                            @endcan
                         </div>
                     </div>
                     <div class="row mt-4">
@@ -54,14 +56,17 @@
                                                 @endif
                                             </td>
                                             <td>
+                                                @can('user.edit')
                                                 <a href="#" type="button" class="btn btn-sm btn-primary "
                                                     data-bs-toggle="modal"
                                                     data-bs-target="#editUserModal{{ $item->id }}"><i
                                                         data-feather="edit" class="icon-md"></i></a>
+                                                @endcan
                                                 {{-- <a href="{{ route('user.management.edit', $item) }}"
                                                     class="btn btn-sm btn-primary">
                                                     <i data-feather="edit" class="icon-md"></i>
                                                 </a> --}}
+                                                @can('user.delete')
                                                 @if (!$item->trashed())
                                                     <form action="{{ route('user.management.destroy', $item->id) }}"
                                                         method="POST" style="display:inline">
@@ -74,12 +79,6 @@
                                                 @endif
 
                                                 @if ($item->trashed())
-                                                    <form action="{{ route('user.management.restore', $item->id) }}"
-                                                        method="POST" style="display:inline">
-                                                        @csrf
-                                                        <button type="submit" class="btn btn-sm btn-warning"><i
-                                                                data-feather="refresh-ccw" class="icon-md"></i></button>
-                                                    </form>
                                                     <form action="{{ route('user.management.forceDelete', $item->id) }}"
                                                         method="POST" style="display:inline">
                                                         @csrf @method('POST')
@@ -88,9 +87,23 @@
                                                                 data-feather="user-x" class="icon-md"></i></button>
                                                     </form>
                                                 @endif
+                                                @endcan
+
+                                                @can('user.restore')
+                                                @if ($item->trashed())
+                                                    <form action="{{ route('user.management.restore', $item->id) }}"
+                                                        method="POST" style="display:inline">
+                                                        @csrf
+                                                        <button type="submit" class="btn btn-sm btn-warning"><i
+                                                                data-feather="refresh-ccw" class="icon-md"></i></button>
+                                                    </form>
+                                                @endif
+                                                @endcan
                                             </td>
                                         </tr>
+                                        @can('user.edit')
                                         @include('users.edit', ['user' => $item])
+                                        @endcan
                                     @endforeach
                                 </tbody>
                             </table>

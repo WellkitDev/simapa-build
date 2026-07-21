@@ -14,7 +14,9 @@
 <div class="row"><div class="col-12 grid-margin stretch-card"><div class="card"><div class="card-body">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h6 class="card-title mb-0">Pengumuman</h6>
+        @can('announcement.create')
         <a href="{{ route('announcement.create') }}" class="btn btn-primary btn-sm">Buat Pengumuman</a>
+        @endcan
     </div>
     <div class="table-responsive">
         <table class="table table-hover datatable dt-responsive nowrap" style="width:100%">
@@ -28,7 +30,10 @@
                         <td>{{ $a->creator?->name ?? '—' }}</td>
                         <td><small>{{ $a->created_at->format('d/m/y') }}</small></td>
                         <td>
+                            @can('announcement.edit')
                             <a href="{{ route('announcement.edit', $a->id) }}" class="btn btn-xs btn-outline-primary">Edit</a>
+                            @endcan
+                            @can('announcement.status')
                             @if($a->status !== 'published')
                                 <form action="{{ route('announcement.status', $a->id) }}" method="POST" class="d-inline m-0">@csrf
                                     <input type="hidden" name="status" value="published">
@@ -40,9 +45,12 @@
                                     <button class="btn btn-xs btn-outline-secondary">Arsipkan</button>
                                 </form>
                             @endif
+                            @endcan
+                            @can('announcement.delete')
                             <form action="{{ route('announcement.destroy', $a->id) }}" method="POST" class="d-inline m-0" onsubmit="return confirm('Hapus pengumuman ini?');">@csrf @method('DELETE')
                                 <button class="btn btn-xs btn-outline-danger">Hapus</button>
                             </form>
+                            @endcan
                         </td>
                     </tr>
                 @endforeach

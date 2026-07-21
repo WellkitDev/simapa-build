@@ -81,7 +81,7 @@
 
                 {{-- Aksi --}}
                 <div class="d-flex gap-2 mt-3 flex-wrap">
-                    @hasanyrole('manager|superadmin')
+                    @can('invoice.edit')
                         <a href="{{ route('invoice.edit', $invoice->id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
 
                         @if(!in_array($invoice->status, ['lunas','dibatalkan','refund']))
@@ -97,9 +97,9 @@
                             <button type="submit" class="btn btn-sm btn-primary">Update Status</button>
                         </form>
                         @endif
-                    @endhasanyrole
+                    @endcan
 
-                    @role('superadmin')
+                    @can('invoice.cancel')
                         @if(!in_array($invoice->status, ['dibatalkan','refund']))
                         <form method="POST" action="{{ route('invoice.cancel', $invoice->id) }}"
                               onsubmit="return confirm('Batalkan invoice ini?')">
@@ -108,7 +108,7 @@
                             <button type="submit" class="btn btn-sm btn-danger">Cancel</button>
                         </form>
                         @endif
-                    @endrole
+                    @endcan
                 </div>
             </div>
         </div>

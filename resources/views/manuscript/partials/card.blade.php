@@ -127,11 +127,11 @@
             <div class="mt-2 p-2 rounded" style="background:#FEF3C7; font-size:11px">
                 <div class="text-dark"><strong>⚑ Lompat tahap</strong> oleh {{ optional($p->updatedBy)->name ?? '—' }}</div>
                 @if($p->note)<div class="text-muted mt-1">"{{ Str::limit($p->note, 90) }}"</div>@endif
-                @hasanyrole('manager|superadmin')
+                @can('manuscript.review')
                     <form method="POST" action="{{ route('manuscript.reviewed', $p->id) }}" class="mt-1">@csrf
                         <button type="submit" class="btn btn-sm btn-warning py-0 px-2" style="font-size:11px">Tandai sudah ditinjau</button>
                     </form>
-                @endhasanyrole
+                @endcan
             </div>
         @endif
 

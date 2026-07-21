@@ -88,11 +88,13 @@
                                 <td>
                                     <a href="{{ route('invoice.show', $inv->id) }}" class="btn btn-xs btn-primary">Detail</a>
                                     @if(in_array($inv->status, ['diterbitkan','lunas']))
+                                        @can('invoice.export')
                                         <a href="{{ route('invoice.pdf', $inv->id) }}" target="_blank" class="btn btn-xs btn-outline-secondary">Download</a>
+                                        @endcan
                                     @endif
-                                    @hasanyrole('manager|superadmin')
+                                    @can('invoice.edit')
                                         <a href="{{ route('invoice.edit', $inv->id) }}" class="btn btn-xs btn-outline-secondary">Edit</a>
-                                    @endhasanyrole
+                                    @endcan
                                 </td>
                             </tr>
                             @endforeach

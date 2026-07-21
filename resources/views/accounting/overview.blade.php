@@ -13,8 +13,10 @@
             <input type="number" name="year" value="{{ $year }}" class="form-control form-control-sm" style="width:100px">
             <button class="btn btn-sm btn-outline-secondary">Tahun</button>
         </form>
+        @can('accounting.recap.export')
         <a href="{{ route('accounting.recap.export.csv', ['year' => $year]) }}" class="btn btn-sm btn-outline-success">Export CSV</a>
         <a href="{{ route('accounting.recap.export.pdf', ['year' => $year]) }}" class="btn btn-sm btn-outline-danger">Export PDF</a>
+        @endcan
     </div>
 </div>
 

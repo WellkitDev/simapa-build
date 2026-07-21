@@ -8,7 +8,7 @@
         <small class="text-muted">{{ $journal->akreditasi ?: 'Tanpa akreditasi' }} · {{ $journal->scope?->scope ?? 'Tanpa scope' }}</small>
     </div>
     <div class="d-flex gap-2">
-        @if($canManage)<a href="{{ route('journal.edit', $journal->id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>@endif
+        @if($canManage) @can('journal.edit')<a href="{{ route('journal.edit', $journal->id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>@endcan @endif
         <a href="{{ route('journal.index') }}" class="btn btn-sm btn-outline-secondary">Kembali</a>
     </div>
 </div>
@@ -30,7 +30,9 @@
     <div class="d-flex justify-content-between align-items-center mb-2">
         <h6 class="card-title mb-0">Artikel di Jurnal Ini</h6>
         @if($canManage)
+            @can('journal.submission')
             <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#subCreate">+ Tambah Artikel Submit</button>
+            @endcan
         @endif
     </div>
     <div class="table-responsive">
@@ -46,8 +48,10 @@
                         @if($canManage)
                             <td>
                                 <button type="button" class="btn btn-xs btn-outline-primary" data-bs-toggle="modal" data-bs-target="#subDetail{{ $s->id }}">Detail</button>
+                                @can('journal.submission')
                                 <button type="button" class="btn btn-xs btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#subEdit{{ $s->id }}">Edit</button>
                                 <form action="{{ route('journal.submission.destroy', $s->id) }}" method="POST" class="d-inline m-0" data-confirm="Hapus submission ini?">@csrf @method('DELETE')<button class="btn btn-xs btn-outline-danger">Hapus</button></form>
+                                @endcan
                             </td>
                         @endif
                     </tr>
@@ -60,6 +64,7 @@
 </div></div></div></div>
 
 @if($canManage)
+    @can('journal.submission')
     {{-- Modal Create --}}
     <div class="modal fade" id="subCreate" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-lg"><div class="modal-content">
         <form method="POST" action="{{ route('journal.submission.store', $journal->id) }}" enctype="multipart/form-data">
@@ -71,9 +76,11 @@
             <div class="modal-footer"><button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-sm btn-primary">Simpan</button></div>
         </form>
     </div></div></div>
+    @endcan
 
     {{-- Modal Edit + Detail per baris --}}
     @foreach($journal->submissions as $s)
+        @can('journal.submission')
         <div class="modal fade" id="subEdit{{ $s->id }}" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-lg"><div class="modal-content">
             <form method="POST" action="{{ route('journal.submission.update', $s->id) }}" enctype="multipart/form-data">
                 @csrf @method('PUT')
@@ -84,6 +91,7 @@
                 <div class="modal-footer"><button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-sm btn-primary">Simpan</button></div>
             </form>
         </div></div></div>
+        @endcan
 
         <div class="modal fade" id="subDetail{{ $s->id }}" tabindex="-1" aria-hidden="true"><div class="modal-dialog"><div class="modal-content">
             <div class="modal-header"><h6 class="modal-title">Detail Submission</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>

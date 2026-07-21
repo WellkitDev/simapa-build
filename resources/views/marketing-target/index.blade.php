@@ -11,6 +11,7 @@
     $statusBadge = ['aktif' => 'bg-info', 'berakhir' => 'bg-secondary', 'akan_datang' => 'bg-light text-dark'];
 @endphp
 <div class="row">
+    @can('marketing-target.create')
     <div class="col-md-4 grid-margin stretch-card">
         <div class="card"><div class="card-body">
             <h6 class="card-title">Buat Target</h6>
@@ -53,6 +54,7 @@
             </form>
         </div></div>
     </div>
+    @endcan
 
     <div class="col-md-8 grid-margin stretch-card">
         <div class="card"><div class="card-body">
@@ -88,17 +90,21 @@
                                     @if($r['commission_paid'])
                                         <span class="badge bg-success">Dibayar</span>
                                     @else
+                                        @can('marketing-target.edit')
                                         <form action="{{ route('marketing-target.paid', $r['id']) }}" method="POST" class="m-0">
                                             @csrf
                                             <button class="btn btn-xs btn-outline-success">Tandai dibayar</button>
                                         </form>
+                                        @endcan
                                     @endif
                                 </td>
                                 <td>
+                                    @can('marketing-target.delete')
                                     <form action="{{ route('marketing-target.destroy', $r['id']) }}" method="POST" class="m-0" onsubmit="return confirm('Hapus target ini?');">
                                         @csrf @method('DELETE')
                                         <button class="btn btn-xs btn-outline-danger">Hapus</button>
                                     </form>
+                                    @endcan
                                 </td>
                             </tr>
                         @endforeach

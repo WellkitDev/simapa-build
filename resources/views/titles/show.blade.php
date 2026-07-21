@@ -55,7 +55,9 @@
         <div class="d-flex justify-content-between align-items-center mt-3">
             <h6 class="card-title mb-0">Bab & Author</h6>
             @if($canEditInfo && $title->chapters->isNotEmpty())
+                @can('title.info')
                 <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#chapAuthorForm">Edit Author Bab</button>
+                @endcan
             @endif
         </div>
         <ol class="mb-2">
@@ -66,6 +68,7 @@
             @endforelse
         </ol>
         @if($canEditInfo && $title->chapters->isNotEmpty())
+            @can('title.info')
             <div class="collapse mb-3" id="chapAuthorForm">
                 <form method="POST" action="{{ route('title.chapters.authors', $title->id) }}">
                     @csrf @method('PUT')
@@ -83,27 +86,36 @@
                     <small class="text-muted d-block mt-1">Bab terisi otomatis dari author order; sesuaikan di sini untuk bunga rampai (beda penulis per bab). Ketik nama untuk author baru; urutan pilihan = urutan author.</small>
                 </form>
             </div>
+            @endcan
         @endif
     @endif
 
     <div class="d-flex gap-2 flex-wrap">
         @if($canManage && $title->isEditable())
+            @can('title.edit')
             <a href="{{ route('title.edit', $title->id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+            @endcan
+            @can('title.submit')
             <form action="{{ route('title.submit', $title->id) }}" method="POST" class="m-0">@csrf<button class="btn btn-sm btn-info">Ajukan</button></form>
+            @endcan
         @endif
         @if($isApprover && $title->status === 'menunggu')
+            @can('title.approve')
             <form action="{{ route('title.approve', $title->id) }}" method="POST" class="m-0">@csrf<button class="btn btn-sm btn-success">Setujui</button></form>
             <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="collapse" data-bs-target="#rejectForm">Tolak</button>
+            @endcan
         @endif
     </div>
 
     @if($isApprover && $title->status === 'menunggu')
+        @can('title.approve')
         <div class="collapse mt-2" id="rejectForm">
             <form action="{{ route('title.reject', $title->id) }}" method="POST">@csrf
                 <textarea name="reject_note" class="form-control mb-2" rows="2" placeholder="Alasan penolakan" required></textarea>
                 <button class="btn btn-sm btn-danger">Kirim Penolakan</button>
             </form>
         </div>
+        @endcan
     @endif
 </div></div></div></div>
 
@@ -112,7 +124,9 @@
     <div class="d-flex justify-content-between align-items-center mb-2">
         <h6 class="card-title mb-0">Informasi Publikasi</h6>
         @if($canEditInfo)
+            @can('title.info')
             <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#infoForm">Edit Informasi</button>
+            @endcan
         @endif
     </div>
 
@@ -139,6 +153,7 @@
     @endforelse
 
     @if($canEditInfo)
+    @can('title.info')
     <div class="collapse mt-3" id="infoForm">
         <form method="POST" action="{{ route('title.info.update', $title->id) }}">
             @csrf @method('PUT')
@@ -226,6 +241,7 @@
             <div><button type="submit" class="btn btn-sm btn-primary">Simpan Informasi</button></div>
         </form>
     </div>
+    @endcan
     @endif
 
     @if($title->logs->isNotEmpty())
@@ -244,7 +260,9 @@
     <div class="d-flex justify-content-between align-items-center mb-2">
         <h6 class="card-title mb-0">Registrasi ISBN</h6>
         @if($canManageIsbn && $title->isbnEligible())
+            @can($title->bookIsbn ? 'isbn.edit' : 'isbn.create')
             <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#isbnForm">Edit Registrasi ISBN</button>
+            @endcan
         @endif
     </div>
 
@@ -265,6 +283,7 @@
         </dl>
 
         @if($canManageIsbn)
+            @can($isbn ? 'isbn.edit' : 'isbn.create')
             <div class="collapse" id="isbnForm">
                 <form method="POST" action="{{ $isbn ? route('isbn.update', $isbn->id) : route('isbn.store') }}">
                     @csrf
@@ -290,6 +309,7 @@
                     <button type="submit" class="btn btn-sm btn-primary mt-2">Simpan Registrasi ISBN</button>
                 </form>
             </div>
+            @endcan
         @endif
     @endif
 </div></div></div></div>
@@ -306,8 +326,10 @@
     <p class="text-muted small mb-0">Dokumen yang diperlukan untuk pengajuan ISBN &amp; HKI.</p>
 
     @if($canMarkDocs)
+    @can('title.doc.edit')
     <form method="POST" action="{{ route('title.doc.save', $title->id) }}" enctype="multipart/form-data">
         @csrf @method('PUT')
+    @endcan
     @endif
 
     @foreach(\App\Models\DocRequirement::CATEGORIES as $catKey => $catLabel)
@@ -337,11 +359,15 @@
                         </div>
                         <div class="flex-shrink-0" style="width:132px">
                             @if($canMarkDocs)
-                                <select name="marks[{{ $req->id }}][status]" class="form-select form-select-sm">
-                                    @foreach(\App\Models\TitleDocMark::STATUSES as $sv => $sl)
-                                        <option value="{{ $sv }}" {{ $st === $sv ? 'selected' : '' }}>{{ $sl }}</option>
-                                    @endforeach
-                                </select>
+                                @can('title.doc.edit')
+                                    <select name="marks[{{ $req->id }}][status]" class="form-select form-select-sm">
+                                        @foreach(\App\Models\TitleDocMark::STATUSES as $sv => $sl)
+                                            <option value="{{ $sv }}" {{ $st === $sv ? 'selected' : '' }}>{{ $sl }}</option>
+                                        @endforeach
+                                    </select>
+                                @else
+                                    <span class="badge w-100 {{ $st === 'ada' ? 'bg-success' : ($st === 'tidak_perlu' ? 'bg-light text-dark border' : 'bg-secondary') }}">{{ \App\Models\TitleDocMark::STATUSES[$st] ?? $st }}</span>
+                                @endcan
                             @else
                                 <span class="badge w-100 {{ $st === 'ada' ? 'bg-success' : ($st === 'tidak_perlu' ? 'bg-light text-dark border' : 'bg-secondary') }}">{{ \App\Models\TitleDocMark::STATUSES[$st] ?? $st }}</span>
                             @endif
@@ -353,10 +379,14 @@
                     @endif
 
                     @if($canMarkDocs)
-                        <div class="row g-2 mt-1">
-                            <div class="col-sm-6"><input type="file" name="marks[{{ $req->id }}][file]" class="form-control form-control-sm" aria-label="Unggah dokumen {{ $req->label }}"></div>
-                            <div class="col-sm-6"><input type="text" name="marks[{{ $req->id }}][catatan]" value="{{ optional($mark)->catatan }}" class="form-control form-control-sm" placeholder="Catatan (opsional)"></div>
-                        </div>
+                        @can('title.doc.edit')
+                            <div class="row g-2 mt-1">
+                                <div class="col-sm-6"><input type="file" name="marks[{{ $req->id }}][file]" class="form-control form-control-sm" aria-label="Unggah dokumen {{ $req->label }}"></div>
+                                <div class="col-sm-6"><input type="text" name="marks[{{ $req->id }}][catatan]" value="{{ optional($mark)->catatan }}" class="form-control form-control-sm" placeholder="Catatan (opsional)"></div>
+                            </div>
+                        @elseif(optional($mark)->catatan)
+                            <div class="text-muted mt-1" style="font-size:11px">Catatan: {{ $mark->catatan }}</div>
+                        @endcan
                     @elseif(optional($mark)->catatan)
                         <div class="text-muted mt-1" style="font-size:11px">Catatan: {{ $mark->catatan }}</div>
                     @endif
@@ -368,15 +398,20 @@
     @endforeach
 
     @if($canMarkDocs)
+        @can('title.doc.edit')
         <hr class="my-3">
         <button type="submit" class="btn btn-sm btn-primary">Simpan Kelengkapan</button>
     </form>
+        @endcan
+        @can('title.doc.submit')
         <form method="POST" action="{{ route('title.doc.submit', $title->id) }}" class="d-inline ms-2">@csrf
             <button type="submit" class="btn btn-sm btn-success">Submit &amp; Ajukan</button>
         </form>
+        @endcan
     @endif
 
     @if($canManageDocReq)
+        @canany(['doc-req.create', 'doc-req.edit', 'doc-req.delete'])
         <div class="mt-3">
             <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#docTplForm">Kelola Template Dokumen</button>
             <div class="collapse mt-2" id="docTplForm">
@@ -385,6 +420,7 @@
                     <div class="text-muted small fw-semibold mt-2">{{ $catLabel }}</div>
                     @foreach(($docRequirements[$catKey] ?? collect()) as $req)
                         <div class="d-flex gap-1 mb-1 align-items-center">
+                            @can('doc-req.edit')
                             <form method="POST" action="{{ route('doc-req.update', $req->id) }}" class="d-flex gap-1 flex-grow-1 m-0">
                                 @csrf @method('PUT')
                                 <input type="hidden" name="category" value="{{ $req->category }}">
@@ -392,18 +428,24 @@
                                 <input name="position" value="{{ $req->position }}" class="form-control form-control-sm" style="max-width:64px" title="Urutan">
                                 <button class="btn btn-sm btn-outline-primary">Simpan</button>
                             </form>
+                            @endcan
+                            @can('doc-req.delete')
                             <form method="POST" action="{{ route('doc-req.destroy', $req->id) }}" class="m-0" data-confirm="Hapus item ini?">@csrf @method('DELETE')<button class="btn btn-sm btn-outline-danger">×</button></form>
+                            @endcan
                         </div>
                     @endforeach
+                    @can('doc-req.create')
                     <form method="POST" action="{{ route('doc-req.store') }}" class="d-flex gap-1 mt-1">
                         @csrf
                         <input type="hidden" name="category" value="{{ $catKey }}">
                         <input name="label" placeholder="Item baru untuk {{ $catLabel }}…" class="form-control form-control-sm">
                         <button class="btn btn-sm btn-outline-success">+ Tambah</button>
                     </form>
+                    @endcan
                 @endforeach
             </div>
         </div>
+        @endcanany
     @endif
 </div></div></div></div>
 @endif

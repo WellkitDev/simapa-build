@@ -35,8 +35,10 @@
         </select>
         <button class="btn btn-sm btn-outline-secondary">Filter</button>
     </form>
+    @can('accounting.journal.export')
     <a href="{{ route('accounting.journal.export.csv', request()->query()) }}" class="btn btn-sm btn-outline-success">Export CSV</a>
     <a href="{{ route('accounting.journal.export.pdf', request()->query()) }}" class="btn btn-sm btn-outline-danger">Export PDF</a>
+    @endcan
     </div>
 </div>
 
@@ -48,18 +50,22 @@
                 <span class="badge bg-secondary">🔒 Periode {{ $month }}/{{ $year }} terkunci</span>
                 <span class="text-muted small">dikunci {{ $periodLock->lockedBy?->name ?? 'sistem' }} · {{ optional($periodLock->locked_at)->format('d/m/Y') }}</span>
                 @if($canLock)
+                    @can('accounting.period.lock')
                     <form method="POST" action="{{ route('accounting.period.unlock') }}" data-confirm="Buka kunci periode ini? Perubahan setelahnya tercatat di Riwayat Perubahan." class="m-0">
                         @csrf
                         <input type="hidden" name="year" value="{{ $year }}"><input type="hidden" name="month" value="{{ $month }}">
                         <button class="btn btn-xs btn-outline-secondary">Buka kunci</button>
                     </form>
+                    @endcan
                 @endif
             @elseif($canLock)
+                @can('accounting.period.lock')
                 <form method="POST" action="{{ route('accounting.period.lock') }}" data-confirm="Kunci periode ini? Entri manual bulan ini tak bisa lagi ditambah/diubah/dihapus." class="m-0">
                     @csrf
                     <input type="hidden" name="year" value="{{ $year }}"><input type="hidden" name="month" value="{{ $month }}">
                     <button class="btn btn-xs btn-outline-dark">🔒 Kunci periode {{ $month }}/{{ $year }}</button>
                 </form>
+                @endcan
             @endif
         </div>
     @endif
@@ -96,13 +102,20 @@
     <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
         <span class="text-muted small">Saldo awal periode: {{ $rp($opening) }} · Saldo awal {{ $accountId ? 'akun ini' : 'semua akun' }}: {{ $rp($saldoAwal) }}</span>
         <div class="d-flex gap-2 flex-wrap">
+            @can('accounting.journal.transfer')
             <button class="btn btn-sm btn-outline-info" type="button" data-bs-toggle="collapse" data-bs-target="#transferForm">↔ Transfer Dana</button>
+            @endcan
+            @canany(['accounting.master.create', 'accounting.master.edit', 'accounting.master.delete'])
             <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#accountForm">Kelola Akun</button>
+            @endcanany
+            @can('accounting.journal.create')
             <button class="btn btn-sm btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#entryForm">+ Tambah Transaksi</button>
+            @endcan
         </div>
     </div>
 
     {{-- Transfer Dana --}}
+    @can('accounting.journal.transfer')
     <div class="collapse mb-3" id="transferForm">
         <form method="POST" action="{{ route('accounting.transfer.store') }}" class="border rounded p-3">
             @csrf
@@ -124,8 +137,10 @@
             <button class="btn btn-sm btn-info mt-2">Simpan Transfer</button>
         </form>
     </div>
+    @endcan
 
     {{-- Tambah Transaksi --}}
+    @can('accounting.journal.create')
     <div class="collapse mb-3" id="entryForm">
         <form method="POST" action="{{ route('accounting.entry.store') }}" class="border rounded p-3">
             @csrf
@@ -152,14 +167,17 @@
             <button class="btn btn-sm btn-primary mt-2">Simpan</button>
         </form>
     </div>
+    @endcan
 
     {{-- Kelola Akun --}}
+    @canany(['accounting.master.create', 'accounting.master.edit', 'accounting.master.delete'])
     <div class="collapse mb-3" id="accountForm">
         <div class="border rounded p-3">
             <div class="text-muted small fw-semibold mb-2">Akun / Bank — saldo awal & peran per akun</div>
             @foreach($allAccounts as $a)
                 {{-- dua form bersaudara di dalam pembungkus flex — TANPA div yang menyeberang batas <form> --}}
                 <div class="d-flex gap-2 align-items-end mb-2 flex-wrap">
+                    @can('accounting.master.edit')
                     <form method="POST" action="{{ route('accounting.account.update', $a->id) }}" class="d-flex gap-1 align-items-end flex-wrap flex-grow-1 m-0">
                         @csrf @method('PUT')
                         <div><label class="form-label small mb-0">Nama</label><input name="name" value="{{ $a->name }}" class="form-control form-control-sm" style="max-width:200px" required></div>
@@ -169,9 +187,13 @@
                         <label class="small mb-0"><input type="checkbox" name="active" value="1" {{ $a->active ? 'checked' : '' }}> aktif</label>
                         <button class="btn btn-xs btn-outline-primary">Simpan</button>
                     </form>
+                    @endcan
+                    @can('accounting.master.delete')
                     <form method="POST" action="{{ route('accounting.account.destroy', $a->id) }}" data-confirm="Hapus akun ini? (hanya bila tanpa transaksi & bukan akun pemasukan default)" class="m-0">@csrf @method('DELETE')<button class="btn btn-xs btn-outline-danger">×</button></form>
+                    @endcan
                 </div>
             @endforeach
+            @can('accounting.master.create')
             <form method="POST" action="{{ route('accounting.account.store') }}" class="row g-1 mt-2 align-items-end">
                 @csrf
                 <div class="col-md-3"><input name="name" placeholder="Nama akun/bank baru…" class="form-control form-control-sm" required></div>
@@ -180,8 +202,10 @@
                 <div class="col-md-2"><label class="small mb-0"><input type="checkbox" name="is_income_default" value="1"> akun pemasukan</label></div>
                 <div class="col-md-3"><button class="btn btn-xs btn-outline-success">+ Tambah Akun</button></div>
             </form>
+            @endcan
         </div>
     </div>
+    @endcanany
 
     <div class="table-responsive">
         <table class="table table-hover table-sm datatable dt-responsive nowrap" style="width:100%">
@@ -206,9 +230,13 @@
                             @if($e->source === 'payment')
                                 <span class="badge bg-light text-muted border" title="Otomatis dari pembayaran">⚙ auto</span>
                             @elseif($e->isTransfer())
+                                @can('accounting.journal.delete')
                                 <form method="POST" action="{{ route('accounting.entry.destroy', $e->id) }}" data-confirm="Hapus transfer ini? Kedua sisi (keluar & masuk) akan dihapus." class="m-0">@csrf @method('DELETE')<button class="btn btn-xs btn-outline-danger">×</button></form>
+                                @endcan
                             @else
+                                @can('accounting.journal.delete')
                                 <form method="POST" action="{{ route('accounting.entry.destroy', $e->id) }}" data-confirm="Hapus transaksi ini?" class="m-0">@csrf @method('DELETE')<button class="btn btn-xs btn-outline-danger">×</button></form>
+                                @endcan
                             @endif
                         </td>
                     </tr>
@@ -217,11 +245,13 @@
         </table>
     </div>
 
+    @canany(['accounting.master.create', 'accounting.master.edit', 'accounting.master.delete'])
     <div class="mt-3">
         <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#catForm">Kelola Kategori</button>
         <div class="collapse mt-2" id="catForm">
             @foreach(\App\Models\CashCategory::JENIS as $jk => $jl)
                 <div class="text-muted small fw-semibold mt-2">{{ $jl }}</div>
+                @can('accounting.master.edit')
                 @foreach($allCategories->where('jenis', $jk) as $c)
                     <form method="POST" action="{{ route('accounting.category.update', $c->id) }}" class="d-flex gap-1 mb-1 align-items-center">
                         @csrf @method('PUT')
@@ -231,15 +261,19 @@
                         <button class="btn btn-xs btn-outline-primary">Simpan</button>
                     </form>
                 @endforeach
+                @endcan
+                @can('accounting.master.create')
                 <form method="POST" action="{{ route('accounting.category.store') }}" class="d-flex gap-1 mt-1">
                     @csrf
                     <input type="hidden" name="jenis" value="{{ $jk }}">
                     <input name="name" placeholder="Kategori {{ $jl }} baru…" class="form-control form-control-sm" style="max-width:280px">
                     <button class="btn btn-xs btn-outline-success">+ Tambah</button>
                 </form>
+                @endcan
             @endforeach
         </div>
     </div>
+    @endcanany
 </div></div></div>
 @include('accounting.partials.money-mask')
 @endsection

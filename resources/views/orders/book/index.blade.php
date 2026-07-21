@@ -112,7 +112,7 @@
                                                         <i class="" data-feather="edit"></i>
                                                     </a>
                                                     @endif
-                                                    @role('superadmin')
+                                                    @can('order.refund')
                                                         @php
                                                             $paidIn = $order->payments->where('status','paid')->where('payment_type','!=','refund')->sum('amount');
                                                             $refunded = $order->payments->where('payment_type','refund')->isNotEmpty();
@@ -122,7 +122,7 @@
                                                         @elseif($paidIn > 0)
                                                             <a href="{{ route('order.refund.form', $order->code_order) }}" class="btn btn-icon btn-outline-warning" title="Refund"><i class="" data-feather="corner-up-left"></i></a>
                                                         @endif
-                                                    @endrole
+                                                    @endcan
                                                 @endif
                                             </td>
                                         </tr>

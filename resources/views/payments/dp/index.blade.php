@@ -64,10 +64,12 @@
                                             </td>
                                             <td>
                                                 <div class="btn-group">
+                                                    @can('payment.create')
                                                     <a href="{{ route('payment.create', $order->code_order) }}"
                                                         class="btn btn-icon btn-sm btn-outline-primary" title="Detail">
                                                         <i class="" data-feather="credit-card"></i>
                                                     </a>
+                                                    @endcan
                                                     <a href="{{ route('order.book.show', $order->code_order) }}"
                                                         class="btn btn-icon btn-sm btn-primary" title="Detail">
                                                         <i class="" data-feather="eye"></i>

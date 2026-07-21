@@ -24,10 +24,12 @@
     <span class="badge {{ $isPaidOff ? 'bg-success' : 'bg-secondary' }}">Pembayaran {{ $isPaidOff ? 'Lunas' : 'Belum Lunas' }}</span>
     <span class="badge {{ $isFinal ? 'bg-success' : 'bg-secondary' }}">Manuskrip {{ $isFinal ? 'Final' : 'Belum Final' }}</span>
     @if($canManage && in_array($st, ['draft', 'ditolak'], true))
+        @can('archive.submit')
         <form method="POST" action="{{ route('archive.submit', $title->id) }}" class="d-inline ms-2">@csrf
             <button class="btn btn-sm btn-primary" {{ $eligible ? '' : 'disabled' }}>Ajukan ke Arsip</button>
         </form>
         @unless($eligible)<small class="text-muted d-block mt-1">Bisa diajukan setelah pembayaran lunas dan manuskrip final.</small>@endunless
+        @endcan
     @endif
     @if($st === 'ditolak' && optional($title->archive)->reject_note)
         <div class="alert alert-danger py-2 mt-2 mb-0">Ditolak: {{ $title->archive->reject_note }}</div>
@@ -68,6 +70,7 @@
 <div class="row"><div class="col-md-9 col-12 grid-margin stretch-card"><div class="card"><div class="card-body">
     <h6 class="card-title">Artefak Penyelesaian</h6>
     @if($canManage)
+    @can('archive.artifacts')
     <form method="POST" action="{{ route('archive.artifacts', $title->id) }}" enctype="multipart/form-data">
         @csrf @method('PUT')
         @foreach($artifacts as $a)
@@ -124,6 +127,14 @@
                 <dd class="col-sm-8">@if($a['type'] === 'file' && $a['value'])<a href="{{ $a['value'] }}" target="_blank" rel="noopener">📎 {{ $a['file_name'] ?: 'file' }}</a>@elseif($a['value'])@if($a['type'] === 'link')<a href="{{ $a['value'] }}" target="_blank" rel="noopener">{{ $a['value'] }}</a>@else{{ $a['value'] }}@endif @else — @endif</dd>
             @endforeach
         </dl>
+    @endcan
+    @else
+        <dl class="row mb-0">
+            @foreach($artifacts as $a)
+                <dt class="col-sm-4 small text-muted">{{ $a['label'] }}</dt>
+                <dd class="col-sm-8">@if($a['type'] === 'file' && $a['value'])<a href="{{ $a['value'] }}" target="_blank" rel="noopener">📎 {{ $a['file_name'] ?: 'file' }}</a>@elseif($a['value'])@if($a['type'] === 'link')<a href="{{ $a['value'] }}" target="_blank" rel="noopener">{{ $a['value'] }}</a>@else{{ $a['value'] }}@endif @else — @endif</dd>
+            @endforeach
+        </dl>
     @endif
 </div></div></div></div>
 
@@ -131,6 +142,7 @@
 @if($canApprove && $st === 'diajukan')
 <div class="row"><div class="col-md-9 col-12 grid-margin stretch-card"><div class="card border-primary"><div class="card-body">
     <h6 class="card-title">Persetujuan Arsip</h6>
+    @can('archive.approve')
     <form method="POST" action="{{ route('archive.approve', $title->id) }}" class="mb-2">@csrf
         <textarea name="approval_note" class="form-control form-control-sm mb-2" rows="2" placeholder="Informasi/bukti selesai (opsional)"></textarea>
         <button class="btn btn-sm btn-success">Approve — Masuk Arsip</button>
@@ -139,6 +151,7 @@
         <textarea name="reject_note" class="form-control form-control-sm mb-2" rows="2" placeholder="Alasan penolakan" required></textarea>
         <button class="btn btn-sm btn-outline-danger">Tolak</button>
     </form>
+    @endcan
 </div></div></div></div>
 @elseif($st === 'disetujui')
 <div class="row"><div class="col-md-9 col-12 grid-margin stretch-card"><div class="card"><div class="card-body">

@@ -10,7 +10,9 @@
     @php $vis = \App\Models\DataAsset::VISIBILITIES; $kb = fn ($b) => $b ? number_format($b / 1024, 0) . ' KB' : ''; @endphp
     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
         <h5 class="mb-0">Gudang Data</h5>
+        @can('data.create')
         <a href="{{ route('data.create') }}" class="btn btn-sm btn-primary">+ Tambah Data</a>
+        @endcan
     </div>
     <div class="card"><div class="card-body">
         <div class="table-responsive">
@@ -25,7 +27,9 @@
                                 @if ($a->type === 'link' && $a->url)
                                     <a href="{{ $a->url }}" target="_blank" rel="noopener" class="btn btn-xs btn-outline-info">Buka ↗</a>
                                 @elseif ($a->type === 'file' && $a->file_path)
+                                    @can('data.download')
                                     <a href="{{ route('data.download', $a->id) }}" class="btn btn-xs btn-outline-primary">Unduh ⬇</a>
+                                    @endcan
                                     <small class="text-muted d-block">{{ $a->file_name }} · {{ $kb($a->file_size) }}</small>
                                 @else — @endif
                             </td>
@@ -35,8 +39,12 @@
                             <td>{{ optional($a->updated_at)->format('d/m/Y H:i') }}</td>
                             <td>
                                 @if ($a->owner_id === auth()->id())
+                                    @can('data.edit')
                                     <a href="{{ route('data.edit', $a->id) }}" class="btn btn-xs btn-outline-secondary">Edit</a>
+                                    @endcan
+                                    @can('data.delete')
                                     <form method="POST" action="{{ route('data.destroy', $a->id) }}" class="d-inline" data-confirm="Hapus data ini?">@csrf @method('DELETE')<button class="btn btn-xs btn-outline-danger">Hapus</button></form>
+                                    @endcan
                                 @endif
                             </td>
                         </tr>
