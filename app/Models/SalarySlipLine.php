@@ -2,13 +2,10 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class SalarySlipLine extends Model
 {
-    use HasFactory;
-
     protected $table = 'tb_salary_slip_lines';
 
     protected $fillable = ['salary_slip_id', 'type', 'label', 'amount', 'position'];
