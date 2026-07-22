@@ -70,6 +70,21 @@ class Notifier
         ]);
     }
 
+    public function salarySlipIssued(\App\Models\SalarySlip $slip): void
+    {
+        $slip->loadMissing('employee');
+        if (! $slip->employee) {
+            return;
+        }
+        $this->send(collect([$slip->employee]), [
+            'category' => 'salary',
+            'title'    => 'Slip gaji tersedia',
+            'message'  => 'Periode ' . $slip->periodLabel() . ' • Rp ' . $this->rp($slip->net_pay),
+            'url'      => route('salary.slip.me'),
+            'icon'     => 'file-text',
+        ]);
+    }
+
     public function tagihanSubmitted(Tagihan $tagihan, User $actor): void
     {
         $this->send($this->roleUsers(['superadmin'], $actor), [

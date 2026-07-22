@@ -158,6 +158,18 @@ class SalarySlipController extends Controller
             ->stream('SlipGaji_' . $slip->slip_no . '.pdf');
     }
 
+    public function send(int $id)
+    {
+        $slip = SalarySlip::with('employee')->findOrFail($id);
+
+        $slip->update(['status' => 'terbit', 'sent_at' => now()]);
+
+        SendSalarySlipJob::dispatch($slip->id);
+        app(Notifier::class)->salarySlipIssued($slip);
+
+        return back()->with('success', 'Slip gaji diterbitkan & dikirim ke email karyawan.');
+    }
+
     /** Aturan validasi bersama create & update. */
     private function baseRules(): array
     {

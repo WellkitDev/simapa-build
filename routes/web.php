@@ -333,6 +333,10 @@ Route::middleware(['auth', 'access'])->group(function () {
     Route::delete('salary/slip/{id}', [\App\Http\Controllers\Pages\SalarySlipController::class, 'destroy'])->name('salary.slip.destroy')->whereNumber('id');
     Route::get('salary/slip/{id}/pdf', [\App\Http\Controllers\Pages\SalarySlipController::class, 'pdf'])->name('salary.slip.pdf')->whereNumber('id');
     Route::post('salary/slip/{id}/send', [\App\Http\Controllers\Pages\SalarySlipController::class, 'send'])->name('salary.slip.send')->whereNumber('id');
+
+    // Slip Gaji — self-service (semua user login; akses own-data dicek di controller)
+    Route::get('slip-gaji-saya', [\App\Http\Controllers\Pages\EmployeeSalarySlipController::class, 'me'])->name('salary.slip.me');
+    Route::get('slip-gaji-saya/{id}/pdf', [\App\Http\Controllers\Pages\EmployeeSalarySlipController::class, 'pdf'])->name('salary.slip.me.pdf')->whereNumber('id');
 });
 
 
