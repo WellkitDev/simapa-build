@@ -211,6 +211,16 @@
                 @endcan
             @endcanany
 
+            {{-- Slip Gaji (admin: superadmin/accounting) — izin salary.view di luar grup accounting.* --}}
+            @can('salary.view')
+                <li class="nav-item {{ nav_active('salary.slip.index') }}">
+                    <a href="{{ route('salary.slip.index') }}" class="nav-link">
+                        <i class="link-icon" data-feather="file-text"></i>
+                        <span class="link-title">Slip Gaji</span>
+                    </a>
+                </li>
+            @endcan
+
             {{-- ===================== LAPORAN ===================== --}}
             {{-- Header + Laporan Harian/Bulanan tanpa penjaga: report.daily/report.monthly publik,
                  dan header perlu terlihat kapan pun ada item di bawahnya (termasuk keduanya) yang tampil. --}}
@@ -260,6 +270,13 @@
                 <a href="{{ route('report.monthly') }}" class="nav-link">
                     <i class="link-icon" data-feather="bar-chart"></i>
                     <span class="link-title">Laporan Bulanan</span>
+                </a>
+            </li>
+            {{-- salary.slip.me: route publik (own-data), terbuka utk semua role login — tanpa penjaga @can. --}}
+            <li class="nav-item {{ nav_active('salary.slip.me') }}">
+                <a href="{{ route('salary.slip.me') }}" class="nav-link">
+                    <i class="link-icon" data-feather="file-text"></i>
+                    <span class="link-title">Slip Gaji Saya</span>
                 </a>
             </li>
             @can('report.submissions.view')
