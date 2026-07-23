@@ -115,6 +115,16 @@ Route::middleware(['auth', 'access'])->group(function () {
             ->name('chapter.assign')->whereNumber('id');
     });
 
+    Route::prefix('management/distribusi')->name('distribusi.')->group(function () {
+        Route::get('artikel',              [\App\Http\Controllers\Pages\ArticleDistributionController::class, 'index'])->name('artikel.index');
+        Route::get('artikel/{id}',         [\App\Http\Controllers\Pages\ArticleDistributionController::class, 'show'])->name('artikel.show')->whereNumber('id');
+        Route::post('artikel/{id}/editor',    [\App\Http\Controllers\Pages\ArticleDistributionController::class, 'assignEditor'])->name('artikel.editor')->whereNumber('id');
+        Route::post('artikel/{id}/tahap',     [\App\Http\Controllers\Pages\ArticleDistributionController::class, 'moveStage'])->name('artikel.tahap')->whereNumber('id');
+        Route::post('artikel/{id}/prioritas', [\App\Http\Controllers\Pages\ArticleDistributionController::class, 'setPriority'])->name('artikel.prioritas')->whereNumber('id');
+        Route::post('artikel/{id}/target',    [\App\Http\Controllers\Pages\ArticleDistributionController::class, 'setTarget'])->name('artikel.target')->whereNumber('id');
+        Route::post('artikel/{id}/file',      [\App\Http\Controllers\Pages\ArticleDistributionController::class, 'uploadFile'])->name('artikel.file')->whereNumber('id');
+    });
+
     Route::prefix('payments')->name('payment.')->group(function () {
         Route::get('list', [PaymentBookController::class, 'index'])->name('index');
         Route::get('{code_order}/create', [PaymentBookController::class, 'create'])->name('create');
