@@ -69,4 +69,24 @@ class SidebarTest extends TestCase
             ->assertSee('Meja Kerja Saya')->assertSee('Direktori Judul')
             ->assertDontSee('Direktori Author');   // dibatasi untuk production
     }
+
+    /** @test */
+    public function production_and_admin_see_distribution_menus(): void
+    {
+        foreach (['production', 'admin'] as $role) {
+            $this->actingAsRole($role);
+            $this->get(route('dashboard'))->assertOk()
+                ->assertSee('Distribusi Artikel')
+                ->assertSee('Distribusi Buku');
+        }
+    }
+
+    /** @test */
+    public function marketing_does_not_see_distribution_menus(): void
+    {
+        $this->actingAsRole('marketing');
+        $this->get(route('dashboard'))->assertOk()
+            ->assertDontSee('Distribusi Artikel')
+            ->assertDontSee('Distribusi Buku');
+    }
 }
