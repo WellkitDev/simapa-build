@@ -109,7 +109,7 @@ class TitleProgressService
         if ($actor->hasRole('manager')) {
             return; // oversight: stage apa pun (non-final)
         }
-        if ($actor->hasRole('production') && TitleProgress::getHandlerForStatus($current) === 'production') {
+        if ($actor->hasAnyRole(['production', 'admin']) && TitleProgress::getHandlerForStatus($current) === 'production') {
             return; // hanya kartu yang sedang jadi domain production
         }
         throw new AuthorizationException('Anda tidak berhak memindahkan naskah pada tahap ini.');
@@ -117,16 +117,16 @@ class TitleProgressService
 
     public function assignEditor(TitleProgress $progress, ?int $userId, User $actor): TitleProgress
     {
-        if (!$actor->hasAnyRole(['production', 'manager', 'superadmin'])) {
+        if (!$actor->hasAnyRole(['production', 'manager', 'superadmin', 'admin'])) {
             throw new AuthorizationException();
         }
 
         $assignee = null;
         if ($userId !== null) {
             $assignee = User::find($userId);
-            if (!$assignee || !$assignee->hasAnyRole(['production', 'manager'])) {
+            if (!$assignee || !$assignee->hasAnyRole(['production', 'manager', 'admin'])) {
                 throw ValidationException::withMessages([
-                    'assigned_user_id' => 'Editor harus user dengan role production atau manager.',
+                    'assigned_user_id' => 'Editor harus user dengan role production, manager, atau admin.',
                 ]);
             }
         }
@@ -142,7 +142,7 @@ class TitleProgressService
 
     public function setPriority(TitleProgress $progress, string $priority, User $actor): TitleProgress
     {
-        if (!$actor->hasAnyRole(['production', 'manager', 'superadmin'])) {
+        if (!$actor->hasAnyRole(['production', 'manager', 'superadmin', 'admin'])) {
             throw new AuthorizationException();
         }
         if (!in_array($priority, TitleProgress::PRIORITIES, true)) {
@@ -161,7 +161,7 @@ class TitleProgressService
     /** Set/clear target tanggal terbit/publish. Kosong = hapus target. Marketing juga boleh. */
     public function setTargetDate(TitleProgress $progress, ?string $date, User $actor): TitleProgress
     {
-        if (! $actor->hasAnyRole(['marketing', 'production', 'manager', 'superadmin'])) {
+        if (! $actor->hasAnyRole(['marketing', 'production', 'manager', 'superadmin', 'admin'])) {
             throw new AuthorizationException();
         }
 

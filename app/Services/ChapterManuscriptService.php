@@ -88,13 +88,13 @@ class ChapterManuscriptService
     /** Assign editor bab (production/manager). */
     public function assignEditor(ChapterProgress $cp, ?int $userId, User $actor): ChapterProgress
     {
-        if (! $actor->hasAnyRole(['production', 'manager', 'superadmin'])) {
+        if (! $actor->hasAnyRole(['production', 'manager', 'superadmin', 'admin'])) {
             throw new AuthorizationException();
         }
         if ($userId !== null) {
             $u = User::find($userId);
-            if (! $u || ! $u->hasAnyRole(['production', 'manager'])) {
-                throw ValidationException::withMessages(['assigned_user_id' => 'Editor harus role production atau manager.']);
+            if (! $u || ! $u->hasAnyRole(['production', 'manager', 'admin'])) {
+                throw ValidationException::withMessages(['assigned_user_id' => 'Editor harus role production, manager, atau admin.']);
             }
         }
 
@@ -200,7 +200,7 @@ class ChapterManuscriptService
         if ($actor->hasRole('manager')) {
             return;
         }
-        if ($actor->hasRole('production') && TitleProgress::getHandlerForStatus($current) === 'production') {
+        if ($actor->hasAnyRole(['production', 'admin']) && TitleProgress::getHandlerForStatus($current) === 'production') {
             return;
         }
         throw new AuthorizationException('Anda tidak berhak memindahkan bab pada tahap ini.');

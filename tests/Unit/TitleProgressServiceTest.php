@@ -22,7 +22,7 @@ class TitleProgressServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        foreach (['marketing', 'manager', 'superadmin', 'production'] as $r) {
+        foreach (['marketing', 'manager', 'superadmin', 'production', 'admin'] as $r) {
             Role::create(['name' => $r, 'guard_name' => 'web']);
         }
         $this->svc = new TitleProgressService();
@@ -238,6 +238,26 @@ class TitleProgressServiceTest extends TestCase
         $p = $this->progress('editing');
         $this->expectException(AuthorizationException::class);
         $this->svc->setPriority($p, 'high', $this->user('marketing'));
+    }
+
+    /** @test */
+    public function admin_can_be_assigned_as_editor(): void
+    {
+        $p = $this->progress('editing');
+        $admin = $this->user('admin');
+
+        $this->svc->assignEditor($p, $admin->id, $this->user('manager'));
+
+        $this->assertEquals($admin->id, $p->fresh()->assigned_user_id);
+    }
+
+    /** @test */
+    public function admin_can_move_production_stage(): void
+    {
+        $p = $this->progress('editing'); // handler production
+        $this->svc->changeStatus($p, 'layout', $this->user('admin'));
+
+        $this->assertEquals('layout', $p->fresh()->status);
     }
 
     /**

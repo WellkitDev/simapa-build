@@ -177,4 +177,19 @@ class ChapterManuscriptServiceTest extends TestCase
         $this->expectException(\Illuminate\Validation\ValidationException::class);
         $this->svc->assignEditor($cp, $marketing->id, $mgr);
     }
+
+    /** @test */
+    public function admin_can_be_chapter_editor_and_move_chapter(): void
+    {
+        $admin = $this->user('admin');
+        $book = $this->bookWithOrder(1, 'editing'); // handler production
+        $this->svc->ensureChapters($book);
+        $cp = $book->chapters()->first()->progress;
+
+        $this->svc->assignEditor($cp, $admin->id, $admin);
+        $this->assertSame($admin->id, $cp->fresh()->assigned_user_id);
+
+        $this->svc->changeStatus($cp, 'layout', $admin);
+        $this->assertSame('layout', $cp->fresh()->status);
+    }
 }
