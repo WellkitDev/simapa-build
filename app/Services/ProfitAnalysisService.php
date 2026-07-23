@@ -37,12 +37,18 @@ class ProfitAnalysisService
             ? 'M_BK_ALL'
             : (str_starts_with($detail->type, 'at_mandiri') ? 'M_ART_' : 'M_KOL_') . $bucket;
 
+        return $this->resolveMarginByCode($code, $unknown);
+    }
+
+    /** Resolve pct + marginMissing dari kode margin Asumsi. */
+    private function resolveMarginByCode(string $code, bool $unknownTier): array
+    {
         $margin = CashMargin::where('code', $code)->where('active', true)->first();
 
         return [
             'code'          => $code,
             'pct'           => (float) ($margin->margin_pct ?? 0),
-            'unknownTier'   => $unknown,
+            'unknownTier'   => $unknownTier,
             'marginMissing' => $margin === null,
         ];
     }
@@ -66,9 +72,9 @@ class ProfitAnalysisService
     }
 
     /**
-     * Margin untuk pemasukan MANUAL (tanpa order). Produk menentukan:
-     * buku -> M_BK_ALL; artikel -> S2 terendah (tak ada indeksasi); selain itu -> 100% siap dibagi.
-     * Kategori dgn map_key dipakai bila produk kosong.
+     * Margin untuk pemasukan MANUAL (tanpa order). produk menentukan lebih
+     * dulu; bila produk bukan buku/artikel, map_key kategori dipakai; bila
+     * tetap tak cocok -> 100% siap dibagi.
      *
      * @return array{code:?string,pct:float,unknownTier:bool,marginMissing:bool}
      */
@@ -95,14 +101,7 @@ class ProfitAnalysisService
             return ['code' => null, 'pct' => 100.0, 'unknownTier' => false, 'marginMissing' => false];
         }
 
-        $margin = CashMargin::where('code', $code)->where('active', true)->first();
-
-        return [
-            'code'          => $code,
-            'pct'           => (float) ($margin->margin_pct ?? 0),
-            'unknownTier'   => false,
-            'marginMissing' => $margin === null,
-        ];
+        return $this->resolveMarginByCode($code, false);
     }
 
     /**
@@ -184,7 +183,7 @@ class ProfitAnalysisService
                 'base'          => $base,
                 'reserve'       => $res,
                 'margin'        => $marg,
-                'unknownTier'   => false,
+                'unknownTier'   => $m['unknownTier'],
                 'marginMissing' => $m['marginMissing'],
                 'manual'        => true,
             ];

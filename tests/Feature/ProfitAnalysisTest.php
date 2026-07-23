@@ -268,6 +268,54 @@ class ProfitAnalysisTest extends TestCase
         $this->assertSame(870_000.0, $tahun[5]['totalMargin'], 'Juni (index 5).');
     }
 
+    private function incomeCategory(string $mapKey): \App\Models\CashCategory
+    {
+        return \App\Models\CashCategory::create([
+            'name' => 'Cat ' . $mapKey, 'jenis' => 'pemasukan', 'active' => true, 'map_key' => $mapKey,
+        ]);
+    }
+
+    /** @test */
+    public function manual_income_without_produk_falls_back_to_category_mapkey(): void
+    {
+        // Kategori artikel kolaborasi, produk dikosongkan → tetap kena margin artikel 25%.
+        $catArt = $this->incomeCategory('at_kolab');
+        $this->manualIncome(1_000_000, null, '2026-06-12', $catArt->id);
+        // Kategori buku, produk dikosongkan → margin buku 87%.
+        $catBook = $this->incomeCategory('bk_mandiri');
+        $this->manualIncome(1_000_000, null, '2026-06-13', $catBook->id);
+
+        $h = $this->juni();
+
+        // 25% x 1jt (artikel) + 87% x 1jt (buku) = 1.120.000
+        $this->assertSame(1_120_000.0, $h['totalMargin']);
+        $this->assertSame(2_000_000.0, $h['totalIn']);
+    }
+
+    /** @test */
+    public function manual_income_produk_wins_over_category_mapkey(): void
+    {
+        // Kategori buku tapi produk 'artikel' → produk menang → 25%, bukan 87%.
+        $catBook = $this->incomeCategory('bk_mandiri');
+        $this->manualIncome(1_000_000, 'artikel', '2026-06-12', $catBook->id);
+
+        $this->assertSame(250_000.0, $this->juni()['totalMargin']);
+    }
+
+    /** @test */
+    public function manual_income_flags_missing_margin_row(): void
+    {
+        \App\Models\CashMargin::where('code', 'M_BK_ALL')->update(['active' => false]);
+        $this->manualIncome(1_000_000, 'buku');
+
+        $h = $this->juni();
+
+        $this->assertSame(0.0, $h['totalMargin'], 'Margin nonaktif → 0, bukan tebakan.');
+        // Cari baris manual di $rows dan pastikan marginMissing true.
+        $manualRow = collect($h['rows'])->firstWhere('manual', true);
+        $this->assertTrue($manualRow['marginMissing']);
+    }
+
     /** @test */
     public function other_months_are_not_mixed(): void
     {
