@@ -4,6 +4,7 @@
 @push('plugin-styles')
 <link href="{{ asset('assets/libs/datatables.net-bs4/css/dataTables.bootstrap4.min.css') }}" rel="stylesheet" />
 <link href="{{ asset('assets/libs/datatables.net-responsive-bs4/css/responsive.bootstrap4.min.css') }}" rel="stylesheet" />
+<link href="{{ asset('assets/plugins/select2/select2.min.css') }}" rel="stylesheet" />
 @endpush
 
 @section('content')
@@ -155,13 +156,18 @@
                     </select>
                 </div>
                 <div class="col-md-3"><label class="form-label small mb-1">Kategori</label>
-                    <select name="cash_category_id" class="form-select form-select-sm">
+                    <select name="cash_category_id" class="form-select form-select-sm select2-tags" data-placeholder="Pilih / ketik kategori baru">
                         <option value="">—</option>
                         @foreach($categories as $c)<option value="{{ $c->id }}" data-jenis="{{ $c->jenis }}">{{ $c->name }} ({{ \App\Models\CashCategory::JENIS[$c->jenis] }})</option>@endforeach
                     </select>
                 </div>
                 <div class="col-md-2"><label class="form-label small mb-1">Nominal</label><input type="text" name="amount" class="form-control form-control-sm money-mask" inputmode="numeric" min="0" required></div>
-                <div class="col-md-2"><label class="form-label small mb-1">Produk</label><select name="produk" class="form-select form-select-sm"><option value="">—</option>@foreach(\App\Models\CashEntry::PRODUK as $k => $v)<option value="{{ $k }}">{{ $v }}</option>@endforeach</select></div>
+                <div class="col-md-2"><label class="form-label small mb-1">Produk</label>
+                    <select name="produk" class="form-select form-select-sm select2-tags" data-placeholder="Pilih / ketik produk">
+                        <option value="">—</option>
+                        @foreach(\App\Models\CashEntry::PRODUK as $k => $v)<option value="{{ $k }}">{{ $v }}</option>@endforeach
+                    </select>
+                </div>
                 <div class="col-md-4"><label class="form-label small mb-1">Keterangan</label><input name="keterangan" class="form-control form-control-sm" required></div>
                 <div class="col-md-3"><label class="form-label small mb-1">Ref (INV/Order)</label><input name="ref" class="form-control form-control-sm"></div>
                 <div class="col-md-5"><label class="form-label small mb-1">Catatan</label><input name="catatan" class="form-control form-control-sm"></div>
@@ -236,9 +242,25 @@
                                 <form method="POST" action="{{ route('accounting.entry.destroy', $e->id) }}" data-confirm="Hapus transfer ini? Kedua sisi (keluar & masuk) akan dihapus." class="m-0">@csrf @method('DELETE')<button class="btn btn-xs btn-outline-danger">×</button></form>
                                 @endcan
                             @else
+                                <div class="d-flex gap-1">
+                                @can('accounting.journal.edit')
+                                <button type="button" class="btn btn-xs btn-outline-primary"
+                                    data-edit-entry
+                                    data-action="{{ route('accounting.entry.update', $e->id) }}"
+                                    data-tanggal="{{ optional($e->tanggal)->format('Y-m-d') }}"
+                                    data-jenis="{{ $e->jenis }}"
+                                    data-account="{{ $e->account_id }}"
+                                    data-category="{{ $e->cash_category_id }}"
+                                    data-produk="{{ $e->produk }}"
+                                    data-amount="{{ (int) $e->amount }}"
+                                    data-keterangan="{{ $e->keterangan }}"
+                                    data-ref="{{ $e->ref }}"
+                                    data-catatan="{{ $e->catatan }}">✎</button>
+                                @endcan
                                 @can('accounting.journal.delete')
                                 <form method="POST" action="{{ route('accounting.entry.destroy', $e->id) }}" data-confirm="Hapus transaksi ini?" class="m-0">@csrf @method('DELETE')<button class="btn btn-xs btn-outline-danger">×</button></form>
                                 @endcan
+                                </div>
                             @endif
                         </td>
                     </tr>
@@ -277,6 +299,52 @@
     </div>
     @endcanany
 </div></div></div>
+{{-- Modal Edit Transaksi (hanya entri manual non-transfer) --}}
+@can('accounting.journal.edit')
+<div class="modal fade" id="editEntryModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <form method="POST" id="editEntryForm">
+        @csrf
+        @method('PUT')
+        <div class="modal-header">
+          <h6 class="modal-title">Edit Transaksi Kas</h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-2">
+            <div class="col-md-3"><label class="form-label small mb-1">Tanggal</label><input type="date" name="tanggal" class="form-control form-control-sm" required></div>
+            <div class="col-md-3"><label class="form-label small mb-1">Jenis</label><select name="jenis" class="form-select form-select-sm"><option value="pemasukan">Pemasukan</option><option value="pengeluaran">Pengeluaran</option></select></div>
+            <div class="col-md-3"><label class="form-label small mb-1">Akun</label>
+              <select name="account_id" class="form-select form-select-sm">@foreach($allAccounts as $a)<option value="{{ $a->id }}">{{ $a->name }}</option>@endforeach</select>
+            </div>
+            <div class="col-md-3"><label class="form-label small mb-1">Kategori</label>
+              <select name="cash_category_id" class="form-select form-select-sm select2-tags" data-placeholder="Pilih / ketik kategori">
+                <option value="">—</option>
+                @foreach($allCategories as $c)<option value="{{ $c->id }}">{{ $c->name }} ({{ \App\Models\CashCategory::JENIS[$c->jenis] }})</option>@endforeach
+              </select>
+            </div>
+            <div class="col-md-3"><label class="form-label small mb-1">Nominal</label><input type="text" name="amount" class="form-control form-control-sm money-mask" inputmode="numeric" min="0" required></div>
+            <div class="col-md-3"><label class="form-label small mb-1">Produk</label>
+              <select name="produk" class="form-select form-select-sm select2-tags" data-placeholder="Pilih / ketik produk">
+                <option value="">—</option>
+                @foreach(\App\Models\CashEntry::PRODUK as $k => $v)<option value="{{ $k }}">{{ $v }}</option>@endforeach
+              </select>
+            </div>
+            <div class="col-md-6"><label class="form-label small mb-1">Keterangan</label><input name="keterangan" class="form-control form-control-sm" required></div>
+            <div class="col-md-4"><label class="form-label small mb-1">Ref (INV/Order)</label><input name="ref" class="form-control form-control-sm"></div>
+            <div class="col-md-8"><label class="form-label small mb-1">Catatan</label><input name="catatan" class="form-control form-control-sm"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+          <button type="submit" class="btn btn-sm btn-primary">Simpan Perubahan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+@endcan
 @include('accounting.partials.money-mask')
 @endsection
 
@@ -285,7 +353,44 @@
 <script src="{{ asset('assets/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
 <script src="{{ asset('assets/libs/datatables.net-responsive/js/dataTables.responsive.min.js') }}"></script>
 <script src="{{ asset('assets/libs/datatables.net-responsive-bs4/js/responsive.bootstrap4.min.js') }}"></script>
+<script src="{{ asset('assets/plugins/select2/select2.min.js') }}"></script>
 @endpush
 @push('custom-scripts')
-<script>$(function () { $('.datatable').DataTable({ pageLength: 25, responsive: true, order: [], language: { emptyTable: 'Belum ada transaksi.' } }); });</script>
+<script>
+$(function () {
+    $('.datatable').DataTable({ pageLength: 25, responsive: true, order: [], language: { emptyTable: 'Belum ada transaksi.' } });
+
+    var hasSelect2 = window.jQuery && jQuery.fn.select2;
+    if (hasSelect2) {
+        $('.select2-tags').not('#editEntryModal .select2-tags').select2({ tags: true, width: '100%' });
+        $('#editEntryModal .select2-tags').select2({ tags: true, width: '100%', dropdownParent: $('#editEntryModal') });
+    }
+
+    function setTagVal($sel, val) {
+        val = (val === undefined || val === null) ? '' : String(val);
+        if (val !== '' && $sel.find('option').filter(function () { return this.value === val; }).length === 0) {
+            $sel.append(new Option(val, val, true, true));
+        }
+        $sel.val(val);
+        if (hasSelect2) { $sel.trigger('change'); }
+    }
+
+    $('[data-edit-entry]').on('click', function () {
+        var b = $(this);
+        var $f = $('#editEntryForm');
+        $f.attr('action', b.attr('data-action'));
+        $f.find('[name=tanggal]').val(b.attr('data-tanggal'));
+        $f.find('[name=jenis]').val(b.attr('data-jenis'));
+        setTagVal($f.find('[name=account_id]'), b.attr('data-account'));
+        setTagVal($f.find('[name=cash_category_id]'), b.attr('data-category'));
+        setTagVal($f.find('[name=produk]'), b.attr('data-produk'));
+        $f.find('[name=amount]').val(b.attr('data-amount'));
+        $f.find('[name=keterangan]').val(b.attr('data-keterangan'));
+        $f.find('[name=ref]').val(b.attr('data-ref'));
+        $f.find('[name=catatan]').val(b.attr('data-catatan'));
+        var modalEl = document.getElementById('editEntryModal');
+        (bootstrap.Modal.getOrCreateInstance ? bootstrap.Modal.getOrCreateInstance(modalEl) : new bootstrap.Modal(modalEl)).show();
+    });
+});
+</script>
 @endpush
