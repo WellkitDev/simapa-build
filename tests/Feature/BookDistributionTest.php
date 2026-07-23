@@ -119,4 +119,19 @@ class BookDistributionTest extends TestCase
         $book = $this->bookWithChapters();
         $this->actingAs($this->user('marketing'))->get(route('distribusi.buku.index'))->assertStatus(403);
     }
+
+    /** @test */
+    public function index_shows_book_type_mandiri_and_kolaborasi(): void
+    {
+        $mandiri = Title::create(['title' => 'Buku Mandiri X', 'jenis' => 'buku', 'tipe_naskah' => 'mandiri', 'status' => 'disetujui']);
+        OrderDetail::factory()->create(['type' => 'bk_mandiri', 'title_id' => $mandiri->id, 'title' => $mandiri->title]);
+        $kolab = Title::create(['title' => 'Buku Kolab Y', 'jenis' => 'buku', 'tipe_naskah' => 'kolaborasi', 'status' => 'disetujui']);
+        OrderDetail::factory()->create(['type' => 'bk_kolab', 'title_id' => $kolab->id, 'title' => $kolab->title]);
+
+        $this->actingAs($this->user('production'))
+            ->get(route('distribusi.buku.index'))
+            ->assertOk()
+            ->assertSee('Mandiri')
+            ->assertSee('Kolaborasi');
+    }
 }

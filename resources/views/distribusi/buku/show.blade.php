@@ -3,7 +3,9 @@
 @section('content')
 <div class="card mb-3"><div class="card-body">
     <h3 class="mb-1">{{ $title->title }}</h3>
+    <span class="badge bg-dark">{{ $title->code ?? '—' }}</span>
     <span class="badge bg-info">Buku</span>
+    <span class="badge bg-light text-dark">{{ ucfirst($title->tipe_naskah) }}</span>
     <span class="badge bg-secondary">{{ $title->manuscriptStatusLabel() ?? '—' }}</span>
 </div></div>
 

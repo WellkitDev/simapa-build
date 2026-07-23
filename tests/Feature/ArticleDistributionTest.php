@@ -104,4 +104,17 @@ class ArticleDistributionTest extends TestCase
         $this->actingAs($this->user('marketing'))
             ->get(route('distribusi.artikel.index'))->assertStatus(403);
     }
+
+    /** @test */
+    public function index_shows_indeksasi(): void
+    {
+        $title = Title::create(['title' => 'Artikel Indeks', 'jenis' => 'artikel', 'tipe_naskah' => 'mandiri', 'indeksasi' => 'Scopus Q2', 'status' => 'disetujui']);
+        $detail = OrderDetail::factory()->create(['type' => 'at_mandiri', 'title_id' => $title->id, 'title' => $title->title]);
+        TitleProgress::create(['order_detail_id' => $detail->id, 'status' => 'templating', 'assigned_role' => 'production', 'started_at' => now()]);
+
+        $this->actingAs($this->user('production'))
+            ->get(route('distribusi.artikel.index'))
+            ->assertOk()
+            ->assertSee('Scopus Q2');
+    }
 }
