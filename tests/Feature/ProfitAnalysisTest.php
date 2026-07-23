@@ -182,6 +182,92 @@ class ProfitAnalysisTest extends TestCase
         $this->assertSame(500_000.0, $h['totalIn'], 'Uangnya tetap diakui masuk, hanya tak dibagi.');
     }
 
+    private function manualIncome(int $amount, ?string $produk, string $tgl = '2026-06-12', ?int $catId = null): \App\Models\CashEntry
+    {
+        return \App\Models\CashEntry::create([
+            'tanggal' => $tgl, 'jenis' => 'pemasukan', 'amount' => $amount,
+            'keterangan' => 'Manual ' . ($produk ?? 'x'), 'produk' => $produk,
+            'cash_category_id' => $catId, 'source' => 'manual', 'is_transfer' => false,
+        ]);
+    }
+
+    /** @test */
+    public function manual_income_buku_splits_by_book_margin(): void
+    {
+        $this->manualIncome(1_000_000, 'buku');
+
+        $h = $this->juni();
+
+        $this->assertSame(1_000_000.0, $h['totalIn']);
+        $this->assertSame(870_000.0, $h['totalMargin'], '87% x 1jt.');
+        $this->assertSame(130_000.0, $h['totalReserve']);
+    }
+
+    /** @test */
+    public function manual_income_artikel_uses_lowest_25_percent(): void
+    {
+        $this->manualIncome(1_000_000, 'artikel');
+
+        $h = $this->juni();
+
+        $this->assertSame(250_000.0, $h['totalMargin'], '25% (S2 terendah) x 1jt.');
+        $this->assertSame(750_000.0, $h['totalReserve']);
+    }
+
+    /** @test */
+    public function manual_income_non_product_is_fully_distributable(): void
+    {
+        $this->manualIncome(1_000_000, 'operasional');
+        $this->manualIncome(500_000, null);
+        $this->manualIncome(300_000, 'jasa editing'); // produk kustom
+
+        $h = $this->juni();
+
+        $this->assertSame(1_800_000.0, $h['totalIn']);
+        $this->assertSame(1_800_000.0, $h['totalMargin'], 'Semua 100% siap dibagi.');
+        $this->assertSame(0.0, $h['totalReserve']);
+    }
+
+    /** @test */
+    public function manual_and_payment_income_combine_without_double_count(): void
+    {
+        // Payment otomatis: at_kolab sinta2 1,5jt -> margin 375rb.
+        $this->pay($this->order('at_kolab', 'sinta 2'), 1_500_000);
+        // Manual buku 1jt -> margin 870rb.
+        $this->manualIncome(1_000_000, 'buku');
+
+        $h = $this->juni();
+
+        $this->assertSame(2_500_000.0, $h['totalIn'], '1,5jt + 1jt, tanpa dobel.');
+        $this->assertSame(1_245_000.0, $h['totalMargin'], '375rb + 870rb.');
+    }
+
+    /** @test */
+    public function transfers_and_manual_expenses_are_excluded_from_profit(): void
+    {
+        // Pengeluaran manual - bukan pemasukan.
+        \App\Models\CashEntry::create(['tanggal' => '2026-06-12', 'jenis' => 'pengeluaran', 'amount' => 999_000, 'keterangan' => 'Biaya', 'source' => 'manual', 'is_transfer' => false]);
+        // Sisi masuk sebuah transfer - internal, bukan pemasukan riil.
+        \App\Models\CashEntry::create(['tanggal' => '2026-06-12', 'jenis' => 'pemasukan', 'amount' => 999_000, 'keterangan' => 'Transfer masuk', 'source' => 'manual', 'is_transfer' => true]);
+
+        $h = $this->juni();
+
+        $this->assertSame(0.0, $h['totalIn']);
+        $this->assertSame(0.0, $h['totalMargin']);
+    }
+
+    /** @test */
+    public function yearly_includes_manual_income(): void
+    {
+        $this->manualIncome(1_000_000, 'buku', '2026-05-12'); // Mei
+        $this->manualIncome(1_000_000, 'buku', '2026-06-12'); // Juni
+
+        $tahun = app(ProfitAnalysisService::class)->yearly(2026);
+
+        $this->assertSame(870_000.0, $tahun[4]['totalMargin'], 'Mei (index 4).');
+        $this->assertSame(870_000.0, $tahun[5]['totalMargin'], 'Juni (index 5).');
+    }
+
     /** @test */
     public function other_months_are_not_mixed(): void
     {

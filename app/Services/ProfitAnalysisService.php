@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\CashEntry;
 use App\Models\CashMargin;
 use App\Models\OrderDetail;
 use App\Models\Payment;
@@ -65,6 +66,46 @@ class ProfitAnalysisService
     }
 
     /**
+     * Margin untuk pemasukan MANUAL (tanpa order). Produk menentukan:
+     * buku -> M_BK_ALL; artikel -> S2 terendah (tak ada indeksasi); selain itu -> 100% siap dibagi.
+     * Kategori dgn map_key dipakai bila produk kosong.
+     *
+     * @return array{code:?string,pct:float,unknownTier:bool,marginMissing:bool}
+     */
+    public function marginForManual(CashEntry $e): array
+    {
+        $produk = strtolower(trim((string) $e->produk));
+        $mapKey = optional($e->category)->map_key;
+
+        $code = null;
+        if ($produk === 'buku') {
+            $code = 'M_BK_ALL';
+        } elseif ($produk === 'artikel') {
+            $code = $mapKey === 'at_mandiri' ? 'M_ART_S2' : 'M_KOL_S2';
+        } elseif (in_array($mapKey, ['bk_kolab', 'bk_mandiri'], true)) {
+            $code = 'M_BK_ALL';
+        } elseif ($mapKey === 'at_mandiri') {
+            $code = 'M_ART_S2';
+        } elseif ($mapKey === 'at_kolab') {
+            $code = 'M_KOL_S2';
+        }
+
+        if ($code === null) {
+            // Non-artikel/buku -> seluruhnya siap dibagi, tanpa cadangan APC.
+            return ['code' => null, 'pct' => 100.0, 'unknownTier' => false, 'marginMissing' => false];
+        }
+
+        $margin = CashMargin::where('code', $code)->where('active', true)->first();
+
+        return [
+            'code'          => $code,
+            'pct'           => (float) ($margin->margin_pct ?? 0),
+            'unknownTier'   => false,
+            'marginMissing' => $margin === null,
+        ];
+    }
+
+    /**
      * @return array{rows:array,totalIn:float,totalReserve:float,totalMargin:float,unknownTier:int,noOrder:int}
      */
     public function forMonth(int $year, int $month): array
@@ -111,6 +152,41 @@ class ProfitAnalysisService
                 'margin'        => $marg,
                 'unknownTier'   => $m['unknownTier'],
                 'marginMissing' => $m['marginMissing'],
+                'manual'        => false,
+            ];
+        }
+
+        $manual = CashEntry::where('jenis', 'pemasukan')
+            ->where('source', '!=', 'payment')
+            ->where('is_transfer', false)
+            ->whereYear('tanggal', $year)->whereMonth('tanggal', $month)
+            ->with('category')
+            ->orderBy('tanggal')->orderBy('id')->get();
+
+        foreach ($manual as $e) {
+            $m    = $this->marginForManual($e);
+            $base = (float) $e->amount;
+            $marg = round($base * $m['pct'] / 100, 2);
+            $res  = $base - $marg;
+
+            $totalIn      += $base;
+            $totalMargin  += $marg;
+            $totalReserve += $res;
+
+            $rows[] = [
+                'tanggal'       => optional($e->tanggal)->format('d/m/y'),
+                'code_order'    => null,
+                'judul'         => $e->keterangan,
+                'type'          => $e->produk ?: '(manual)',
+                'indexation'    => null,
+                'marginCode'    => $m['code'],
+                'pct'           => $m['pct'],
+                'base'          => $base,
+                'reserve'       => $res,
+                'margin'        => $marg,
+                'unknownTier'   => false,
+                'marginMissing' => $m['marginMissing'],
+                'manual'        => true,
             ];
         }
 
