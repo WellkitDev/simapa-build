@@ -223,7 +223,7 @@
                         </td>
                         <td>{{ $e->account?->name ?? '—' }}</td>
                         <td>{{ $e->category?->name ?? '—' }}</td>
-                        <td>{{ \App\Models\CashEntry::PRODUK[$e->produk] ?? '—' }}</td>
+                        <td>{{ $e->produkLabel() }}</td>
                         <td class="text-end">{{ $e->isPemasukan() ? $rp($e->amount) : '' }}</td>
                         <td class="text-end">{{ ! $e->isPemasukan() ? $rp($e->amount) : '' }}</td>
                         <td class="text-end">{{ $rp($e->saldo ?? 0) }}</td>

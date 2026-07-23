@@ -71,7 +71,7 @@ class CashEntryController extends Controller
                     $e->keterangan,
                     $e->account?->name ?? '',
                     $e->category?->name ?? '',
-                    \App\Models\CashEntry::PRODUK[$e->produk] ?? '',
+                    \App\Models\CashEntry::PRODUK[$e->produk] ?? ($e->produk ?: ''),
                     $e->isPemasukan() ? (int) $e->amount : '',
                     ! $e->isPemasukan() ? (int) $e->amount : '',
                     (int) ($e->saldo ?? 0),

@@ -16,6 +16,12 @@ class CashEntry extends Model
 
     public function isPemasukan(): bool { return $this->jenis === 'pemasukan'; }
 
+    /** Label produk: dari konstanta bila baku, else teksnya sendiri (produk kustom), else '—'. */
+    public function produkLabel(): string
+    {
+        return self::PRODUK[$this->produk] ?? ($this->produk ? ucfirst($this->produk) : '—');
+    }
+
     public function category() { return $this->belongsTo(CashCategory::class, 'cash_category_id'); }
 
     public function creator() { return $this->belongsTo(User::class, 'created_by'); }
