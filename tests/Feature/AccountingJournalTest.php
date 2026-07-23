@@ -104,4 +104,36 @@ class AccountingJournalTest extends TestCase
 
         $this->assertSame('50000000.00', $acc->fresh()->opening_balance);
     }
+
+    /** @test */
+    public function store_creates_new_category_inline_from_name(): void
+    {
+        $this->actingAs($this->user('accounting'))->post(route('accounting.entry.store'), [
+            'tanggal' => '2026-06-05', 'jenis' => 'pemasukan',
+            'cash_category_id' => 'Konsultasi', // nama baru, bukan id
+            'amount' => 400000, 'produk' => 'jasa editing', 'keterangan' => 'Fee konsultasi',
+        ])->assertRedirect();
+
+        $cat = CashCategory::where('name', 'Konsultasi')->where('jenis', 'pemasukan')->first();
+        $this->assertNotNull($cat, 'Kategori baru dibuat inline.');
+
+        $e = CashEntry::where('keterangan', 'Fee konsultasi')->first();
+        $this->assertSame($cat->id, $e->cash_category_id);
+        $this->assertSame('jasa editing', $e->produk, 'Produk kustom tersimpan apa adanya.');
+    }
+
+    /** @test */
+    public function store_reuses_existing_category_when_id_given(): void
+    {
+        $cat = CashCategory::where('jenis', 'pemasukan')->first();
+        $before = CashCategory::count();
+
+        $this->actingAs($this->user('accounting'))->post(route('accounting.entry.store'), [
+            'tanggal' => '2026-06-05', 'jenis' => 'pemasukan',
+            'cash_category_id' => (string) $cat->id, 'amount' => 100000, 'keterangan' => 'Pakai kategori ada',
+        ])->assertRedirect();
+
+        $this->assertSame($before, CashCategory::count(), 'Tak membuat kategori baru untuk id yang ada.');
+        $this->assertSame($cat->id, CashEntry::where('keterangan', 'Pakai kategori ada')->first()->cash_category_id);
+    }
 }

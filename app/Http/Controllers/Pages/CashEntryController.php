@@ -98,19 +98,37 @@ class CashEntryController extends Controller
         return $request->validate([
             'tanggal'          => 'required|date',
             'jenis'            => 'required|in:pemasukan,pengeluaran',
-            'cash_category_id' => 'nullable|exists:tb_cash_categories,id',
+            'cash_category_id' => 'nullable|max:100',
             'account_id'       => 'nullable|exists:tb_cash_accounts,id',
             'amount'           => 'required|numeric|min:0',
-            'produk'           => 'nullable|in:artikel,buku,operasional',
+            'produk'           => 'nullable|string|max:50',
             'keterangan'       => 'required|string|max:255',
             'ref'              => 'nullable|string|max:100',
             'catatan'          => 'nullable|string',
         ]);
     }
 
+    /** id kategori: numerik & ada -> id; string nama -> firstOrCreate (nama+jenis); kosong -> null. */
+    private function resolveCategoryId($raw, string $jenis): ?int
+    {
+        $raw = is_string($raw) ? trim($raw) : $raw;
+        if ($raw === null || $raw === '') {
+            return null;
+        }
+        if (is_numeric($raw) && ($cat = CashCategory::find((int) $raw))) {
+            return $cat->id;
+        }
+
+        return CashCategory::firstOrCreate(
+            ['name' => (string) $raw, 'jenis' => $jenis],
+            ['active' => true, 'position' => (int) CashCategory::where('jenis', $jenis)->max('position') + 1]
+        )->id;
+    }
+
     public function store(Request $request)
     {
         $data = $this->validated($request);
+        $data['cash_category_id'] = $this->resolveCategoryId($data['cash_category_id'] ?? null, $data['jenis']);
         app(CashPeriodService::class)->assertUnlocked($data['tanggal']);
         $data['account_id'] = $data['account_id'] ?? optional(CashAccount::incomeDefault())->id;
         $data['kode']       = $this->service->deriveKode(Carbon::parse($data['tanggal']));
@@ -159,6 +177,7 @@ class CashEntryController extends Controller
             throw CashEntryGuardException::autoEntry();
         }
         $data = $this->validated($request);
+        $data['cash_category_id'] = $this->resolveCategoryId($data['cash_category_id'] ?? null, $data['jenis']);
         $periode = app(CashPeriodService::class);
         $periode->assertUnlocked($entry->tanggal);   // tanggal LAMA
         $periode->assertUnlocked($data['tanggal']);  // tanggal BARU
