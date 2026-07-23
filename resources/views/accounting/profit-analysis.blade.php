@@ -76,7 +76,7 @@
     <h6 class="mb-1">Rincian per Pembayaran</h6>
     <p class="text-muted small mb-3">
         Angka ini berbasis <strong>margin asumsi</strong> (<a href="{{ route('accounting.assumption') }}">Asumsi &rarr; Margin per Produk</a>), bukan biaya APC yang sesungguhnya —
-        sistem belum bisa menautkan pengeluaran ke order tertentu. Pemasukan non-order tidak dihitung karena tak punya margin.
+        sistem belum bisa menautkan pengeluaran ke order tertentu. <strong>Pemasukan manual</strong> di Jurnal Kas ikut dihitung: produk Artikel/Buku dibagi sesuai margin, selain itu 100% siap dibagi.
     </p>
     <div class="table-responsive">
         <table class="table table-sm table-hover datatable dt-responsive nowrap" style="width:100%">
@@ -85,7 +85,10 @@
                 @foreach($rows as $r)
                     <tr>
                         <td>{{ $r['tanggal'] }}</td>
-                        <td>{{ $r['code_order'] ?? '—' }}</td>
+                        <td>
+                            {{ $r['code_order'] ?? '—' }}
+                            @if($r['manual'] ?? false)<span class="badge bg-secondary" title="Pemasukan input manual di Jurnal Kas">manual</span>@endif
+                        </td>
                         <td class="dt-judul">{{ $r['judul'] }}</td>
                         <td>{{ $r['type'] }}</td>
                         <td>
