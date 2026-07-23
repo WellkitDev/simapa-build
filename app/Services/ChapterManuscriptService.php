@@ -75,7 +75,6 @@ class ChapterManuscriptService
                 'note'         => $note,
                 'updated_by'   => $actor->id,
                 'started_at'   => now(),
-                'needs_review' => $isCorrection && ! $actor->hasRole('superadmin'),
                 'last_log_at'  => now(),
             ]);
             $this->log($cp, $current, $target, $actor, $note, $isCorrection);

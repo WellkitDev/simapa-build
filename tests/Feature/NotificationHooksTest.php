@@ -67,14 +67,17 @@ class NotificationHooksTest extends TestCase
     /** @test */
     public function advancing_naskah_notifies_owner(): void
     {
+        // Perpindahan tahap kini lewat Distribusi Artikel; changeGroupStatus tetap
+        // memberi tahu marketing pemilik order (naskahStageChanged).
         $owner = $this->user('marketing');
         $manager = $this->user('manager');
+        $title = \App\Models\Title::create(['title' => 'Naskah Z', 'jenis' => 'artikel', 'tipe_naskah' => 'mandiri', 'status' => 'disetujui']);
         $order = Order::factory()->create(['user_id' => $owner->id]);
-        $detail = OrderDetail::factory()->create(['order_id' => $order->id, 'type' => 'bk_mandiri', 'title' => 'Naskah Z']);
-        $progress = TitleProgress::create(['order_detail_id' => $detail->id, 'status' => 'menunggu_proses', 'assigned_role' => 'marketing', 'started_at' => now()]);
+        $detail = OrderDetail::factory()->create(['order_id' => $order->id, 'type' => 'at_mandiri', 'title' => 'Naskah Z', 'title_id' => $title->id]);
+        TitleProgress::create(['order_detail_id' => $detail->id, 'status' => 'menunggu_proses', 'assigned_role' => 'marketing', 'started_at' => now()]);
 
         Notification::fake();
-        $this->actingAs($manager)->post(route('title.progress.update', $progress->id), ['status' => 'editing']);
+        $this->actingAs($manager)->post(route('distribusi.artikel.tahap', $title->id), ['status' => 'templating']);
 
         Notification::assertSentTo($owner, DatabaseNotification::class);
     }

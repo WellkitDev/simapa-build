@@ -12,7 +12,6 @@ use App\Http\Controllers\Pages\PaymentBookController;
 use App\Http\Controllers\Pages\OrderJournalController;
 use App\Http\Controllers\Pages\TitleProgressController;
 use App\Http\Controllers\Pages\ManuscriptTrackerController;
-use App\Http\Controllers\Pages\ChapterProgressController;
 use App\Http\Controllers\Pages\InvoiceController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Pages\MarketingTargetController;
@@ -88,8 +87,6 @@ Route::middleware(['auth', 'access'])->group(function () {
     });
 
     Route::prefix('management')->group(function () {
-        Route::post('title/{id}/update-status', [TitleProgressController::class, 'update'])
-            ->name('title.progress.update');
         Route::get('title/{id}/logs', [TitleProgressController::class, 'logs'])
             ->name('title.progress.logs');
     });
@@ -97,22 +94,6 @@ Route::middleware(['auth', 'access'])->group(function () {
     Route::prefix('management')->group(function () {
         Route::get('manuscript', [ManuscriptTrackerController::class, 'index'])
             ->name('manuscript.board');
-        Route::post('manuscript/{id}/move', [ManuscriptTrackerController::class, 'move'])
-            ->name('manuscript.move');
-        Route::post('manuscript/{id}/assign', [ManuscriptTrackerController::class, 'assign'])
-            ->name('manuscript.assign');
-        Route::post('manuscript/{id}/priority', [ManuscriptTrackerController::class, 'priority'])
-            ->name('manuscript.priority');
-        Route::post('manuscript/{id}/reviewed', [ManuscriptTrackerController::class, 'reviewed'])
-            ->name('manuscript.reviewed');
-        Route::post('manuscript/{id}/target', [ManuscriptTrackerController::class, 'target'])
-            ->name('manuscript.target');
-        Route::post('manuscript/{id}/clear-log', [ManuscriptTrackerController::class, 'clearLog'])
-            ->name('manuscript.clearLog');
-        Route::post('manuscript/chapter/{id}/advance', [ChapterProgressController::class, 'advance'])
-            ->name('chapter.advance')->whereNumber('id');
-        Route::post('manuscript/chapter/{id}/assign', [ChapterProgressController::class, 'assign'])
-            ->name('chapter.assign')->whereNumber('id');
     });
 
     Route::prefix('management/distribusi')->name('distribusi.')->group(function () {

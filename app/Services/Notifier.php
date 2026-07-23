@@ -229,10 +229,22 @@ class Notifier
         return number_format((int) $amount, 0, ',', '.');
     }
 
-    /** Users dengan salah satu role, kecuali aktor. */
+    /**
+     * Users dengan salah satu role, kecuali aktor.
+     * Saring dulu ke role yang benar-benar ada — `User::role()` (Spatie) melempar
+     * RoleDoesNotExist bila salah satu nama role tak terdaftar, yang seharusnya tak
+     * menjatuhkan alur (mis. perubahan tahap) hanya karena satu role belum dibuat.
+     */
     private function roleUsers(array $roles, User $actor): Collection
     {
-        return User::role($roles)->get()->reject(fn (User $u) => $u->id === $actor->id)->values();
+        $existing = \Spatie\Permission\Models\Role::whereIn('name', $roles)
+            ->where('guard_name', 'web')->pluck('name')->all();
+
+        if (empty($existing)) {
+            return collect();
+        }
+
+        return User::role($existing)->get()->reject(fn (User $u) => $u->id === $actor->id)->values();
     }
 
     private function toOwner(?User $owner, User $actor, array $payload): void

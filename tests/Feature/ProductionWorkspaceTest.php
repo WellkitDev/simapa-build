@@ -73,11 +73,14 @@ class ProductionWorkspaceTest extends TestCase
     /** @test */
     public function ambil_self_assigns_unclaimed_naskah(): void
     {
+        // Penugasan editor kini lewat Distribusi Artikel (papan Pelacakan read-only).
         $me = $this->user('production');
-        $p  = $this->progress(['assigned_user_id' => null, 'status' => 'editing']);
+        $title = \App\Models\Title::create(['title' => 'Ambil Ku', 'jenis' => 'artikel', 'tipe_naskah' => 'mandiri', 'status' => 'disetujui']);
+        $detail = OrderDetail::factory()->create(['type' => 'at_mandiri', 'title' => 'Ambil Ku', 'title_id' => $title->id]);
+        $p = TitleProgress::create(['order_detail_id' => $detail->id, 'status' => 'editing', 'assigned_role' => 'production', 'started_at' => now()]);
 
         $this->actingAs($me);
-        $this->post(route('manuscript.assign', $p->id), ['assigned_user_id' => $me->id])
+        $this->post(route('distribusi.artikel.editor', $title->id), ['assigned_user_id' => $me->id])
             ->assertRedirect();
 
         $this->assertDatabaseHas('tb_title_progress', ['id' => $p->id, 'assigned_user_id' => $me->id]);

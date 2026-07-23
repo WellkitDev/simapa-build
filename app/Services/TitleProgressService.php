@@ -56,9 +56,6 @@ class TitleProgressService
             'note'          => $note,
             'updated_by'    => $actor->id,
             'started_at'    => now(),
-            // Koreksi/lompat oleh non-superadmin ditandai untuk ditinjau; aksi superadmin
-            // atau langkah maju biasa membersihkan tanda.
-            'needs_review'  => $isCorrection && ! $actor->hasRole('superadmin'),
         ]);
 
         $this->log(
@@ -275,6 +272,9 @@ class TitleProgressService
         foreach ($changed as [$p, $from]) {
             app(Notifier::class)->naskahStageChanged($p, $actor, $from, $target);
         }
+        if (! empty($changed)) {
+            app(Notifier::class)->distribusiChanged($changed[0][0], $actor, 'Tahap naskah diperbarui');
+        }
     }
 
     public function assignGroup(iterable $progresses, ?int $userId, User $actor): void
@@ -300,23 +300,6 @@ class TitleProgressService
         DB::transaction(function () use ($progresses, $date, $actor) {
             foreach (collect($progresses) as $p) {
                 $this->setTargetDate($p, $date, $actor);
-            }
-        });
-    }
-
-    /** Superadmin/manager menandai lompatan sudah ditinjau (bersihkan flag pada seluruh grup). */
-    public function markReviewed(iterable $progresses, User $actor): void
-    {
-        if (! $actor->hasAnyRole(['manager', 'superadmin'])) {
-            throw new AuthorizationException();
-        }
-
-        DB::transaction(function () use ($progresses, $actor) {
-            foreach (collect($progresses) as $p) {
-                if ($p->needs_review) {
-                    $p->update(['needs_review' => false]);
-                    $this->log($p, 'reviewed', null, null, $actor);
-                }
             }
         });
     }

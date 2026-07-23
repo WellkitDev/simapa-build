@@ -59,15 +59,18 @@ class ManuscriptFinalizeTest extends TestCase
     /** @test */
     public function manager_cannot_change_final_article_but_superadmin_can(): void
     {
+        // Perpindahan tahap kini lewat Distribusi Artikel (papan Pelacakan read-only).
+        // Aksi terlarang = redirect + flash error (bukan 403 mentah), sesuai run() controller.
         $tp = $this->articleAt('publish');
         $this->actingAs($this->user('manager'))
-            ->postJson(route('manuscript.move', $tp->id), ['status' => 'loa', 'note' => 'koreksi'])
-            ->assertStatus(403);
+            ->post(route('distribusi.artikel.tahap', $tp->orderDetail->title_id), ['status' => 'loa', 'note' => 'koreksi'])
+            ->assertRedirect()->assertSessionHas('error');
+        $this->assertSame('publish', $tp->fresh()->status);
 
         $tp2 = $this->articleAt('publish');
         $this->actingAs($this->user('superadmin'))
-            ->postJson(route('manuscript.move', $tp2->id), ['status' => 'loa', 'note' => 'koreksi'])
-            ->assertOk();
+            ->post(route('distribusi.artikel.tahap', $tp2->orderDetail->title_id), ['status' => 'loa', 'note' => 'koreksi'])
+            ->assertRedirect();
         $this->assertSame('loa', $tp2->fresh()->status);
     }
 
@@ -77,15 +80,15 @@ class ManuscriptFinalizeTest extends TestCase
         foreach (['production', 'manager'] as $role) {
             $cp = $this->bookChapterAt('terbit');
             $this->actingAs($this->user($role))
-                ->postJson(route('chapter.advance', $cp->id), ['status' => 'cetak', 'note' => 'koreksi'])
-                ->assertStatus(403);
+                ->post(route('distribusi.buku.chapter.tahap', $cp->id), ['status' => 'cetak', 'note' => 'koreksi'])
+                ->assertRedirect()->assertSessionHas('error');
             $this->assertSame('terbit', $cp->fresh()->status);
         }
 
         $cp = $this->bookChapterAt('terbit');
         $this->actingAs($this->user('superadmin'))
-            ->postJson(route('chapter.advance', $cp->id), ['status' => 'cetak', 'note' => 'koreksi'])
-            ->assertOk();
+            ->post(route('distribusi.buku.chapter.tahap', $cp->id), ['status' => 'cetak', 'note' => 'koreksi'])
+            ->assertRedirect();
         $this->assertSame('cetak', $cp->fresh()->status);
     }
 
@@ -108,15 +111,6 @@ class ManuscriptFinalizeTest extends TestCase
             ->assertOk()->assertSee($editing->orderDetail->title);
     }
 
-    /** @test */
-    public function final_article_card_is_not_draggable_for_manager_only(): void
-    {
-        $this->articleAt('publish'); // started_at now → tetap di papan
-
-        $this->actingAs($this->user('manager'))->get(route('manuscript.board', ['tipe' => 'artikel']))
-            ->assertOk()->assertSee('data-final-locked', false);
-
-        $this->actingAs($this->user('superadmin'))->get(route('manuscript.board', ['tipe' => 'artikel']))
-            ->assertOk()->assertDontSee('data-final-locked', false);
-    }
+    // Dihapus: papan Pelacakan kini READ-ONLY (tak ada drag / data-final-locked).
+    // Keterbacaan read-only papan diuji di ManuscriptTrackerTest::board_is_read_only_no_action_forms.
 }

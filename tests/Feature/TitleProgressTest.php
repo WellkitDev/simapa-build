@@ -31,13 +31,17 @@ class TitleProgressTest extends TestCase
         $this->marketing->assignRole('marketing');
     }
 
+    // Perpindahan tahap kini lewat Distribusi Artikel (route distribusi.artikel.tahap,
+    // dikunci per title_id). Papan Pelacakan read-only; route title.progress.update dihapus.
+
     /** @test */
     public function manager_can_advance_status_to_next_stage(): void
     {
         $manager = User::factory()->create();
         $manager->assignRole('manager');
 
-        $detail = \App\Models\OrderDetail::factory()->create(['type' => 'bk_mandiri']);
+        $title = \App\Models\Title::create(['title' => 'Artikel Advance', 'jenis' => 'artikel', 'tipe_naskah' => 'mandiri', 'status' => 'disetujui']);
+        $detail = \App\Models\OrderDetail::factory()->create(['type' => 'at_mandiri', 'title_id' => $title->id, 'title' => 'Artikel Advance']);
         $progress = TitleProgress::create([
             'order_detail_id' => $detail->id,
             'status'          => 'menunggu_proses',
@@ -48,32 +52,30 @@ class TitleProgressTest extends TestCase
 
         $this->actingAs($manager);
 
-        $this->post(route('title.progress.update', $progress->id), [
-            'status' => 'editing',
+        $this->post(route('distribusi.artikel.tahap', $title->id), [
+            'status' => 'templating',
             'note'   => '',
         ])->assertRedirect();
 
-        $this->assertDatabaseHas('tb_title_progress', [
-            'id'     => $progress->id,
-            'status' => 'editing',
-        ]);
+        $this->assertDatabaseHas('tb_title_progress', ['id' => $progress->id, 'status' => 'templating']);
 
         $this->assertDatabaseHas('tb_title_progress_logs', [
             'title_progress_id' => $progress->id,
             'event'             => 'status_advanced',
             'from_value'        => 'Menunggu Proses',
-            'to_value'          => 'Editing',
+            'to_value'          => 'Templating',
             'is_correction'     => false,
         ]);
     }
 
     /** @test */
-    public function manager_jump_requires_note_then_succeeds_and_flags_review(): void
+    public function manager_jump_requires_note_then_succeeds(): void
     {
         $manager = User::factory()->create();
         $manager->assignRole('manager');
 
-        $detail = \App\Models\OrderDetail::factory()->create(['type' => 'bk_mandiri']);
+        $title = \App\Models\Title::create(['title' => 'Artikel Lompat', 'jenis' => 'artikel', 'tipe_naskah' => 'mandiri', 'status' => 'disetujui']);
+        $detail = \App\Models\OrderDetail::factory()->create(['type' => 'at_mandiri', 'title_id' => $title->id, 'title' => 'Artikel Lompat']);
         $progress = TitleProgress::create([
             'order_detail_id' => $detail->id,
             'status'          => 'menunggu_proses',
@@ -84,17 +86,16 @@ class TitleProgressTest extends TestCase
 
         $this->actingAs($manager);
 
-        // Lompat tanpa catatan → ditolak, status tak berubah.
-        $this->post(route('title.progress.update', $progress->id), ['status' => 'terbit', 'note' => ''])
-            ->assertSessionHasErrors('note');
+        // Lompat tanpa catatan → ditolak (redirect + error), status tak berubah.
+        $this->post(route('distribusi.artikel.tahap', $title->id), ['status' => 'publish', 'note' => ''])
+            ->assertRedirect()->assertSessionHas('error');
         $this->assertDatabaseHas('tb_title_progress', ['id' => $progress->id, 'status' => 'menunggu_proses']);
 
-        // Lompat dengan catatan → berhasil, ditandai perlu ditinjau.
-        $this->post(route('title.progress.update', $progress->id), ['status' => 'terbit', 'note' => 'lompat dengan alasan'])
+        // Lompat dengan catatan → berhasil. needs_review dipensiunkan; koreksi cukup tercatat di log.
+        $this->post(route('distribusi.artikel.tahap', $title->id), ['status' => 'publish', 'note' => 'lompat dengan alasan'])
             ->assertRedirect();
-        $this->assertDatabaseHas('tb_title_progress', [
-            'id' => $progress->id, 'status' => 'terbit', 'needs_review' => true,
-        ]);
+        $this->assertDatabaseHas('tb_title_progress', ['id' => $progress->id, 'status' => 'publish']);
+        $this->assertDatabaseHas('tb_title_progress_logs', ['title_progress_id' => $progress->id, 'is_correction' => true]);
     }
 
     /** @test */
@@ -103,25 +104,26 @@ class TitleProgressTest extends TestCase
         $superadmin = User::factory()->create();
         $superadmin->assignRole('superadmin');
 
-        $detail = \App\Models\OrderDetail::factory()->create(['type' => 'bk_mandiri']);
+        $title = \App\Models\Title::create(['title' => 'Artikel Koreksi', 'jenis' => 'artikel', 'tipe_naskah' => 'mandiri', 'status' => 'disetujui']);
+        $detail = \App\Models\OrderDetail::factory()->create(['type' => 'at_mandiri', 'title_id' => $title->id, 'title' => 'Artikel Koreksi']);
         $progress = TitleProgress::create([
             'order_detail_id' => $detail->id,
-            'status'          => 'isbn',
-            'assigned_role'   => 'manager',
+            'status'          => 'submit',
+            'assigned_role'   => 'production',
             'updated_by'      => $superadmin->id,
             'started_at'      => now(),
         ]);
 
         $this->actingAs($superadmin);
 
-        $this->post(route('title.progress.update', $progress->id), [
-            'status' => 'editing',
+        $this->post(route('distribusi.artikel.tahap', $title->id), [
+            'status' => 'templating',
             'note'   => 'Koreksi karena ada revisi mendasar',
         ])->assertRedirect();
 
         $this->assertDatabaseHas('tb_title_progress_logs', [
             'event'         => 'status_corrected',
-            'to_value'      => 'Editing',
+            'to_value'      => 'Templating',
             'is_correction' => true,
         ]);
     }

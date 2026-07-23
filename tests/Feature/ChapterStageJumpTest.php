@@ -25,6 +25,7 @@ class ChapterStageJumpTest extends TestCase
         foreach (['marketing', 'manager', 'superadmin', 'production', 'admin'] as $r) {
             Role::create(['name' => $r, 'guard_name' => 'web']);
         }
+        $this->seed(\Database\Seeders\AccessMatrixSeeder::class);
     }
 
     private function user(string $role): User
@@ -52,14 +53,18 @@ class ChapterStageJumpTest extends TestCase
         $cp = $this->firstChapter();
         $cp->update(['status' => 'layout']); // maju dulu supaya bisa mundur
 
+        // Perpindahan tahap bab kini lewat Distribusi Buku (papan Pelacakan read-only).
         $this->actingAs($this->user('manager'))
-            ->postJson(route('chapter.advance', $cp->id), ['status' => 'editing', 'note' => 'perlu perbaikan'])
-            ->assertOk()->assertJson(['ok' => true, 'status' => 'editing']);
+            ->post(route('distribusi.buku.chapter.tahap', $cp->id), ['status' => 'editing', 'note' => 'perlu perbaikan'])
+            ->assertRedirect();
 
         $fresh = $cp->fresh();
         $this->assertSame('editing', $fresh->status);
         $this->assertSame('perlu perbaikan', $fresh->note);
-        $this->assertTrue((bool) $fresh->needs_review); // manager (non-superadmin) + koreksi
+        // needs_review dipensiunkan — koreksi terekam sebagai log is_correction.
+        $this->assertDatabaseHas('tb_title_progress_logs', [
+            'event' => 'chapter_status', 'is_correction' => true,
+        ]);
     }
 
     /** @test */
@@ -68,8 +73,8 @@ class ChapterStageJumpTest extends TestCase
         $cp = $this->firstChapter(); // editing; next = layout
 
         $this->actingAs($this->user('manager'))
-            ->postJson(route('chapter.advance', $cp->id), ['status' => 'terbit']) // lompat tanpa catatan
-            ->assertStatus(422);
+            ->post(route('distribusi.buku.chapter.tahap', $cp->id), ['status' => 'terbit']) // lompat tanpa catatan
+            ->assertRedirect()->assertSessionHas('error');
 
         $this->assertSame('editing', $cp->fresh()->status);
     }
@@ -81,22 +86,9 @@ class ChapterStageJumpTest extends TestCase
         $cp->update(['status' => 'cetak']); // handler 'cetak' = superadmin
 
         $this->actingAs($this->user('production'))
-            ->postJson(route('chapter.advance', $cp->id), ['status' => 'isbn', 'note' => 'mundur'])
-            ->assertStatus(403);
+            ->post(route('distribusi.buku.chapter.tahap', $cp->id), ['status' => 'isbn', 'note' => 'mundur'])
+            ->assertRedirect()->assertSessionHas('error');
 
         $this->assertSame('cetak', $cp->fresh()->status);
-    }
-
-    /** @test */
-    public function board_renders_ubah_control_for_book_chapter(): void
-    {
-        $owner = $this->user('production');
-        $book = Title::create(['title' => 'Buku Render', 'jenis' => 'buku', 'tipe_naskah' => 'mandiri', 'status' => 'disetujui']);
-        $order = Order::create(['code_order' => 'ORD-RD-' . uniqid(), 'user_id' => $owner->id, 'status' => 'pending', 'ordered_at' => now()]);
-        $detail = OrderDetail::create(['order_id' => $order->id, 'title_id' => $book->id, 'type' => 'bk_mandiri', 'title' => 'Buku Render', 'slug' => 'buku-render', 'chapters' => 2, 'cost_amount' => 0, 'naskah_type' => 'mandiri', 'publication_type' => 'regular']);
-        app(\App\Services\TitleProgressService::class)->createForDetail($detail, $owner->id);
-
-        $this->actingAs($this->user('manager'))->get(route('manuscript.board', ['tipe' => 'buku']))
-            ->assertOk()->assertSee('data-chapter-edit', false);
     }
 }
