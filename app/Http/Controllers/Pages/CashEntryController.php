@@ -98,6 +98,7 @@ class CashEntryController extends Controller
         return $request->validate([
             'tanggal'          => 'required|date',
             'jenis'            => 'required|in:pemasukan,pengeluaran',
+            // Tanpa `string`: id numerik dari form/test bukan is_string(); resolveCategoryId() yang memilah id vs nama baru.
             'cash_category_id' => 'nullable|max:100',
             'account_id'       => 'nullable|exists:tb_cash_accounts,id',
             'amount'           => 'required|numeric|min:0',
@@ -108,15 +109,23 @@ class CashEntryController extends Controller
         ]);
     }
 
-    /** id kategori: numerik & ada -> id; string nama -> firstOrCreate (nama+jenis); kosong -> null. */
+    /**
+     * id kategori dari input entri. Numerik = referensi id kategori yang sudah
+     * ada (select2 mengirim TEKS untuk tag baru, jadi angka selalu berarti id);
+     * discope ke jenis entri, id basi/tak cocok -> null (jangan buat kategori
+     * "angka"). Teks non-numerik -> firstOrCreate (nama+jenis). Kosong -> null.
+     */
     private function resolveCategoryId($raw, string $jenis): ?int
     {
-        $raw = is_string($raw) ? trim($raw) : $raw;
-        if ($raw === null || $raw === '') {
+        if (! is_scalar($raw)) {
             return null;
         }
-        if (is_numeric($raw) && ($cat = CashCategory::find((int) $raw))) {
-            return $cat->id;
+        $raw = is_string($raw) ? trim($raw) : $raw;
+        if ($raw === '' || $raw === null) {
+            return null;
+        }
+        if (is_numeric($raw)) {
+            return optional(CashCategory::where('jenis', $jenis)->find((int) $raw))->id;
         }
 
         return CashCategory::firstOrCreate(

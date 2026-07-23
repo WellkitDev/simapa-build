@@ -136,4 +136,19 @@ class AccountingJournalTest extends TestCase
         $this->assertSame($before, CashCategory::count(), 'Tak membuat kategori baru untuk id yang ada.');
         $this->assertSame($cat->id, CashEntry::where('keterangan', 'Pakai kategori ada')->first()->cash_category_id);
     }
+
+    /** @test */
+    public function store_reuses_inline_category_on_repeat_name(): void
+    {
+        $payload = [
+            'tanggal' => '2026-06-05', 'jenis' => 'pemasukan',
+            'cash_category_id' => 'Sponsorship', 'amount' => 100000, 'keterangan' => 'x',
+        ];
+        $this->actingAs($this->user('accounting'))->post(route('accounting.entry.store'), $payload)->assertRedirect();
+        $countAfterFirst = CashCategory::where('name', 'Sponsorship')->count();
+        $this->actingAs($this->user('accounting'))->post(route('accounting.entry.store'), $payload + ['keterangan' => 'y'])->assertRedirect();
+
+        $this->assertSame(1, $countAfterFirst, 'Dibuat sekali.');
+        $this->assertSame(1, CashCategory::where('name', 'Sponsorship')->count(), 'Nama sama tak menggandakan kategori.');
+    }
 }
