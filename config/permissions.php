@@ -153,29 +153,29 @@ return [
         'manuscript' => [
             'label'   => 'Papan Manuskrip',
             'actions' => [
-                'view'      => ['manuscript.board'],
+                'view'   => ['manuscript.board'],
                 // "Lihat detail progres satu judul" — order.indexJudul.detail/.progress dan
                 // title.progress.logs SAMA-SAMA tanpa middleware role: sama sekali hari ini
                 // (terbuka utk semua role yang login), beda dgn manuscript.board yang dijaga
                 // role:production|manager|superadmin. Dipisah jadi action sendiri supaya satu
                 // permission tidak mencampur route berpenjagaan dgn route tanpa penjagaan.
-                'detail'    => ['order.indexJudul.detail', 'order.indexJudul.progress', 'title.progress.logs'],
-                // title.progress.update memakai penjaga role yang identik dengan manuscript.move
-                // (production|manager|superadmin) dan sama-sama "pindah tahap" — disatukan di sini.
-                'move'      => ['manuscript.move', 'title.progress.update'],
-                'assign'    => ['manuscript.assign'],
-                'priority'  => ['manuscript.priority'],
-                'review'    => ['manuscript.reviewed'],
-                'target'    => ['manuscript.target'],
-                'clear-log' => ['manuscript.clearLog'],
+                // (order.indexJudul.progress masih di sini sampai progressDetail dipensiunkan.)
+                'detail' => ['order.indexJudul.detail', 'order.indexJudul.progress', 'title.progress.logs'],
             ],
         ],
 
-        'chapter' => [
-            'label'   => 'Progres Bab',
+        'distribution' => [
+            'label'   => 'Distribusi Naskah',
             'actions' => [
-                'advance' => ['chapter.advance'],
-                'assign'  => ['chapter.assign'],
+                'view'     => ['distribusi.artikel.index', 'distribusi.artikel.show',
+                               'distribusi.buku.index', 'distribusi.buku.show'],
+                'assign'   => ['distribusi.artikel.editor', 'distribusi.buku.editorSemua',
+                               'distribusi.buku.chapter.editor'],
+                'move'     => ['distribusi.artikel.tahap', 'distribusi.buku.chapter.tahap'],
+                'priority' => ['distribusi.artikel.prioritas', 'distribusi.buku.prioritas'],
+                'target'   => ['distribusi.artikel.target', 'distribusi.buku.target'],
+                'upload'   => ['distribusi.artikel.file', 'distribusi.buku.file',
+                               'distribusi.buku.chapter.file'],
             ],
         ],
 

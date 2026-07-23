@@ -12,7 +12,6 @@ use App\Http\Controllers\Pages\PaymentBookController;
 use App\Http\Controllers\Pages\OrderJournalController;
 use App\Http\Controllers\Pages\TitleProgressController;
 use App\Http\Controllers\Pages\ManuscriptTrackerController;
-use App\Http\Controllers\Pages\ChapterProgressController;
 use App\Http\Controllers\Pages\InvoiceController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Pages\MarketingTargetController;
@@ -88,8 +87,6 @@ Route::middleware(['auth', 'access'])->group(function () {
     });
 
     Route::prefix('management')->group(function () {
-        Route::post('title/{id}/update-status', [TitleProgressController::class, 'update'])
-            ->name('title.progress.update');
         Route::get('title/{id}/logs', [TitleProgressController::class, 'logs'])
             ->name('title.progress.logs');
     });
@@ -97,22 +94,26 @@ Route::middleware(['auth', 'access'])->group(function () {
     Route::prefix('management')->group(function () {
         Route::get('manuscript', [ManuscriptTrackerController::class, 'index'])
             ->name('manuscript.board');
-        Route::post('manuscript/{id}/move', [ManuscriptTrackerController::class, 'move'])
-            ->name('manuscript.move');
-        Route::post('manuscript/{id}/assign', [ManuscriptTrackerController::class, 'assign'])
-            ->name('manuscript.assign');
-        Route::post('manuscript/{id}/priority', [ManuscriptTrackerController::class, 'priority'])
-            ->name('manuscript.priority');
-        Route::post('manuscript/{id}/reviewed', [ManuscriptTrackerController::class, 'reviewed'])
-            ->name('manuscript.reviewed');
-        Route::post('manuscript/{id}/target', [ManuscriptTrackerController::class, 'target'])
-            ->name('manuscript.target');
-        Route::post('manuscript/{id}/clear-log', [ManuscriptTrackerController::class, 'clearLog'])
-            ->name('manuscript.clearLog');
-        Route::post('manuscript/chapter/{id}/advance', [ChapterProgressController::class, 'advance'])
-            ->name('chapter.advance')->whereNumber('id');
-        Route::post('manuscript/chapter/{id}/assign', [ChapterProgressController::class, 'assign'])
-            ->name('chapter.assign')->whereNumber('id');
+    });
+
+    Route::prefix('management/distribusi')->name('distribusi.')->group(function () {
+        Route::get('artikel',              [\App\Http\Controllers\Pages\ArticleDistributionController::class, 'index'])->name('artikel.index');
+        Route::get('artikel/{id}',         [\App\Http\Controllers\Pages\ArticleDistributionController::class, 'show'])->name('artikel.show')->whereNumber('id');
+        Route::post('artikel/{id}/editor',    [\App\Http\Controllers\Pages\ArticleDistributionController::class, 'assignEditor'])->name('artikel.editor')->whereNumber('id');
+        Route::post('artikel/{id}/tahap',     [\App\Http\Controllers\Pages\ArticleDistributionController::class, 'moveStage'])->name('artikel.tahap')->whereNumber('id');
+        Route::post('artikel/{id}/prioritas', [\App\Http\Controllers\Pages\ArticleDistributionController::class, 'setPriority'])->name('artikel.prioritas')->whereNumber('id');
+        Route::post('artikel/{id}/target',    [\App\Http\Controllers\Pages\ArticleDistributionController::class, 'setTarget'])->name('artikel.target')->whereNumber('id');
+        Route::post('artikel/{id}/file',      [\App\Http\Controllers\Pages\ArticleDistributionController::class, 'uploadFile'])->name('artikel.file')->whereNumber('id');
+
+        Route::get('buku',                    [\App\Http\Controllers\Pages\BookDistributionController::class, 'index'])->name('buku.index');
+        Route::get('buku/{id}',               [\App\Http\Controllers\Pages\BookDistributionController::class, 'show'])->name('buku.show')->whereNumber('id');
+        Route::post('buku/{id}/editor-semua', [\App\Http\Controllers\Pages\BookDistributionController::class, 'assignEditorAll'])->name('buku.editorSemua')->whereNumber('id');
+        Route::post('buku/{id}/prioritas',    [\App\Http\Controllers\Pages\BookDistributionController::class, 'setPriority'])->name('buku.prioritas')->whereNumber('id');
+        Route::post('buku/{id}/target',       [\App\Http\Controllers\Pages\BookDistributionController::class, 'setTarget'])->name('buku.target')->whereNumber('id');
+        Route::post('buku/{id}/file',         [\App\Http\Controllers\Pages\BookDistributionController::class, 'uploadFile'])->name('buku.file')->whereNumber('id');
+        Route::post('buku/chapter/{cp}/editor', [\App\Http\Controllers\Pages\BookDistributionController::class, 'assignChapterEditor'])->name('buku.chapter.editor')->whereNumber('cp');
+        Route::post('buku/chapter/{cp}/tahap',  [\App\Http\Controllers\Pages\BookDistributionController::class, 'moveChapter'])->name('buku.chapter.tahap')->whereNumber('cp');
+        Route::post('buku/chapter/{cp}/file',   [\App\Http\Controllers\Pages\BookDistributionController::class, 'uploadChapterFile'])->name('buku.chapter.file')->whereNumber('cp');
     });
 
     Route::prefix('payments')->name('payment.')->group(function () {

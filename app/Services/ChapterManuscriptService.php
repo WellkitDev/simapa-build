@@ -75,7 +75,6 @@ class ChapterManuscriptService
                 'note'         => $note,
                 'updated_by'   => $actor->id,
                 'started_at'   => now(),
-                'needs_review' => $isCorrection && ! $actor->hasRole('superadmin'),
                 'last_log_at'  => now(),
             ]);
             $this->log($cp, $current, $target, $actor, $note, $isCorrection);
@@ -88,18 +87,28 @@ class ChapterManuscriptService
     /** Assign editor bab (production/manager). */
     public function assignEditor(ChapterProgress $cp, ?int $userId, User $actor): ChapterProgress
     {
-        if (! $actor->hasAnyRole(['production', 'manager', 'superadmin'])) {
+        if (! $actor->hasAnyRole(['production', 'manager', 'superadmin', 'admin'])) {
             throw new AuthorizationException();
         }
         if ($userId !== null) {
             $u = User::find($userId);
-            if (! $u || ! $u->hasAnyRole(['production', 'manager'])) {
-                throw ValidationException::withMessages(['assigned_user_id' => 'Editor harus role production atau manager.']);
+            if (! $u || ! $u->hasAnyRole(['production', 'manager', 'admin'])) {
+                throw ValidationException::withMessages(['assigned_user_id' => 'Editor harus role production, manager, atau admin.']);
             }
         }
 
         $cp->update(['assigned_user_id' => $userId]);
         return $cp;
+    }
+
+    /** Terapkan satu editor ke semua bab buku (pintasan distribusi). */
+    public function assignEditorAll(Title $book, ?int $userId, User $actor): void
+    {
+        foreach ($book->chapters()->with('progress')->get() as $ch) {
+            if ($ch->progress) {
+                $this->assignEditor($ch->progress, $userId, $actor);
+            }
+        }
     }
 
     /** Sinkron status TitleProgress buku (tiap order-variant) = bottleneck status bab. */
@@ -200,7 +209,7 @@ class ChapterManuscriptService
         if ($actor->hasRole('manager')) {
             return;
         }
-        if ($actor->hasRole('production') && TitleProgress::getHandlerForStatus($current) === 'production') {
+        if ($actor->hasAnyRole(['production', 'admin']) && TitleProgress::getHandlerForStatus($current) === 'production') {
             return;
         }
         throw new AuthorizationException('Anda tidak berhak memindahkan bab pada tahap ini.');

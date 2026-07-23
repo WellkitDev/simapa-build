@@ -22,7 +22,7 @@ class TitleProgressServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        foreach (['marketing', 'manager', 'superadmin', 'production'] as $r) {
+        foreach (['marketing', 'manager', 'superadmin', 'production', 'admin'] as $r) {
             Role::create(['name' => $r, 'guard_name' => 'web']);
         }
         $this->svc = new TitleProgressService();
@@ -75,7 +75,7 @@ class TitleProgressServiceTest extends TestCase
     }
 
     /** @test */
-    public function production_correction_requires_note_and_flags_review(): void
+    public function production_correction_requires_note_and_logs_correction(): void
     {
         $p = $this->progress('layout'); // handler production (kartu domain mereka)
 
@@ -89,7 +89,9 @@ class TitleProgressServiceTest extends TestCase
         $this->svc->changeStatus($p->fresh(), 'editing', $this->user('production'), 'lompat dengan alasan');
         $p->refresh();
         $this->assertEquals('editing', $p->status);
-        $this->assertTrue($p->needs_review);
+        $this->assertDatabaseHas('tb_title_progress_logs', [
+            'title_progress_id' => $p->id, 'is_correction' => true,
+        ]);
     }
 
     /** @test */
@@ -109,7 +111,7 @@ class TitleProgressServiceTest extends TestCase
     }
 
     /** @test */
-    public function manager_correction_requires_note_and_flags_review(): void
+    public function manager_correction_requires_note_and_logs_correction(): void
     {
         $p = $this->progress('layout');
 
@@ -123,7 +125,9 @@ class TitleProgressServiceTest extends TestCase
         $this->svc->changeStatus($p->fresh(), 'editing', $this->user('manager'), 'koreksi manager');
         $p->refresh();
         $this->assertEquals('editing', $p->status);
-        $this->assertTrue($p->needs_review);
+        $this->assertDatabaseHas('tb_title_progress_logs', [
+            'title_progress_id' => $p->id, 'is_correction' => true,
+        ]);
     }
 
     /** @test */
@@ -132,25 +136,6 @@ class TitleProgressServiceTest extends TestCase
         $p = $this->progress('isbn');
         $this->expectException(ValidationException::class);
         $this->svc->changeStatus($p, 'editing', $this->user('superadmin'), null);
-    }
-
-    /** @test */
-    public function superadmin_correction_does_not_flag_review(): void
-    {
-        $p = $this->progress('isbn');
-        $this->svc->changeStatus($p, 'editing', $this->user('superadmin'), 'koreksi super');
-        $this->assertFalse($p->fresh()->needs_review);
-    }
-
-    /** @test */
-    public function normal_advance_clears_review_flag(): void
-    {
-        $p = $this->progress('layout');
-        $this->svc->changeStatus($p, 'editing', $this->user('production'), 'lompat'); // koreksi → flag
-        $this->assertTrue($p->fresh()->needs_review);
-
-        $this->svc->changeStatus($p->fresh(), 'layout', $this->user('production')); // maju normal → bersih
-        $this->assertFalse($p->fresh()->needs_review);
     }
 
     /** @test */
@@ -238,6 +223,26 @@ class TitleProgressServiceTest extends TestCase
         $p = $this->progress('editing');
         $this->expectException(AuthorizationException::class);
         $this->svc->setPriority($p, 'high', $this->user('marketing'));
+    }
+
+    /** @test */
+    public function admin_can_be_assigned_as_editor(): void
+    {
+        $p = $this->progress('editing');
+        $admin = $this->user('admin');
+
+        $this->svc->assignEditor($p, $admin->id, $this->user('manager'));
+
+        $this->assertEquals($admin->id, $p->fresh()->assigned_user_id);
+    }
+
+    /** @test */
+    public function admin_can_move_production_stage(): void
+    {
+        $p = $this->progress('editing'); // handler production
+        $this->svc->changeStatus($p, 'layout', $this->user('admin'));
+
+        $this->assertEquals('layout', $p->fresh()->status);
     }
 
     /**

@@ -22,6 +22,7 @@ class ChapterBoardTest extends TestCase
         foreach (['marketing', 'manager', 'superadmin', 'production', 'admin'] as $r) {
             Role::create(['name' => $r, 'guard_name' => 'web']);
         }
+        $this->seed(\Database\Seeders\AccessMatrixSeeder::class);
     }
 
     private function user(string $role): User
@@ -40,7 +41,8 @@ class ChapterBoardTest extends TestCase
         $detail = OrderDetail::create(['order_id' => $order->id, 'title_id' => $book->id, 'type' => 'bk_mandiri', 'title' => 'Buku Papan', 'slug' => 'buku-papan', 'chapters' => 2, 'cost_amount' => 0, 'naskah_type' => 'mandiri', 'publication_type' => 'regular']);
         app(\App\Services\TitleProgressService::class)->createForDetail($detail, $owner->id);
 
+        // Papan Pelacakan kini read-only; panel bab tetap tampil (hanya-baca).
         $this->actingAs($this->user('manager'))->get(route('manuscript.board', ['tipe' => 'buku']))
-            ->assertOk()->assertSee('Bab')->assertSee('data-no-drag', false);
+            ->assertOk()->assertSee('Bab');
     }
 }

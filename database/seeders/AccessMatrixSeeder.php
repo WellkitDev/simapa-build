@@ -51,12 +51,10 @@ class AccessMatrixSeeder extends Seeder
             'data.*',
         ],
         'production' => [
-            // manuscript.* SENGAJA tidak dipakai sebagai wildcard: modul manuscript juga
-            // memuat 'review' (route manuscript.reviewed, dijaga role:manager|superadmin —
-            // production tidak ikut) dan 'clear-log' (superadmin only).
-            'manuscript.view', 'manuscript.detail', 'manuscript.move', 'manuscript.assign',
-            'manuscript.priority', 'manuscript.target',
-            'chapter.*',
+            // Papan Pelacakan kini hanya-baca (manuscript.view/detail); mutasi tahap/editor
+            // pindah ke modul distribution.* (Distribusi Artikel/Buku).
+            'manuscript.view', 'manuscript.detail',
+            'distribution.*',
             'title.view', 'title.create', 'title.edit', 'title.delete', 'title.submit',
             'journal.view', 'isbn.*', 'archive.view', 'archive.artifacts', 'archive.submit',
             'data.*',
@@ -68,8 +66,10 @@ class AccessMatrixSeeder extends Seeder
             'journal.*', 'isbn.*', 'author.view',
             'archive.view', 'archive.artifacts', 'archive.submit',
             // manuscript.detail (lihat progres satu judul) terbuka utk semua role login —
-            // bukan manuscript.view (papan Kanban), yang admin TIDAK punya hari ini.
-            'manuscript.detail',
+            // manuscript.view (papan Kanban) DITAMBAHKAN agar admin bisa lihat papan
+            // read-only, setara production, seiring peran admin naik jadi pendistribusi.
+            'manuscript.detail', 'manuscript.view',
+            'distribution.*',
             'data.*',
         ],
         'accounting' => [
@@ -86,7 +86,7 @@ class AccessMatrixSeeder extends Seeder
         'manager' => [
             // Manager = seluruh permission KECUALI:
             //  - $superadminOnly (murni superadmin: refund order, kunci periode kas,
-            //    template checklist dokumen, manuscript.clear-log);
+            //    template checklist dokumen);
             //  - seluruh accounting.* (route accounting/* dijaga role:superadmin|accounting —
             //    manager TIDAK ikut di gerbang itu sama sekali);
             //  - title.doc.edit/title.doc.submit (route titles/{id}/doc-check* dijaga
@@ -100,7 +100,6 @@ class AccessMatrixSeeder extends Seeder
         'order.refund',
         'accounting.period.lock',
         'doc-req.create', 'doc-req.edit', 'doc-req.delete',
-        'manuscript.clear-log',
         'permission.manage',
         // CATATAN: user.view/create/edit/delete/restore TIDAK di sini walau kelihatan
         // "sensitif" — gate 'access-usermanagement' (AuthServiceProvider) adalah

@@ -8,36 +8,11 @@ use App\Models\OrderDetail;
 use App\Models\TitleProgress;
 use App\Models\TitleProgressLog;
 use App\Models\User;
-use App\Services\TitleProgressService;
-use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
 
 class ManuscriptTrackerController extends Controller
 {
-    /**
-     * Jalankan aksi service. Untuk request non-JSON, ubah kegagalan otorisasi/validasi
-     * menjadi redirect-back + flash error. Request AJAX tetap menerima 403/422 JSON.
-     */
-    private function runOrFlash(Request $request, \Closure $action): ?RedirectResponse
-    {
-        try {
-            $action();
-            return null;
-        } catch (AuthorizationException | ValidationException $e) {
-            if ($request->expectsJson()) {
-                throw $e;
-            }
-            $message = $e instanceof ValidationException
-                ? (collect($e->errors())->flatten()->first() ?? 'Data tidak valid.')
-                : ($e->getMessage() ?: 'Anda tidak berhak melakukan aksi ini.');
-            return back()->with('error', $message);
-        }
-    }
-
     public function index(Request $request)
     {
         $bookTypes = ['bk_mandiri', 'bk_kolab'];
@@ -72,8 +47,6 @@ class ManuscriptTrackerController extends Controller
                 $q->whereHas('titleProgress', fn ($t) => $t->where('assigned_user_id', $editorFilter)))
             ->when($request->filled('priority'), fn ($q) =>
                 $q->whereHas('titleProgress', fn ($t) => $t->where('priority', $request->query('priority'))))
-            ->when($request->boolean('review'), fn ($q) =>
-                $q->whereHas('titleProgress', fn ($t) => $t->where('needs_review', true)))
             ->when($scope === 'mine', fn ($q) =>
                 $q->whereHas('titleProgress', fn ($t) =>
                     $t->where('assigned_user_id', Auth::id())
@@ -103,13 +76,6 @@ class ManuscriptTrackerController extends Controller
             ->orderBy('name')->get(['id', 'name']);
         $zones    = $this->buildZones($stages);
 
-        // Jumlah judul yang perlu ditinjau (untuk tipe terpilih) — penanda bagi manager/superadmin.
-        $reviewCount = OrderDetail::query()
-            ->where($typeFilter)
-            ->whereHas('titleProgress', fn ($t) => $t->where('needs_review', true))
-            ->distinct('group_key')
-            ->count('group_key');
-
         // View "Log": daftar aktivitas seluruh naskah pada tipe terpilih (DataTable).
         $logs = null;
         if ($view === 'log') {
@@ -121,7 +87,7 @@ class ManuscriptTrackerController extends Controller
                 ->get();
         }
 
-        return view('manuscript.' . $view, compact('groups', 'stages', 'byStatus', 'tipe', 'view', 'editors', 'zones', 'reviewCount', 'logs', 'scope'));
+        return view('manuscript.' . $view, compact('groups', 'stages', 'byStatus', 'tipe', 'view', 'editors', 'zones', 'logs', 'scope'));
     }
 
     /**
@@ -146,14 +112,6 @@ class ManuscriptTrackerController extends Controller
                 return $repr;
             })
             ->values();
-    }
-
-    /** Semua TitleProgress dari order yang berbagi judul (grup) dengan $progress. */
-    private function groupFor(TitleProgress $progress)
-    {
-        return TitleProgress::with('orderDetail')
-            ->whereHas('orderDetail', fn ($q) => $q->where('group_key', $progress->orderDetail->group_key))
-            ->get();
     }
 
     /**
@@ -190,138 +148,5 @@ class ManuscriptTrackerController extends Controller
         }
 
         return $zones;
-    }
-
-    public function move(Request $request, int $id, TitleProgressService $service)
-    {
-        $progress = TitleProgress::with('orderDetail')->findOrFail($id);
-        $group    = $this->groupFor($progress);
-        $target   = (string) $request->input('status');
-
-        if ($redirect = $this->runOrFlash($request, fn () =>
-            $service->changeGroupStatus($group, $target, Auth::user(), $request->input('note'))
-        )) {
-            return $redirect;
-        }
-
-        $label = Str::title(str_replace('_', ' ', $target));
-        if ($request->expectsJson()) {
-            return response()->json([
-                'ok'      => true,
-                'id'      => $progress->id,
-                'status'  => $target,
-                'message' => "Naskah dipindahkan ke {$label}.",
-            ]);
-        }
-        return back()->with('success', "Naskah dipindahkan ke {$label}.");
-    }
-
-    public function assign(Request $request, int $id, TitleProgressService $service)
-    {
-        $progress = TitleProgress::with('orderDetail')->findOrFail($id);
-        $group = $this->groupFor($progress);
-        $raw = $request->input('assigned_user_id');
-        $userId = ($raw === null || $raw === '') ? null : (int) $raw;
-
-        if ($redirect = $this->runOrFlash($request, fn () =>
-            $service->assignGroup($group, $userId, Auth::user())
-        )) {
-            return $redirect;
-        }
-
-        $progress->refresh()->load('assignedUser');
-
-        if ($request->expectsJson()) {
-            return response()->json([
-                'ok'            => true,
-                'id'            => $progress->id,
-                'assigned_user' => $progress->assignedUser
-                    ? ['id' => $progress->assignedUser->id, 'name' => $progress->assignedUser->name]
-                    : null,
-                'message'       => 'Editor diperbarui.',
-            ]);
-        }
-        return back()->with('success', 'Editor diperbarui.');
-    }
-
-    public function priority(Request $request, int $id, TitleProgressService $service)
-    {
-        $progress = TitleProgress::with('orderDetail')->findOrFail($id);
-        $group = $this->groupFor($progress);
-
-        if ($redirect = $this->runOrFlash($request, fn () =>
-            $service->setGroupPriority($group, (string) $request->input('priority'), Auth::user())
-        )) {
-            return $redirect;
-        }
-
-        $progress->refresh();
-
-        if ($request->expectsJson()) {
-            return response()->json([
-                'ok'       => true,
-                'id'       => $progress->id,
-                'priority' => $progress->priority,
-                'message'  => 'Prioritas diperbarui.',
-            ]);
-        }
-        return back()->with('success', 'Prioritas diperbarui.');
-    }
-
-    public function reviewed(Request $request, int $id, TitleProgressService $service)
-    {
-        $progress = TitleProgress::with('orderDetail')->findOrFail($id);
-        $group = $this->groupFor($progress);
-
-        if ($redirect = $this->runOrFlash($request, fn () =>
-            $service->markReviewed($group, Auth::user())
-        )) {
-            return $redirect;
-        }
-
-        if ($request->expectsJson()) {
-            return response()->json(['ok' => true, 'id' => $progress->id, 'message' => 'Ditandai sudah ditinjau.']);
-        }
-        return back()->with('success', 'Ditandai sudah ditinjau.');
-    }
-
-    public function target(Request $request, int $id, TitleProgressService $service)
-    {
-        $progress = TitleProgress::with('orderDetail')->findOrFail($id);
-        $group = $this->groupFor($progress);
-
-        if ($redirect = $this->runOrFlash($request, fn () =>
-            $service->setGroupTargetDate($group, $request->input('target_date'), Auth::user())
-        )) {
-            return $redirect;
-        }
-
-        $progress->refresh();
-        if ($request->expectsJson()) {
-            return response()->json([
-                'ok'          => true,
-                'id'          => $progress->id,
-                'target_date' => optional($progress->target_date)->toDateString(),
-                'message'     => 'Target terbit diperbarui.',
-            ]);
-        }
-        return back()->with('success', 'Target terbit diperbarui.');
-    }
-
-    public function clearLog(Request $request, int $id, TitleProgressService $service)
-    {
-        $progress = TitleProgress::with('orderDetail')->findOrFail($id);
-        $group = $this->groupFor($progress);
-
-        if ($redirect = $this->runOrFlash($request, fn () =>
-            $service->clearLogs($group, Auth::user())
-        )) {
-            return $redirect;
-        }
-
-        if ($request->expectsJson()) {
-            return response()->json(['ok' => true, 'id' => $progress->id, 'message' => 'Riwayat dibersihkan.']);
-        }
-        return back()->with('success', 'Riwayat aktivitas dibersihkan.');
     }
 }

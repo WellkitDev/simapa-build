@@ -43,9 +43,6 @@ class TitleProgressService
         $result = DB::transaction(fn () => $this->applyStatus($progress, $current, $target, $actor, $note, $isCorrection));
 
         app(Notifier::class)->naskahStageChanged($result, $actor, $current, $target);
-        if ($result->needs_review) {
-            app(Notifier::class)->naskahNeedsReview($result, $actor);
-        }
 
         return $result;
     }
@@ -59,9 +56,6 @@ class TitleProgressService
             'note'          => $note,
             'updated_by'    => $actor->id,
             'started_at'    => now(),
-            // Koreksi/lompat oleh non-superadmin ditandai untuk ditinjau; aksi superadmin
-            // atau langkah maju biasa membersihkan tanda.
-            'needs_review'  => $isCorrection && ! $actor->hasRole('superadmin'),
         ]);
 
         $this->log(
@@ -109,7 +103,7 @@ class TitleProgressService
         if ($actor->hasRole('manager')) {
             return; // oversight: stage apa pun (non-final)
         }
-        if ($actor->hasRole('production') && TitleProgress::getHandlerForStatus($current) === 'production') {
+        if ($actor->hasAnyRole(['production', 'admin']) && TitleProgress::getHandlerForStatus($current) === 'production') {
             return; // hanya kartu yang sedang jadi domain production
         }
         throw new AuthorizationException('Anda tidak berhak memindahkan naskah pada tahap ini.');
@@ -117,16 +111,16 @@ class TitleProgressService
 
     public function assignEditor(TitleProgress $progress, ?int $userId, User $actor): TitleProgress
     {
-        if (!$actor->hasAnyRole(['production', 'manager', 'superadmin'])) {
+        if (!$actor->hasAnyRole(['production', 'manager', 'superadmin', 'admin'])) {
             throw new AuthorizationException();
         }
 
         $assignee = null;
         if ($userId !== null) {
             $assignee = User::find($userId);
-            if (!$assignee || !$assignee->hasAnyRole(['production', 'manager'])) {
+            if (!$assignee || !$assignee->hasAnyRole(['production', 'manager', 'admin'])) {
                 throw ValidationException::withMessages([
-                    'assigned_user_id' => 'Editor harus user dengan role production atau manager.',
+                    'assigned_user_id' => 'Editor harus user dengan role production, manager, atau admin.',
                 ]);
             }
         }
@@ -142,7 +136,7 @@ class TitleProgressService
 
     public function setPriority(TitleProgress $progress, string $priority, User $actor): TitleProgress
     {
-        if (!$actor->hasAnyRole(['production', 'manager', 'superadmin'])) {
+        if (!$actor->hasAnyRole(['production', 'manager', 'superadmin', 'admin'])) {
             throw new AuthorizationException();
         }
         if (!in_array($priority, TitleProgress::PRIORITIES, true)) {
@@ -161,7 +155,7 @@ class TitleProgressService
     /** Set/clear target tanggal terbit/publish. Kosong = hapus target. Marketing juga boleh. */
     public function setTargetDate(TitleProgress $progress, ?string $date, User $actor): TitleProgress
     {
-        if (! $actor->hasAnyRole(['marketing', 'production', 'manager', 'superadmin'])) {
+        if (! $actor->hasAnyRole(['marketing', 'production', 'manager', 'superadmin', 'admin'])) {
             throw new AuthorizationException();
         }
 
@@ -277,9 +271,9 @@ class TitleProgressService
 
         foreach ($changed as [$p, $from]) {
             app(Notifier::class)->naskahStageChanged($p, $actor, $from, $target);
-            if ($p->needs_review) {
-                app(Notifier::class)->naskahNeedsReview($p, $actor);
-            }
+        }
+        if (! empty($changed)) {
+            app(Notifier::class)->distribusiChanged($changed[0][0], $actor, 'Tahap naskah diperbarui');
         }
     }
 
@@ -306,23 +300,6 @@ class TitleProgressService
         DB::transaction(function () use ($progresses, $date, $actor) {
             foreach (collect($progresses) as $p) {
                 $this->setTargetDate($p, $date, $actor);
-            }
-        });
-    }
-
-    /** Superadmin/manager menandai lompatan sudah ditinjau (bersihkan flag pada seluruh grup). */
-    public function markReviewed(iterable $progresses, User $actor): void
-    {
-        if (! $actor->hasAnyRole(['manager', 'superadmin'])) {
-            throw new AuthorizationException();
-        }
-
-        DB::transaction(function () use ($progresses, $actor) {
-            foreach (collect($progresses) as $p) {
-                if ($p->needs_review) {
-                    $p->update(['needs_review' => false]);
-                    $this->log($p, 'reviewed', null, null, $actor);
-                }
             }
         });
     }

@@ -2,7 +2,7 @@
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
     <div>
         <h4 class="mb-0">Manuscript Tracker</h4>
-        <small class="text-muted">{{ $groups->count() }} judul aktif · geser kartu untuk memajukan tahap</small>
+        <small class="text-muted">{{ $groups->count() }} judul aktif · papan pemantauan (hanya-baca)</small>
     </div>
     <form method="GET" action="{{ route('manuscript.board') }}" class="d-flex flex-wrap gap-2 align-items-center">
         <input type="hidden" name="tipe" value="{{ $tipe }}">
@@ -31,17 +31,6 @@
                 <option value="{{ $pr }}" {{ request('priority') === $pr ? 'selected' : '' }}>{{ ucfirst($pr) }}</option>
             @endforeach
         </select>
-
-        @php $rq = request()->query(); unset($rq['review']); @endphp
-        @if(request()->boolean('review'))
-            <a href="{{ route('manuscript.board', $rq) }}" class="btn btn-sm btn-warning">
-                ⚑ Perlu ditinjau @if(($reviewCount ?? 0) > 0)<span class="badge bg-dark ms-1">{{ $reviewCount }}</span>@endif
-            </a>
-        @else
-            <a href="{{ route('manuscript.board', array_merge($rq, ['review' => 1])) }}" class="btn btn-sm btn-outline-warning">
-                ⚑ Perlu ditinjau @if(($reviewCount ?? 0) > 0)<span class="badge bg-warning text-dark ms-1">{{ $reviewCount }}</span>@endif
-            </a>
-        @endif
 
         <div class="btn-group btn-group-sm">
             <a href="{{ route('manuscript.board', array_merge(request()->query(), ['scope' => 'mine'])) }}"

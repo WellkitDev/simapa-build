@@ -43,66 +43,6 @@ class ManuscriptTrackerTest extends TestCase
     }
 
     /** @test */
-    public function production_moves_card_via_ajax(): void
-    {
-        $p = $this->progress('editing');
-        $this->actingAs($this->user('production'));
-
-        $this->postJson(route('manuscript.move', $p->id), ['status' => 'layout'])
-            ->assertOk()
-            ->assertJson(['ok' => true, 'status' => 'layout']);
-
-        $this->assertDatabaseHas('tb_title_progress', ['id' => $p->id, 'status' => 'layout']);
-    }
-
-    /** @test */
-    public function rejected_move_keeps_status(): void
-    {
-        $p = $this->progress('cetak'); // milik superadmin
-        $this->actingAs($this->user('production'));
-
-        $this->postJson(route('manuscript.move', $p->id), ['status' => 'terbit'])
-            ->assertStatus(403);
-
-        $this->assertDatabaseHas('tb_title_progress', ['id' => $p->id, 'status' => 'cetak']);
-    }
-
-    /** @test */
-    public function assign_endpoint_sets_editor(): void
-    {
-        $p = $this->progress('editing');
-        $editor = $this->user('production');
-        $this->actingAs($this->user('manager'));
-
-        $this->postJson(route('manuscript.assign', $p->id), ['assigned_user_id' => $editor->id])
-            ->assertOk()->assertJson(['ok' => true]);
-
-        $this->assertDatabaseHas('tb_title_progress', ['id' => $p->id, 'assigned_user_id' => $editor->id]);
-    }
-
-    /** @test */
-    public function priority_endpoint_sets_priority(): void
-    {
-        $p = $this->progress('editing');
-        $this->actingAs($this->user('production'));
-
-        $this->postJson(route('manuscript.priority', $p->id), ['priority' => 'high'])
-            ->assertOk()->assertJson(['ok' => true, 'priority' => 'high']);
-
-        $this->assertDatabaseHas('tb_title_progress', ['id' => $p->id, 'priority' => 'high']);
-    }
-
-    /** @test */
-    public function marketing_cannot_use_move_endpoint(): void
-    {
-        $p = $this->progress('editing');
-        $this->actingAs($this->user('marketing'));
-
-        $this->postJson(route('manuscript.move', $p->id), ['status' => 'layout'])
-            ->assertStatus(403);
-    }
-
-    /** @test */
     public function board_renders_for_production(): void
     {
         $this->progress('editing'); // satu kartu di kolom editing (buku)
@@ -192,22 +132,7 @@ class ManuscriptTrackerTest extends TestCase
             ->assertSee('Dr. Faizul Husnayain')
             ->assertSee('UIN Antasari')
             ->assertSee($editor->name)
-            ->assertSee('High')
-            ->assertDontSee('Majukan ke Layout'); // buku: whole-book move hidden; per-chapter panel used instead
-    }
-
-    /** @test */
-    public function rejected_web_move_redirects_back_with_flash_error(): void
-    {
-        $p = $this->progress('cetak'); // milik superadmin — production tak boleh
-        $this->actingAs($this->user('production'));
-
-        // POST biasa (bukan JSON) = jalur tombol fallback "Majukan"
-        $this->post(route('manuscript.move', $p->id), ['status' => 'terbit'])
-            ->assertRedirect()
-            ->assertSessionHas('error');
-
-        $this->assertDatabaseHas('tb_title_progress', ['id' => $p->id, 'status' => 'cetak']);
+            ->assertSee('High');
     }
 
     /** @test */
@@ -253,137 +178,6 @@ class ManuscriptTrackerTest extends TestCase
     }
 
     /** @test */
-    public function group_move_advances_all_orders_of_the_title(): void
-    {
-        $progresses = $this->groupOrders('Judul Serempak', ['editing', 'editing']);
-        $this->actingAs($this->user('production'));
-
-        $this->postJson(route('manuscript.move', $progresses[0]->id), ['status' => 'layout'])
-            ->assertOk()->assertJson(['ok' => true, 'status' => 'layout']);
-
-        foreach ($progresses as $p) {
-            $this->assertDatabaseHas('tb_title_progress', ['id' => $p->id, 'status' => 'layout']);
-        }
-    }
-
-    /** @test */
-    public function group_assign_sets_editor_on_all_orders(): void
-    {
-        $editor = $this->user('production');
-        $progresses = $this->groupOrders('Judul Assign Grup', ['editing', 'editing']);
-        $this->actingAs($this->user('manager'));
-
-        $this->postJson(route('manuscript.assign', $progresses[0]->id), ['assigned_user_id' => $editor->id])
-            ->assertOk();
-
-        foreach ($progresses as $p) {
-            $this->assertDatabaseHas('tb_title_progress', ['id' => $p->id, 'assigned_user_id' => $editor->id]);
-        }
-    }
-
-    /** @test */
-    public function production_jump_with_note_sets_review_flag(): void
-    {
-        $p = $this->progress('editing'); // handler production
-        $this->actingAs($this->user('production'));
-
-        // Lompat editing → isbn (skip layout/proofreading) dengan catatan.
-        $this->postJson(route('manuscript.move', $p->id), ['status' => 'isbn', 'note' => 'lompat oke'])
-            ->assertOk()->assertJson(['ok' => true, 'status' => 'isbn']);
-
-        $this->assertDatabaseHas('tb_title_progress', [
-            'id' => $p->id, 'status' => 'isbn', 'needs_review' => true,
-        ]);
-    }
-
-    /** @test */
-    public function production_jump_without_note_is_rejected(): void
-    {
-        $p = $this->progress('editing');
-        $this->actingAs($this->user('production'));
-
-        $this->postJson(route('manuscript.move', $p->id), ['status' => 'isbn'])
-            ->assertStatus(422);
-
-        $this->assertDatabaseHas('tb_title_progress', ['id' => $p->id, 'status' => 'editing']);
-    }
-
-    /** @test */
-    public function board_shows_review_badge_when_flagged(): void
-    {
-        $p = $this->progress('editing');
-        $p->update(['needs_review' => true]);
-        $p->orderDetail->update(['title' => 'NASKAH PERLU TINJAU']);
-
-        $this->actingAs($this->user('production'));
-
-        $this->get(route('manuscript.board', ['tipe' => 'buku']))
-            ->assertOk()
-            ->assertSee('NASKAH PERLU TINJAU')
-            ->assertSee('tinjau');
-    }
-
-    /** @test */
-    public function review_filter_shows_only_flagged_titles(): void
-    {
-        $flagged = $this->progress('editing');
-        $flagged->update(['needs_review' => true]);
-        $flagged->orderDetail->update(['title' => 'JUDUL DITINJAU']);
-
-        $clean = $this->progress('editing');
-        $clean->orderDetail->update(['title' => 'JUDUL BERSIH']);
-
-        $this->actingAs($this->user('manager'));
-
-        $this->get(route('manuscript.board', ['tipe' => 'buku', 'review' => 1]))
-            ->assertOk()
-            ->assertSee('JUDUL DITINJAU')
-            ->assertDontSee('JUDUL BERSIH');
-    }
-
-    /** @test */
-    public function manager_can_mark_group_reviewed(): void
-    {
-        $progresses = $this->groupOrders('Judul Tinjau Grup', ['editing', 'editing']);
-        foreach ($progresses as $p) {
-            $p->update(['needs_review' => true]);
-        }
-
-        $this->actingAs($this->user('manager'));
-        $this->postJson(route('manuscript.reviewed', $progresses[0]->id))->assertOk();
-
-        foreach ($progresses as $p) {
-            $this->assertDatabaseHas('tb_title_progress', ['id' => $p->id, 'needs_review' => false]);
-        }
-    }
-
-    /** @test */
-    public function production_cannot_mark_reviewed(): void
-    {
-        $p = $this->progress('editing');
-        $p->update(['needs_review' => true]);
-
-        $this->actingAs($this->user('production'));
-        $this->postJson(route('manuscript.reviewed', $p->id))->assertStatus(403);
-
-        $this->assertDatabaseHas('tb_title_progress', ['id' => $p->id, 'needs_review' => true]);
-    }
-
-    /** @test */
-    public function target_date_endpoint_sets_all_orders_of_the_title(): void
-    {
-        $progresses = $this->groupOrders('Judul Target Terbit', ['editing', 'editing']);
-        $this->actingAs($this->user('manager'));
-
-        $this->postJson(route('manuscript.target', $progresses[0]->id), ['target_date' => '2026-10-15'])
-            ->assertOk()->assertJson(['ok' => true, 'target_date' => '2026-10-15']);
-
-        foreach ($progresses as $p) {
-            $this->assertDatabaseHas('tb_title_progress', ['id' => $p->id, 'target_date' => '2026-10-15']);
-        }
-    }
-
-    /** @test */
     public function log_view_lists_activity_in_a_table(): void
     {
         $p = $this->progress('editing');
@@ -402,61 +196,6 @@ class ManuscriptTrackerTest extends TestCase
     }
 
     /** @test */
-    public function superadmin_can_clear_log_manager_cannot(): void
-    {
-        $actor = $this->user('superadmin');
-        $progresses = $this->groupOrders('Judul Clear Log', ['editing', 'editing']);
-        foreach ($progresses as $p) {
-            \App\Models\TitleProgressLog::create([
-                'title_progress_id' => $p->id, 'event' => 'status_advanced',
-                'from_value' => 'Editing', 'to_value' => 'Layout', 'changed_by' => $actor->id,
-            ]);
-        }
-
-        // Manager ditolak oleh middleware role:superadmin.
-        $this->actingAs($this->user('manager'));
-        $this->postJson(route('manuscript.clearLog', $progresses[0]->id))->assertStatus(403);
-        $this->assertDatabaseHas('tb_title_progress_logs', ['title_progress_id' => $progresses[0]->id]);
-
-        // Superadmin membersihkan seluruh grup.
-        $this->actingAs($actor);
-        $this->postJson(route('manuscript.clearLog', $progresses[0]->id))->assertOk();
-        foreach ($progresses as $p) {
-            $this->assertDatabaseMissing('tb_title_progress_logs', ['title_progress_id' => $p->id]);
-        }
-    }
-
-    /** @test */
-    public function title_detail_shows_activity_log_and_clear_button_for_superadmin(): void
-    {
-        $p = $this->progress('editing');
-        \App\Models\TitleProgressLog::create([
-            'title_progress_id' => $p->id, 'event' => 'priority_changed',
-            'from_value' => 'Normal', 'to_value' => 'High', 'changed_by' => $this->user('superadmin')->id,
-        ]);
-
-        $this->actingAs($this->user('superadmin'));
-
-        $this->get(route('order.indexJudul.progress', $p->order_detail_id))
-            ->assertOk()
-            ->assertSee('Riwayat Aktivitas')
-            ->assertSee('Ubah prioritas')      // eventLabel
-            ->assertSee('Bersihkan Riwayat');  // clear button (superadmin)
-    }
-
-    /** @test */
-    public function marketing_can_set_target_date(): void
-    {
-        $p = $this->progress('editing');
-        $this->actingAs($this->user('marketing'));
-
-        $this->postJson(route('manuscript.target', $p->id), ['target_date' => '2026-12-31'])
-            ->assertOk()->assertJson(['ok' => true, 'target_date' => '2026-12-31']);
-
-        $this->assertDatabaseHas('tb_title_progress', ['id' => $p->id, 'target_date' => '2026-12-31']);
-    }
-
-    /** @test */
     public function board_card_shows_target_date(): void
     {
         $p = $this->progress('editing');
@@ -469,5 +208,15 @@ class ManuscriptTrackerTest extends TestCase
             ->assertOk()
             ->assertSee('NASKAH BERTARGET')
             ->assertSee('20 Nov 2026'); // format d M Y
+    }
+
+    /** @test */
+    public function board_is_read_only_no_action_forms(): void
+    {
+        $p = $this->progress('editing');
+        $this->actingAs($this->user('production'));
+        $html = $this->get(route('manuscript.board', ['tipe' => 'buku']))->assertOk()->getContent();
+        $this->assertStringNotContainsString('manuscript.move', $html);
+        $this->assertStringNotContainsString('Ambil naskah ini', $html);
     }
 }

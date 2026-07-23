@@ -149,6 +149,30 @@ class NotifierTest extends TestCase
     }
 
     /** @test */
+    public function distribusi_changed_notifies_production_roles_except_actor(): void
+    {
+        Notification::fake();
+
+        foreach (['superadmin','manager','admin','production'] as $r) {
+            Role::firstOrCreate(['name' => $r, 'guard_name' => 'web']);
+        }
+        $actor = User::factory()->create(); $actor->assignRole('production');
+        $mgr   = User::factory()->create(); $mgr->assignRole('manager');
+        $adm   = User::factory()->create(); $adm->assignRole('admin');
+
+        $detail = OrderDetail::factory()->create(['type' => 'bk_mandiri']);
+        $progress = TitleProgress::create([
+            'order_detail_id' => $detail->id, 'status' => 'editing',
+            'assigned_role' => 'production', 'started_at' => now(),
+        ]);
+
+        app(Notifier::class)->distribusiChanged($progress, $actor, 'Editor diperbarui');
+
+        Notification::assertSentTo([$mgr, $adm], DatabaseNotification::class);
+        Notification::assertNotSentTo([$actor], DatabaseNotification::class);
+    }
+
+    /** @test */
     public function deadline_reminder_notifies_owner_and_overseers(): void
     {
         foreach (['production', 'manager', 'superadmin', 'admin'] as $r) {
