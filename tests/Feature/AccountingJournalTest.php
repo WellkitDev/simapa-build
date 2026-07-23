@@ -151,4 +151,32 @@ class AccountingJournalTest extends TestCase
         $this->assertSame(1, $countAfterFirst, 'Dibuat sekali.');
         $this->assertSame(1, CashCategory::where('name', 'Sponsorship')->count(), 'Nama sama tak menggandakan kategori.');
     }
+
+    /** @test */
+    public function edit_action_renders_only_for_manual_non_transfer_entries(): void
+    {
+        $manual = CashEntry::create(['tanggal' => '2026-06-05', 'jenis' => 'pemasukan', 'amount' => 100000, 'keterangan' => 'Manual', 'source' => 'manual', 'is_transfer' => false]);
+        $auto = CashEntry::create(['tanggal' => '2026-06-06', 'jenis' => 'pemasukan', 'amount' => 200000, 'keterangan' => 'Auto', 'source' => 'payment', 'is_transfer' => false]);
+        $transfer = CashEntry::create(['tanggal' => '2026-06-07', 'jenis' => 'pengeluaran', 'amount' => 300000, 'keterangan' => 'Transfer', 'source' => 'manual', 'is_transfer' => true]);
+
+        $html = $this->actingAs($this->user('accounting'))
+            ->get(route('accounting.journal', ['year' => 2026, 'month' => 6]))
+            ->assertOk()->getContent();
+
+        // NB: route update & destroy menghasilkan URL sama (beda verb), jadi
+        // dibandingkan lewat atribut `data-action` yang hanya dimiliki tombol edit.
+        $this->assertStringContainsString('data-action="' . route('accounting.entry.update', $manual->id) . '"', $html, 'Entri manual wajib punya aksi edit.');
+        $this->assertStringNotContainsString('data-action="' . route('accounting.entry.update', $auto->id) . '"', $html, 'Entri auto (payment) tetap read-only.');
+        $this->assertStringNotContainsString('data-action="' . route('accounting.entry.update', $transfer->id) . '"', $html, 'Transfer tak bisa diedit (hapus+buat ulang).');
+    }
+
+    /** @test */
+    public function edit_handler_is_delegated_so_it_survives_datatables_paging(): void
+    {
+        // Regresi: ikatan langsung $('[data-edit-entry]').on(...) tidak terpasang
+        // pada baris di luar halaman aktif DataTables (pageLength 25) -> tombol mati.
+        $html = $this->actingAs($this->user('accounting'))->get(route('accounting.journal'))->assertOk()->getContent();
+
+        $this->assertStringContainsString("\$(document).on('click', '[data-edit-entry]'", $html, 'Handler edit harus didelegasikan ke document.');
+    }
 }

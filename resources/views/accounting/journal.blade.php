@@ -375,7 +375,10 @@ $(function () {
         if (hasSelect2) { $sel.trigger('change'); }
     }
 
-    $('[data-edit-entry]').on('click', function () {
+    // Delegasi ke document: baris di luar halaman DataTables (pageLength 25) &
+    // sel yang dilipat plugin responsive DI-RENDER ULANG, jadi ikatan langsung
+    // tidak akan terpasang di sana. Pola sama dgn handler data-confirm di master.
+    $(document).on('click', '[data-edit-entry]', function () {
         var b = $(this);
         var $f = $('#editEntryForm');
         $f.attr('action', b.attr('data-action'));
