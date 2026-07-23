@@ -123,6 +123,16 @@ Route::middleware(['auth', 'access'])->group(function () {
         Route::post('artikel/{id}/prioritas', [\App\Http\Controllers\Pages\ArticleDistributionController::class, 'setPriority'])->name('artikel.prioritas')->whereNumber('id');
         Route::post('artikel/{id}/target',    [\App\Http\Controllers\Pages\ArticleDistributionController::class, 'setTarget'])->name('artikel.target')->whereNumber('id');
         Route::post('artikel/{id}/file',      [\App\Http\Controllers\Pages\ArticleDistributionController::class, 'uploadFile'])->name('artikel.file')->whereNumber('id');
+
+        Route::get('buku',                    [\App\Http\Controllers\Pages\BookDistributionController::class, 'index'])->name('buku.index');
+        Route::get('buku/{id}',               [\App\Http\Controllers\Pages\BookDistributionController::class, 'show'])->name('buku.show')->whereNumber('id');
+        Route::post('buku/{id}/editor-semua', [\App\Http\Controllers\Pages\BookDistributionController::class, 'assignEditorAll'])->name('buku.editorSemua')->whereNumber('id');
+        Route::post('buku/{id}/prioritas',    [\App\Http\Controllers\Pages\BookDistributionController::class, 'setPriority'])->name('buku.prioritas')->whereNumber('id');
+        Route::post('buku/{id}/target',       [\App\Http\Controllers\Pages\BookDistributionController::class, 'setTarget'])->name('buku.target')->whereNumber('id');
+        Route::post('buku/{id}/file',         [\App\Http\Controllers\Pages\BookDistributionController::class, 'uploadFile'])->name('buku.file')->whereNumber('id');
+        Route::post('buku/chapter/{cp}/editor', [\App\Http\Controllers\Pages\BookDistributionController::class, 'assignChapterEditor'])->name('buku.chapter.editor')->whereNumber('cp');
+        Route::post('buku/chapter/{cp}/tahap',  [\App\Http\Controllers\Pages\BookDistributionController::class, 'moveChapter'])->name('buku.chapter.tahap')->whereNumber('cp');
+        Route::post('buku/chapter/{cp}/file',   [\App\Http\Controllers\Pages\BookDistributionController::class, 'uploadChapterFile'])->name('buku.chapter.file')->whereNumber('cp');
     });
 
     Route::prefix('payments')->name('payment.')->group(function () {
