@@ -179,6 +179,21 @@ return [
             ],
         ],
 
+        'distribution' => [
+            'label'   => 'Distribusi Naskah',
+            'actions' => [
+                'view'     => ['distribusi.artikel.index', 'distribusi.artikel.show',
+                               'distribusi.buku.index', 'distribusi.buku.show'],
+                'assign'   => ['distribusi.artikel.editor', 'distribusi.buku.editorSemua',
+                               'distribusi.buku.chapter.editor'],
+                'move'     => ['distribusi.artikel.tahap', 'distribusi.buku.chapter.tahap'],
+                'priority' => ['distribusi.artikel.prioritas', 'distribusi.buku.prioritas'],
+                'target'   => ['distribusi.artikel.target', 'distribusi.buku.target'],
+                'upload'   => ['distribusi.artikel.file', 'distribusi.buku.file',
+                               'distribusi.buku.chapter.file'],
+            ],
+        ],
+
         'archive' => [
             'label'   => 'Arsip Judul',
             'actions' => [
