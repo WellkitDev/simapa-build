@@ -188,15 +188,16 @@ class Notifier
         ]);
     }
 
-    public function naskahNeedsReview(TitleProgress $progress, User $actor): void
+    public function distribusiChanged(TitleProgress $progress, User $actor, string $summary): void
     {
         $progress->loadMissing('orderDetail');
-        $this->send($this->roleUsers(['manager', 'superadmin'], $actor), [
-            'category' => 'naskah',
-            'title'    => 'Naskah perlu ditinjau',
-            'message'  => $progress->orderDetail?->title ?? 'Naskah',
-            'url'      => route('order.indexJudul.progress', $progress->order_detail_id),
-            'icon'     => 'alert-triangle',
+        $judul = optional($progress->orderDetail)->title ?? '—';
+        $this->send($this->roleUsers(['superadmin', 'manager', 'admin', 'production'], $actor), [
+            'category' => 'manuscript',
+            'title'    => 'Distribusi naskah diperbarui',
+            'message'  => $summary . ' — ' . $judul,
+            'url'      => route('manuscript.board'),
+            'icon'     => 'layers',
         ]);
     }
 

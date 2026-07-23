@@ -102,6 +102,16 @@ class ChapterManuscriptService
         return $cp;
     }
 
+    /** Terapkan satu editor ke semua bab buku (pintasan distribusi). */
+    public function assignEditorAll(Title $book, ?int $userId, User $actor): void
+    {
+        foreach ($book->chapters()->with('progress')->get() as $ch) {
+            if ($ch->progress) {
+                $this->assignEditor($ch->progress, $userId, $actor);
+            }
+        }
+    }
+
     /** Sinkron status TitleProgress buku (tiap order-variant) = bottleneck status bab. */
     public function syncBookStatus(Title $book): void
     {

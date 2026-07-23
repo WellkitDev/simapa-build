@@ -43,9 +43,6 @@ class TitleProgressService
         $result = DB::transaction(fn () => $this->applyStatus($progress, $current, $target, $actor, $note, $isCorrection));
 
         app(Notifier::class)->naskahStageChanged($result, $actor, $current, $target);
-        if ($result->needs_review) {
-            app(Notifier::class)->naskahNeedsReview($result, $actor);
-        }
 
         return $result;
     }
@@ -277,9 +274,6 @@ class TitleProgressService
 
         foreach ($changed as [$p, $from]) {
             app(Notifier::class)->naskahStageChanged($p, $actor, $from, $target);
-            if ($p->needs_review) {
-                app(Notifier::class)->naskahNeedsReview($p, $actor);
-            }
         }
     }
 
