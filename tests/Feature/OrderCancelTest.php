@@ -63,4 +63,21 @@ class OrderCancelTest extends TestCase
         $this->assertNull(OrderDetail::find($detail->id));
         $this->assertNull(TitleProgress::find($prog->id));
     }
+
+    /** @test */
+    public function field_pembatalan_bisa_diisi_dan_cancelled_at_ter_cast(): void
+    {
+        $owner = $this->user('marketing');
+        $order = Order::factory()->create([
+            'user_id'       => $owner->id,
+            'cancel_reason' => 'Salah input harga',
+            'cancelled_by'  => $owner->id,
+            'cancelled_at'  => '2026-08-03 10:00:00',
+        ]);
+
+        $fresh = $order->fresh();
+        $this->assertSame('Salah input harga', $fresh->cancel_reason);
+        $this->assertSame($owner->id, $fresh->cancelled_by);
+        $this->assertInstanceOf(\Illuminate\Support\Carbon::class, $fresh->cancelled_at);
+    }
 }

@@ -21,7 +21,6 @@ return new class extends Migration {
         $svc = new TitleArchiveService();
         DB::table('tb_order_details')
             ->select('id', 'type', 'title')
-            ->orderBy('id')
             ->chunkById(200, function ($rows) use ($svc) {
                 foreach ($rows as $row) {
                     DB::table('tb_order_details')
