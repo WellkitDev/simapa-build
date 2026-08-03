@@ -84,8 +84,10 @@ class OrderCancelTest extends TestCase
     }
 
     /** Order + detail + progress lengkap, milik $owner. */
-    private function makeOrder(User $owner, string $code = 'ORD-202608-0001'): Order
+    private function makeOrder(User $owner, ?string $code = null): Order
     {
+        $code ??= 'ORD-' . strtoupper(\Illuminate\Support\Str::random(8));
+
         $order = Order::create([
             'code_order' => $code,
             'user_id'    => $owner->id,
@@ -166,5 +168,21 @@ class OrderCancelTest extends TestCase
         $this->assertTrue($trashed->isCancelled());
         $this->assertFalse($trashed->isEditable());
         $this->assertFalse($trashed->isCancellable());
+    }
+
+    /** @test */
+    public function gerbang_konsisten_baik_relasi_dimuat_maupun_tidak(): void
+    {
+        $owner = $this->user('marketing');
+        $order = $this->makeOrder($owner);
+        $this->addPayment($order, 'approved');
+
+        $lazy   = Order::find($order->id);
+        $eager  = Order::with('payments.approval')->find($order->id);
+
+        $this->assertTrue($lazy->hasApprovedPayment());
+        $this->assertTrue($eager->hasApprovedPayment());
+        $this->assertTrue($eager->relationLoaded('payments'));
+        $this->assertFalse($eager->isCancellable());
     }
 }

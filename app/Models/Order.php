@@ -58,6 +58,15 @@ class Order extends Model
      */
     public function hasApprovedPayment(): bool
     {
+        // Pakai koleksi yang sudah di-eager load bila ada: daftar order memanggil
+        // isCancellable() sekali per baris, dan payments()->exists() akan menembak
+        // SQL baru tiap panggilan meski relasinya sudah dimuat.
+        if ($this->relationLoaded('payments')) {
+            return $this->payments->contains(
+                fn ($payment) => optional($payment->approval)->status === 'approved'
+            );
+        }
+
         return $this->payments()
             ->whereHas('approval', fn ($q) => $q->where('status', 'approved'))
             ->exists();
