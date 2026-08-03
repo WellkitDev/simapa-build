@@ -1,7 +1,6 @@
 <?php
 // database/migrations/2026_06_14_000002_add_group_key_to_tb_order_details.php
 
-use App\Models\OrderDetail;
 use App\Services\TitleArchiveService;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -15,10 +14,14 @@ return new class extends Migration {
             $table->string('group_key')->nullable()->after('slug')->index();
         });
 
-        // Backfill data lama (tanpa memicu model event — pakai DB langsung).
+        // Backfill data lama (tanpa memicu model event — pakai query builder
+        // langsung, BUKAN model Eloquent: model bisa punya global scope (mis.
+        // SoftDeletes) yang ditambahkan belakangan lewat migrasi lain, dan
+        // migrasi ini harus tetap jalan bila database di-replay dari nol).
         $svc = new TitleArchiveService();
-        OrderDetail::query()
+        DB::table('tb_order_details')
             ->select('id', 'type', 'title')
+            ->orderBy('id')
             ->chunkById(200, function ($rows) use ($svc) {
                 foreach ($rows as $row) {
                     DB::table('tb_order_details')

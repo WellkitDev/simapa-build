@@ -11,17 +11,19 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 class Order extends Model
 {
     use HasFactory;
-
-    use HasFactory;
+    use SoftDeletes;
 
     protected $table = 'tb_orders';
 
     protected $fillable = [
         'code_order', 'user_id', 'status',
-        'note', 'ordered_at', 'completed_at'
+        'note', 'ordered_at', 'completed_at',
+        'cancel_reason', 'cancelled_by', 'cancelled_at',
     ];
 
     protected $dates = ['ordered_at', 'completed_at'];
+
+    protected $casts = ['cancelled_at' => 'datetime'];
 
     public function details()
     {
