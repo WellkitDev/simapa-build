@@ -50,6 +50,41 @@ class Order extends Model
     }
 
     /**
+     * Ada pembayaran yang benar-benar sudah disetujui approver.
+     *
+     * SENGAJA membaca tb_payment_approvals.status, BUKAN tb_payments.status:
+     * PaymentBookController::store() menulis status 'paid' bersamaan dengan approval
+     * 'pending', jadi 'paid' tidak berarti disetujui (spec §0.1).
+     */
+    public function hasApprovedPayment(): bool
+    {
+        return $this->payments()
+            ->whereHas('approval', fn ($q) => $q->where('status', 'approved'))
+            ->exists();
+    }
+
+    /** Order dibatalkan: status 'dibatalkan' atau sudah soft-deleted. */
+    public function isCancelled(): bool
+    {
+        return $this->status === 'dibatalkan' || $this->trashed();
+    }
+
+    /**
+     * Boleh diedit selama belum dibatalkan — termasuk setelah pembayaran disetujui.
+     * Gerbang ini dipakai untuk MEMBUKA Edit lebih awal, bukan menutupnya belakangan.
+     */
+    public function isEditable(): bool
+    {
+        return ! $this->isCancelled();
+    }
+
+    /** Boleh dibatalkan: belum dibatalkan DAN belum ada payment yang disetujui. */
+    public function isCancellable(): bool
+    {
+        return ! $this->isCancelled() && ! $this->hasApprovedPayment();
+    }
+
+    /**
      * Uang bersih yang diterima untuk order ini: pembayaran masuk - refund.
      * Dipakai semua pertanyaan "sudah dibayar berapa" (lunas, sisa, arsip).
      * BEDA dari Payment::income() (pelaporan, refund dikecualikan) — lihat
