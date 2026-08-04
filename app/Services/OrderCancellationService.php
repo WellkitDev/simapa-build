@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Exceptions\OrderCancellationException;
 use App\Models\InvoiceLog;
 use App\Models\Order;
-use App\Models\Payment;
 use App\Models\Tagihan;
 use App\Models\TagihanLog;
 use App\Models\TitleProgress;
@@ -35,7 +34,9 @@ class OrderCancellationService
             throw OrderCancellationException::notCancellable();
         }
 
-        $this->assertCashPeriodsUnlocked($order->payments()->pluck('id')->all());
+        // Hanya entri kas milik payment yang SEDANG 'paid' yang akan dihapus —
+        // itu yang harus diperiksa, bukan seluruh payment tanpa syarat.
+        $this->assertCashPeriodsUnlocked($order->payments()->where('status', 'paid')->pluck('paid_at')->all());
 
         DB::transaction(function () use ($order, $reason, $actor) {
             $this->cancelPayments($order, $actor);
@@ -79,8 +80,10 @@ class OrderCancellationService
             throw OrderCancellationException::notCancelled();
         }
 
-        // Memulihkan payment membuat ulang CashEntry-nya — penjagaan periode berlaku dua arah.
-        $this->assertCashPeriodsUnlocked($order->payments()->pluck('id')->all());
+        // Hanya entri kas milik payment yang SEDANG 'batal' akan dibuat ulang —
+        // itu yang harus diperiksa, bukan seluruh payment tanpa syarat (payment yang
+        // sudah 'rejected' sebelum pembatalan tidak akan disentuh restorePayments()).
+        $this->assertCashPeriodsUnlocked($order->payments()->where('status', 'batal')->pluck('paid_at')->all());
 
         DB::transaction(function () use ($order, $actor) {
             $order->restore();
@@ -89,7 +92,7 @@ class OrderCancellationService
             $detailIds = $order->details()->pluck('id');
             TitleProgress::onlyTrashed()->whereIn('order_detail_id', $detailIds)->restore();
 
-            $this->restorePayments($order, $actor);
+            $this->restorePayments($order);
             $this->restoreInvoices($order, $actor);
 
             $order->update([
@@ -108,9 +111,17 @@ class OrderCancellationService
     }
 
     /**
-     * Semua payment order → 'batal', approval-nya → 'rejected'.
+     * Payment yang SEDANG 'paid' → 'batal', approval-nya → 'rejected'.
      * PaymentObserver::saved() otomatis menghapus CashEntry-nya, karena
      * PaymentCashSyncService::sync() membuang entri untuk payment ber-status != 'paid'.
+     *
+     * Disaring HANYA status 'paid': payment yang sudah 'rejected' lebih dulu (lewat
+     * PaymentBookController::reject(), yang menulis payments.status juga — bukan cuma
+     * approval-nya) sengaja tidak disentuh. Entri kasnya sudah lama hilang dan ia sudah
+     * keluar dari Payment::scopeIncome(), jadi tak ada yang perlu dibatalkan. Menulisinya
+     * di sini akan menghapus catatan penolakan asli (note + approved_by/approved_at) dan
+     * — lebih parah — membuatnya hidup lagi sebagai 'paid' begitu order dipulihkan,
+     * karena restorePayments() mengembalikan SEMUA payment 'batal' menjadi 'paid'.
      *
      * Tidak menyaring payment_type: order yang sudah di-refund sudah ditolak lebih
      * dulu oleh isCancellable() (lihat Order::hasRefund()). Kalau gerbang itu suatu
@@ -118,7 +129,7 @@ class OrderCancellationService
      */
     private function cancelPayments(Order $order, User $actor): void
     {
-        foreach ($order->payments()->with('approval')->get() as $payment) {
+        foreach ($order->payments()->where('status', 'paid')->with('approval')->get() as $payment) {
             $payment->update(['status' => 'batal']);
 
             if ($payment->approval) {
@@ -188,24 +199,23 @@ class OrderCancellationService
      * CashPeriodLock. Aturan mainnya dibaca dari CashPeriodService yang sudah ada,
      * bukan diduplikasi. Berlaku dua arah: cancel menghapus entri, restore membuatnya lagi.
      *
-     * Periode diambil dari Payment::paid_at, BUKAN CashEntry::tanggal: saat restore()
-     * memanggil ini, payment masih berstatus 'batal' dan CashEntry-nya sudah dihapus
-     * oleh cancel(), jadi lookup by payment_id di tabel CashEntry akan selalu kosong.
-     * paid_at adalah sumber yang sama dipakai PaymentCashSyncService::sync() untuk
-     * mengisi CashEntry::tanggal, jadi hasilnya identik untuk arah cancel().
+     * Menerima tanggal (paid_at) langsung, BUKAN payment id: entri kas milik payment
+     * yang sudah 'rejected' sudah lama terhapus (tidak akan disentuh cancel() ataupun
+     * restore()), jadi ikut memeriksa periodenya hanya akan memblokir tanpa alasan.
+     * Tiap call site wajib memasok persis payment yang entri kasnya akan benar-benar
+     * dihapus/dibuat ulang — lihat cancel() dan restore().
      *
-     * @param  array<int>  $paymentIds
+     * @param  array<int, mixed>  $dates
      */
-    private function assertCashPeriodsUnlocked(array $paymentIds): void
+    private function assertCashPeriodsUnlocked(array $dates): void
     {
-        if (empty($paymentIds)) {
+        if (empty($dates)) {
             return;
         }
 
-        $paidAts = Payment::whereIn('id', $paymentIds)->pluck('paid_at');
         $service = app(CashPeriodService::class);
 
-        foreach ($paidAts as $paidAt) {
+        foreach ($dates as $paidAt) {
             if (! $paidAt) {
                 continue;
             }
@@ -217,7 +227,17 @@ class OrderCancellationService
         }
     }
 
-    private function restorePayments(Order $order, User $actor): void
+    /**
+     * Payment 'batal' → 'paid': PaymentObserver::saved() otomatis membuat ulang
+     * CashEntry-nya lewat PaymentCashSyncService::sync(). Approval-nya kembali
+     * 'pending' supaya direview ulang, bukan otomatis dianggap disetujui.
+     *
+     * Hanya menyasar status 'batal' — nilai itu SEKARANG hanya pernah ditulis oleh
+     * cancelPayments() (yang menyaring 'paid' saja, lihat catatannya). Jadi payment
+     * yang sudah 'rejected' lewat PaymentBookController::reject() sebelum order
+     * dibatalkan tidak pernah tersentuh di sini dan tetap 'rejected' sesudah dipulihkan.
+     */
+    private function restorePayments(Order $order): void
     {
         foreach ($order->payments()->where('status', 'batal')->with('approval')->get() as $payment) {
             $payment->update(['status' => 'paid']); // observer membuat ulang CashEntry
@@ -233,11 +253,24 @@ class OrderCancellationService
         }
     }
 
+    /**
+     * Invoice 'dibatalkan' → status sebelum dibatalkan — BUKAN dipatok 'diterbitkan':
+     * invoice bisa saja sedang 'jatuh_tempo' (lewat InvoiceController::updateStatus())
+     * saat order dibatalkan, dan restore() harus benar-benar kebalikan dari cancel(),
+     * bukan menormalkan semuanya. Status asli dibaca dari InvoiceLog milik pembatalan
+     * TERAKHIR — cancelInvoices() selalu mencatat status sebelumnya sebagai from_status
+     * — dengan 'diterbitkan' sebagai fallback kalau baris log itu entah kenapa hilang.
+     */
     private function restoreInvoices(Order $order, User $actor): void
     {
         foreach ($order->invoices()->where('status', 'dibatalkan')->get() as $invoice) {
+            $before = InvoiceLog::where('invoice_id', $invoice->id)
+                ->where('to_status', 'dibatalkan')
+                ->latest('id')
+                ->value('from_status') ?: 'diterbitkan';
+
             $invoice->update([
-                'status'       => 'diterbitkan',
+                'status'       => $before,
                 'cancelled_by' => null,
                 'cancelled_at' => null,
             ]);
@@ -245,7 +278,7 @@ class OrderCancellationService
             InvoiceLog::create([
                 'invoice_id'  => $invoice->id,
                 'from_status' => 'dibatalkan',
-                'to_status'   => 'diterbitkan',
+                'to_status'   => $before,
                 'changed_by'  => $actor->id,
                 'note'        => 'Order ' . $order->code_order . ' dipulihkan.',
             ]);

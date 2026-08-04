@@ -220,4 +220,40 @@ class OrderRestoreTest extends TestCase
             'to_status'   => 'dibatalkan',
         ]);
     }
+
+    /** @test */
+    public function payment_yang_sudah_ditolak_tidak_hidup_lagi_setelah_pulihkan(): void
+    {
+        $owner   = $this->user('marketing');
+        $manager = $this->user('manager');
+        $order   = $this->makeOrder($owner);
+
+        $ditolak = $this->addPayment($order, 'dp', 200000);
+        $ditolak->update(['status' => 'rejected']);          // seperti PaymentBookController::reject()
+        $ditolak->approval->update([
+            'status' => 'rejected', 'note' => 'Data tidak valid',
+            'approved_by' => $manager->id, 'approved_at' => now(),
+        ]);
+
+        $sah = $this->addPayment($order, 'dp', 500000);
+
+        $service = app(OrderCancellationService::class);
+        $service->cancel($order->fresh(), null, $owner);
+        $service->restore(Order::withTrashed()->find($order->id), $manager);
+
+        // Payment yang ditolak harus tetap ditolak — beserta catatan & penolaknya.
+        $ditolak->refresh();
+        $this->assertSame('rejected', $ditolak->status);
+        $this->assertSame('rejected', $ditolak->approval->status);
+        $this->assertSame('Data tidak valid', $ditolak->approval->note);
+        // assertEquals (bukan assertSame): approved_by baru-baru ini di-refresh dari
+        // MySQL, yang mengembalikan kolom integer sebagai string lewat PDO — pola yang
+        // sama dipakai tes lain di suite ini utk perbandingan FK setelah round-trip DB.
+        $this->assertEquals($manager->id, $ditolak->approval->approved_by);
+        $this->assertDatabaseMissing('tb_cash_entries', ['payment_id' => $ditolak->id]);
+
+        // Payment yang sah tetap pulih seperti biasa.
+        $this->assertSame('paid', $sah->fresh()->status);
+        $this->assertDatabaseHas('tb_cash_entries', ['payment_id' => $sah->id]);
+    }
 }
