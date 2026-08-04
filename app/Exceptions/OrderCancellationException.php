@@ -29,6 +29,11 @@ class OrderCancellationException extends Exception
         );
     }
 
+    public static function notCancelled(): self
+    {
+        return new self('Order ini tidak dalam keadaan dibatalkan.');
+    }
+
     public function render(Request $request)
     {
         if ($request->expectsJson()) {
