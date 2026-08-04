@@ -8,6 +8,7 @@ use App\Models\Payment;
 use App\Models\PaymentApproval;
 use App\Models\TitleProgress;
 use App\Models\User;
+use App\Services\OrderCancellationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Role;
@@ -184,5 +185,64 @@ class OrderCancelTest extends TestCase
         $this->assertTrue($eager->hasApprovedPayment());
         $this->assertTrue($eager->relationLoaded('payments'));
         $this->assertFalse($eager->isCancellable());
+    }
+
+    /** @test */
+    public function batal_menghapus_order_detail_dan_progress_secara_berjenjang(): void
+    {
+        $owner = $this->user('marketing');
+        $order = $this->makeOrder($owner);
+        $detailId = $order->details->id;
+        $progId   = TitleProgress::where('order_detail_id', $detailId)->value('id');
+
+        app(OrderCancellationService::class)->cancel($order, 'Salah input harga', $owner);
+
+        $this->assertSoftDeleted('tb_orders', ['id' => $order->id]);
+        $this->assertSoftDeleted('tb_order_details', ['id' => $detailId]);
+        $this->assertSoftDeleted('tb_title_progress', ['id' => $progId]);
+
+        $trashed = Order::withTrashed()->find($order->id);
+        $this->assertSame('dibatalkan', $trashed->status);
+        $this->assertSame('Salah input harga', $trashed->cancel_reason);
+        $this->assertSame($owner->id, $trashed->cancelled_by);
+        $this->assertNotNull($trashed->cancelled_at);
+    }
+
+    /** @test */
+    public function alasan_boleh_kosong(): void
+    {
+        $owner = $this->user('marketing');
+        $order = $this->makeOrder($owner);
+
+        app(OrderCancellationService::class)->cancel($order, null, $owner);
+
+        $this->assertNull(Order::withTrashed()->find($order->id)->cancel_reason);
+        $this->assertSoftDeleted('tb_orders', ['id' => $order->id]);
+    }
+
+    /** @test */
+    public function batal_ditolak_bila_payment_sudah_disetujui(): void
+    {
+        $owner = $this->user('marketing');
+        $order = $this->makeOrder($owner);
+        $this->addPayment($order, 'approved');
+
+        $this->expectException(\DomainException::class);
+        app(OrderCancellationService::class)->cancel($order->fresh(), null, $owner);
+    }
+
+    /** @test */
+    public function order_dibatalkan_hilang_dari_papan_manuskrip(): void
+    {
+        $owner = $this->user('marketing');
+        $order = $this->makeOrder($owner);
+
+        $this->assertSame(1, TitleProgress::count());
+
+        app(OrderCancellationService::class)->cancel($order, null, $owner);
+
+        $this->assertSame(0, TitleProgress::count());
+        $this->assertSame(0, OrderDetail::count());
+        $this->assertSame(1, TitleProgress::withTrashed()->count());
     }
 }
