@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Exceptions\OrderCancellationException;
 use App\Models\CashEntry;
+use App\Models\CashPeriodLock;
 use App\Models\Invoice;
 use App\Models\InvoiceLog;
 use App\Models\Order;
@@ -13,8 +14,10 @@ use App\Models\PaymentApproval;
 use App\Models\Tagihan;
 use App\Models\TitleProgress;
 use App\Models\User;
+use App\Notifications\DatabaseNotification;
 use App\Services\OrderCancellationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -429,5 +432,55 @@ class OrderCancelTest extends TestCase
         $lain->refresh();
         $this->assertSame('dibatalkan', $lain->status);
         $this->assertSame($order->id, $lain->order_id);
+    }
+
+    /** @test */
+    public function batal_ditolak_bila_periode_kas_terkunci(): void
+    {
+        $owner   = $this->user('marketing');
+        $order   = $this->makeOrder($owner);
+        $payment = $this->addPayment($order, 'pending');
+
+        // Entri kas payment jatuh di Agustus 2026 (paid_at = 2026-08-02).
+        CashPeriodLock::create([
+            'year'      => 2026,
+            'month'     => 8,
+            'locked_by' => $this->user('superadmin')->id,
+            'locked_at' => now(),
+        ]);
+
+        try {
+            app(OrderCancellationService::class)->cancel($order->fresh(), null, $owner);
+            $this->fail('Pembatalan seharusnya ditolak karena periode kas terkunci.');
+        } catch (\App\Exceptions\OrderCancellationException $e) {
+            $this->assertStringContainsString('08/2026', $e->getMessage());
+        }
+
+        // Tidak ada satu pun efek samping yang lolos.
+        $this->assertDatabaseHas('tb_orders', ['id' => $order->id, 'deleted_at' => null]);
+        $this->assertSame('paid', $payment->fresh()->status);
+        $this->assertDatabaseHas('tb_cash_entries', ['payment_id' => $payment->id]);
+    }
+
+    /**
+     * @test
+     *
+     * Mengikuti pola NotificationHooksTest: Notification::fake() + assertSentTo,
+     * bukan menghitung baris tb_notifications langsung.
+     */
+    public function pembatalan_memberi_tahu_manager_dan_superadmin(): void
+    {
+        $owner      = $this->user('marketing');
+        $manager    = $this->user('manager');
+        $superadmin = $this->user('superadmin');
+        $order      = $this->makeOrder($owner);
+
+        Notification::fake();
+
+        app(OrderCancellationService::class)->cancel($order, 'Salah input', $owner);
+
+        Notification::assertSentTo($manager, DatabaseNotification::class);
+        Notification::assertSentTo($superadmin, DatabaseNotification::class);
+        Notification::assertNotSentTo($owner, DatabaseNotification::class);
     }
 }

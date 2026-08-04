@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\MarketingTarget;
+use App\Models\Order;
 use App\Models\Payment;
 use App\Models\Tagihan;
 use App\Models\Task;
@@ -67,6 +68,28 @@ class Notifier
             'message'  => 'Rp ' . $this->rp($payment->amount) . ' — ' . ($payment->order?->user?->name ?? '—'),
             'url'      => route('invoice.index'),
             'icon'     => 'corner-up-left',
+        ]);
+    }
+
+    public function orderCancelled(Order $order, User $actor): void
+    {
+        $this->send($this->roleUsers(['manager', 'superadmin'], $actor), [
+            'category' => 'order',
+            'title'    => 'Order dibatalkan',
+            'message'  => $order->code_order . ' dibatalkan oleh ' . $actor->name,
+            'url'      => route('order.book.index', ['trashed' => 1]),
+            'icon'     => 'x-octagon',
+        ]);
+    }
+
+    public function orderRestored(Order $order, User $actor): void
+    {
+        $this->send($this->roleUsers(['manager', 'superadmin'], $actor), [
+            'category' => 'order',
+            'title'    => 'Order dipulihkan',
+            'message'  => $order->code_order . ' dipulihkan oleh ' . $actor->name,
+            'url'      => route('order.book.index'),
+            'icon'     => 'rotate-ccw',
         ]);
     }
 

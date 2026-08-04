@@ -21,6 +21,14 @@ class OrderCancellationException extends Exception
         return new self('Order ini sudah pernah di-refund, jadi tidak bisa dibatalkan. Pembatalan tidak bisa membalik transaksi yang sudah terjadi.');
     }
 
+    public static function periodLocked(string $period): self
+    {
+        return new self(
+            'Periode kas ' . $period . ' sudah dikunci. '
+            . 'Minta superadmin membuka periode atau gunakan alur Refund.'
+        );
+    }
+
     public function render(Request $request)
     {
         if ($request->expectsJson()) {

@@ -3,13 +3,16 @@
 namespace App\Services;
 
 use App\Exceptions\OrderCancellationException;
+use App\Models\CashEntry;
 use App\Models\InvoiceLog;
 use App\Models\Order;
 use App\Models\Tagihan;
 use App\Models\TagihanLog;
 use App\Models\TitleProgress;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Pembatalan & pemulihan order.
@@ -32,6 +35,8 @@ class OrderCancellationService
             throw OrderCancellationException::notCancellable();
         }
 
+        $this->assertCashPeriodsUnlocked($order->payments()->pluck('id')->all());
+
         DB::transaction(function () use ($order, $reason, $actor) {
             $this->cancelPayments($order, $actor);
             $this->cancelInvoices($order, $actor);
@@ -51,6 +56,14 @@ class OrderCancellationService
 
             $this->releaseTagihan($order, $actor);
         });
+
+        // Non-fatal: pembatalan sudah ter-commit. Kegagalan notifikasi tidak boleh
+        // menjatuhkan alur (pola yang sama dengan paymentSubmitted).
+        try {
+            app(Notifier::class)->orderCancelled($order, $actor);
+        } catch (\Throwable $e) {
+            Log::warning('Notifikasi pembatalan order gagal: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -126,6 +139,34 @@ class OrderCancellationService
                 'changed_by'  => $actor->id,
                 'note'        => 'Order ' . $order->code_order . ' dibatalkan; tagihan bisa dipakai lagi.',
             ]);
+        }
+    }
+
+    /**
+     * Menghapus/membuat ulang CashEntry di periode yang sudah ditutup melanggar
+     * CashPeriodLock. Aturan mainnya dibaca dari CashPeriodService yang sudah ada,
+     * bukan diduplikasi. Berlaku dua arah: cancel menghapus entri, restore membuatnya lagi.
+     *
+     * @param  array<int>  $paymentIds
+     */
+    private function assertCashPeriodsUnlocked(array $paymentIds): void
+    {
+        if (empty($paymentIds)) {
+            return;
+        }
+
+        $periods = CashEntry::whereIn('payment_id', $paymentIds)->pluck('tanggal');
+        $service = app(CashPeriodService::class);
+
+        foreach ($periods as $tanggal) {
+            if (! $tanggal) {
+                continue;
+            }
+
+            $d = Carbon::parse($tanggal);
+            if ($service->isLocked((int) $d->format('Y'), (int) $d->format('n'))) {
+                throw OrderCancellationException::periodLocked($d->format('m/Y'));
+            }
         }
     }
 }
