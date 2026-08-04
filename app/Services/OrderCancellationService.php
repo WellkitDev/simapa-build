@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Exceptions\OrderCancellationException;
 use App\Models\InvoiceLog;
 use App\Models\Order;
+use App\Models\Tagihan;
+use App\Models\TagihanLog;
 use App\Models\TitleProgress;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -46,6 +48,8 @@ class OrderCancellationService
                 'cancelled_at'  => now(),
             ]);
             $order->delete();
+
+            $this->releaseTagihan($order, $actor);
         });
     }
 
@@ -95,6 +99,32 @@ class OrderCancellationService
                 'to_status'   => 'dibatalkan',
                 'changed_by'  => $actor->id,
                 'note'        => 'Order ' . $order->code_order . ' dibatalkan.',
+            ]);
+        }
+    }
+
+    /**
+     * Tagihan yang sudah "jadi_order" dikembalikan ke 'disetujui'. Tanpa ini, tagihan
+     * yang sudah disetujui ikut mati bersama order dan tidak bisa dipakai membuat
+     * order pengganti.
+     */
+    private function releaseTagihan(Order $order, User $actor): void
+    {
+        $tagihans = Tagihan::where('order_id', $order->id)->where('status', 'jadi_order')->get();
+
+        foreach ($tagihans as $tagihan) {
+            $tagihan->update([
+                'status'     => 'disetujui',
+                'order_id'   => null,
+                'order_code' => null,
+            ]);
+
+            TagihanLog::create([
+                'tagihan_id'  => $tagihan->id,
+                'from_status' => 'jadi_order',
+                'to_status'   => 'disetujui',
+                'changed_by'  => $actor->id,
+                'note'        => 'Order ' . $order->code_order . ' dibatalkan; tagihan bisa dipakai lagi.',
             ]);
         }
     }

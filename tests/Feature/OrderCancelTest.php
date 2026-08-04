@@ -10,6 +10,7 @@ use App\Models\Order;
 use App\Models\OrderDetail;
 use App\Models\Payment;
 use App\Models\PaymentApproval;
+use App\Models\Tagihan;
 use App\Models\TitleProgress;
 use App\Models\User;
 use App\Services\OrderCancellationService;
@@ -377,5 +378,37 @@ class OrderCancelTest extends TestCase
         $this->assertDatabaseHas('tb_cash_entries', ['payment_id' => $payment->id]);
         $this->assertDatabaseHas('tb_cash_entries', ['payment_id' => $refund->id]);
         $this->assertDatabaseHas('tb_orders', ['id' => $order->id, 'deleted_at' => null]);
+    }
+
+    /** @test */
+    public function tagihan_tertaut_kembali_ke_disetujui(): void
+    {
+        $owner = $this->user('marketing');
+        $order = $this->makeOrder($owner);
+
+        $tagihan = Tagihan::create([
+            'tagihan_no'   => 'TGH-0001',
+            'created_by'   => $owner->id,
+            'client_name'  => 'Klien A',
+            'client_email' => 'klien@example.com',
+            'title'        => 'Judul Uji',
+            'type'         => 'bk_mandiri',
+            'amount'       => 1000000,
+            'status'       => 'jadi_order',
+            'order_id'     => $order->id,
+            'order_code'   => $order->code_order,
+        ]);
+
+        app(OrderCancellationService::class)->cancel($order, null, $owner);
+
+        $tagihan->refresh();
+        $this->assertSame('disetujui', $tagihan->status);
+        $this->assertNull($tagihan->order_id);
+        $this->assertNull($tagihan->order_code);
+        $this->assertDatabaseHas('tb_tagihan_logs', [
+            'tagihan_id'  => $tagihan->id,
+            'from_status' => 'jadi_order',
+            'to_status'   => 'disetujui',
+        ]);
     }
 }
