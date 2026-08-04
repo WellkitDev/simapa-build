@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Exceptions\OrderCancellationException;
 use App\Models\Order;
 use App\Models\OrderDetail;
 use App\Models\Payment;
@@ -227,7 +228,7 @@ class OrderCancelTest extends TestCase
         $order = $this->makeOrder($owner);
         $this->addPayment($order, 'approved');
 
-        $this->expectException(\DomainException::class);
+        $this->expectException(OrderCancellationException::class);
         app(OrderCancellationService::class)->cancel($order->fresh(), null, $owner);
     }
 
@@ -239,10 +240,44 @@ class OrderCancelTest extends TestCase
 
         $this->assertSame(1, TitleProgress::count());
 
+        // Manager (bukan production-only) supaya scope papan default 'all', bukan
+        // 'mine' — progress baru berstatus 'menunggu_proses' (handler marketing) jadi
+        // tak lolos filter scope=mine milik viewer production. Ini menembak rute
+        // manuscript.board sungguhan (ManuscriptTrackerController@index), bukan cuma
+        // menghitung baris — supaya klaim arsitektur "hilang dari papan lewat global
+        // scope, tanpa menyentuh controller-nya" benar-benar teruji.
+        $viewer = $this->user('manager');
+        $this->actingAs($viewer)
+            ->get(route('manuscript.board'))
+            ->assertOk()
+            ->assertSee('Judul Uji');
+
         app(OrderCancellationService::class)->cancel($order, null, $owner);
 
         $this->assertSame(0, TitleProgress::count());
         $this->assertSame(0, OrderDetail::count());
         $this->assertSame(1, TitleProgress::withTrashed()->count());
+
+        $this->actingAs($viewer)
+            ->get(route('manuscript.board'))
+            ->assertOk()
+            ->assertDontSee('Judul Uji');
+    }
+
+    /** @test */
+    public function order_tanpa_detail_tetap_bisa_dibatalkan(): void
+    {
+        $owner = $this->user('marketing');
+        $order = Order::create([
+            'code_order' => 'ORD-202608-9999',
+            'user_id'    => $owner->id,
+            'status'     => 'pending',
+            'ordered_at' => '2026-08-01',
+        ]);
+
+        app(OrderCancellationService::class)->cancel($order, null, $owner);
+
+        $this->assertSoftDeleted('tb_orders', ['id' => $order->id]);
+        $this->assertSame('dibatalkan', Order::withTrashed()->find($order->id)->status);
     }
 }

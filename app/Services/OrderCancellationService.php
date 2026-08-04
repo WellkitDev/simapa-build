@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\OrderCancellationException;
 use App\Models\Order;
 use App\Models\TitleProgress;
 use App\Models\User;
@@ -21,9 +22,7 @@ class OrderCancellationService
     public function cancel(Order $order, ?string $reason, User $actor): void
     {
         if (! $order->isCancellable()) {
-            throw new \DomainException(
-                'Order ini tidak bisa dibatalkan karena pembayarannya sudah disetujui. Gunakan alur Refund.'
-            );
+            throw OrderCancellationException::notCancellable();
         }
 
         DB::transaction(function () use ($order, $reason, $actor) {
