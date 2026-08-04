@@ -399,6 +399,21 @@ class OrderCancelTest extends TestCase
             'order_code'   => $order->code_order,
         ]);
 
+        // Tagihan lain yang TIDAK berstatus jadi_order tidak boleh ikut tersentuh —
+        // mengunci filter where('status', 'jadi_order') supaya tak hilang diam-diam.
+        $lain = Tagihan::create([
+            'tagihan_no'   => 'TGH-0002',
+            'created_by'   => $owner->id,
+            'client_name'  => 'Klien B',
+            'client_email' => 'klienb@example.com',
+            'title'        => 'Judul Lain',
+            'type'         => 'bk_mandiri',
+            'amount'       => 500000,
+            'status'       => 'dibatalkan',
+            'order_id'     => $order->id,
+            'order_code'   => $order->code_order,
+        ]);
+
         app(OrderCancellationService::class)->cancel($order, null, $owner);
 
         $tagihan->refresh();
@@ -410,5 +425,9 @@ class OrderCancelTest extends TestCase
             'from_status' => 'jadi_order',
             'to_status'   => 'disetujui',
         ]);
+
+        $lain->refresh();
+        $this->assertSame('dibatalkan', $lain->status);
+        $this->assertSame($order->id, $lain->order_id);
     }
 }
