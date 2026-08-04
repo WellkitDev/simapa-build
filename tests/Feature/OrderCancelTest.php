@@ -3,6 +3,9 @@
 namespace Tests\Feature;
 
 use App\Exceptions\OrderCancellationException;
+use App\Models\CashEntry;
+use App\Models\Invoice;
+use App\Models\InvoiceLog;
 use App\Models\Order;
 use App\Models\OrderDetail;
 use App\Models\Payment;
@@ -279,5 +282,70 @@ class OrderCancelTest extends TestCase
 
         $this->assertSoftDeleted('tb_orders', ['id' => $order->id]);
         $this->assertSame('dibatalkan', Order::withTrashed()->find($order->id)->status);
+    }
+
+    /** Invoice + log seperti yang dibuat PaymentBookController::store(). */
+    private function addInvoice(Order $order, Payment $payment): Invoice
+    {
+        $invoice = Invoice::create([
+            'order_id'   => $order->id,
+            'payment_id' => $payment->id,
+            'invoice_no' => 'INV-' . $order->id . '-' . $payment->id,
+            'issued_at'  => '2026-08-02',
+            'due_at'     => '2026-08-09',
+            'status'     => 'diterbitkan',
+        ]);
+
+        InvoiceLog::create([
+            'invoice_id'  => $invoice->id,
+            'from_status' => '',
+            'to_status'   => 'diterbitkan',
+            'changed_by'  => $order->user_id,
+            'note'        => 'Invoice dibuat otomatis dari pembayaran.',
+        ]);
+
+        return $invoice;
+    }
+
+    /** @test */
+    public function batal_membatalkan_payment_approval_invoice_dan_menghapus_entri_kas(): void
+    {
+        $owner   = $this->user('marketing');
+        $order   = $this->makeOrder($owner);
+        $payment = $this->addPayment($order, 'pending');
+        $invoice = $this->addInvoice($order, $payment);
+
+        // PaymentObserver sudah membuat entri kas saat payment ber-status 'paid'.
+        $this->assertDatabaseHas('tb_cash_entries', ['payment_id' => $payment->id]);
+
+        app(OrderCancellationService::class)->cancel($order->fresh(), 'Dobel input', $owner);
+
+        $this->assertSame('batal', $payment->fresh()->status);
+        $this->assertSame('rejected', $payment->fresh()->approval->status);
+        $this->assertSame('dibatalkan', $invoice->fresh()->status);
+        $this->assertSame($owner->id, $invoice->fresh()->cancelled_by);
+        $this->assertNotNull($invoice->fresh()->cancelled_at);
+
+        $this->assertDatabaseMissing('tb_cash_entries', ['payment_id' => $payment->id]);
+        $this->assertDatabaseHas('tb_invoice_logs', [
+            'invoice_id'  => $invoice->id,
+            'from_status' => 'diterbitkan',
+            'to_status'   => 'dibatalkan',
+        ]);
+    }
+
+    /** @test */
+    public function payment_yang_dibatalkan_keluar_dari_perhitungan_uang_masuk(): void
+    {
+        $owner   = $this->user('marketing');
+        $order   = $this->makeOrder($owner);
+        $payment = $this->addPayment($order, 'pending', 750000);
+
+        $this->assertSame(750000, $order->fresh()->paidNet());
+
+        app(OrderCancellationService::class)->cancel($order->fresh(), null, $owner);
+
+        $this->assertSame(0, Order::withTrashed()->find($order->id)->paidNet());
+        $this->assertSame(0, (int) Payment::income()->sum('amount'));
     }
 }

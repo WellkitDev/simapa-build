@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Exceptions\OrderCancellationException;
+use App\Models\InvoiceLog;
 use App\Models\Order;
 use App\Models\TitleProgress;
 use App\Models\User;
@@ -26,6 +27,9 @@ class OrderCancellationService
         }
 
         DB::transaction(function () use ($order, $reason, $actor) {
+            $this->cancelPayments($order, $actor);
+            $this->cancelInvoices($order, $actor);
+
             $detailIds = $order->details()->pluck('id');
 
             TitleProgress::whereIn('order_detail_id', $detailIds)->delete();
@@ -39,5 +43,51 @@ class OrderCancellationService
             ]);
             $order->delete();
         });
+    }
+
+    /**
+     * Payment yang belum disetujui → 'batal', approval-nya → 'rejected'.
+     * PaymentObserver::saved() otomatis menghapus CashEntry-nya, karena
+     * PaymentCashSyncService::sync() membuang entri untuk payment ber-status != 'paid'.
+     */
+    private function cancelPayments(Order $order, User $actor): void
+    {
+        foreach ($order->payments()->with('approval')->get() as $payment) {
+            $payment->update(['status' => 'batal']);
+
+            if ($payment->approval) {
+                $payment->approval->update([
+                    'status'      => 'rejected',
+                    'note'        => 'Order dibatalkan',
+                    'approved_by' => $actor->id,
+                    'approved_at' => now(),
+                ]);
+            }
+        }
+    }
+
+    /**
+     * Invoice order → 'dibatalkan' (kosakata Invoice::STATUSES; 'batal' di rancangan
+     * awal bukan status yang dikenal model — lihat catatan penyimpangan di rencana).
+     */
+    private function cancelInvoices(Order $order, User $actor): void
+    {
+        foreach ($order->invoices()->get() as $invoice) {
+            $from = $invoice->status;
+
+            $invoice->update([
+                'status'       => 'dibatalkan',
+                'cancelled_by' => $actor->id,
+                'cancelled_at' => now(),
+            ]);
+
+            InvoiceLog::create([
+                'invoice_id'  => $invoice->id,
+                'from_status' => $from,
+                'to_status'   => 'dibatalkan',
+                'changed_by'  => $actor->id,
+                'note'        => 'Order ' . $order->code_order . ' dibatalkan.',
+            ]);
+        }
     }
 }
