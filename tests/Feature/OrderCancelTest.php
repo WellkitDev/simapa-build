@@ -348,4 +348,34 @@ class OrderCancelTest extends TestCase
         $this->assertSame(0, Order::withTrashed()->find($order->id)->paidNet());
         $this->assertSame(0, (int) Payment::income()->sum('amount'));
     }
+
+    /** @test */
+    public function order_yang_sudah_direfund_tidak_bisa_dibatalkan(): void
+    {
+        $owner   = $this->user('marketing');
+        $order   = $this->makeOrder($owner);
+        $payment = $this->addPayment($order, 'pending', 750000);
+
+        $refund = Payment::create([
+            'order_id'     => $order->id,
+            'payment_type' => 'refund',
+            'amount'       => 300000,
+            'status'       => 'paid',
+            'paid_at'      => '2026-08-03',
+        ]);
+
+        $this->assertFalse($order->fresh()->isCancellable());
+
+        try {
+            app(OrderCancellationService::class)->cancel($order->fresh(), null, $owner);
+            $this->fail('Order yang sudah di-refund seharusnya tidak bisa dibatalkan.');
+        } catch (\App\Exceptions\OrderCancellationException $e) {
+            $this->assertStringContainsString('refund', $e->getMessage());
+        }
+
+        // Kedua entri kas nyata harus tetap utuh — uangnya benar-benar masuk lalu keluar.
+        $this->assertDatabaseHas('tb_cash_entries', ['payment_id' => $payment->id]);
+        $this->assertDatabaseHas('tb_cash_entries', ['payment_id' => $refund->id]);
+        $this->assertDatabaseHas('tb_orders', ['id' => $order->id, 'deleted_at' => null]);
+    }
 }

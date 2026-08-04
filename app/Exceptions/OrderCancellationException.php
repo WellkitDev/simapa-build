@@ -16,6 +16,11 @@ class OrderCancellationException extends Exception
         return new self('Order ini tidak bisa dibatalkan karena pembayarannya sudah disetujui. Gunakan alur Refund.');
     }
 
+    public static function alreadyRefunded(): self
+    {
+        return new self('Order ini sudah pernah di-refund, jadi tidak bisa dibatalkan. Pembatalan tidak bisa membalik transaksi yang sudah terjadi.');
+    }
+
     public function render(Request $request)
     {
         if ($request->expectsJson()) {

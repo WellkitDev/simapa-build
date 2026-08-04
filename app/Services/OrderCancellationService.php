@@ -22,6 +22,10 @@ class OrderCancellationService
 {
     public function cancel(Order $order, ?string $reason, User $actor): void
     {
+        if ($order->hasRefund()) {
+            throw OrderCancellationException::alreadyRefunded();
+        }
+
         if (! $order->isCancellable()) {
             throw OrderCancellationException::notCancellable();
         }
@@ -46,9 +50,13 @@ class OrderCancellationService
     }
 
     /**
-     * Payment yang belum disetujui → 'batal', approval-nya → 'rejected'.
+     * Semua payment order → 'batal', approval-nya → 'rejected'.
      * PaymentObserver::saved() otomatis menghapus CashEntry-nya, karena
      * PaymentCashSyncService::sync() membuang entri untuk payment ber-status != 'paid'.
+     *
+     * Tidak menyaring payment_type: order yang sudah di-refund sudah ditolak lebih
+     * dulu oleh isCancellable() (lihat Order::hasRefund()). Kalau gerbang itu suatu
+     * saat dilonggarkan, penyaringan refund HARUS ditambahkan di sini.
      */
     private function cancelPayments(Order $order, User $actor): void
     {

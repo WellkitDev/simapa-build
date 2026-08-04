@@ -87,10 +87,31 @@ class Order extends Model
         return ! $this->isCancelled();
     }
 
-    /** Boleh dibatalkan: belum dibatalkan DAN belum ada payment yang disetujui. */
+    /**
+     * Boleh dibatalkan: belum dibatalkan, belum ada payment yang disetujui,
+     * DAN belum pernah di-refund.
+     *
+     * Refund sengaja ikut menutup gerbang: RefundController::paidIn() tidak
+     * memeriksa approval, dan payment refund dibuat tanpa PaymentApproval — jadi
+     * order yang sudah di-refund tetap lolos hasApprovedPayment(). Membatalkannya
+     * akan menghapus entri kas pemasukan DAN pengeluaran refund-nya sekaligus,
+     * padahal uangnya benar-benar sudah masuk lalu keluar lewat transfer bank.
+     */
     public function isCancellable(): bool
     {
-        return ! $this->isCancelled() && ! $this->hasApprovedPayment();
+        return ! $this->isCancelled()
+            && ! $this->hasApprovedPayment()
+            && ! $this->hasRefund();
+    }
+
+    /** Sudah pernah di-refund (uang keluar tercatat). */
+    public function hasRefund(): bool
+    {
+        if ($this->relationLoaded('payments')) {
+            return $this->payments->contains(fn ($payment) => $payment->payment_type === 'refund');
+        }
+
+        return $this->payments()->where('payment_type', 'refund')->exists();
     }
 
     /**
