@@ -15,7 +15,19 @@
                 <div class="card-body">
 
                     <div class="d-flex justify-content-between align-items-baseline mb-md-4">
-                        <h6 class="card-title mb-0">Manajemen Order</h6>
+                        <h6 class="card-title mb-0">
+                            {{ $trashed ? 'Order Dibatalkan' : 'Manajemen Order' }}
+                        </h6>
+                        @if ($trashed)
+                            <a href="{{ route('order.book.index') }}" class="btn btn-sm btn-outline-secondary">
+                                ← Kembali ke order aktif
+                            </a>
+                        @else
+                            <a href="{{ route('order.book.index', ['trashed' => 1]) }}"
+                                class="btn btn-sm btn-outline-secondary">
+                                Tampilkan order dibatalkan
+                            </a>
+                        @endif
                     </div>
 
                     <div class="row mt-4">
@@ -36,35 +48,34 @@
                                     @foreach ($orders as $order)
                                         <tr>
                                             <td>{{ $order->code_order }}</td>
-                                            <td>{{ Str::title(Str::limit($order->details->title, 30)) ?? '-' }}</td>
+                                            <td>{{ $order->details ? Str::title(Str::limit($order->details->title, 30)) : '-' }}</td>
                                             <td class="dt-judul">
-                                                @foreach ($order->details->authors as $author)
+                                                @foreach ($order->details?->authors ?? [] as $author)
                                                     <span class="badge border text-dark fw-normal bg-light me-1 mb-1">
                                                         <i class="fa fa-user size-10"></i> {{ $author->name }}
                                                     </span>
                                                 @endforeach
                                             </td>
                                             <td>
-                                                @switch($order->details->type)
+                                                @switch($order->details?->type)
                                                     @case('bk_mandiri')
-                                                        Buku
-                                                    @break
-
                                                     @case('bk_kolab')
                                                         Buku
                                                     @break
 
                                                     @case('at_mandiri')
-                                                        Artikel
-                                                    @break
-
                                                     @case('at_kolab')
                                                         Artikel
                                                     @break
+
+                                                    @default
+                                                        —
                                                 @endswitch
                                             </td>
                                             <td>
-                                                @if ($order->status == 'pending')
+                                                @if ($order->isCancelled())
+                                                    <span class="badge bg-secondary">Dibatalkan</span>
+                                                @elseif ($order->status == 'pending')
                                                     <span class="badge bg-warning text-dark">Menunggu</span>
                                                 @else
                                                     <span class="badge bg-success">Diproses</span>
@@ -72,57 +83,79 @@
                                             </td>
                                             <td>
                                                 @php
-                                                    // Cek apakah ada pembayaran yang sudah disetujui (paid)
-                                                    $hasApprovedPayment = $order->payments
-                                                        ->where('status', 'paid')
-                                                        ->isNotEmpty();
+                                                    $isJournal = in_array($order->details?->type, ['at_mandiri', 'at_kolab'], true);
+                                                    $editUrl   = $isJournal
+                                                        ? route('order.journal.edit', $order->code_order)
+                                                        : route('order.book.edit', $order->code_order);
+                                                    $hasPayment = $order->payments->isNotEmpty();
+                                                    $approved   = $order->payments->contains(
+                                                        fn ($p) => optional($p->approval)->status === 'approved'
+                                                    );
                                                 @endphp
 
-                                                {{-- KONDISI 1: Jika status pending DAN belum ada data payment sama sekali --}}
-                                                @if ($order->status == 'pending' && $order->payments->isEmpty())
-                                                    <a href="{{ route('payment.create', $order->code_order) }}"
-                                                        class="btn btn-icon btn-primary">
-                                                        <i class="" data-feather="credit-card"></i>
-                                                    </a>
-
-                                                    {{-- KONDISI 2: Sudah upload pembayaran tapi belum di-approve (masih pending di tb_payments) --}}
-                                                @elseif($order->status == 'pending' && !$hasApprovedPayment)
-                                                    <div class="btn-group">
-                                                        <a href="{{ route('order.book.show', $order->code_order) }}"
-                                                            class="btn btn-icon btn-outline-primary">
-                                                            <i class="" data-feather="check"></i>
-                                                        </a>
-
-                                                    </div>
-
-                                                    {{-- KONDISI 3: Pembayaran sudah di-approve (status sudah 'paid' atau order status berubah) --}}
-                                                @else
+                                                @if ($order->isCancelled())
+                                                    {{-- Dibatalkan: hanya-baca + Pulihkan (manager/superadmin) --}}
                                                     <a href="{{ route('order.book.show', $order->code_order) }}"
-                                                        class="btn btn-icon btn-primary">
-                                                        <i class="" data-feather="eye"></i>
+                                                        class="btn btn-icon btn-outline-secondary" title="Lihat">
+                                                        <i data-feather="eye"></i>
                                                     </a>
-                                                    @if (in_array($order->details->type, ['at_mandiri', 'at_kolab']))
-                                                    <a href="{{ route('order.journal.edit', $order->code_order) }}"
-                                                        class="btn btn-icon btn-outline-primary">
-                                                        <i class="" data-feather="edit"></i>
-                                                    </a>
-                                                    @else
-                                                    <a href="{{ route('order.book.edit', $order->code_order) }}"
-                                                        class="btn btn-icon btn-outline-primary">
-                                                        <i class="" data-feather="edit"></i>
-                                                    </a>
-                                                    @endif
-                                                    @can('order.refund')
-                                                        @php
-                                                            $paidIn = $order->payments->where('status','paid')->where('payment_type','!=','refund')->sum('amount');
-                                                            $refunded = $order->payments->where('payment_type','refund')->isNotEmpty();
-                                                        @endphp
-                                                        @if($refunded)
-                                                            <a href="{{ route('order.refund.pdf', $order->code_order) }}" target="_blank" class="btn btn-icon btn-outline-secondary" title="Bukti Refund"><i class="" data-feather="file-text"></i></a>
-                                                        @elseif($paidIn > 0)
-                                                            <a href="{{ route('order.refund.form', $order->code_order) }}" class="btn btn-icon btn-outline-warning" title="Refund"><i class="" data-feather="corner-up-left"></i></a>
-                                                        @endif
+                                                    @can('order.restore')
+                                                        <form action="{{ route('order.restore', $order->code_order) }}"
+                                                            method="POST" class="d-inline m-0">
+                                                            @csrf
+                                                            <button class="btn btn-icon btn-outline-success" title="Pulihkan">
+                                                                <i data-feather="rotate-ccw"></i>
+                                                            </button>
+                                                        </form>
                                                     @endcan
+                                                @else
+                                                    @if (!$hasPayment)
+                                                        <a href="{{ route('payment.create', $order->code_order) }}"
+                                                            class="btn btn-icon btn-primary" title="Pembayaran">
+                                                            <i data-feather="credit-card"></i>
+                                                        </a>
+                                                    @else
+                                                        <a href="{{ route('order.book.show', $order->code_order) }}"
+                                                            class="btn btn-icon btn-primary" title="Lihat">
+                                                            <i data-feather="eye"></i>
+                                                        </a>
+                                                    @endif
+
+                                                    @can('order.edit')
+                                                        <a href="{{ $editUrl }}" class="btn btn-icon btn-outline-primary" title="Edit">
+                                                            <i data-feather="edit"></i>
+                                                        </a>
+                                                    @endcan
+
+                                                    @if ($order->isCancellable())
+                                                        @can('order.cancel')
+                                                            <button type="button" class="btn btn-icon btn-outline-danger"
+                                                                data-bs-toggle="modal" data-bs-target="#cancelOrder{{ $order->id }}"
+                                                                title="Batalkan order">
+                                                                <i data-feather="x-octagon"></i>
+                                                            </button>
+                                                        @endcan
+                                                    @endif
+
+                                                    @if ($approved)
+                                                        @can('order.refund')
+                                                            @php
+                                                                $paidIn   = $order->payments->where('status', 'paid')->where('payment_type', '!=', 'refund')->sum('amount');
+                                                                $refunded = $order->payments->where('payment_type', 'refund')->isNotEmpty();
+                                                            @endphp
+                                                            @if ($refunded)
+                                                                <a href="{{ route('order.refund.pdf', $order->code_order) }}" target="_blank"
+                                                                    class="btn btn-icon btn-outline-secondary" title="Bukti Refund">
+                                                                    <i data-feather="file-text"></i>
+                                                                </a>
+                                                            @elseif ($paidIn > 0)
+                                                                <a href="{{ route('order.refund.form', $order->code_order) }}"
+                                                                    class="btn btn-icon btn-outline-warning" title="Refund">
+                                                                    <i data-feather="corner-up-left"></i>
+                                                                </a>
+                                                            @endif
+                                                        @endcan
+                                                    @endif
                                                 @endif
                                             </td>
                                         </tr>
@@ -131,6 +164,49 @@
                             </table>
                         </div>
                     </div>
+
+                    {{-- Modal ditaruh DI LUAR <table>: DataTables + responsive memindahkan
+                         DOM baris, dan modal yang bersarang di <td> bisa ikut tersembunyi. --}}
+                    @foreach ($orders as $order)
+                        @if ($order->isCancellable())
+                            @can('order.cancel')
+                            <div class="modal fade" id="cancelOrder{{ $order->id }}" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog">
+                                    <form class="modal-content" method="POST"
+                                        action="{{ route('order.cancel', $order->code_order) }}">
+                                        @csrf
+                                        @method('DELETE')
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Batalkan Order</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <p class="mb-2">Order berikut akan dibatalkan:</p>
+                                            <ul class="mb-3">
+                                                <li>Kode: <strong>{{ $order->code_order }}</strong></li>
+                                                <li>Judul: {{ $order->details?->title ?? '—' }}</li>
+                                                <li>Total biaya: Rp {{ number_format((int) ($order->details?->cost_amount ?? 0), 0, ',', '.') }}</li>
+                                            </ul>
+                                            <div class="mb-2">
+                                                <label class="form-label">Alasan pembatalan <span class="text-muted">(opsional)</span></label>
+                                                <textarea name="cancel_reason" class="form-control" rows="3"
+                                                    placeholder="Mis. salah input harga, klien membatalkan"></textarea>
+                                            </div>
+                                            <p class="small text-muted mb-0">
+                                                Order tidak dihapus permanen — nomor order tetap tercatat dan bisa dipulihkan
+                                                oleh manager/superadmin.
+                                            </p>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Kembali</button>
+                                            <button type="submit" class="btn btn-sm btn-danger">Ya, batalkan order</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                            @endcan
+                        @endif
+                    @endforeach
 
                 </div>
             </div>

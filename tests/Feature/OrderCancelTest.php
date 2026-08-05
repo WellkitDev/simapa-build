@@ -622,4 +622,42 @@ class OrderCancelTest extends TestCase
         $this->actingAs($owner)->get(route('order.book.show', $order->code_order))
             ->assertOk();
     }
+
+    /** @test */
+    public function tombol_batal_muncul_untuk_pemilik_dan_hilang_setelah_dibatalkan(): void
+    {
+        $owner = $this->user('marketing');
+        $order = $this->makeOrder($owner);
+
+        $this->actingAs($owner)->get(route('order.book.index'))
+            ->assertOk()
+            ->assertSee('cancelOrder' . $order->id)          // modal + tombol pemicunya
+            ->assertSee('Batalkan Order');
+
+        app(OrderCancellationService::class)->cancel($order->fresh(), null, $owner);
+
+        // Setelah dibatalkan: tak ada lagi modal batal, dan di daftar trashed
+        // muncul badge Dibatalkan.
+        $this->actingAs($owner)->get(route('order.book.index', ['trashed' => 1]))
+            ->assertOk()
+            ->assertSee('Dibatalkan')
+            ->assertDontSee('cancelOrder' . $order->id);
+    }
+
+    /** @test */
+    public function tombol_pulihkan_hanya_untuk_yang_berwenang(): void
+    {
+        $owner = $this->user('marketing');
+        $order = $this->makeOrder($owner);
+        app(OrderCancellationService::class)->cancel($order, null, $owner);
+
+        // Marketing tidak punya order.restore → tombol tidak dirender.
+        $this->actingAs($owner)->get(route('order.book.index', ['trashed' => 1]))
+            ->assertOk()
+            ->assertDontSee(route('order.restore', $order->code_order), false);
+
+        $this->actingAs($this->user('manager'))->get(route('order.book.index', ['trashed' => 1]))
+            ->assertOk()
+            ->assertSee(route('order.restore', $order->code_order), false);
+    }
 }
