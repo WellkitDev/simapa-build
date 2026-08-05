@@ -1,7 +1,7 @@
 # Spec: Koreksi Order (Edit & Batal) + Pengelolaan Judul
 
 **Tanggal:** 2026-08-03
-**Status:** Bagian 1 (Edit & Batal Order) **terimplementasi 2026-08-05** — lihat [`plans/2026-08-03-order-cancel-edit.md`](../plans/2026-08-03-order-cancel-edit.md). Bagian 2a/2b/2c menyusul di [`plans/2026-08-03-title-management.md`](../plans/2026-08-03-title-management.md).
+**Status:** **Terimplementasi seluruhnya 2026-08-05.** Bagian 1 lewat [`plans/2026-08-03-order-cancel-edit.md`](../plans/2026-08-03-order-cancel-edit.md), Bagian 2a/2b/2c lewat [`plans/2026-08-03-title-management.md`](../plans/2026-08-03-title-management.md). Sisa satu langkah manual: `php artisan titles:strip-code-prefix --apply` **menunggu izin user** — dry run di database dev tidak menemukan kandidat sama sekali, produksi belum diperiksa.
 **Area:** Order Buku/Jurnal, Pembayaran, Direktori Judul, Papan Manuskrip
 
 ---
@@ -38,6 +38,13 @@ Enam hal berikut **berbeda dari rancangan di bawah**. Semuanya ditemukan saat im
 6. **`show()` kini menolak marketing yang membuka order milik marketing lain.** Sebelum `withTrashed()`, order yang dibatalkan 404 untuk semua orang; tanpa penjagaan ini membukanya justru jadi lebih longgar daripada saat order masih aktif.
 
 Satu utang teknis ditemukan tapi **sengaja tidak dikerjakan** karena menyentuh kode akuntansi bersama: `PaymentCashSyncService::sync()` menghapus `CashEntry` lewat bulk delete query builder, yang melewati model event — sehingga `CashEntryObserver::deleted()` tak pernah jalan dan `CashLog` tak pernah ditulis. Pra-ada (sudah berlaku untuk `PaymentBookController::reject()`), tapi pembatalan order kini jadi pemicu volume tertingginya. Layak jadi spec tersendiri.
+
+### Koreksi yang muncul saat implementasi (Bagian 2a/2b/2c, 2026-08-05)
+
+1. **Urutan dibalik: resolusi `new:` (§2.2) dikerjakan SEBELUM partial dropdown (§2.1).** Urutan asli menciptakan jendela di mana form sudah mengirim `new:Judul` sementara `resolveForOrder()` belum memahaminya — judul baru akan tersimpan bernama harfiah `new:Judul`. Jalur kompatibilitas string polos membuat urutan terbalik ini aman.
+2. **Dua migrasi lama harus diperbaiki** karena memakai model Eloquent langsung: `2026_07_02_000009_backfill_title_codes` (untuk `Title`), menyusul `2026_06_14_000002` dan `2026_07_02_000010` di Bagian 1 (untuk `OrderDetail`). Global scope `SoftDeletes` yang baru ikut terbawa ke titik migrasi **sebelum** kolomnya ada, sehingga `migrate:fresh` — yang dijalankan `RefreshDatabase` di setiap test — gagal total. Semua diganti ke query builder.
+3. **`deleteBlockReason()` memakai hasil agregasi** (`withCount` + `withExists` di `TitleController::index()`), dengan query per-relasi sebagai fallback. Tanpa itu kolom Aksi direktori menembak tiga query per baris — sampai 150 query untuk satu halaman berisi 50 judul.
+4. **Tombol "Ajukan" tidak lagi digerbangi `isEditable()`.** Setelah `isEditable()` diperlebar ke `disetujui` (§3.1), memakainya akan memunculkan "Ajukan" pada judul yang sudah disetujui. Kini digerbangi `status ∈ {draft, ditolak}` secara eksplisit.
 
 ---
 
