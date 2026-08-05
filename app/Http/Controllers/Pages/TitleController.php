@@ -47,6 +47,9 @@ class TitleController extends Controller
             ->withCount(['orderDetails as authors_count' => function ($q) {
                 $q->join('tb_author_orders', 'tb_author_orders.order_detail_id', '=', 'tb_order_details.id');
             }])
+            // Dipakai Title::deleteBlockReason() di kolom Aksi: tanpa agregasi ini
+            // tiap baris menembak tiga query sendiri (ratusan untuk satu halaman).
+            ->withExists(['bookIsbn', 'archive'])
             ->when(! $showInactive, fn ($q) => $q->active())
             ->latest();
 

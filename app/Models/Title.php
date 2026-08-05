@@ -94,19 +94,23 @@ class Title extends Model
      * karena order-nya dibatalkan memang seharusnya bisa dibersihkan. Karena hapusnya
      * soft, tb_order_details.title_id yang ber-nullOnDelete tidak ikut dikosongkan,
      * jadi riwayat tetap tertaut.
+     *
+     * Memakai hasil agregasi bila query pemanggil sudah menyediakannya (withCount +
+     * withExists di TitleController::index()). Direktori memanggil metode ini sekali
+     * per baris, dan tanpa itu tiga query per judul menumpuk jadi ratusan.
      */
     public function deleteBlockReason(): ?string
     {
-        $orders = $this->orderDetails()->count();
+        $orders = $this->orders_count ?? $this->orderDetails()->count();
         if ($orders > 0) {
             return 'Dipakai ' . $orders . ' order';
         }
 
-        if ($this->bookIsbn()->exists()) {
+        if ($this->book_isbn_exists ?? $this->bookIsbn()->exists()) {
             return 'Sudah punya ISBN';
         }
 
-        if ($this->archive()->exists()) {
+        if ($this->archive_exists ?? $this->archive()->exists()) {
             return 'Sudah diarsipkan';
         }
 
