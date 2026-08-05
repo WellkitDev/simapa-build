@@ -57,19 +57,10 @@
 
                         <div class="mb-3">
                             <label class="form-label">Judul <span class="text-danger">*</span></label>
-                            <select name="title_id" id="title_id" class="form-select select2" data-tags="true" required>
-                                @php($curId = old('title_id', $d->title_id))
-                                @foreach ($titles as $t)
-                                    <option value="{{ $t->id }}"
-                                        data-tipe-naskah="{{ $t->tipe_naskah }}"
-                                        data-scope-id="{{ $t->scope_id }}"
-                                        data-indeksasi="{{ $t->indeksasi }}"
-                                        {{ (string) $curId === (string) $t->id ? 'selected' : '' }}>{{ $t->code ? $t->code . ' — ' : '' }}{{ $t->title }}</option>
-                                @endforeach
-                                @unless($d->title_id)
-                                    <option value="{{ $d->title }}" selected>{{ $d->title }}</option>
-                                @endunless
-                            </select>
+                            @include('orders.partials.title-select', [
+                                'titles'   => $titles,
+                                'selected' => old('title_id', $d->title_id ?: $d->title),
+                            ])
                         </div>
 
                         <div class="row">

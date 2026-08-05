@@ -47,20 +47,10 @@
 
                         <div class="mb-3">
                             <label class="form-label">Judul <span class="text-danger">*</span></label>
-                            <select name="title_id" id="title_id" class="form-select select2" data-tags="true" required>
-                                <option value="">Pilih judul disetujui / ketik judul baru</option>
-                                @foreach ($titles as $t)
-                                    <option value="{{ $t->id }}"
-                                        data-tipe-naskah="{{ $t->tipe_naskah }}"
-                                        data-scope-id="{{ $t->scope_id }}"
-                                        data-indeksasi="{{ $t->indeksasi }}"
-                                        {{ (string) old('title_id') === (string) $t->id ? 'selected' : '' }}>{{ $t->code ? $t->code . ' — ' : '' }}{{ $t->title }}</option>
-                                @endforeach
-                                @if($prefill['title'] ?? false)
-                                    <option value="{{ $prefill['title'] }}" selected>{{ $prefill['title'] }}</option>
-                                @endif
-                            </select>
-                            <small class="text-muted">Pilih dari daftar judul disetujui, atau ketik judul baru bila belum ada.</small>
+                            @include('orders.partials.title-select', [
+                                'titles'   => $titles,
+                                'selected' => old('title_id', $prefill['title'] ?? null),
+                            ])
                         </div>
 
                         <div class="row">
