@@ -595,4 +595,31 @@ class OrderCancelTest extends TestCase
 
         $this->assertNotNull(Order::find($order->id));
     }
+
+    /** @test */
+    public function marketing_tidak_bisa_membuka_detail_order_marketing_lain(): void
+    {
+        $owner = $this->user('marketing');
+        $lain  = $this->user('marketing');
+        $order = $this->makeOrder($owner);
+
+        $this->actingAs($lain)->get(route('order.book.show', $order->code_order))
+            ->assertForbidden();
+
+        $this->actingAs($owner)->get(route('order.book.show', $order->code_order))
+            ->assertOk();
+
+        // Manager tetap bisa membuka order siapa pun — sama seperti surface lain.
+        $this->actingAs($this->user('manager'))->get(route('order.book.show', $order->code_order))
+            ->assertOk();
+
+        // Berlaku juga sesudah dibatalkan: withTrashed() di show() tidak boleh
+        // membuat order yang dibatalkan justru lebih terbuka daripada saat aktif.
+        app(OrderCancellationService::class)->cancel($order->fresh(), null, $owner);
+
+        $this->actingAs($lain)->get(route('order.book.show', $order->code_order))
+            ->assertForbidden();
+        $this->actingAs($owner)->get(route('order.book.show', $order->code_order))
+            ->assertOk();
+    }
 }

@@ -23,12 +23,16 @@
             <h6 class="alert-heading mb-1">Order ini dibatalkan</h6>
             <div class="small">
                 Dibatalkan oleh <strong>{{ $order->cancelledBy?->name ?? '—' }}</strong>
-                pada {{ optional($order->cancelled_at)->format('d/m/Y H:i') ?? '—' }}.
+                pada {{ $order->cancelled_at?->format('d/m/Y H:i') ?? '—' }}.
             </div>
             @if ($order->cancel_reason)
                 <div class="small mt-1">Alasan: <em>{{ $order->cancel_reason }}</em></div>
             @endif
-            <div class="small text-muted mt-1">Halaman ini hanya-baca. Pulihkan order lewat daftar order (manager/superadmin).</div>
+            <div class="small text-muted mt-1">
+                Halaman ini hanya-baca. Angka keuangan di bawah adalah nilai historis order ini —
+                pembayarannya sudah dibatalkan, jadi sisa tagihan di sini bukan tagihan berjalan.
+                Pemulihan order dilakukan manager/superadmin lewat daftar order.
+            </div>
         </div>
     @endif
 

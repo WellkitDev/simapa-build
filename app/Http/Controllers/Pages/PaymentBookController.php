@@ -217,6 +217,15 @@ class PaymentBookController extends Controller
     {
         $payment = Payment::with(['approval', 'order.details'])->findOrFail($id);
 
+        // Order yang dibatalkan ikut soft-deleted, sehingga $payment->order bernilai
+        // null di sini — ordernya harus dibaca withTrashed() agar penjagaan ini tidak
+        // diam-diam terlewat. Sifatnya berlapis: pembatalan sudah menjadikan approval
+        // 'rejected' sehingga cek di bawah ikut menutup jalan ini, tapi jaminan
+        // "halaman order dibatalkan itu hanya-baca" tidak boleh bergantung pada efek
+        // samping di kelas lain.
+        $order = Order::withTrashed()->find($payment->order_id);
+        abort_if($order && $order->isCancelled(), 403);
+
         if (optional($payment->approval)->status !== 'pending') {
             return back()->with('error', 'Pembayaran sudah diproses, tidak bisa diedit.');
         }

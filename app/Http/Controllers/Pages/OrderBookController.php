@@ -329,7 +329,14 @@ class OrderBookController extends Controller
             'payments.invoice',
             'invoices',
             'contact',
+            'cancelledBy',
         ])->where('code_order', $code_order)->firstOrFail();
+
+        // Marketing hanya boleh membuka order miliknya sendiri — menyamakan halaman ini
+        // dengan filter kepemilikan yang sudah dipakai index() dan destroy(). Sebelum
+        // withTrashed() di atas, order yang dibatalkan 404 untuk semua orang; tanpa
+        // penjagaan ini, membukanya justru jadi lebih longgar daripada sebelumnya.
+        abort_if(Auth::user()->hasRole('marketing') && $order->user_id !== Auth::id(), 403);
 
         $firstDetail = $order->details;
 
