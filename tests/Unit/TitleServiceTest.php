@@ -94,7 +94,7 @@ class TitleServiceTest extends TestCase
         $prod = $this->user('production');
         $title = $this->svc->create(['title' => 'B', 'jenis' => 'buku', 'tipe_naskah' => 'kolaborasi'], [['judul' => 'Bab 1']], $prod);
 
-        $this->svc->update($title, ['title' => 'B', 'jenis' => 'artikel', 'tipe_naskah' => 'mandiri'], []);
+        $this->svc->update($title, ['title' => 'B', 'jenis' => 'artikel', 'tipe_naskah' => 'mandiri'], [], $prod);
 
         $this->assertSame(0, $title->chapters()->count());
     }
@@ -136,7 +136,7 @@ class TitleServiceTest extends TestCase
         $prod = $this->user('production');
         $title = $this->svc->create(['title' => 'S', 'jenis' => 'artikel', 'tipe_naskah' => 'mandiri', 'scope_id' => 'Fisika'], [], $prod);
 
-        $this->svc->update($title, ['title' => 'S', 'jenis' => 'artikel', 'tipe_naskah' => 'mandiri', 'scope_id' => 'Kimia'], []);
+        $this->svc->update($title, ['title' => 'S', 'jenis' => 'artikel', 'tipe_naskah' => 'mandiri', 'scope_id' => 'Kimia'], [], $prod);
 
         $this->assertSame('Kimia', $title->fresh()->scope->scope);
     }
@@ -153,7 +153,7 @@ class TitleServiceTest extends TestCase
         $assigned = $this->svc->create(['title' => 'A', 'jenis' => 'artikel', 'tipe_naskah' => 'mandiri', 'assigned_to' => $mkt->id], [], $prod);
         $this->assertSame($mkt->id, $assigned->assigned_to);
 
-        $this->svc->update($assigned, ['title' => 'A', 'jenis' => 'artikel', 'tipe_naskah' => 'mandiri', 'assigned_to' => ''], []);
+        $this->svc->update($assigned, ['title' => 'A', 'jenis' => 'artikel', 'tipe_naskah' => 'mandiri', 'assigned_to' => ''], [], $prod);
         $this->assertNull($assigned->fresh()->assigned_to);
     }
 
