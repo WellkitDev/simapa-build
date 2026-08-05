@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
 use App\Models\Title;
 use App\Services\GoogleDriveService;
+use App\Services\OrderCancellationService;
 use App\Services\TitleArchiveService;
 use Illuminate\Support\Facades\Auth;
 
@@ -35,22 +36,23 @@ class OrderBookController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        //
-        // Mengambil order milik user yang sedang login dengan relasi payments
-        // $orders = Order::with(['payments.approval', 'details.authors'])
-        //     ->where('user_id', auth()->id()) // Sesuaikan dengan sistem auth Anda
-        //     ->latest()
-        //     ->get();
-        $orders = Order::with(['payments.approval', 'details.authors'])
-            ->when(Auth::user()->hasRole('marketing'), function ($q) {
-                return $q->where('user_id', Auth::id());
-            }) // Sesuaikan dengan sistem auth Anda
+        $trashed = $request->boolean('trashed');
+
+        // details di-eager load withTrashed() karena detail order yang dibatalkan
+        // ikut soft-deleted — tanpa ini kolom Judul/Penulis null dan view pecah.
+        $orders = Order::with([
+                'payments.approval',
+                'details' => fn ($q) => $q->withTrashed(),
+                'details.authors',
+            ])
+            ->when($trashed, fn ($q) => $q->onlyTrashed())
+            ->when(Auth::user()->hasRole('marketing'), fn ($q) => $q->where('user_id', Auth::id()))
             ->latest()
             ->get();
 
-        return view('orders.book.index', compact('orders'));
+        return view('orders.book.index', compact('orders', 'trashed'));
     }
 
     public function indexJudul(TitleArchiveService $archive)
@@ -355,7 +357,9 @@ class OrderBookController extends Controller
     {
         //
         // Load order beserta semua relasinya
-        $order = Order::with(['details.authors', 'contact', 'invoices'])->where('code_order', $code_order)->firstOrFail();
+        $order = Order::withTrashed()->with(['details' => fn ($q) => $q->withTrashed(), 'details.authors', 'contact', 'invoices'])
+            ->where('code_order', $code_order)->firstOrFail();
+        abort_unless($order->isEditable(), 403);
 
         // Ambil data scope untuk dropdown
         $scopes = Scope::all();
@@ -399,6 +403,11 @@ class OrderBookController extends Controller
             'authors.*.position'   => 'required|integer|min:1',
             'note'               => 'nullable|string',
         ]);
+
+        // Resolusi order di update() memakai findOrFail (form Edit buku mengirim
+        // $order->id sebagai parameter {code_order}) — penjagaan harus memakai
+        // resolusi yang sama persis agar tidak meleset ke order lain.
+        abort_unless(Order::withTrashed()->findOrFail($code_order)->isEditable(), 403);
 
         try {
             DB::transaction(function () use ($request, $code_order) {
@@ -485,10 +494,36 @@ class OrderBookController extends Controller
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Batalkan order (soft delete berjenjang). Dipakai order buku MAUPUN jurnal —
+     * route-nya generik di grup order.*.
+     *
+     * Tanpa try/catch: OrderCancellationException punya render() sendiri (pola
+     * CashEntryGuardException) yang mengubah dirinya jadi back()->with('error').
      */
-    public function destroy(string $id)
+    public function destroy(Request $request, string $code_order)
     {
-        //
+        $order = Order::where('code_order', $code_order)->firstOrFail();
+
+        // Marketing hanya boleh menyentuh order miliknya sendiri — sejalan dengan
+        // filter kepemilikan yang sudah dipakai index().
+        abort_if(Auth::user()->hasRole('marketing') && $order->user_id !== Auth::id(), 403);
+
+        $data = $request->validate(['cancel_reason' => 'nullable|string|max:1000']);
+
+        app(OrderCancellationService::class)->cancel($order, $data['cancel_reason'] ?? null, Auth::user());
+
+        return redirect()->route('order.book.index')
+            ->with('success', 'Order ' . $order->code_order . ' dibatalkan.');
+    }
+
+    /** Pulihkan order yang dibatalkan (manager/superadmin — dijaga permission order.restore). */
+    public function restore(string $code_order)
+    {
+        $order = Order::withTrashed()->where('code_order', $code_order)->firstOrFail();
+
+        app(OrderCancellationService::class)->restore($order, Auth::user());
+
+        return redirect()->route('order.book.index')
+            ->with('success', 'Order ' . $order->code_order . ' dipulihkan.');
     }
 }

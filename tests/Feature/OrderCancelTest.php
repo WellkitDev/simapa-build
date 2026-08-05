@@ -483,4 +483,102 @@ class OrderCancelTest extends TestCase
         Notification::assertSentTo($superadmin, DatabaseNotification::class);
         Notification::assertNotSentTo($owner, DatabaseNotification::class);
     }
+
+    /** @test */
+    public function marketing_pemilik_bisa_membatalkan_lewat_route(): void
+    {
+        $owner = $this->user('marketing');
+        $order = $this->makeOrder($owner);
+
+        $this->actingAs($owner)
+            ->delete(route('order.cancel', $order->code_order), ['cancel_reason' => 'Salah harga'])
+            ->assertRedirect(route('order.book.index'))
+            ->assertSessionHas('success');
+
+        $this->assertSoftDeleted('tb_orders', ['id' => $order->id]);
+        $this->assertSame('Salah harga', Order::withTrashed()->find($order->id)->cancel_reason);
+    }
+
+    /** @test */
+    public function marketing_tidak_bisa_membatalkan_order_marketing_lain(): void
+    {
+        $owner = $this->user('marketing');
+        $lain  = $this->user('marketing');
+        $order = $this->makeOrder($owner);
+
+        $this->actingAs($lain)
+            ->delete(route('order.cancel', $order->code_order))
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('tb_orders', ['id' => $order->id, 'deleted_at' => null]);
+    }
+
+    /** @test */
+    public function production_tidak_punya_akses_pembatalan(): void
+    {
+        $order = $this->makeOrder($this->user('marketing'));
+
+        // deleteJson (bukan delete): production tidak punya permission order.cancel
+        // sama sekali, jadi ditolak EnforcePermission sebelum sampai controller. Untuk
+        // request non-JSON di method HTTP tak-aman, EnforcePermission::deny() sengaja
+        // redirect-back + flash error (bukan 403 mentah) supaya tidak menampilkan
+        // halaman 403 di tengah alur form — lihat komentarnya dan pola yang sama di
+        // AccessParityTest ("Request JSON (AJAX) -> 403 murni, bukan redirect").
+        // Controller tidak pernah tersentuh di sini; ini murni gerbang permission.
+        $this->actingAs($this->user('production'))
+            ->deleteJson(route('order.cancel', $order->code_order))
+            ->assertForbidden();
+    }
+
+    /** @test */
+    public function route_batal_menolak_order_dengan_payment_disetujui(): void
+    {
+        $owner = $this->user('marketing');
+        $order = $this->makeOrder($owner);
+        $this->addPayment($order, 'approved');
+
+        $this->actingAs($owner)
+            ->delete(route('order.cancel', $order->code_order))
+            ->assertRedirect()
+            ->assertSessionHas('error');
+
+        $this->assertDatabaseHas('tb_orders', ['id' => $order->id, 'deleted_at' => null]);
+    }
+
+    /** @test */
+    public function order_dibatalkan_tidak_muncul_di_daftar_default_tapi_muncul_di_daftar_trashed(): void
+    {
+        $owner = $this->user('marketing');
+        $order = $this->makeOrder($owner);
+        app(OrderCancellationService::class)->cancel($order, null, $owner);
+
+        $this->actingAs($owner)->get(route('order.book.index'))
+            ->assertOk()->assertDontSee($order->code_order);
+
+        $this->actingAs($owner)->get(route('order.book.index', ['trashed' => 1]))
+            ->assertOk()->assertSee($order->code_order);
+    }
+
+    /** @test */
+    public function hanya_manager_atau_superadmin_yang_bisa_memulihkan(): void
+    {
+        $owner = $this->user('marketing');
+        $order = $this->makeOrder($owner);
+        app(OrderCancellationService::class)->cancel($order, null, $owner);
+
+        // postJson (bukan post): owner (marketing) tidak punya permission order.restore
+        // sama sekali (sengaja tak dihibahkan ke siapa pun secara eksplisit — lihat
+        // AccessMatrixSeeder). Sama seperti tes production di atas: butuh JSON supaya
+        // EnforcePermission::deny() membalas 403 murni, bukan redirect-back.
+        $this->actingAs($owner)
+            ->postJson(route('order.restore', $order->code_order))
+            ->assertForbidden();
+
+        $this->actingAs($this->user('manager'))
+            ->post(route('order.restore', $order->code_order))
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $this->assertNotNull(Order::find($order->id));
+    }
 }

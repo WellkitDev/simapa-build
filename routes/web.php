@@ -77,6 +77,13 @@ Route::middleware(['auth', 'access'])->group(function () {
         Route::get('refund/{code_order}', [\App\Http\Controllers\Pages\RefundController::class, 'form'])->name('refund.form');
         Route::post('refund/{code_order}', [\App\Http\Controllers\Pages\RefundController::class, 'store'])->name('refund.store');
         Route::get('refund/{code_order}/pdf', [\App\Http\Controllers\Pages\RefundController::class, 'pdf'])->name('refund.pdf');
+
+        // Ditaruh PALING BAWAH agar segmen {code_order} tidak menelan path statis
+        // buku/* dan jurnal/*. Batasan pola menjaga URL aneh tidak sampai ke controller.
+        Route::delete('{code_order}', [OrderBookController::class, 'destroy'])
+            ->name('cancel')->where('code_order', 'ORD-[A-Za-z0-9\-]+');
+        Route::post('{code_order}/restore', [OrderBookController::class, 'restore'])
+            ->name('restore')->where('code_order', 'ORD-[A-Za-z0-9\-]+');
     });
     //order  journal
     Route::prefix('management')->name('order.')->group(function () {

@@ -31,6 +31,8 @@ return [
                 'edit'   => ['order.book.edit', 'order.book.update',
                              'order.journal.edit', 'order.journal.update'],
                 'refund' => ['order.refund.form', 'order.refund.store', 'order.refund.pdf'],
+                'cancel'  => ['order.cancel'],
+                'restore' => ['order.restore'],
             ],
         ],
 

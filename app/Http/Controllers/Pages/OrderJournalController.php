@@ -237,8 +237,9 @@ class OrderJournalController extends Controller
      */
     public function edit(string $code_order)
     {
-        $order = Order::with(['details.authors', 'details.scopes', 'contact'])
+        $order = Order::withTrashed()->with(['details' => fn ($q) => $q->withTrashed(), 'details.authors', 'details.scopes', 'contact'])
             ->where('code_order', $code_order)->firstOrFail();
+        abort_unless($order->isEditable(), 403);
         $scopes = Scope::all();
         $titles = Title::where('status', 'disetujui')->where('jenis', 'artikel')
             ->when(! Auth::user()->hasAnyRole(['manager', 'superadmin']), function ($q) {
@@ -275,6 +276,11 @@ class OrderJournalController extends Controller
             'authors.*.position'    => 'required|integer|min:1',
             'note'                  => 'nullable|string',
         ]);
+
+        abort_unless(
+            Order::withTrashed()->where('code_order', $code_order)->firstOrFail()->isEditable(),
+            403
+        );
 
         try {
             DB::transaction(function () use ($request, $code_order) {

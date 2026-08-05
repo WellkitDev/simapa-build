@@ -33,7 +33,7 @@ class AccessMatrixSeeder extends Seeder
     /** Permission per role. '*' = seluruh permission (kecuali dikecualikan). */
     private array $grants = [
         'marketing' => [
-            'order.view', 'order.create', 'order.edit',
+            'order.view', 'order.create', 'order.edit', 'order.cancel',
             'payment.view', 'payment.create',
             'invoice.view', 'invoice.export',
             'tagihan.*',
