@@ -18,6 +18,20 @@
         </div>
     </div>
 
+    @if ($order->isCancelled())
+        <div class="alert alert-secondary border" role="alert">
+            <h6 class="alert-heading mb-1">Order ini dibatalkan</h6>
+            <div class="small">
+                Dibatalkan oleh <strong>{{ $order->cancelledBy?->name ?? '—' }}</strong>
+                pada {{ optional($order->cancelled_at)->format('d/m/Y H:i') ?? '—' }}.
+            </div>
+            @if ($order->cancel_reason)
+                <div class="small mt-1">Alasan: <em>{{ $order->cancel_reason }}</em></div>
+            @endif
+            <div class="small text-muted mt-1">Halaman ini hanya-baca. Pulihkan order lewat daftar order (manager/superadmin).</div>
+        </div>
+    @endif
+
     <div class="row">
         <div class="col-12 grid-margin stretch-card">
             <div class="card">
@@ -192,7 +206,7 @@
                                                    class="btn btn-sm btn-outline-success">Download Invoice</a>
                                             @endif
                                             @can('payment.edit')
-                                                @if ($appStatus === 'pending')
+                                                @if ($appStatus === 'pending' && ! $order->isCancelled())
                                                     <button type="button" class="btn btn-sm btn-outline-warning"
                                                             data-bs-toggle="modal" data-bs-target="#editPayment{{ $payment->id }}">Edit</button>
                                                 @endif
@@ -201,7 +215,7 @@
                                     </tr>
 
                                     @can('payment.edit')
-                                        @if ($appStatus === 'pending')
+                                        @if ($appStatus === 'pending' && ! $order->isCancelled())
                                             <div class="modal fade" id="editPayment{{ $payment->id }}" tabindex="-1" aria-hidden="true">
                                                 <div class="modal-dialog">
                                                     <form class="modal-content" method="POST"

@@ -560,6 +560,20 @@ class OrderCancelTest extends TestCase
     }
 
     /** @test */
+    public function halaman_detail_order_dibatalkan_tampil_dengan_panel_pembatalan(): void
+    {
+        $owner = $this->user('marketing');
+        $order = $this->makeOrder($owner);
+        app(OrderCancellationService::class)->cancel($order, 'Klien mundur', $owner);
+
+        $this->actingAs($owner)->get(route('order.book.show', $order->code_order))
+            ->assertOk()
+            ->assertSee('Order ini dibatalkan')
+            ->assertSee('Klien mundur')
+            ->assertSee('Judul Uji');
+    }
+
+    /** @test */
     public function hanya_manager_atau_superadmin_yang_bisa_memulihkan(): void
     {
         $owner = $this->user('marketing');

@@ -319,17 +319,18 @@ class OrderBookController extends Controller
     public function show($code_order)
     {
         //
-       // Gunakan where() untuk mencari berdasarkan code_order alih-alih ID
-        $order = Order::with([
-        'details.authors',
-        'details.scopes',
-        'payments.approval',
-        'payments.invoice',
-        'invoices',
-        'contact'
+        // withTrashed() di dua tingkat: order yang dibatalkan harus tetap bisa dilihat
+        // read-only, dan detail-nya ikut soft-deleted saat pembatalan.
+        $order = Order::withTrashed()->with([
+            'details' => fn ($q) => $q->withTrashed(),
+            'details.authors',
+            'details.scopes',
+            'payments.approval',
+            'payments.invoice',
+            'invoices',
+            'contact',
         ])->where('code_order', $code_order)->firstOrFail();
 
-        // Ambil detail pertama (karena hasMany tetapi di logika Anda biasanya hanya ada 1)
         $firstDetail = $order->details;
 
         // Hitung Keuangan

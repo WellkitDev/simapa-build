@@ -49,6 +49,11 @@ class Order extends Model
        return $this->belongsTo(User::class, 'user_id', 'id');
     }
 
+    public function cancelledBy()
+    {
+        return $this->belongsTo(User::class, 'cancelled_by');
+    }
+
     /**
      * Ada pembayaran yang benar-benar sudah disetujui approver.
      *
