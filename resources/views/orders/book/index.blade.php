@@ -88,9 +88,6 @@
                                                         ? route('order.journal.edit', $order->code_order)
                                                         : route('order.book.edit', $order->code_order);
                                                     $hasPayment = $order->payments->isNotEmpty();
-                                                    $approved   = $order->payments->contains(
-                                                        fn ($p) => optional($p->approval)->status === 'approved'
-                                                    );
                                                 @endphp
 
                                                 @if ($order->isCancelled())
@@ -137,25 +134,29 @@
                                                         @endcan
                                                     @endif
 
-                                                    @if ($approved)
-                                                        @can('order.refund')
-                                                            @php
-                                                                $paidIn   = $order->payments->where('status', 'paid')->where('payment_type', '!=', 'refund')->sum('amount');
-                                                                $refunded = $order->payments->where('payment_type', 'refund')->isNotEmpty();
-                                                            @endphp
-                                                            @if ($refunded)
-                                                                <a href="{{ route('order.refund.pdf', $order->code_order) }}" target="_blank"
-                                                                    class="btn btn-icon btn-outline-secondary" title="Bukti Refund">
-                                                                    <i data-feather="file-text"></i>
-                                                                </a>
-                                                            @elseif ($paidIn > 0)
-                                                                <a href="{{ route('order.refund.form', $order->code_order) }}"
-                                                                    class="btn btn-icon btn-outline-warning" title="Refund">
-                                                                    <i data-feather="corner-up-left"></i>
-                                                                </a>
-                                                            @endif
-                                                        @endcan
-                                                    @endif
+                                                    {{-- Syarat refund SENGAJA mengikuti RefundController::paidIn() persis:
+                                                         status 'paid' saja, tanpa melihat approval. Payment sudah 'paid'
+                                                         sejak disubmit (approval-nya menyusul), dan RefundController
+                                                         memang mengizinkan refund pada keadaan itu — menyaringnya dengan
+                                                         approval di sini akan menyembunyikan tombol untuk aksi yang
+                                                         sebenarnya masih sah. --}}
+                                                    @can('order.refund')
+                                                        @php
+                                                            $paidIn   = $order->payments->where('status', 'paid')->where('payment_type', '!=', 'refund')->sum('amount');
+                                                            $refunded = $order->payments->where('payment_type', 'refund')->isNotEmpty();
+                                                        @endphp
+                                                        @if ($refunded)
+                                                            <a href="{{ route('order.refund.pdf', $order->code_order) }}" target="_blank"
+                                                                class="btn btn-icon btn-outline-secondary" title="Bukti Refund">
+                                                                <i data-feather="file-text"></i>
+                                                            </a>
+                                                        @elseif ($paidIn > 0)
+                                                            <a href="{{ route('order.refund.form', $order->code_order) }}"
+                                                                class="btn btn-icon btn-outline-warning" title="Refund">
+                                                                <i data-feather="corner-up-left"></i>
+                                                            </a>
+                                                        @endif
+                                                    @endcan
                                                 @endif
                                             </td>
                                         </tr>
@@ -231,10 +232,11 @@
                 order: [
                     [1, "asc"]
                 ],
-                // language: {
-                //     search: "Cari:",
-                //     lengthMenu: "Tampilkan _MENU_"
-                // }
+                language: {
+                    // Daftar order dibatalkan lazim kosong — pesan bawaan DataTables
+                    // berbahasa Inggris dan tidak menjelaskan apa-apa di konteks ini.
+                    emptyTable: @json($trashed ? 'Belum ada order yang dibatalkan.' : 'Belum ada order.')
+                }
             });
             $(".dataTables_length select, .dataTables_filter input").addClass("form-control mb-2");
             $('.custom-select').select2();

@@ -631,7 +631,9 @@ class OrderCancelTest extends TestCase
 
         $this->actingAs($owner)->get(route('order.book.index'))
             ->assertOk()
-            ->assertSee('cancelOrder' . $order->id)          // modal + tombol pemicunya
+            // Dicocokkan lengkap dengan atribut id-nya: 'cancelOrder1' juga substring
+            // dari 'cancelOrder10', jadi pencocokan longgar bisa lulus karena order lain.
+            ->assertSee('id="cancelOrder' . $order->id . '"', false)
             ->assertSee('Batalkan Order');
 
         app(OrderCancellationService::class)->cancel($order->fresh(), null, $owner);
@@ -641,7 +643,7 @@ class OrderCancelTest extends TestCase
         $this->actingAs($owner)->get(route('order.book.index', ['trashed' => 1]))
             ->assertOk()
             ->assertSee('Dibatalkan')
-            ->assertDontSee('cancelOrder' . $order->id);
+            ->assertDontSee('id="cancelOrder' . $order->id . '"', false);
     }
 
     /** @test */
@@ -659,5 +661,20 @@ class OrderCancelTest extends TestCase
         $this->actingAs($this->user('manager'))->get(route('order.book.index', ['trashed' => 1]))
             ->assertOk()
             ->assertSee(route('order.restore', $order->code_order), false);
+    }
+
+    /** @test */
+    public function tombol_refund_muncul_meski_approval_belum_disetujui(): void
+    {
+        $owner = $this->user('marketing');
+        $order = $this->makeOrder($owner);
+        $this->addPayment($order, 'pending', 500000);
+
+        // RefundController::paidIn() hanya menyaring status 'paid' dan tidak pernah
+        // melihat approval, jadi refund benar-benar sah pada keadaan ini. Menyaring
+        // tombolnya dengan approval akan menyembunyikan aksi yang backend izinkan.
+        $this->actingAs($this->user('superadmin'))->get(route('order.book.index'))
+            ->assertOk()
+            ->assertSee(route('order.refund.form', $order->code_order), false);
     }
 }
