@@ -61,7 +61,7 @@ class AccessMatrixSeeder extends Seeder
         ],
         'admin' => [
             'announcement.*',
-            'title.view', 'title.create', 'title.edit', 'title.delete', 'title.submit', 'title.info',
+            'title.view', 'title.create', 'title.edit', 'title.delete', 'title.deactivate', 'title.submit', 'title.info',
             'title.doc.*',
             'journal.*', 'isbn.*', 'author.view',
             'archive.view', 'archive.artifacts', 'archive.submit',

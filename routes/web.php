@@ -242,6 +242,8 @@ Route::middleware(['auth', 'access'])->group(function () {
     Route::post('titles/{id}/reject', [TitleController::class, 'reject'])->name('title.reject')->whereNumber('id');
     Route::put('titles/{id}/info', [TitleController::class, 'updateInfo'])->name('title.info.update')->whereNumber('id');
     Route::put('titles/{id}/chapter-authors', [TitleController::class, 'updateChapterAuthors'])->name('title.chapters.authors')->whereNumber('id');
+    Route::post('titles/{id}/deactivate', [TitleController::class, 'deactivate'])->name('title.deactivate')->whereNumber('id');
+    Route::post('titles/{id}/activate', [TitleController::class, 'activate'])->name('title.activate')->whereNumber('id');
 
     // Direktori Author (read-only) — list + detail riwayat order
     // Dibatasi: production & accounting tidak boleh akses.

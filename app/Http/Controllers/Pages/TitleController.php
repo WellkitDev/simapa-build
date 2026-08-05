@@ -7,6 +7,7 @@ use App\Models\Author;
 use App\Models\Journal;
 use App\Models\Scope;
 use App\Models\Title;
+use App\Models\TitleLog;
 use App\Models\User;
 use App\Services\TitleService;
 use Illuminate\Http\Request;
@@ -37,14 +38,18 @@ class TitleController extends Controller
         return Auth::user()->hasAnyRole(['superadmin', 'manager', 'admin']);
     }
 
-    public function index()
+    public function index(Request $request)
     {
+        $showInactive = $request->boolean('inactive');
+
         $query = Title::with(['creator', 'scope', 'assignedMarketing', 'orderDetails.titleProgress'])
             ->withCount('orderDetails as orders_count')
             ->withCount(['orderDetails as authors_count' => function ($q) {
                 $q->join('tb_author_orders', 'tb_author_orders.order_detail_id', '=', 'tb_order_details.id');
             }])
+            ->when(! $showInactive, fn ($q) => $q->active())
             ->latest();
+
         if (! $this->canManage()) {
             // marketing: hanya disetujui, dan hanya yang tak di-assign (semua) atau di-assign ke dirinya
             $query->where('status', 'disetujui')
@@ -57,6 +62,8 @@ class TitleController extends Controller
             'titles' => $query->get(),
             'canManage' => $this->canManage(),
             'isApprover' => $this->isApprover(),
+            'showInactive' => $showInactive,
+            'canEditApproved' => $this->canEditApproved(),
         ]);
     }
 
@@ -152,12 +159,73 @@ class TitleController extends Controller
 
     public function destroy(int $id)
     {
+        abort_unless($this->canManage(), 403);
         $title = Title::findOrFail($id);
-        $ownDraft = $title->created_by === Auth::id() && $title->status === 'draft';
-        abort_unless($this->canManage() && ($ownDraft || Auth::user()->hasRole('superadmin')), 403);
+
+        // Aturan lama ("hanya draf milik sendiri") diganti aturan pemakaian: judul yang
+        // sudah terpakai tidak dihapus tapi dinonaktifkan.
+        $reason = $title->deleteBlockReason();
+        if ($reason !== null) {
+            return back()->with('error',
+                'Judul tidak bisa dihapus — ' . $reason . '. Gunakan Nonaktifkan bila judul ini sudah tidak dipakai lagi.');
+        }
+
+        TitleLog::create([
+            'title_id'   => $title->id,
+            'event'      => 'deleted',
+            'note'       => 'Judul dihapus (belum terpakai order/ISBN/arsip).',
+            'changed_by' => Auth::id(),
+            'created_at' => now(),
+        ]);
+
         $title->delete();
 
         return redirect()->route('title.index')->with('success', 'Judul dihapus.');
+    }
+
+    /** Judul nonaktif hilang dari dropdown order & daftar direktori default — laporan tetap utuh. */
+    public function deactivate(int $id)
+    {
+        abort_unless($this->canManage(), 403);
+        $title = Title::findOrFail($id);
+
+        if (! $title->isActive()) {
+            return back()->with('error', 'Judul ini sudah nonaktif.');
+        }
+
+        $title->update(['deactivated_at' => now(), 'deactivated_by' => Auth::id()]);
+
+        TitleLog::create([
+            'title_id'   => $title->id,
+            'event'      => 'deactivated',
+            'note'       => 'Judul dinonaktifkan.',
+            'changed_by' => Auth::id(),
+            'created_at' => now(),
+        ]);
+
+        return back()->with('success', 'Judul dinonaktifkan.');
+    }
+
+    public function activate(int $id)
+    {
+        abort_unless($this->isApprover(), 403); // manager | superadmin
+        $title = Title::findOrFail($id);
+
+        if ($title->isActive()) {
+            return back()->with('error', 'Judul ini sudah aktif.');
+        }
+
+        $title->update(['deactivated_at' => null, 'deactivated_by' => null]);
+
+        TitleLog::create([
+            'title_id'   => $title->id,
+            'event'      => 'activated',
+            'note'       => 'Judul diaktifkan kembali.',
+            'changed_by' => Auth::id(),
+            'created_at' => now(),
+        ]);
+
+        return back()->with('success', 'Judul diaktifkan kembali.');
     }
 
     public function submit(int $id)

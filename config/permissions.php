@@ -100,6 +100,7 @@ return [
                 'create'  => ['title.create', 'title.store'],
                 'edit'    => ['title.edit', 'title.update'],
                 'delete'  => ['title.destroy'],
+                'deactivate' => ['title.deactivate', 'title.activate'],
                 'submit'  => ['title.submit'],
                 'approve' => ['title.approve', 'title.reject'],
                 'info'    => ['title.info.update', 'title.chapters.authors'],

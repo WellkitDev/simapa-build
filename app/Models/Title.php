@@ -88,6 +88,37 @@ class Title extends Model
     }
 
     /**
+     * Alasan judul TIDAK boleh dihapus, atau null bila boleh.
+     *
+     * "Order aktif" dihitung tanpa withTrashed() — disengaja: judul yang jadi yatim
+     * karena order-nya dibatalkan memang seharusnya bisa dibersihkan. Karena hapusnya
+     * soft, tb_order_details.title_id yang ber-nullOnDelete tidak ikut dikosongkan,
+     * jadi riwayat tetap tertaut.
+     */
+    public function deleteBlockReason(): ?string
+    {
+        $orders = $this->orderDetails()->count();
+        if ($orders > 0) {
+            return 'Dipakai ' . $orders . ' order';
+        }
+
+        if ($this->bookIsbn()->exists()) {
+            return 'Sudah punya ISBN';
+        }
+
+        if ($this->archive()->exists()) {
+            return 'Sudah diarsipkan';
+        }
+
+        return null;
+    }
+
+    public function isDeletable(): bool
+    {
+        return $this->deleteBlockReason() === null;
+    }
+
+    /**
      * Judul disetujui SENGAJA ikut editable: hampir semua judul lahir dari order dan
      * langsung berstatus 'disetujui' (TitleService::resolveForOrder), jadi aturan lama
      * mengunci setiap salah ketik selamanya. Status TIDAK turun ke 'menunggu' setelah
