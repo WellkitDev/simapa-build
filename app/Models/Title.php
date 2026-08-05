@@ -87,9 +87,15 @@ class Title extends Model
         return $query->whereNull('deactivated_at');
     }
 
+    /**
+     * Judul disetujui SENGAJA ikut editable: hampir semua judul lahir dari order dan
+     * langsung berstatus 'disetujui' (TitleService::resolveForOrder), jadi aturan lama
+     * mengunci setiap salah ketik selamanya. Status TIDAK turun ke 'menunggu' setelah
+     * diedit; siapa yang boleh mengedit judul disetujui dijaga TitleController.
+     */
     public function isEditable(): bool
     {
-        return in_array($this->status, ['draft', 'ditolak'], true);
+        return in_array($this->status, ['draft', 'ditolak', 'disetujui'], true);
     }
 
     public function isApproved(): bool

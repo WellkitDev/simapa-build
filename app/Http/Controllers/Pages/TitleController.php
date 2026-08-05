@@ -27,6 +27,16 @@ class TitleController extends Controller
         return Auth::user()->hasAnyRole(['superadmin', 'manager']);
     }
 
+    /**
+     * Judul berstatus 'disetujui' hanya boleh diedit oleh himpunan role yang sama
+     * dengan canEditInfo di show() — 'production' memegang title.edit di matriks akses
+     * tapi tidak boleh menyentuh judul yang sudah disetujui.
+     */
+    private function canEditApproved(): bool
+    {
+        return Auth::user()->hasAnyRole(['superadmin', 'manager', 'admin']);
+    }
+
     public function index()
     {
         $query = Title::with(['creator', 'scope', 'assignedMarketing', 'orderDetails.titleProgress'])
@@ -119,6 +129,7 @@ class TitleController extends Controller
         abort_unless($this->canManage(), 403);
         $title = Title::with('chapters')->findOrFail($id);
         abort_unless($title->isEditable(), 403);
+        abort_if($title->isApproved() && ! $this->canEditApproved(), 403);
 
         return view('titles.form', [
             'title' => $title,
@@ -132,8 +143,9 @@ class TitleController extends Controller
         abort_unless($this->canManage(), 403);
         $title = Title::findOrFail($id);
         abort_unless($title->isEditable(), 403);
+        abort_if($title->isApproved() && ! $this->canEditApproved(), 403);
         $data = $this->validateData($request);
-        $this->service->update($title, $data, $request->input('chapters', []));
+        $this->service->update($title, $data, $request->input('chapters', []), Auth::user());
 
         return redirect()->route('title.show', $title->id)->with('success', 'Judul diperbarui.');
     }

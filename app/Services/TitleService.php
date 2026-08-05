@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\OrderDetail;
 use App\Models\Scope;
 use App\Models\Title;
 use App\Models\TitleLog;
@@ -37,23 +38,63 @@ class TitleService
         return $title;
     }
 
-    /** Perbarui judul + bab (dipanggil hanya saat editable). */
-    public function update(Title $title, array $data, array $chapters): void
+    /** Perbarui judul + bab, sinkronkan teks judul ke order tertaut, dan catat perubahannya. */
+    public function update(Title $title, array $data, array $chapters, User $actor): void
     {
-        $title->update([
+        $labels = [
+            'title'       => 'Judul',
+            'jenis'       => 'Jenis',
+            'indeksasi'   => 'Indeksasi',
+            'tipe_naskah' => 'Tipe naskah',
+            'scope_id'    => 'Bidang ilmu',
+            'assigned_to' => 'Distribusi',
+        ];
+
+        $next = [
             'title'       => $data['title'],
             'jenis'       => $data['jenis'],
             'indeksasi'   => $data['indeksasi'] ?? null,
             'tipe_naskah' => $data['tipe_naskah'],
             'scope_id'    => $this->resolveScopeId($data['scope_id'] ?? null),
             'assigned_to' => ! empty($data['assigned_to']) ? (int) $data['assigned_to'] : null,
-        ]);
+        ];
 
-        if ($title->jenis === 'buku') {
-            $this->syncChapters($title, $chapters);
-        } else {
-            $title->chapters()->delete();
+        $changed = [];
+        foreach ($labels as $field => $label) {
+            if ((string) ($title->$field ?? '') !== (string) ($next[$field] ?? '')) {
+                $changed[] = $label;
+            }
         }
+
+        $renamed = $title->title !== $next['title'];
+
+        DB::transaction(function () use ($title, $next, $chapters, $renamed) {
+            $title->update($next);
+
+            if ($renamed) {
+                $title->update(['slug' => Str::slug($title->title) . '-' . $title->id]);
+
+                // withTrashed(): order yang dibatalkan pun tidak boleh menyimpan judul basi.
+                // Kode judul SENGAJA tidak ikut berubah — sudah tercetak di invoice & arsip.
+                OrderDetail::withTrashed()
+                    ->where('title_id', $title->id)
+                    ->update(['title' => $title->title]);
+            }
+
+            if ($title->jenis === 'buku') {
+                $this->syncChapters($title, $chapters);
+            } else {
+                $title->chapters()->delete();
+            }
+        });
+
+        TitleLog::create([
+            'title_id'   => $title->id,
+            'event'      => 'updated',
+            'note'       => $changed ? implode(', ', $changed) . ' diperbarui' : 'Judul disimpan',
+            'changed_by' => $actor->id,
+            'created_at' => now(),
+        ]);
     }
 
     /** Terima id scope yang ada, atau buat baru dari nama bidang ilmu (pola order). */
