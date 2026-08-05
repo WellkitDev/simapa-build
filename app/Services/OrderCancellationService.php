@@ -69,7 +69,8 @@ class OrderCancellationService
 
     /**
      * Membalik cancel(): payment 'batal' → 'paid' (approval kembali 'pending'),
-     * invoice 'dibatalkan' → 'diterbitkan', progress/detail/order di-restore.
+     * invoice 'dibatalkan' → status aslinya sebelum dibatalkan (lihat restoreInvoices()),
+     * progress/detail/order di-restore.
      *
      * Tagihan SENGAJA tidak ditarik kembali: bila sudah dipakai order lain, menariknya
      * justru merusak data. Jejaknya tetap terlihat di TagihanLog milik pembatalan.
