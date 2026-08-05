@@ -192,4 +192,42 @@ class TitleLifecycleTest extends TestCase
         $this->actingAs($this->user('production'))
             ->postJson(route('title.deactivate', $title->id))->assertForbidden();
     }
+
+    /** @test */
+    public function direktori_menyembunyikan_judul_nonaktif_kecuali_diminta(): void
+    {
+        $admin  = $this->user('admin');
+        $aktif  = $this->makeTitle($admin, ['title' => 'Judul Masih Aktif', 'code' => 'JMA']);
+        $mati   = $this->makeTitle($admin, ['title' => 'Judul Sudah Mati', 'code' => 'JSM']);
+        $mati->update(['deactivated_at' => now(), 'deactivated_by' => $admin->id]);
+
+        $this->actingAs($admin)->get(route('title.index'))
+            ->assertOk()
+            ->assertSee('Judul Masih Aktif')
+            ->assertDontSee('Judul Sudah Mati');
+
+        $this->actingAs($admin)->get(route('title.index', ['inactive' => 1]))
+            ->assertOk()
+            ->assertSee('Judul Masih Aktif')
+            ->assertSee('Judul Sudah Mati')
+            ->assertSee('Nonaktif');
+    }
+
+    /** @test */
+    public function tombol_hapus_mati_dengan_alasannya_bila_judul_terpakai(): void
+    {
+        $admin = $this->user('admin');
+        $title = $this->makeTitle($admin);
+        $this->linkOrder($title);
+
+        $this->actingAs($admin)->get(route('title.index'))
+            ->assertOk()
+            // Tombol tetap dirender, tapi mati dan alasannya terbaca.
+            ->assertSee('Dipakai 1 order')
+            // NB: tak bisa assertDontSee(route('title.destroy', $id)) — title.show (GET) dan
+            // title.destroy (DELETE) sama-sama beralamat titles/{id}, jadi URL itu tetap muncul
+            // lewat tombol "Lihat". Yang membuktikan form hapus aktif TIDAK dirender adalah
+            // teks konfirmasi yang cuma ada di cabang @else (form aktif).
+            ->assertDontSee('Hapus judul ini? Judul belum dipakai order, ISBN, maupun arsip.');
+    }
 }

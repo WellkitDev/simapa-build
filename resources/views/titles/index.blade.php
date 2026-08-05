@@ -12,12 +12,19 @@
     $sl = ['draft' => 'Draf', 'menunggu' => 'Menunggu', 'disetujui' => 'Disetujui', 'ditolak' => 'Ditolak'];
 @endphp
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-    <h5 class="mb-0">Direktori Judul</h5>
-    @if($canManage)
-        @can('title.create')
-        <a href="{{ route('title.create') }}" class="btn btn-sm btn-primary">Buat Judul</a>
-        @endcan
-    @endif
+    <h5 class="mb-0">Direktori Judul{{ $showInactive ? ' (termasuk nonaktif)' : '' }}</h5>
+    <div class="d-flex gap-2">
+        @if ($showInactive)
+            <a href="{{ route('title.index') }}" class="btn btn-sm btn-outline-secondary">Sembunyikan judul nonaktif</a>
+        @else
+            <a href="{{ route('title.index', ['inactive' => 1]) }}" class="btn btn-sm btn-outline-secondary">Tampilkan judul nonaktif</a>
+        @endif
+        @if($canManage)
+            @can('title.create')
+            <a href="{{ route('title.create') }}" class="btn btn-sm btn-primary">Buat Judul</a>
+            @endcan
+        @endif
+    </div>
 </div>
 
 <div class="row"><div class="col-12 grid-margin stretch-card"><div class="card"><div class="card-body">
@@ -38,21 +45,62 @@
                         @php $mstat = $t->manuscriptStatus(); @endphp
                         <td>@if($mstat)<span class="badge {{ in_array($mstat, \App\Models\TitleProgress::FINAL_STAGES, true) ? 'bg-success' : 'bg-info' }}">{{ $t->manuscriptStatusLabel() }}</span>@else<span class="text-muted">—</span>@endif</td>
                         <td>{{ $t->assignedMarketing?->name ?? 'Semua' }}</td>
-                        <td><span class="badge {{ $sb[$t->status] ?? 'bg-secondary' }}">{{ $sl[$t->status] ?? $t->status }}</span></td>
+                        <td>
+                            <span class="badge {{ $sb[$t->status] ?? 'bg-secondary' }}">{{ $sl[$t->status] ?? $t->status }}</span>
+                            @unless ($t->isActive())
+                                <span class="badge bg-dark ms-1" title="Judul ini tidak muncul di dropdown Tambah Order">Nonaktif</span>
+                            @endunless
+                        </td>
                         <td><small>{{ $t->creator?->name ?? '—' }}</small></td>
                         <td>
                             <a href="{{ route('title.show', $t->id) }}" class="btn btn-xs btn-outline-primary">Lihat</a>
-                            @if($canManage && $t->isEditable())
+
+                            @if ($canManage && $t->isEditable() && (! $t->isApproved() || $canEditApproved))
                                 @can('title.edit')
                                 <a href="{{ route('title.edit', $t->id) }}" class="btn btn-xs btn-outline-secondary">Edit</a>
                                 @endcan
+                            @endif
+
+                            @if ($canManage && in_array($t->status, ['draft', 'ditolak'], true))
                                 @can('title.submit')
                                 <form action="{{ route('title.submit', $t->id) }}" method="POST" class="d-inline m-0">@csrf<button class="btn btn-xs btn-outline-info">Ajukan</button></form>
                                 @endcan
                             @endif
+
                             @if($isApprover && $t->status === 'menunggu')
                                 @can('title.approve')
                                 <form action="{{ route('title.approve', $t->id) }}" method="POST" class="d-inline m-0">@csrf<button class="btn btn-xs btn-outline-success">Setujui</button></form>
+                                @endcan
+                            @endif
+
+                            @if ($canManage)
+                                @can('title.deactivate')
+                                    @if ($t->isActive())
+                                        <form action="{{ route('title.deactivate', $t->id) }}" method="POST" class="d-inline m-0"
+                                              onsubmit="return confirm('Nonaktifkan judul ini? Judul akan hilang dari dropdown Tambah Order, tapi laporan dan papan manuskrip tetap utuh.')">
+                                            @csrf<button class="btn btn-xs btn-outline-warning">Nonaktifkan</button>
+                                        </form>
+                                    @else
+                                        <form action="{{ route('title.activate', $t->id) }}" method="POST" class="d-inline m-0">
+                                            @csrf<button class="btn btn-xs btn-outline-success">Aktifkan</button>
+                                        </form>
+                                    @endif
+                                @endcan
+
+                                @can('title.delete')
+                                    @php $blocked = $t->deleteBlockReason(); @endphp
+                                    @if ($blocked)
+                                        {{-- Tombol SENGAJA tidak disembunyikan: user perlu tahu KENAPA judul
+                                             tak bisa dihapus, dan langsung melihat Nonaktifkan sbg jalan keluarnya. --}}
+                                        <button type="button" class="btn btn-xs btn-outline-danger disabled" tabindex="-1"
+                                                title="{{ $blocked }} — tidak bisa dihapus">Hapus</button>
+                                    @else
+                                        <form action="{{ route('title.destroy', $t->id) }}" method="POST" class="d-inline m-0"
+                                              onsubmit="return confirm('Hapus judul ini? Judul belum dipakai order, ISBN, maupun arsip.')">
+                                            @csrf @method('DELETE')
+                                            <button class="btn btn-xs btn-outline-danger">Hapus</button>
+                                        </form>
+                                    @endif
                                 @endcan
                             @endif
                         </td>
@@ -71,5 +119,5 @@
 <script src="{{ asset('assets/libs/datatables.net-responsive-bs4/js/responsive.bootstrap4.min.js') }}"></script>
 @endpush
 @push('custom-scripts')
-<script>$(function () { $('.datatable').DataTable({ pageLength: 10, responsive: true, order: [], language: { emptyTable: 'Belum ada judul.' } }); });</script>
+<script>$(function () { $('.datatable').DataTable({ pageLength: 10, responsive: true, order: [], language: { emptyTable: @json($showInactive ? 'Belum ada judul.' : 'Belum ada judul aktif.') } }); });</script>
 @endpush
