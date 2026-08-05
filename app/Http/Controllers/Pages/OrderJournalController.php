@@ -50,7 +50,7 @@ class OrderJournalController extends Controller
             }
         }
 
-        $titles = Title::where('status', 'disetujui')->where('jenis', 'artikel')
+        $titles = Title::where('status', 'disetujui')->active()->where('jenis', 'artikel')
             ->when(! Auth::user()->hasAnyRole(['manager', 'superadmin']), function ($q) {
                 $q->where(function ($qq) {
                     $qq->whereNull('assigned_to')->orWhere('assigned_to', Auth::id());
@@ -69,7 +69,7 @@ class OrderJournalController extends Controller
         //
         $validate = $request->validate([
             'type'               => 'required|in:at_mandiri,at_kolab',
-            'title_id'           => 'required|string|max:255',
+            'title_id'           => 'required|string|max:300',
             'scope_id'           => 'nullable',
 
             'indexation'         => 'required|string',
@@ -90,10 +90,13 @@ class OrderJournalController extends Controller
             'note'               => 'nullable|string',
         ]);
 
-        // Nama judul untuk cek duplikat (id lama → nama judulnya; selain itu = nama baru yang diketik).
-        $titleName = is_numeric($validate['title_id'])
-            ? (\App\Models\Title::find($validate['title_id'])?->title ?? $validate['title_id'])
-            : $validate['title_id'];
+        // Nama judul: prefix "new:" dipangkas, id dipetakan ke nama judulnya.
+        $titleName = app(\App\Services\TitleService::class)->titleNameFrom($validate['title_id']);
+
+        if ($titleName === '' || mb_strlen($titleName) > 255) {
+            return redirect()->back()->withInput()
+                ->withErrors(['title_id' => 'Judul wajib diisi dan maksimal 255 karakter.']);
+        }
 
         // Mencari Order yang memiliki Detail dengan judul sama DAN Contact dengan email sama
         $isDuplicate = Order::whereHas('details', function ($query) use ($titleName) {
@@ -241,7 +244,7 @@ class OrderJournalController extends Controller
             ->where('code_order', $code_order)->firstOrFail();
         abort_unless($order->isEditable(), 403);
         $scopes = Scope::all();
-        $titles = Title::where('status', 'disetujui')->where('jenis', 'artikel')
+        $titles = Title::where('status', 'disetujui')->active()->where('jenis', 'artikel')
             ->when(! Auth::user()->hasAnyRole(['manager', 'superadmin']), function ($q) {
                 $q->where(function ($qq) {
                     $qq->whereNull('assigned_to')->orWhere('assigned_to', Auth::id());
@@ -259,7 +262,7 @@ class OrderJournalController extends Controller
     {
         $request->validate([
             'type'                  => 'required|in:at_mandiri,at_kolab',
-            'title_id'              => 'required|string|max:255',
+            'title_id'              => 'required|string|max:300',
             'scope_id'              => 'nullable',
             'indexation'            => 'required|string',
             'naskah_type'           => 'required|in:dibuatkan,mandiri',
@@ -276,6 +279,12 @@ class OrderJournalController extends Controller
             'authors.*.position'    => 'required|integer|min:1',
             'note'                  => 'nullable|string',
         ]);
+
+        $titleName = app(\App\Services\TitleService::class)->titleNameFrom($request->title_id);
+        if ($titleName === '' || mb_strlen($titleName) > 255) {
+            return back()->withInput()
+                ->withErrors(['title_id' => 'Judul wajib diisi dan maksimal 255 karakter.']);
+        }
 
         abort_unless(
             Order::withTrashed()->where('code_order', $code_order)->firstOrFail()->isEditable(),

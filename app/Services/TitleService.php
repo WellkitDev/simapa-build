@@ -112,32 +112,34 @@ class TitleService
     }
 
     /**
-     * Resolusi judul untuk order: id yang ada → judul tsb; nama baru → buat Title (asal=order, disetujui)
-     * dari field order yang sedang diisi. $ctx: jenis, order_type, scope_id?, indeksasi?.
+     * Resolusi judul untuk order. Keputusan diambil dari BENTUK nilai, bukan tebakan:
+     *   angka          → id judul yang sudah ada
+     *   berawalan new: → judul baru, namanya = sisa string setelah prefix
+     *   string polos   → judul baru (kompatibilitas: old(), form lama, prefill tagihan)
+     *
+     * $ctx: jenis, order_type, scope_id?, indeksasi?.
      */
     public function resolveForOrder(int|string $value, array $ctx, User $actor): Title
     {
-        if (is_numeric($value)) {
-            $existing = Title::find((int) $value);
+        [$id, $name] = $this->parseTitleValue($value);
+
+        if ($id !== null) {
+            $existing = Title::find($id);
             if ($existing) {
                 return $existing;
             }
         }
 
-        // Jika nama (bukan id), pakai ulang judul dengan nama + jenis sama (hindari duplikat &
-        // salah-taut lintas jenis: order jurnal tak boleh menaut judul buku bernama sama).
-        if (! is_numeric($value)) {
-            $existing = Title::where('title', (string) $value)
-                ->where('jenis', $ctx['jenis'])
-                ->first();
-            if ($existing) {
-                return $existing;
-            }
+        // Pakai ulang judul dengan nama + jenis sama (hindari duplikat & salah-taut
+        // lintas jenis: order jurnal tak boleh menaut judul buku bernama sama).
+        $existing = Title::where('title', $name)->where('jenis', $ctx['jenis'])->first();
+        if ($existing) {
+            return $existing;
         }
 
         return Title::create([
-            'title'       => (string) $value,
-            'code'        => app(TitleCodeService::class)->generate((string) $value),
+            'title'       => $name,
+            'code'        => app(TitleCodeService::class)->generate($name),
             'jenis'       => $ctx['jenis'],
             'tipe_naskah' => str_contains($ctx['order_type'] ?? '', 'kolab') ? 'kolaborasi' : 'mandiri',
             'scope_id'    => $ctx['scope_id'] ?? null,
@@ -148,6 +150,40 @@ class TitleService
             'approved_by' => $actor->id,
             'approved_at' => now(),
         ]);
+    }
+
+    /**
+     * Nama judul dari nilai form — untuk validasi panjang & cek duplikat di controller.
+     * Nilai berupa id dipetakan ke nama judulnya.
+     */
+    public function titleNameFrom(int|string $value): string
+    {
+        [$id, $name] = $this->parseTitleValue($value);
+
+        if ($id !== null) {
+            return Title::find($id)?->title ?? $name;
+        }
+
+        return $name;
+    }
+
+    /**
+     * @return array{0: ?int, 1: string} [id judul bila nilainya angka, nama judul]
+     */
+    private function parseTitleValue(int|string $value): array
+    {
+        $raw = trim((string) $value);
+
+        if (str_starts_with($raw, 'new:')) {
+            return [null, trim(substr($raw, 4))];
+        }
+
+        // Sengaja preg_match, bukan is_numeric(): "2026" adalah id, " 2.5e3" bukan.
+        if (preg_match('/^\d+$/', $raw) === 1) {
+            return [(int) $raw, $raw];
+        }
+
+        return [null, $raw];
     }
 
     /**
