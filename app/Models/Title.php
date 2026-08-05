@@ -4,11 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
 class Title extends Model
 {
     use HasFactory;
+    use SoftDeletes;
 
     protected $table = 'tb_titles';
 
@@ -24,9 +26,10 @@ class Title extends Model
         'title', 'code', 'jenis', 'indeksasi', 'tipe_naskah', 'scope_id', 'assigned_to', 'status', 'asal', 'slug',
         'created_by', 'approved_by', 'approved_at', 'reject_note',
         'target_terbit', 'jurnal_target', 'jurnal_link', 'template_link', 'apc_info', 'catatan_publikasi',
+        'deactivated_at', 'deactivated_by',
     ];
 
-    protected $casts = ['approved_at' => 'datetime', 'target_terbit' => 'date'];
+    protected $casts = ['approved_at' => 'datetime', 'target_terbit' => 'date', 'deactivated_at' => 'datetime'];
 
     public function chapters()
     {
@@ -66,6 +69,22 @@ class Title extends Model
     public function approver()
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function deactivatedBy()
+    {
+        return $this->belongsTo(User::class, 'deactivated_by');
+    }
+
+    /** Judul nonaktif tetap ada di laporan/papan/arsip, tapi hilang dari dropdown order. */
+    public function isActive(): bool
+    {
+        return $this->deactivated_at === null;
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->whereNull('deactivated_at');
     }
 
     public function isEditable(): bool
