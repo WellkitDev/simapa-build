@@ -4,6 +4,21 @@
 @push('plugin-styles')
 <link href="{{ asset('assets/libs/datatables.net-bs4/css/dataTables.bootstrap4.min.css') }}" rel="stylesheet" />
 <link href="{{ asset('assets/libs/datatables.net-responsive-bs4/css/responsive.bootstrap4.min.css') }}" rel="stylesheet" />
+<style>
+    /* Kolom Aksi Direktori Judul: maksimal 2 tombol per baris, sisanya turun ke
+       bawah — lebar "menempel" isi supaya tidak memakan ruang kolom tabel. */
+    .title-actions{
+        display:grid;
+        grid-template-columns:repeat(2, 1fr);
+        gap:.25rem;
+        width:max-content;
+        max-width:13rem;
+    }
+    .title-actions form{ margin:0; }
+    .title-actions > a,
+    .title-actions > button,
+    .title-actions form > button{ width:100%; white-space:nowrap; }
+</style>
 @endpush
 
 @section('content')
@@ -53,6 +68,7 @@
                         </td>
                         <td><small>{{ $t->creator?->name ?? '—' }}</small></td>
                         <td>
+                          <div class="title-actions">
                             <a href="{{ route('title.show', $t->id) }}" class="btn btn-xs btn-outline-primary">Lihat</a>
 
                             @if ($canManage && $t->isEditable() && (! $t->isApproved() || $canEditApproved))
@@ -103,6 +119,7 @@
                                     @endif
                                 @endcan
                             @endif
+                          </div>
                         </td>
                     </tr>
                 @endforeach
