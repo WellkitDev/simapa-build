@@ -41,7 +41,13 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
-        if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
+        // `is_active` ikut jadi syarat kredensial, bukan dicek setelah login:
+        // tombol nonaktif di Manajemen User dulu hanya kosmetik — user yang
+        // dinonaktifkan tetap bisa masuk penuh. Pesan galatnya sengaja sama
+        // dengan password salah supaya tidak membocorkan akun mana yang ada.
+        $credentials = $this->only('email', 'password') + ['is_active' => 1];
+
+        if (! Auth::attempt($credentials, $this->boolean('remember'))) {
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([

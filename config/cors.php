@@ -19,7 +19,9 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['*'],
+    // Aplikasi internal tanpa klien lintas-domain: hanya domainnya sendiri.
+    // Sebelumnya '*', yang membuka `sanctum/csrf-cookie` ke seluruh origin.
+    'allowed_origins' => [env('APP_URL', 'http://localhost')],
 
     'allowed_origins_patterns' => [],
 

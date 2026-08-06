@@ -28,6 +28,26 @@ class RouteServiceProvider extends ServiceProvider
             return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
         });
 
+        // Sebelumnya HANYA login yang dibatasi; 225 route web lainnya terbuka
+        // tanpa batas. Angkanya longgar supaya pemakaian normal (DataTables,
+        // navigasi cepat, banyak aset) tak pernah tersenggol — yang dicegat
+        // adalah skrip yang membanjiri, bukan manusia.
+        RateLimiter::for('web', function (Request $request) {
+            return Limit::perMinute(300)->by($request->user()?->id ?: $request->ip());
+        });
+
+        // Ekspor PDF/CSV membangkitkan dokumen lewat dompdf: berat CPU dan
+        // sudah pernah menabrak batas 30 detik di produksi (public/error_log).
+        RateLimiter::for('export', function (Request $request) {
+            return Limit::perMinute(10)->by($request->user()?->id ?: $request->ip());
+        });
+
+        // Pengiriman surel (lupa password) memakai kuota SMTP dan bisa dipakai
+        // membanjiri kotak masuk orang lain.
+        RateLimiter::for('mail', function (Request $request) {
+            return Limit::perMinutes(10, 5)->by($request->ip());
+        });
+
         $this->routes(function () {
             Route::middleware('api')
                 ->prefix('api')

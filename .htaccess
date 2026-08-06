@@ -1,0 +1,25 @@
+# Jaring pengaman kalau DocumentRoot salah menunjuk ke akar proyek, bukan ke
+# public/. Di XAMPP lokal proyek ini berada di dalam htdocs, jadi tanpa berkas
+# ini `.env` dan dump `.sql` bisa diunduh langsung lewat URL.
+#
+# Ini BUKAN pengganti DocumentRoot yang benar (harus mengarah ke public/),
+# melainkan lapisan kedua kalau konfigurasi itu meleset.
+#
+# Sengaja hanya menolak BERKAS tertentu, bukan `Require all denied` untuk
+# seluruh direktori: aturan direktori juga akan diwarisi public/ dan mematikan
+# seluruh aplikasi bila DocumentRoot memang menunjuk ke akar proyek.
+
+<FilesMatch "(?i)(^\.env|^\.htaccess$|^error_log$|^composer\.(json|lock)$|^package(-lock)?\.json$|^artisan$|\.(sql|sqlite|bak|backup|old|orig|save|swp|log|sh|dist|md)$)">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Jangan pernah menyajikan daftar isi direktori.
+<IfModule mod_autoindex.c>
+    Options -Indexes
+</IfModule>

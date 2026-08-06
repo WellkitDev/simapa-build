@@ -76,7 +76,7 @@ Route::middleware(['auth', 'access'])->group(function () {
 
         Route::get('refund/{code_order}', [\App\Http\Controllers\Pages\RefundController::class, 'form'])->name('refund.form');
         Route::post('refund/{code_order}', [\App\Http\Controllers\Pages\RefundController::class, 'store'])->name('refund.store');
-        Route::get('refund/{code_order}/pdf', [\App\Http\Controllers\Pages\RefundController::class, 'pdf'])->name('refund.pdf');
+        Route::get('refund/{code_order}/pdf', [\App\Http\Controllers\Pages\RefundController::class, 'pdf'])->name('refund.pdf')->middleware('throttle:export');
 
         // Ditaruh PALING BAWAH agar segmen {code_order} tidak menelan path statis
         // buku/* dan jurnal/*. Batasan pola menjaga URL aneh tidak sampai ke controller.
@@ -147,7 +147,7 @@ Route::middleware(['auth', 'access'])->group(function () {
         Route::post('{id}/status', [InvoiceController::class, 'updateStatus'])->name('updateStatus');
         Route::post('{id}/cancel', [InvoiceController::class, 'cancel'])->name('cancel');
         Route::get('{id}/logs',    [InvoiceController::class, 'logs'])->name('logs');
-        Route::get('{id}/pdf', [InvoiceController::class, 'pdf'])->name('pdf');
+        Route::get('{id}/pdf', [InvoiceController::class, 'pdf'])->name('pdf')->middleware('throttle:export');
     });
 
     Route::prefix('tagihan')->name('tagihan.')->group(function () {
@@ -160,19 +160,19 @@ Route::middleware(['auth', 'access'])->group(function () {
         Route::post('{id}/approve',   [\App\Http\Controllers\Pages\TagihanController::class, 'approve'])->name('approve');
         Route::post('{id}/reject',    [\App\Http\Controllers\Pages\TagihanController::class, 'reject'])->name('reject');
         Route::post('{id}/cancel',    [\App\Http\Controllers\Pages\TagihanController::class, 'cancel'])->name('cancel');
-        Route::get('{id}/pdf',        [\App\Http\Controllers\Pages\TagihanController::class, 'pdf'])->name('pdf');
+        Route::get('{id}/pdf',        [\App\Http\Controllers\Pages\TagihanController::class, 'pdf'])->name('pdf')->middleware('throttle:export');
         Route::get('{id}/buat-order', [\App\Http\Controllers\Pages\TagihanController::class, 'buatOrder'])->name('buatOrder');
     });
 
     Route::prefix('income')->name('income.')->group(function () {
         Route::get('pemasukan',     [IncomeController::class, 'pemasukan'])->name('pemasukan');
-        Route::get('pemasukan/pdf', [IncomeController::class, 'pemasukanPdf'])->name('pemasukan.pdf');
+        Route::get('pemasukan/pdf', [IncomeController::class, 'pemasukanPdf'])->name('pemasukan.pdf')->middleware('throttle:export');
         Route::get('pemasukan/csv', [IncomeController::class, 'pemasukanCsv'])->name('pemasukan.csv');
         Route::get('piutang',       [IncomeController::class, 'piutang'])->name('piutang');
-        Route::get('piutang/pdf',   [IncomeController::class, 'piutangPdf'])->name('piutang.pdf');
+        Route::get('piutang/pdf',   [IncomeController::class, 'piutangPdf'])->name('piutang.pdf')->middleware('throttle:export');
         Route::get('piutang/csv',   [IncomeController::class, 'piutangCsv'])->name('piutang.csv');
         Route::get('lunas',         [IncomeController::class, 'lunas'])->name('lunas');
-        Route::get('lunas/pdf',     [IncomeController::class, 'lunasPdf'])->name('lunas.pdf');
+        Route::get('lunas/pdf',     [IncomeController::class, 'lunasPdf'])->name('lunas.pdf')->middleware('throttle:export');
         Route::get('lunas/csv',     [IncomeController::class, 'lunasCsv'])->name('lunas.csv');
     });
 
@@ -279,7 +279,7 @@ Route::middleware(['auth', 'access'])->group(function () {
     // Arsip Judul selesai
     Route::get('management/archive', [\App\Http\Controllers\Pages\TitleArchiveController::class, 'index'])->name('archive.index');
     Route::get('management/archive/{id}', [\App\Http\Controllers\Pages\TitleArchiveController::class, 'show'])->name('archive.show')->whereNumber('id');
-    Route::get('management/archive/{id}/pdf', [\App\Http\Controllers\Pages\TitleArchiveController::class, 'pdf'])->name('archive.pdf')->whereNumber('id');
+    Route::get('management/archive/{id}/pdf', [\App\Http\Controllers\Pages\TitleArchiveController::class, 'pdf'])->name('archive.pdf')->whereNumber('id')->middleware('throttle:export');
     Route::put('management/archive/{id}/artifacts', [\App\Http\Controllers\Pages\TitleArchiveController::class, 'saveArtifacts'])->name('archive.artifacts')->whereNumber('id');
     Route::post('management/archive/{id}/submit', [\App\Http\Controllers\Pages\TitleArchiveController::class, 'submit'])->name('archive.submit')->whereNumber('id');
     Route::post('management/archive/{id}/approve', [\App\Http\Controllers\Pages\TitleArchiveController::class, 'approve'])->name('archive.approve')->whereNumber('id');
@@ -288,11 +288,11 @@ Route::middleware(['auth', 'access'])->group(function () {
     // Akuntansi — Jurnal Kas (superadmin/accounting)
     Route::get('accounting/overview', [\App\Http\Controllers\Pages\AccountingOverviewController::class, 'index'])->name('accounting.overview');
     Route::get('accounting/journal', [\App\Http\Controllers\Pages\CashEntryController::class, 'index'])->name('accounting.journal');
-    Route::get('accounting/journal/export/csv', [\App\Http\Controllers\Pages\CashEntryController::class, 'exportCsv'])->name('accounting.journal.export.csv');
-    Route::get('accounting/journal/export/pdf', [\App\Http\Controllers\Pages\CashEntryController::class, 'exportPdf'])->name('accounting.journal.export.pdf');
+    Route::get('accounting/journal/export/csv', [\App\Http\Controllers\Pages\CashEntryController::class, 'exportCsv'])->name('accounting.journal.export.csv')->middleware('throttle:export');
+    Route::get('accounting/journal/export/pdf', [\App\Http\Controllers\Pages\CashEntryController::class, 'exportPdf'])->name('accounting.journal.export.pdf')->middleware('throttle:export');
     Route::get('accounting/dashboard', [\App\Http\Controllers\Pages\AccountingDashboardController::class, 'index'])->name('accounting.dashboard');
-    Route::get('accounting/recap/export/csv', [\App\Http\Controllers\Pages\AccountingDashboardController::class, 'exportCsv'])->name('accounting.recap.export.csv');
-    Route::get('accounting/recap/export/pdf', [\App\Http\Controllers\Pages\AccountingDashboardController::class, 'exportPdf'])->name('accounting.recap.export.pdf');
+    Route::get('accounting/recap/export/csv', [\App\Http\Controllers\Pages\AccountingDashboardController::class, 'exportCsv'])->name('accounting.recap.export.csv')->middleware('throttle:export');
+    Route::get('accounting/recap/export/pdf', [\App\Http\Controllers\Pages\AccountingDashboardController::class, 'exportPdf'])->name('accounting.recap.export.pdf')->middleware('throttle:export');
     Route::get('accounting/distribution', [\App\Http\Controllers\Pages\ProfitDistributionController::class, 'index'])->name('accounting.distribution');
     Route::put('accounting/distribution/settings', [\App\Http\Controllers\Pages\ProfitDistributionController::class, 'updateSetting'])->name('accounting.distribution.settings');
     Route::post('accounting/distribution/rule', [\App\Http\Controllers\Pages\ProfitDistributionController::class, 'storeRule'])->name('accounting.distribution.rule.store');
@@ -341,12 +341,12 @@ Route::middleware(['auth', 'access'])->group(function () {
     Route::get('salary/slip/{id}/edit', [\App\Http\Controllers\Pages\SalarySlipController::class, 'edit'])->name('salary.slip.edit')->whereNumber('id');
     Route::put('salary/slip/{id}', [\App\Http\Controllers\Pages\SalarySlipController::class, 'update'])->name('salary.slip.update')->whereNumber('id');
     Route::delete('salary/slip/{id}', [\App\Http\Controllers\Pages\SalarySlipController::class, 'destroy'])->name('salary.slip.destroy')->whereNumber('id');
-    Route::get('salary/slip/{id}/pdf', [\App\Http\Controllers\Pages\SalarySlipController::class, 'pdf'])->name('salary.slip.pdf')->whereNumber('id');
+    Route::get('salary/slip/{id}/pdf', [\App\Http\Controllers\Pages\SalarySlipController::class, 'pdf'])->name('salary.slip.pdf')->whereNumber('id')->middleware('throttle:export');
     Route::post('salary/slip/{id}/send', [\App\Http\Controllers\Pages\SalarySlipController::class, 'send'])->name('salary.slip.send')->whereNumber('id');
 
     // Slip Gaji — self-service (semua user login; akses own-data dicek di controller)
     Route::get('slip-gaji-saya', [\App\Http\Controllers\Pages\EmployeeSalarySlipController::class, 'me'])->name('salary.slip.me');
-    Route::get('slip-gaji-saya/{id}/pdf', [\App\Http\Controllers\Pages\EmployeeSalarySlipController::class, 'pdf'])->name('salary.slip.me.pdf')->whereNumber('id');
+    Route::get('slip-gaji-saya/{id}/pdf', [\App\Http\Controllers\Pages\EmployeeSalarySlipController::class, 'pdf'])->name('salary.slip.me.pdf')->whereNumber('id')->middleware('throttle:export');
 });
 
 

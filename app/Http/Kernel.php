@@ -14,7 +14,10 @@ class Kernel extends HttpKernel
      * @var array<int, class-string|string>
      */
     protected $middleware = [
-        // \App\Http\Middleware\TrustHosts::class,
+        // Aktif: tanpa ini Apache melayani Host apa pun, sehingga tautan reset
+        // password (dibangun dari host permintaan) bisa diracuni ke domain
+        // penyerang. Laravel sendiri melewatinya di env `local` dan saat test.
+        \App\Http\Middleware\TrustHosts::class,
         \App\Http\Middleware\TrustProxies::class,
         \Illuminate\Http\Middleware\HandleCors::class,
         \App\Http\Middleware\PreventRequestsDuringMaintenance::class,
@@ -30,6 +33,8 @@ class Kernel extends HttpKernel
      */
     protected $middlewareGroups = [
         'web' => [
+            \App\Http\Middleware\SecurityHeaders::class,
+            \Illuminate\Routing\Middleware\ThrottleRequests::class.':web',
             \App\Http\Middleware\EncryptCookies::class,
             \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
             \Illuminate\Session\Middleware\StartSession::class,
@@ -37,6 +42,7 @@ class Kernel extends HttpKernel
             \App\Http\Middleware\VerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
             \App\Http\Middleware\EnforceIdempotency::class,
+            \App\Http\Middleware\ForcePasswordChange::class,
         ],
 
         'api' => [

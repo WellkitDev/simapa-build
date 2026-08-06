@@ -26,6 +26,17 @@ class DeepRouteSmokeTest extends TestCase
         'verification.verify',  // butuh signed URL
     ];
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Sama seperti RouteSmokeTest: ratusan request dalam satu metode adalah
+        // pola yang memang dicegat `throttle:web`. Kalau tidak dikecualikan,
+        // sisanya cuma menerima 429 dan smoke test-nya diam-diam berhenti
+        // menguji apa pun (ambang gagalnya >= 500).
+        $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
+    }
+
     private function candidatesFor(string $param): array
     {
         if ($param === 'code_order') {

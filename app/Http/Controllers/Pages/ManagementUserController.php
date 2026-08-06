@@ -207,8 +207,10 @@ class ManagementUserController extends Controller
             $data['password'] = Hash::make($request->password);
         }
 
-        //asssign user to role
-        $user->assignRole(Role::findById($request->role_id));
+        // syncRoles, BUKAN assignRole: assignRole hanya menambah, sehingga
+        // menurunkan superadmin jadi marketing menyisakan kedua role — dan
+        // superadmin lolos duluan lewat Gate::before. Role harus diganti.
+        $user->syncRoles([Role::findById($request->role_id)]);
 
         $user->update($data);
 

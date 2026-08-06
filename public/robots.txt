@@ -1,2 +1,4 @@
+# Aplikasi internal — tidak ada halaman yang pantas diindeks mesin pencari.
+# Sebelumnya `Disallow:` kosong, yang justru MENGIZINKAN pengindeksan penuh.
 User-agent: *
-Disallow:
+Disallow: /

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Pages;
 
 use App\Models\User;
+use App\Models\UserProfile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
@@ -18,8 +19,21 @@ class ProfileController extends Controller
         $this->drive = $drive;
     }
 
+    /**
+     * Proksi foto profil dari Google Drive.
+     *
+     * ID WAJIB benar-benar terdaftar sebagai foto profil. Tanpa pemeriksaan ini
+     * endpoint-nya meneruskan ID apa pun ke Drive — dan Drive yang sama memuat
+     * naskah, bukti bayar, LOA, serta lampiran laporan harian, sehingga setiap
+     * pemegang sesi bisa menarik berkas perusahaan mana pun yang ID-nya bocor.
+     */
     public function profileImage($fileId)
     {
+        abort_unless(
+            UserProfile::where('profile_picture_id', $fileId)->exists(),
+            404
+        );
+
         return $this->drive->getImageStream($fileId);
     }
 

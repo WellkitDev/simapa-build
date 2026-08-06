@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Pages;
 use App\Http\Controllers\Controller;
 use App\Models\Announcement;
 use App\Services\AnnouncementService;
+use App\Support\HtmlSanitizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -97,8 +98,14 @@ class AnnouncementController extends Controller
     }
 
     /** Pengaman ringan: buang <script>/<style> (penulis tepercaya). */
+    /**
+     * Isi pengumuman dirender mentah ({!! !!}) di dashboard semua user, jadi
+     * penyaringnya harus allowlist. Versi lama di sini hanya regex penghapus
+     * pasangan <script>/<style> — dilewati `<img onerror>`, `<svg onload>`,
+     * `<iframe srcdoc>`, dan `<script src=...>` tanpa tag penutup.
+     */
     private function cleanBody(string $html): string
     {
-        return preg_replace('#<(script|style)\b[^>]*>.*?</\1>#is', '', $html);
+        return HtmlSanitizer::clean($html);
     }
 }

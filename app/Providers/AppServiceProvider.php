@@ -20,6 +20,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Begitu APP_URL memakai https, semua URL yang dibangun aplikasi ikut
+        // https — termasuk action form dan tautan reset password. Menggantung
+        // pada APP_URL, bukan pada environment, supaya dev lokal di http tidak
+        // ikut dipaksa dan tidak perlu ada saklar terpisah.
+        if (str_starts_with((string) config('app.url'), 'https://')) {
+            \Illuminate\Support\Facades\URL::forceScheme('https');
+        }
+
         \Illuminate\Pagination\Paginator::useBootstrapFive();
 
         Blade::directive('idempotent', function () {

@@ -25,6 +25,13 @@ class RouteSmokeTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        // Test ini menembak ratusan route dalam satu metode — pola lalu lintas
+        // yang memang dimaksudkan dicegat `throttle:web`. Tanpa dikecualikan,
+        // sisa route-nya cuma menerima 429 dan smoke test-nya berhenti
+        // menguji apa pun tanpa pernah memerah (ambangnya >= 500).
+        $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
+
         foreach (self::ROLES as $r) {
             Role::firstOrCreate(['name' => $r, 'guard_name' => 'web']);
         }
