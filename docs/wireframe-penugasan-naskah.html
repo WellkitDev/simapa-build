@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SiMAPA — Wireframe Penugasan & Pelacakan Naskah v1</title>
+<style>
+  :root{
+    --ink:#0f172a; --sub:#64748b; --faint:#94a3b8; --bord:#e2e8f0;
+    --bg:#f1f5f9; --white:#fff; --blue:#4c5fd5; --blue-t:#eef2ff;
+    --red:#dc2626; --red-t:#fef2f2; --green:#16a34a; --green-t:#ecfdf5;
+    --amber:#d97706; --amber-t:#fffbeb;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:#dde3ea;color:var(--ink);padding:32px}
+  h1{font-size:22px;margin-bottom:4px}
+  .intro{color:var(--sub);font-size:13px;margin-bottom:28px;max-width:900px}
+  .screen{background:var(--bg);border:1px solid #c7cfd9;border-radius:14px;margin-bottom:48px;overflow:hidden;max-width:1440px}
+  .screen-title{background:var(--ink);color:#fff;padding:10px 18px;font-size:13px;font-weight:600;letter-spacing:.05em}
+  .screen-title small{color:#94a3b8;font-weight:400;margin-left:8px}
+  .layout{display:flex;min-height:640px}
+  /* sidebar */
+  .side{width:220px;background:var(--white);border-right:1px solid var(--bord);padding:20px 12px;flex-shrink:0}
+  .logo{color:var(--blue);font-weight:800;font-size:18px;padding:0 10px}
+  .logo small{display:block;color:var(--faint);font-weight:400;font-size:10px;margin-top:2px}
+  .sec{font-size:9px;font-weight:700;color:var(--faint);letter-spacing:.1em;padding:16px 10px 4px}
+  .mi{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;font-size:12px;color:var(--sub);margin-bottom:2px}
+  .mi::before{content:"";width:13px;height:13px;border-radius:3px;background:#c7cfd9;flex-shrink:0}
+  .mi.on{background:var(--blue);color:#fff;font-weight:600}
+  .mi.on::before{background:#fff}
+  /* content */
+  .main{flex:1;padding:22px;min-width:0}
+  .ptitle{font-size:20px;font-weight:700}
+  .psub{font-size:12px;color:var(--sub);margin-top:2px}
+  .topbar{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px}
+  .userchip{background:var(--white);border:1px solid var(--bord);border-radius:99px;padding:6px 14px;font-size:12px;font-weight:600}
+  .userchip small{color:var(--sub);font-weight:400}
+  .card{background:var(--white);border:1px solid var(--bord);border-radius:12px;padding:14px 16px}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+  .stat .lbl{font-size:11px;color:var(--sub)}
+  .stat .val{font-size:26px;font-weight:800;margin-top:2px}
+  .stat.warn .val{color:var(--red)}
+  .h6{font-size:12px;font-weight:700;letter-spacing:.04em;color:var(--sub);margin:18px 0 8px;text-transform:uppercase}
+  /* task card */
+  .task{display:flex;gap:16px;align-items:center;margin-bottom:10px}
+  .task.overdue{border-color:#fca5a5;background:var(--red-t)}
+  .task .grow{flex:1;min-width:0}
+  .code{color:var(--blue);font-weight:800;font-size:12px}
+  .ttl{font-weight:600;font-size:14px;margin:2px 0}
+  .meta{font-size:11px;color:var(--sub)}
+  .mid{width:290px;flex-shrink:0;font-size:11px}
+  .chip{display:inline-block;border-radius:99px;padding:3px 10px;font-size:10px;font-weight:700}
+  .c-blue{background:var(--blue-t);color:var(--blue)} .c-red{background:var(--red-t);color:var(--red)}
+  .c-green{background:var(--green-t);color:var(--green)} .c-amber{background:var(--amber-t);color:var(--amber)}
+  .c-gray{background:#f1f5f9;color:var(--sub);border:1px solid var(--bord)}
+  .aging{margin-top:5px;color:var(--sub)} .aging.late{color:var(--red);font-weight:700}
+  .btn{display:inline-block;background:var(--blue);color:#fff;border-radius:8px;padding:9px 16px;font-size:12px;font-weight:700;white-space:nowrap}
+  .btn.o{background:#fff;color:var(--blue);border:1.5px solid var(--blue)}
+  .btn.danger{background:#fff;color:var(--red);border:1.5px solid #fca5a5}
+  .btn.big{padding:13px 20px;font-size:13px;width:100%;text-align:center}
+  /* toolbar screen 2 */
+  .tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  .tg{display:flex;border:1px solid var(--bord);border-radius:8px;overflow:hidden;background:#fff}
+  .tg span{padding:7px 14px;font-size:11px;font-weight:600;color:var(--sub)}
+  .tg span.on{background:var(--blue);color:#fff}
+  .filter{background:#fff;border:1px solid var(--bord);border-radius:8px;padding:7px 12px;font-size:11px;color:var(--sub)}
+  /* kanban */
+  .zones{display:flex;gap:12px;overflow-x:auto;padding-bottom:6px}
+  .zone{border-radius:12px;padding:10px;flex-shrink:0}
+  .z1{background:#f1f5f9;border-top:3px solid #64748b} .z2{background:var(--blue-t);border-top:3px solid var(--blue)} .z3{background:var(--green-t);border-top:3px solid var(--green)}
+  .zlbl{font-size:10px;font-weight:800;letter-spacing:.08em;margin-bottom:8px;text-transform:uppercase}
+  .z1 .zlbl{color:#64748b}.z2 .zlbl{color:var(--blue)}.z3 .zlbl{color:var(--green)}
+  .zlbl small{font-weight:400;letter-spacing:0;text-transform:none;color:var(--faint)}
+  .cols{display:flex;gap:8px}
+  .kcol{width:168px;flex-shrink:0}
+  .kh{font-size:11px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:5px}
+  .kh .n{background:#fff;border:1px solid var(--bord);border-radius:99px;font-size:9px;padding:1px 7px;color:var(--sub)}
+  .kbody{background:rgba(255,255,255,.65);border-radius:8px;padding:6px;min-height:210px}
+  .kcard{background:#fff;border:1px solid var(--bord);border-radius:8px;padding:8px;margin-bottom:6px;font-size:10px}
+  .kcard .ttl{font-size:11px;margin:2px 0}
+  .kcard .who{color:var(--sub);margin-top:3px}
+  .empty{font-size:10px;color:var(--faint);text-align:center;padding:16px 0}
+  /* screen 3 */
+  .grid2{display:grid;grid-template-columns:340px 1fr;gap:14px;margin-top:14px}
+  .field{display:flex;justify-content:space-between;font-size:12px;padding:7px 0;border-bottom:1px dashed var(--bord)}
+  .field b{text-align:right}
+  .field:last-child{border:none}
+  .stepper{display:flex;gap:0;margin-top:14px;background:#fff;border:1px solid var(--bord);border-radius:12px;padding:14px 10px;overflow-x:auto}
+  .step{flex:1;text-align:center;position:relative;min-width:88px}
+  .step::after{content:"";position:absolute;top:12px;left:50%;width:100%;height:2px;background:var(--bord);z-index:0}
+  .step:last-child::after{display:none}
+  .dot{width:24px;height:24px;border-radius:50%;background:var(--bord);color:#fff;font-size:12px;line-height:24px;margin:0 auto 5px;position:relative;z-index:1}
+  .step.done .dot{background:var(--green)} .step.now .dot{background:var(--blue);box-shadow:0 0 0 4px var(--blue-t)}
+  .slbl{font-size:10px;font-weight:600;color:var(--sub)} .step.now .slbl{color:var(--blue)}
+  .ssub{font-size:9px;color:var(--faint)} .step.now .ssub{color:var(--red);font-weight:700}
+  .notice{background:var(--blue-t);border:1px solid #c7d2fe;color:#3730a3;border-radius:8px;padding:9px 12px;font-size:11px;margin-top:10px}
+  .filerow{display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:8px 0;border-bottom:1px dashed var(--bord)}
+  .logrow{font-size:11px;padding:7px 0;border-bottom:1px dashed var(--bord);color:var(--sub)}
+  .logrow b{color:var(--ink)}
+  input,select,textarea{border:1px solid var(--bord);border-radius:8px;padding:8px 10px;font-size:11px;width:100%;background:#fff;color:var(--sub);font-family:inherit}
+  .frm{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px}
+  .flbl{font-size:10px;font-weight:700;color:var(--sub);margin-bottom:3px;display:block}
+  /* blueprint */
+  table{border-collapse:collapse;width:100%;background:#fff;border-radius:10px;overflow:hidden;font-size:12px}
+  th,td{border:1px solid var(--bord);padding:8px 12px;text-align:center}
+  th{background:#f8fafc;font-size:11px} td:first-child,th:first-child{text-align:left}
+  .yes{color:var(--green);font-weight:800} .no{color:#cbd5e1}
+  .cond{color:var(--amber);font-weight:700;font-size:10px}
+  .flow{font-size:12px;background:#fff;border:1px solid var(--bord);border-radius:10px;padding:12px 16px;margin-top:10px;line-height:2}
+  .st{background:var(--blue-t);color:var(--blue);border-radius:6px;padding:2px 8px;font-weight:700;font-size:11px;white-space:nowrap}
+  .st.g{background:var(--green-t);color:var(--green)} .st.gr{background:#f1f5f9;color:var(--sub)}
+  .rules{columns:2;gap:24px;font-size:12px;margin-top:10px}
+  .rules li{margin:0 0 8px 16px;break-inside:avoid}
+  .note{background:var(--amber-t);border:1px solid #fde68a;border-radius:8px;padding:8px 12px;font-size:11px;color:#92400e;margin-top:8px}
+  .anno{display:inline-block;background:var(--ink);color:#fff;border-radius:50%;width:16px;height:16px;font-size:10px;line-height:16px;text-align:center;font-weight:700;vertical-align:middle}
+  /* bab table (buku) */
+  .bab{display:grid;grid-template-columns:34px 1.4fr 1fr 0.9fr 130px 110px 150px;gap:10px;align-items:center;font-size:11px;padding:9px 6px;border-bottom:1px dashed var(--bord)}
+  .bab.head{font-size:10px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--bord)}
+  .bab .no{color:var(--faint);font-weight:700}
+  .bab .warnmap{color:var(--amber);font-weight:700}
+  .progressbar{height:8px;background:var(--bord);border-radius:99px;overflow:hidden;margin-top:6px}
+  .progressbar i{display:block;height:100%;width:35%;background:var(--blue)}
+</style>
+</head>
+<body>
+
+<h1>SiMAPA v2 — Wireframe Modul "Penugasan Naskah" (menggantikan Distribusi + Pelacak Naskah)</h1>
+<p class="intro">Berdasarkan keputusan final 9 Agu 2026: admin = penanggung jawab per bidang · produksi = pelaksana pembuatan naskah/bab · marketing view + set target · identitas utama = kode order · upload naskah memicu maju tahap otomatis · tanpa approval (hanya notifikasi) · grup judul transparan · arsip menggantikan retensi 30 hari · kata "editor" dihapus.</p>
+
+<!-- ============ SCREEN 1 ============ -->
+<div class="screen">
+  <div class="screen-title">LAYAR 1 — MEJA KERJA SAYA <small>untuk produksi &amp; admin · menjawab "apa tugasku, mana yang mendesak, apa aksiku"</small></div>
+  <div class="layout">
+    <div class="side">
+      <div class="logo">SiMAPA<small>Avid Pedia · v2</small></div>
+      <div class="sec">UMUM</div>
+      <div class="mi">Dashboard</div><div class="mi">Order &amp; Judul</div>
+      <div class="sec">NASKAH</div>
+      <div class="mi on">Meja Kerja Saya</div><div class="mi">Pelacakan Naskah</div><div class="mi">Arsip Naskah</div>
+      <div class="sec">LAINNYA</div>
+      <div class="mi">Pembayaran</div><div class="mi">Laporan</div>
+    </div>
+    <div class="main">
+      <div class="topbar">
+        <div><div class="ptitle">Meja Kerja Saya</div>
+        <div class="psub">Tugas aktif milikmu · urutan otomatis: terlambat → deadline terdekat → prioritas</div></div>
+        <div class="userchip">Fitri <small>· Produksi</small></div>
+      </div>
+      <div class="stats">
+        <div class="card stat"><div class="lbl">Tugas Aktif</div><div class="val">5</div></div>
+        <div class="card stat warn"><div class="lbl">Terlambat</div><div class="val">1</div></div>
+        <div class="card stat"><div class="lbl">Deadline Minggu Ini</div><div class="val">3</div></div>
+        <div class="card stat"><div class="lbl">Selesai Bulan Ini</div><div class="val">12</div></div>
+      </div>
+
+      <div class="h6">Tugas Saya (5)</div>
+
+      <div class="card task overdue">
+        <div class="grow">
+          <span class="code">ORD-2407-044</span>
+          <div class="ttl">Analisis Hukum Pidana terhadap UU ITE</div>
+          <div class="meta">Artikel · SINTA 3 · Author: Dr. Budi (UNRI) · PJ: Ria (Admin Artikel)</div>
+        </div>
+        <div class="mid">
+          <span class="chip c-amber">Pembuatan Naskah</span>
+          <div class="aging late">⚠ Hari ke-9 dari SLA 7 hari — terlambat 2 hari</div>
+          <div class="aging">Target publish: 20 Agu 2026</div>
+        </div>
+        <div><span class="btn">⬆ Upload Naskah</span></div>
+      </div>
+
+      <div class="card task">
+        <div class="grow">
+          <span class="code">ORD-2408-013</span>
+          <div class="ttl">Buku Ekonomi Digital — Bab 3: Fintech Syariah</div>
+          <div class="meta">Buku Kolaborasi · Author bab: Rina, M.E. (UMRI) · PJ: Ipit (Admin Buku)</div>
+        </div>
+        <div class="mid">
+          <span class="chip c-amber">Pembuatan Naskah</span>
+          <div class="aging">Hari ke-3 dari SLA 7 hari</div>
+          <div class="aging">Target terbit buku: 15 Sep 2026</div>
+        </div>
+        <div><span class="btn">⬆ Upload Naskah Bab</span></div>
+      </div>
+
+      <div class="card task">
+        <div class="grow">
+          <span class="code">ORD-2408-021 <span class="chip c-gray">3 order sejudul</span></span>
+          <div class="ttl">Strategi Pemasaran UMKM Era AI</div>
+          <div class="meta">Artikel · SINTA 4 · Author: Sari, M.M. · PJ: Pia (Admin Artikel) · <b>kamu = PJ</b></div>
+        </div>
+        <div class="mid">
+          <span class="chip c-blue">Editing</span>
+          <div class="aging">Sudah 4 hari di tahap ini</div>
+          <div class="aging">Target publish: 30 Agu 2026 · Prioritas: <span class="chip c-red">High</span></div>
+        </div>
+        <div><span class="btn">✓ Selesaikan Tahap →</span></div>
+      </div>
+
+      <div class="h6">Antrian Belum Ditugaskan — bisa diambil <span class="anno">i</span> <span style="font-weight:400;text-transform:none">(model campuran: admin assign ATAU produksi/admin claim sendiri)</span></div>
+      <div class="card task">
+        <div class="grow">
+          <span class="code">ORD-2408-030</span>
+          <div class="ttl">Implementasi K3 pada Proyek Konstruksi</div>
+          <div class="meta">Artikel · SINTA 5 · masuk antrian 2 hari lalu (DP diterima 7 Agu)</div>
+        </div>
+        <div class="mid"><span class="chip c-gray">Menunggu Proses</span><div class="aging">Naskah dibuatkan · belum ada pelaksana</div></div>
+        <div><span class="btn o">✋ Ambil Tugas Ini</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SCREEN 2 ============ -->
+<div class="screen">
+  <div class="screen-title">LAYAR 2 — PELACAKAN NASKAH <small>monitoring semua role (marketing read-only) · satu nama menu untuk semua</small></div>
+  <div class="layout">
+    <div class="side">
+      <div class="logo">SiMAPA<small>Avid Pedia · v2</small></div>
+      <div class="sec">UMUM</div>
+      <div class="mi">Dashboard</div><div class="mi">Order &amp; Judul</div>
+      <div class="sec">NASKAH</div>
+      <div class="mi">Meja Kerja Saya</div><div class="mi on">Pelacakan Naskah</div><div class="mi">Arsip Naskah</div>
+      <div class="sec">LAINNYA</div>
+      <div class="mi">Pembayaran</div><div class="mi">Laporan</div>
+    </div>
+    <div class="main">
+      <div class="topbar">
+        <div><div class="ptitle">Pelacakan Naskah</div>
+        <div class="psub">14 judul aktif · naskah selesai pindah ke Arsip (tidak pernah hilang)</div></div>
+        <div class="userchip">Ria <small>· Admin Artikel</small></div>
+      </div>
+      <div class="tools">
+        <div class="tg"><span class="on">Artikel</span><span>Buku</span></div>
+        <span class="filter">PJ / Pelaksana: Semua ▾</span>
+        <span class="filter">Prioritas: Semua ▾</span>
+        <span class="filter">🔍 Cari kode order / judul…</span>
+        <div class="tg" style="margin-left:auto"><span class="on">Papan</span><span>Daftar</span><span>Riwayat</span></div>
+      </div>
+
+      <div class="zones">
+        <div class="zone z1">
+          <div class="zlbl">Antrian <small>· menunggu distribusi</small></div>
+          <div class="cols">
+            <div class="kcol">
+              <div class="kh">Menunggu Proses <span class="n">2</span></div>
+              <div class="kbody">
+                <div class="kcard">
+                  <span class="code">ORD-2408-030</span>
+                  <div class="ttl">Implementasi K3 Konstruksi…</div>
+                  <div class="who">PJ: — · Pelaksana: —</div>
+                  <div class="who">2 hari di antrian</div>
+                </div>
+                <div class="kcard">
+                  <span class="code">ORD-2408-032</span>
+                  <div class="ttl">Digitalisasi Arsip Desa…</div>
+                  <div class="who">PJ: Pia · Pelaksana: —</div>
+                  <div class="who">baru masuk hari ini</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="zone z2">
+          <div class="zlbl">Produksi <small>· admin &amp; pelaksana</small></div>
+          <div class="cols">
+            <div class="kcol">
+              <div class="kh">Pembuatan <span class="n">2</span></div>
+              <div class="kbody">
+                <div class="kcard" style="border-color:#fca5a5;background:var(--red-t)">
+                  <span class="code">ORD-2407-044</span>
+                  <div class="ttl">Analisis Hukum Pidana…</div>
+                  <div class="who">Pelaksana: Fitri</div>
+                  <div class="who" style="color:var(--red);font-weight:700">⚠ lewat SLA 2 hari</div>
+                </div>
+                <div class="kcard">
+                  <span class="code">ORD-2408-013</span>
+                  <div class="ttl">Buku Eko. Digital — Bab 3</div>
+                  <div class="who">Pelaksana: Fitri · hari ke-3</div>
+                </div>
+              </div>
+            </div>
+            <div class="kcol">
+              <div class="kh">Editing <span class="n">1</span></div>
+              <div class="kbody">
+                <div class="kcard">
+                  <span class="code">ORD-2408-021</span> <span class="chip c-gray" style="font-size:8px">3 order</span>
+                  <div class="ttl">Strategi Pemasaran UMKM…</div>
+                  <div class="who">PJ: Pia · 4 hari di tahap</div>
+                  <div class="who"><span class="chip c-red" style="font-size:8px">High</span> 🎯 30 Agu</div>
+                </div>
+              </div>
+            </div>
+            <div class="kcol">
+              <div class="kh">Revisi <span class="n">1</span></div>
+              <div class="kbody">
+                <div class="kcard">
+                  <span class="code">ORD-2407-039</span>
+                  <div class="ttl">Model Pembelajaran Hybrid…</div>
+                  <div class="who">PJ: Ria · siklus revisi ke-2</div>
+                </div>
+              </div>
+            </div>
+            <div class="kcol">
+              <div class="kh">Submit <span class="n">1</span></div>
+              <div class="kbody">
+                <div class="kcard">
+                  <span class="code">ORD-2406-088</span>
+                  <div class="ttl">Etika AI dalam Pendidikan…</div>
+                  <div class="who">PJ: Ria · 12 hari di tahap</div>
+                  <div class="who">menunggu jurnal eksternal</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="zone z3">
+          <div class="zlbl">Finalisasi <small>· admin &amp; superadmin</small></div>
+          <div class="cols">
+            <div class="kcol">
+              <div class="kh">LoA <span class="n">1</span></div>
+              <div class="kbody">
+                <div class="kcard">
+                  <span class="code">ORD-2406-071</span>
+                  <div class="ttl">Kajian Bibliometrik VOS…</div>
+                  <div class="who">PJ: Pia · 🎯 12 Agu</div>
+                </div>
+              </div>
+            </div>
+            <div class="kcol">
+              <div class="kh">Publish <span class="n">0</span></div>
+              <div class="kbody"><div class="empty">Tidak ada — publish otomatis pindah ke Arsip setelah dikonfirmasi</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="notice"><span class="anno">i</span> Klik kartu → langsung buka <b>Detail Naskah</b> (Layar 3), bukan halaman order. Papan hanya-baca untuk marketing; admin melihat tombol aksi cepat di kartu.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SCREEN 2B — PELACAKAN BUKU ============ -->
+<div class="screen">
+  <div class="screen-title">LAYAR 2B — PELACAKAN NASKAH · TAB BUKU <small>status buku = roll-up dari bab paling belakang (bottleneck)</small></div>
+  <div class="layout">
+    <div class="side">
+      <div class="logo">SiMAPA<small>Avid Pedia · v2</small></div>
+      <div class="sec">UMUM</div>
+      <div class="mi">Dashboard</div><div class="mi">Order &amp; Judul</div>
+      <div class="sec">NASKAH</div>
+      <div class="mi">Meja Kerja Saya</div><div class="mi on">Pelacakan Naskah</div><div class="mi">Arsip Naskah</div>
+      <div class="sec">LAINNYA</div>
+      <div class="mi">Pembayaran</div><div class="mi">Laporan</div>
+    </div>
+    <div class="main">
+      <div class="topbar">
+        <div><div class="ptitle">Pelacakan Naskah</div>
+        <div class="psub">6 buku aktif · tahap Pembuatan &amp; Editing berjalan per bab, tahap Layout → Terbit berjalan level buku</div></div>
+        <div class="userchip">Ipit <small>· Admin Buku</small></div>
+      </div>
+      <div class="tools">
+        <div class="tg"><span>Artikel</span><span class="on">Buku</span></div>
+        <span class="filter">PJ / Pelaksana: Semua ▾</span>
+        <span class="filter">Jenis: Kolaborasi ▾</span>
+        <span class="filter">🔍 Cari kode order / judul buku…</span>
+        <div class="tg" style="margin-left:auto"><span class="on">Papan</span><span>Daftar</span><span>Riwayat</span></div>
+      </div>
+
+      <div class="zones">
+        <div class="zone z1">
+          <div class="zlbl">Antrian <small>· menunggu distribusi</small></div>
+          <div class="cols">
+            <div class="kcol">
+              <div class="kh">Menunggu <span class="n">1</span></div>
+              <div class="kbody">
+                <div class="kcard">
+                  <span class="code">ORD-2408-035</span> <span class="chip c-gray" style="font-size:8px">Mandiri</span>
+                  <div class="ttl">Metodologi Penelitian Kualitatif</div>
+                  <div class="who">Author: Dr. Hasan (1 author)</div>
+                  <div class="who">PJ: Ipit · naskah dari author ✓</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="zone z2">
+          <div class="zlbl">Produksi per Bab <small>· pembuatan &amp; editing</small></div>
+          <div class="cols">
+            <div class="kcol">
+              <div class="kh">Pembuatan <span class="n">1</span></div>
+              <div class="kbody">
+                <div class="kcard">
+                  <span class="code">ORD-2408-013</span> <span class="chip c-blue" style="font-size:8px">Kolab · 10 bab</span>
+                  <div class="ttl">Buku Ekonomi Digital</div>
+                  <div class="who">Bab: ✓2 selesai · 1 editing · <b>1 pembuatan</b> · 6 menunggu</div>
+                  <div class="progressbar"><i style="width:25%"></i></div>
+                  <div class="who">PJ: Ipit · 🎯 terbit 15 Sep</div>
+                </div>
+              </div>
+            </div>
+            <div class="kcol">
+              <div class="kh">Editing <span class="n">1</span></div>
+              <div class="kbody">
+                <div class="kcard">
+                  <span class="code">ORD-2407-050</span> <span class="chip c-gray" style="font-size:8px">Mandiri</span>
+                  <div class="ttl">Hukum Adat Melayu Riau</div>
+                  <div class="who">Pelaksana: Fitri · 5 hari di tahap</div>
+                  <div class="who">PJ: Ipit · 🎯 terbit 1 Okt</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="zone z2" style="background:#f5f3ff;border-top-color:#7c3aed">
+          <div class="zlbl" style="color:#7c3aed">Produksi Level Buku <small>· setelah semua bab selesai</small></div>
+          <div class="cols">
+            <div class="kcol">
+              <div class="kh">Layout <span class="n">1</span></div>
+              <div class="kbody">
+                <div class="kcard">
+                  <span class="code">ORD-2406-090</span> <span class="chip c-blue" style="font-size:8px">Kolab · 8 bab ✓</span>
+                  <div class="ttl">Pendidikan Karakter Digital</div>
+                  <div class="who">Semua bab selesai 30 Jul</div>
+                  <div class="who">PJ: Ipit · 3 hari di layout</div>
+                </div>
+              </div>
+            </div>
+            <div class="kcol">
+              <div class="kh">Proofread <span class="n">0</span></div>
+              <div class="kbody"><div class="empty">Kosong</div></div>
+            </div>
+            <div class="kcol">
+              <div class="kh">ISBN <span class="n">1</span></div>
+              <div class="kbody">
+                <div class="kcard" style="border-color:#fca5a5;background:var(--red-t)">
+                  <span class="code">ORD-2405-062</span>
+                  <div class="ttl">Antologi Puisi Nusantara</div>
+                  <div class="who">18 hari di tahap ISBN</div>
+                  <div class="who" style="color:var(--red);font-weight:700">⚠ 🎯 lewat target 3 hari · alasan: eksternal (antrean Perpusnas)</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="zone z3">
+          <div class="zlbl">Finalisasi <small>· superadmin &amp; admin</small></div>
+          <div class="cols">
+            <div class="kcol">
+              <div class="kh">Cetak <span class="n">1</span></div>
+              <div class="kbody">
+                <div class="kcard">
+                  <span class="code">ORD-2404-041</span>
+                  <div class="ttl">Manajemen SDM Modern</div>
+                  <div class="who">PJ: Ipit · di percetakan</div>
+                </div>
+              </div>
+            </div>
+            <div class="kcol">
+              <div class="kh">Terbit <span class="n">0</span></div>
+              <div class="kbody"><div class="empty">Terbit → konfirmasi → Arsip</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="notice"><span class="anno">i</span> Kartu buku kolaborasi menampilkan <b>ringkasan bab</b> + progress bar, duduk di kolom <b>bab paling belakang</b> (bottleneck). Klik kartu → Detail Naskah Buku (Layar 3B) untuk melihat &amp; menggerakkan tiap bab. Buku mandiri tidak dipecah per bab.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SCREEN 3 ============ -->
+<div class="screen">
+  <div class="screen-title">LAYAR 3 — DETAIL NASKAH <small>halaman kanonik: satu naskah = satu halaman · semua 5W1H terjawab di sini</small></div>
+  <div class="layout">
+    <div class="side">
+      <div class="logo">SiMAPA<small>Avid Pedia · v2</small></div>
+      <div class="sec">UMUM</div>
+      <div class="mi">Dashboard</div><div class="mi">Order &amp; Judul</div>
+      <div class="sec">NASKAH</div>
+      <div class="mi">Meja Kerja Saya</div><div class="mi on">Pelacakan Naskah</div><div class="mi">Arsip Naskah</div>
+      <div class="sec">LAINNYA</div>
+      <div class="mi">Pembayaran</div><div class="mi">Laporan</div>
+    </div>
+    <div class="main">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <span class="code" style="font-size:16px">ORD-2408-021</span>
+            <span class="chip c-blue">Artikel</span> <span class="chip c-gray">SINTA 4</span> <span class="chip c-red">Prioritas High</span>
+            <div class="ttl" style="font-size:18px;margin-top:6px">Strategi Pemasaran UMKM Era AI</div>
+            <div class="meta">Author: Sari, M.M. (Univ. Lancang Kuning) · Order oleh marketing: Dinda · DP diterima 28 Jul 2026</div>
+          </div>
+          <span class="btn o">Riwayat Lengkap</span>
+        </div>
+        <div class="notice">ⓘ Judul ini mencakup <b>3 order</b> (ORD-2408-021 · ORD-2408-024 · ORD-2408-027). Aksi tahap berlaku serempak untuk ketiganya. <u>Lihat rincian per order ▾</u></div>
+      </div>
+
+      <div class="stepper">
+        <div class="step done"><div class="dot">✓</div><div class="slbl">Menunggu</div><div class="ssub">28 Jul</div></div>
+        <div class="step done"><div class="dot">✓</div><div class="slbl">Pembuatan</div><div class="ssub">29 Jul – 4 Agu · Fitri</div></div>
+        <div class="step now"><div class="dot">●</div><div class="slbl">Editing</div><div class="ssub">4 hari — sejak 5 Agu</div></div>
+        <div class="step"><div class="dot"></div><div class="slbl">Revisi</div><div class="ssub">jika perlu</div></div>
+        <div class="step"><div class="dot"></div><div class="slbl">Submit</div><div class="ssub">—</div></div>
+        <div class="step"><div class="dot"></div><div class="slbl">LoA</div><div class="ssub">—</div></div>
+        <div class="step"><div class="dot"></div><div class="slbl">Publish</div><div class="ssub">🎯 30 Agu</div></div>
+      </div>
+
+      <div class="grid2">
+        <div>
+          <div class="card">
+            <div class="h6" style="margin-top:0">Informasi &amp; Penanggung Jawab</div>
+            <div class="field"><span>Penanggung Jawab (PJ)</span><b>Pia — Admin Artikel</b></div>
+            <div class="field"><span>Pelaksana pembuatan</span><b>Fitri — Produksi ✓ selesai</b></div>
+            <div class="field"><span>Bidang</span><b>Artikel SINTA</b></div>
+            <div class="field"><span>Target publish</span><b>30 Agu 2026 <small style="color:var(--sub)">(request klien via Dinda)</small></b></div>
+            <div class="field"><span>Prioritas</span><b style="color:var(--red)">High — diset Pia, 5 Agu</b></div>
+            <div class="field"><span>Pembayaran</span><b>DP ✓ · Pelunasan: belum</b></div>
+          </div>
+          <div class="card" style="margin-top:12px">
+            <div class="h6" style="margin-top:0">Brief dari Marketing</div>
+            <div class="meta" style="line-height:1.7">"Klien minta terbit sebelum akhir Agustus untuk syarat BKD. Jurnal tujuan boleh SINTA 4–5, tema manajemen. Sudah janji template IEEE."</div>
+          </div>
+          <div class="card" style="margin-top:12px">
+            <div class="h6" style="margin-top:0">File Naskah</div>
+            <div class="filerow"><span>📄 Naskah Masuk — v2 · Fitri · 4 Agu</span><u>Unduh</u></div>
+            <div class="filerow"><span>📄 Hasil Editing — v1 · Pia · 8 Agu</span><u>Unduh</u></div>
+            <div class="filerow"><span style="color:var(--faint)">📄 Final — belum ada</span><span class="btn o" style="padding:4px 10px;font-size:10px">Upload</span></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card">
+            <div class="h6" style="margin-top:0">Aksi — sesuai role kamu (Admin) <span class="anno">i</span></div>
+            <span class="btn big">✓ Selesaikan Editing → lanjut ke Submit</span>
+            <div style="margin-top:8px"><textarea rows="2" placeholder="Catatan (opsional saat maju normal)"></textarea></div>
+            <div style="display:flex;gap:8px;margin-top:10px">
+              <span class="btn o">↩ Perlu Revisi (wajib pilih alasan)</span>
+              <span class="btn o">⇄ Koreksi tahap (wajib catatan)</span>
+            </div>
+            <div class="frm">
+              <div><span class="flbl">Ganti pelaksana</span><select><option>Fitri (Produksi)</option></select></div>
+              <div><span class="flbl">Prioritas</span><select><option>High</option><option>Normal</option><option>Low</option></select></div>
+              <div><span class="flbl">Target publish</span><input type="date" value="2026-08-30"></div>
+            </div>
+            <div style="margin-top:10px"><span class="btn danger">✕ Batalkan naskah (wajib alasan)</span></div>
+            <div class="note">Tanpa approval — perpindahan langsung jalan. Notifikasi otomatis terkirim ke PJ, superadmin, dan (saat publish) ke marketing. Marketing melihat halaman ini read-only tanpa blok Aksi.</div>
+          </div>
+          <div class="card" style="margin-top:12px">
+            <div class="h6" style="margin-top:0">Riwayat (semua aksi tercatat, tanpa kecuali)</div>
+            <div class="logrow"><b>8 Agu 14:20 · Pia</b> — upload file "Hasil Editing v1"</div>
+            <div class="logrow"><b>5 Agu 09:12 · Sistem</b> — status maju otomatis <b>Pembuatan → Editing</b> (dipicu upload naskah oleh Fitri) · notifikasi → Pia</div>
+            <div class="logrow"><b>5 Agu 09:10 · Fitri</b> — upload file "Naskah Masuk v2"</div>
+            <div class="logrow"><b>29 Jul 10:03 · Pia</b> — distribusi tugas pembuatan → Fitri (SLA 7 hari, jatuh tempo 6 Agu)</div>
+            <div class="logrow"><b>28 Jul 16:45 · Sistem</b> — masuk antrian (DP terverifikasi) · berlaku utk 3 order sejudul</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SCREEN 3B — DETAIL NASKAH BUKU ============ -->
+<div class="screen">
+  <div class="screen-title">LAYAR 3B — DETAIL NASKAH BUKU (KOLABORASI) <small>tiap bab: author jelas, pelaksana jelas, status jelas — jawaban kasus "bab ini naskah author siapa?"</small></div>
+  <div class="layout">
+    <div class="side">
+      <div class="logo">SiMAPA<small>Avid Pedia · v2</small></div>
+      <div class="sec">UMUM</div>
+      <div class="mi">Dashboard</div><div class="mi">Order &amp; Judul</div>
+      <div class="sec">NASKAH</div>
+      <div class="mi">Meja Kerja Saya</div><div class="mi on">Pelacakan Naskah</div><div class="mi">Arsip Naskah</div>
+      <div class="sec">LAINNYA</div>
+      <div class="mi">Pembayaran</div><div class="mi">Laporan</div>
+    </div>
+    <div class="main">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <span class="code" style="font-size:16px">ORD-2408-013</span>
+            <span class="chip c-blue">Buku Kolaborasi</span> <span class="chip c-gray">10 bab · 10 author</span> <span class="chip c-amber">Menunggu ISBN nanti</span>
+            <div class="ttl" style="font-size:18px;margin-top:6px">Buku Ekonomi Digital: Peluang dan Tantangan</div>
+            <div class="meta">PJ: Ipit (Admin Buku) · Order oleh marketing: Dinda · DP ✓ 25 Jul 2026 · 🎯 Target terbit: 15 Sep 2026</div>
+          </div>
+          <span class="btn o">Riwayat Lengkap</span>
+        </div>
+        <div class="notice">ⓘ Status buku = <b>roll-up otomatis</b> dari bab paling belakang. Saat ini: <b>Pembuatan</b> (karena Bab 3 masih dibuat). Tahap Layout → Terbit terbuka setelah <b>semua bab Selesai</b>.</div>
+      </div>
+
+      <div class="stepper">
+        <div class="step done"><div class="dot">✓</div><div class="slbl">Menunggu</div><div class="ssub">25 Jul</div></div>
+        <div class="step now"><div class="dot">●</div><div class="slbl">Pembuatan + Editing</div><div class="ssub">per bab · 2/10 selesai</div></div>
+        <div class="step"><div class="dot"></div><div class="slbl">Layout</div><div class="ssub">level buku</div></div>
+        <div class="step"><div class="dot"></div><div class="slbl">Proofreading</div><div class="ssub">—</div></div>
+        <div class="step"><div class="dot"></div><div class="slbl">ISBN</div><div class="ssub">—</div></div>
+        <div class="step"><div class="dot"></div><div class="slbl">Cetak</div><div class="ssub">—</div></div>
+        <div class="step"><div class="dot"></div><div class="slbl">Terbit</div><div class="ssub">🎯 15 Sep</div></div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div class="h6" style="margin:0">Progres per Bab — ✓ Selesai 2 · Editing 1 · Pembuatan 1 · Menunggu 6</div>
+          <div style="display:flex;gap:8px">
+            <span class="btn o" style="padding:6px 12px;font-size:11px">Terapkan 1 pelaksana ke semua bab ▾</span>
+            <span class="btn o" style="padding:6px 12px;font-size:11px">+ Tambah / ubah struktur bab</span>
+          </div>
+        </div>
+        <div class="progressbar" style="margin:10px 0 14px"><i style="width:25%"></i></div>
+
+        <div class="bab head"><span>No</span><span>Judul Bab</span><span>Author (naskah dari siapa)</span><span>Pelaksana</span><span>Status</span><span>Lama</span><span>Aksi</span></div>
+        <div class="bab">
+          <span class="no">1</span><span><b>Pengantar Ekonomi Digital</b></span>
+          <span>Dr. Andi Wijaya — UNRI</span><span>— <small>(naskah dari author)</small></span>
+          <span><span class="chip c-green">✓ Selesai</span></span><span>—</span><span><u>Lihat file</u></span>
+        </div>
+        <div class="bab">
+          <span class="no">2</span><span><b>Transformasi UMKM</b></span>
+          <span>Sari, M.M. — Unilak</span><span>Fitri (Produksi)</span>
+          <span><span class="chip c-green">✓ Selesai</span></span><span>—</span><span><u>Lihat file</u></span>
+        </div>
+        <div class="bab" style="background:var(--blue-t)">
+          <span class="no">3</span><span><b>Fintech Syariah</b></span>
+          <span>Rina, M.E. — UMRI</span><span>Fitri (Produksi)</span>
+          <span><span class="chip c-amber">Pembuatan</span></span><span>hari ke-3/7</span>
+          <span><span class="btn" style="padding:5px 10px;font-size:10px">⬆ Upload Naskah</span></span>
+        </div>
+        <div class="bab">
+          <span class="no">4</span><span><b>Ekonomi Kreatif Daerah</b></span>
+          <span>Dr. Tono S. — UIN Suska</span><span>Ria (Produksi)</span>
+          <span><span class="chip c-blue">Editing</span></span><span>2 hari</span>
+          <span><span class="btn" style="padding:5px 10px;font-size:10px">✓ Selesaikan Bab</span></span>
+        </div>
+        <div class="bab" style="background:var(--amber-t)">
+          <span class="no">5</span><span><b>E-Government &amp; Pelayanan Publik</b></span>
+          <span class="warnmap">⚠ Author belum dipetakan</span><span>—</span>
+          <span><span class="chip c-gray">Menunggu</span></span><span>—</span>
+          <span><span class="btn o" style="padding:5px 10px;font-size:10px">Petakan Author</span></span>
+        </div>
+        <div class="bab">
+          <span class="no">6</span><span><b>Big Data untuk Kebijakan</b></span>
+          <span>Dr. Lina M. — Unri</span><span>—</span>
+          <span><span class="chip c-gray">Menunggu</span></span><span>—</span>
+          <span><span class="btn o" style="padding:5px 10px;font-size:10px">Distribusikan ▾</span></span>
+        </div>
+        <div class="meta" style="padding:10px 6px;color:var(--faint)">▾ 4 bab lainnya (7–10) — semua Menunggu, author sudah terpetakan</div>
+        <div class="note"><span class="anno">i</span> Kolom <b>Author</b> menjawab "bab ini naskah dari siapa" — dipetakan marketing/admin saat struktur buku dibuat (wajib sebelum bab bisa didistribusikan). Bab tanpa author ditandai kuning, tidak disembunyikan. Satu author bisa muncul di beberapa bab.</div>
+      </div>
+
+      <div class="grid2">
+        <div>
+          <div class="card">
+            <div class="h6" style="margin-top:0">File Level Buku</div>
+            <div class="filerow"><span>📄 Draft gabungan — otomatis dari bab ✓</span><u>Unduh</u></div>
+            <div class="filerow"><span>🎨 Cover — v1 · Ipit · 6 Agu</span><u>Unduh</u></div>
+            <div class="filerow"><span style="color:var(--faint)">📄 Final cetak — belum ada (terbuka saat Layout)</span><span class="btn o" style="padding:4px 10px;font-size:10px">Upload</span></div>
+            <div class="meta" style="margin-top:8px;color:var(--faint)">File per bab ada di tombol "Lihat file" tiap baris bab.</div>
+          </div>
+        </div>
+        <div>
+          <div class="card">
+            <div class="h6" style="margin-top:0">Riwayat Buku (gabungan level buku + bab)</div>
+            <div class="logrow"><b>8 Agu 10:15 · Sistem</b> — Bab 2 <b>Editing → Selesai</b> (aksi Ipit) · progres 2/10</div>
+            <div class="logrow"><b>6 Agu 13:40 · Ipit</b> — upload "Cover v1" (level buku)</div>
+            <div class="logrow"><b>6 Agu 09:00 · Ipit</b> — distribusi Bab 4 → Ria (pelaksana)</div>
+            <div class="logrow"><b>5 Agu 11:22 · Sistem</b> — Bab 3 masuk <b>Pembuatan</b> (distribusi ke Fitri, SLA 7 hari, jatuh tempo 14 Agu)</div>
+            <div class="logrow"><b>25 Jul 15:30 · Sistem</b> — masuk antrian (DP terverifikasi) · struktur 10 bab dibuat oleh Dinda (marketing)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SCREEN 4 ============ -->
+<div class="screen">
+  <div class="screen-title">BLUEPRINT — ROLE, TAHAPAN &amp; ATURAN MAIN <small>dasar algoritma backend</small></div>
+  <div class="layout"><div class="main">
+
+    <div class="h6" style="margin-top:0">1 · Permission Matrix (v1)</div>
+    <table>
+      <tr><th>Aksi</th><th>Marketing</th><th>Produksi</th><th>Admin (per bidang)</th><th>Superadmin</th></tr>
+      <tr><td>Lihat semua naskah &amp; riwayat</td><td class="yes">✓ <span class="cond">read-only</span></td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+      <tr><td>Set / ubah target publish-terbit</td><td class="yes">✓ <span class="cond">tercatat</span></td><td class="no">—</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+      <tr><td>Distribusi / tarik / oper tugas</td><td class="no">—</td><td class="cond">claim antrian saja</td><td class="yes">✓ <span class="cond">bidangnya</span></td><td class="yes">✓</td></tr>
+      <tr><td>Upload naskah (memicu maju tahap)</td><td class="yes">✓ <span class="cond">file dari klien</span></td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+      <tr><td>Majukan tahap proses</td><td class="no">—</td><td class="no">—</td><td class="yes">✓ <span class="cond">bidangnya</span></td><td class="yes">✓</td></tr>
+      <tr><td>Prioritas · hold · batalkan</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+      <tr><td>Koreksi mundur (termasuk naskah final)</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="yes">✓ <span class="cond">catatan wajib</span></td></tr>
+      <tr><td>Hapus riwayat</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">— (tidak ada yang boleh)</td></tr>
+    </table>
+    <div class="note">Akun rangkap dipisah: "Fitri Admin" ≠ "Fitri Produksi" (permintaan tim). Manager belum ada orangnya → tidak ada approval flow, hanya menerima notifikasi. Akuntansi: read-only status publish/terbit untuk penagihan (fase 2).</div>
+
+    <div class="h6">2 · Tahapan (state machine)</div>
+    <div class="flow">
+      <b>Artikel:</b> <span class="st gr">Menunggu</span> → <span class="st" style="background:var(--amber-t);color:var(--amber)">Pembuatan*</span> → <span class="st">Editing</span> → <span class="st">Revisi (opsional, bisa berulang, siklus dihitung)</span> → <span class="st">Submit</span> → <span class="st">LoA</span> → <span class="st g">Publish</span> → <span class="st gr">Arsip</span><br>
+      <b>Buku:</b> <span class="st gr">Menunggu</span> → <span class="st" style="background:var(--amber-t);color:var(--amber)">Pembuatan*</span> → <span class="st">Editing</span> → <span class="st">Layout</span> → <span class="st">Proofreading</span> → <span class="st">ISBN</span> → <span class="st">Cetak</span> → <span class="st g">Terbit</span> → <span class="st gr">Arsip</span><br>
+      <small style="color:var(--sub)">* Pembuatan hanya untuk order dengan jasa penulisan (SLA 7 hari kerja). Order dengan naskah dari klien: lompat langsung ke Editing saat file masuk. <b>Buku kolaborasi:</b> tahap <b>Pembuatan + Editing berjalan PER BAB</b> (tiap bab punya author, pelaksana, status, file, riwayat sendiri); tahap <b>Layout → Terbit berjalan level buku</b> dan baru terbuka setelah semua bab Selesai; status buku = roll-up bab paling belakang. Pemetaan bab→author wajib sebelum bab bisa didistribusikan ("Author belum dipetakan" ditandai kuning, tidak disembunyikan). <b>Buku mandiri:</b> satu kesatuan, tanpa pecahan bab.</small>
+    </div>
+
+    <div class="h6">3 · Aturan Algoritma Inti</div>
+    <ol class="rules">
+      <li><b>Gerbang antrian:</b> naskah masuk antrian saat DP terverifikasi. Tanpa DP tidak tampil di papan.</li>
+      <li><b>Upload = maju otomatis:</b> upload naskah oleh pelaksana pada tahap Pembuatan otomatis memajukan status ke Editing + notifikasi ke PJ. Ini satu-satunya perpindahan otomatis.</li>
+      <li><b>Maju manual oleh admin:</b> satu tombol "Selesaikan tahap → X". Tidak ada dropdown semua-tahap. Catatan opsional saat maju.</li>
+      <li><b>Koreksi = jalur terpisah:</b> mundur/lompat lewat tombol "Koreksi", catatan wajib, tercatat sebagai koreksi di riwayat.</li>
+      <li><b>Grup judul transparan:</b> aksi tahap berlaku serempak untuk semua order sejudul; UI selalu menampilkan "berlaku untuk N order" + drill-down.</li>
+      <li><b>Tanpa approval:</b> perpindahan langsung jalan; notifikasi ke PJ + superadmin; publish/terbit → notifikasi marketing.</li>
+      <li><b>SLA &amp; keterlambatan:</b> Pembuatan 7 hari kerja. Lewat SLA/target = merah + wajib isi alasan (internal/eksternal, dropdown baku).</li>
+      <li><b>Arsip, bukan hilang:</b> publish/terbit → konfirmasi → pindah ke tab Arsip yang bisa dicari. Tidak ada auto-hilang 30 hari.</li>
+      <li><b>Final terkunci kecuali superadmin</b> dengan catatan wajib; semua koreksi terlihat di riwayat.</li>
+      <li><b>Audit total:</b> setiap distribusi, claim, oper, maju, koreksi, ubah target/prioritas, upload, batal → satu baris riwayat (siapa · kapan · dari → ke · alasan).</li>
+      <li><b>Identitas = kode order</b> di semua layar; judul sebagai pendamping; buku: + nomor bab &amp; author bab.</li>
+      <li><b>Bahasa manusia:</b> tanpa istilah "editor"/"aging"/"tracker". Label: "PJ", "Pelaksana", "sudah X hari di tahap ini".</li>
+    </ol>
+  </div></div>
+</div>
+
+<p class="intro">Wireframe v1 · 9 Agu 2026 · SiMAPA — modul Penugasan Naskah. Sumber keputusan: docs/kesimpulan-jawaban-tim-distribusi.md</p>
+</body>
+</html>
