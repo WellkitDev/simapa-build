@@ -106,8 +106,8 @@ class TitleProgressServiceTest extends TestCase
     public function manager_advances_any_stage(): void
     {
         $p = $this->progress('menunggu_proses');
-        $this->svc->changeStatus($p, 'editing', $this->user('manager'));
-        $this->assertEquals('editing', $p->fresh()->status);
+        $this->svc->changeStatus($p, 'pembuatan', $this->user('manager'));
+        $this->assertEquals('pembuatan', $p->fresh()->status);
     }
 
     /** @test */

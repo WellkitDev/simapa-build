@@ -36,7 +36,7 @@
                             @php
                                 $statusColors = [
                                     'menunggu_proses' => 'secondary',
-                                    'templating' => 'warning', 'editing' => 'warning', 'layout' => 'warning',
+                                    'pembuatan' => 'warning', 'templating' => 'warning', 'editing' => 'warning', 'layout' => 'warning',
                                     'revisi' => 'warning', 'proofreading' => 'warning', 'isbn' => 'warning',
                                     'submit' => 'primary', 'cetak' => 'primary', 'loa' => 'primary',
                                     'publish' => 'success', 'terbit' => 'success',

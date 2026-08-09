@@ -64,10 +64,10 @@
 
 **Files:** `TitleProgress.php`, `ChapterProgress.php`.
 
-- [ ] **Step 1:** Ganti konstanta sesuai spec §3 (ARTICLE_STAGES tanpa `templating` + `pembuatan`; BOOK_STAGES dengan `pembuatan`,`editing`; CHAPTER_STAGES baru). Simpan `LEGACY_STAGE_MAP = ['templating'=>'editing', ...]` untuk migrasi & guard data lama.
-- [ ] **Step 2:** Relasi `pj()` dan `pelaksana()`; scope `active()` (`archived_at` null & `cancelled_at` null), `overdue()`, `mine($userId)`, `bidang($b)`; helper `daysInStage()` (dari `started_at`), `isOverdue()`, `nextStage()`, `stageLabelId()` (label Indonesia).
-- [ ] **Step 3:** Update `Title::stageLabel()` untuk stage baru (`pembuatan` → "Pembuatan Naskah").
-- [ ] **Step 4:** `STAGE_HANDLER` disesuaikan: `pembuatan`→production, `editing`..`isbn`→admin, `cetak`/`terbit`/`loa`/`publish`→admin (superadmin hanya via koreksi); hapus handler marketing kecuali `menunggu_proses`.
+- [x] **Step 1:** Ganti konstanta sesuai spec §3 (ARTICLE_STAGES tanpa `templating` + `pembuatan`; BOOK_STAGES dengan `pembuatan`,`editing`; CHAPTER_STAGES baru). Simpan `LEGACY_STAGE_MAP = ['templating'=>'editing', ...]` untuk migrasi & guard data lama. *(CHAPTER_STAGES + LEGACY_CHAPTER map di ChapterProgress; test lama pemakai `templating` diadaptasi ke `pembuatan`; 4 view peta warna diberi kunci `pembuatan`.)*
+- [x] **Step 2:** Relasi `pj()` dan `pelaksana()`; scope `active()` (`archived_at` null & `cancelled_at` null), `overdue()`, `mine($userId)`, `bidang($b)`; helper `daysInStage()` (dari `started_at`), `isOverdue()`, `nextStage()`, `stageLabelId()` (label Indonesia). *(+ `createForDetail` kini mengisi `bidang` & mewarisi `pj_user_id` grup; alias deprecated `assignedUser()` dipertahankan utk modul lama.)*
+- [x] **Step 3:** Update `Title::stageLabel()` untuk stage baru (`pembuatan` → "Pembuatan Naskah").
+- [x] **Step 4:** `STAGE_HANDLER` disesuaikan: `pembuatan`→production, `editing`..`isbn`→admin, `cetak`/`terbit`/`loa`/`publish`→admin (superadmin hanya via koreksi); hapus handler marketing kecuali `menunggu_proses`. *(DIKERJAKAN PARSIAL DI SINI: `pembuatan`→production ditambah & `templating` dihapus. Pemetaan penuh editing..terbit→admin SENGAJA digeser ke Task 5 — mengubahnya sekarang mengunci modul distribusi lama (authorizeChange berbasis handler==='production') sehingga tak ada role non-super yang bisa maju tahap; remap final satu paket dengan refactor advance()/correct().)*
 
 ## Task 3: AccessMatrixSeeder — permission `naskah.*`
 

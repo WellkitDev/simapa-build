@@ -77,7 +77,7 @@ class NotificationHooksTest extends TestCase
         TitleProgress::create(['order_detail_id' => $detail->id, 'status' => 'menunggu_proses', 'assigned_role' => 'marketing', 'started_at' => now()]);
 
         Notification::fake();
-        $this->actingAs($manager)->post(route('distribusi.artikel.tahap', $title->id), ['status' => 'templating']);
+        $this->actingAs($manager)->post(route('distribusi.artikel.tahap', $title->id), ['status' => 'pembuatan']);
 
         Notification::assertSentTo($owner, DatabaseNotification::class);
     }

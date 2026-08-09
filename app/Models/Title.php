@@ -228,8 +228,9 @@ class Title extends Model
         }
 
         return match ($status) {
-            'loa'  => 'LoA',
-            'isbn' => 'ISBN',
+            'loa'       => 'LoA',
+            'isbn'      => 'ISBN',
+            'pembuatan' => 'Pembuatan Naskah',
             default => Str::title(str_replace('_', ' ', $status)),
         };
     }

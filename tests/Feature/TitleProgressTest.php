@@ -53,17 +53,17 @@ class TitleProgressTest extends TestCase
         $this->actingAs($manager);
 
         $this->post(route('distribusi.artikel.tahap', $title->id), [
-            'status' => 'templating',
+            'status' => 'pembuatan',
             'note'   => '',
         ])->assertRedirect();
 
-        $this->assertDatabaseHas('tb_title_progress', ['id' => $progress->id, 'status' => 'templating']);
+        $this->assertDatabaseHas('tb_title_progress', ['id' => $progress->id, 'status' => 'pembuatan']);
 
         $this->assertDatabaseHas('tb_title_progress_logs', [
             'title_progress_id' => $progress->id,
             'event'             => 'status_advanced',
             'from_value'        => 'Menunggu Proses',
-            'to_value'          => 'Templating',
+            'to_value'          => 'Pembuatan',
             'is_correction'     => false,
         ]);
     }
@@ -117,13 +117,13 @@ class TitleProgressTest extends TestCase
         $this->actingAs($superadmin);
 
         $this->post(route('distribusi.artikel.tahap', $title->id), [
-            'status' => 'templating',
+            'status' => 'pembuatan',
             'note'   => 'Koreksi karena ada revisi mendasar',
         ])->assertRedirect();
 
         $this->assertDatabaseHas('tb_title_progress_logs', [
             'event'         => 'status_corrected',
-            'to_value'      => 'Templating',
+            'to_value'      => 'Pembuatan',
             'is_correction' => true,
         ]);
     }

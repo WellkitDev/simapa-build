@@ -206,6 +206,8 @@ class TitleProgressService
             'status'           => $status,
             'assigned_role'    => TitleProgress::getHandlerForStatus($status),
             'pelaksana_user_id' => $sibling->pelaksana_user_id ?? null,
+            'pj_user_id'       => $sibling->pj_user_id ?? null,
+            'bidang'           => in_array($detail->type, $bookTypes, true) ? 'buku' : 'artikel',
             'priority'         => $sibling->priority ?? 'normal',
             'updated_by'       => $actorId,
             'started_at'       => now(),

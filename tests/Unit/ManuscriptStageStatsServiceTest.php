@@ -60,13 +60,13 @@ class ManuscriptStageStatsServiceTest extends TestCase
     {
         $this->titleWithVariants('bk_mandiri', 'Buku A', ['editing']);
         $this->titleWithVariants('bk_kolab',   'Buku B', ['layout']);
-        $this->titleWithVariants('jr_sinta',   'Artikel A', ['templating']);
+        $this->titleWithVariants('jr_sinta',   'Artikel A', ['pembuatan']);
 
         $out = $this->svc->global();
 
         $this->assertEqualsCanonicalizing(['Editing', 'Layout'], $out['buku']['labels']);
         $this->assertSame(2, array_sum($out['buku']['series']));
-        $this->assertSame(['Templating'], $out['artikel']['labels']);
+        $this->assertSame(['Pembuatan'], $out['artikel']['labels']);
         $this->assertSame([1], $out['artikel']['series']);
     }
 

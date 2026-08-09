@@ -33,7 +33,7 @@ class ArticleDistributionTest extends TestCase
         $u = User::factory()->create(); $u->assignRole($role); return $u;
     }
 
-    private function articleTitle(string $status = 'templating'): Title
+    private function articleTitle(string $status = 'pembuatan'): Title
     {
         $title = Title::create(['title' => 'Artikel ' . uniqid(), 'jenis' => 'artikel', 'tipe_naskah' => 'mandiri', 'status' => 'disetujui']);
         $detail = OrderDetail::factory()->create(['type' => 'at_mandiri', 'title_id' => $title->id, 'title' => $title->title]);
@@ -110,7 +110,7 @@ class ArticleDistributionTest extends TestCase
     {
         $title = Title::create(['title' => 'Artikel Indeks', 'jenis' => 'artikel', 'tipe_naskah' => 'mandiri', 'indeksasi' => 'Scopus Q2', 'status' => 'disetujui']);
         $detail = OrderDetail::factory()->create(['type' => 'at_mandiri', 'title_id' => $title->id, 'title' => $title->title]);
-        TitleProgress::create(['order_detail_id' => $detail->id, 'status' => 'templating', 'assigned_role' => 'production', 'started_at' => now()]);
+        TitleProgress::create(['order_detail_id' => $detail->id, 'status' => 'pembuatan', 'assigned_role' => 'production', 'started_at' => now()]);
 
         $this->actingAs($this->user('production'))
             ->get(route('distribusi.artikel.index'))

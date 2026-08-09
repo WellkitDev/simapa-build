@@ -5,7 +5,7 @@
 @php
     $statusColors = [
         'menunggu_proses' => '#94A3B8',
-        'templating' => '#F59E0B', 'editing' => '#F59E0B', 'layout' => '#F59E0B',
+        'pembuatan' => '#F59E0B', 'templating' => '#F59E0B', 'editing' => '#F59E0B', 'layout' => '#F59E0B',
         'revisi' => '#FB923C', 'proofreading' => '#FB923C', 'isbn' => '#FB923C',
         'submit' => '#4C5FD5', 'cetak' => '#4C5FD5', 'loa' => '#4C5FD5',
         'publish' => '#22C55E', 'terbit' => '#22C55E',
