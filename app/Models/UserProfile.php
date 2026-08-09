@@ -14,6 +14,8 @@ class UserProfile extends Model
     protected $fillable = [
         'user_id', 'phone_number', 'address', 'birth_date',
         'job_description', 'job_name', 'profile_picture_url','profile_picture_id',
+        // Bidang naskah yang dipegang admin: 'artikel' | 'buku' | null (belum di-scope).
+        'bidang',
     ];
 
     public function user()

@@ -211,6 +211,87 @@ class Notifier
         ]);
     }
 
+    // ─── Penugasan Naskah ───
+
+    /** Pelaksana ditunjuk admin — yang perlu tahu duluan adalah orang yang mengerjakan. */
+    public function naskahDistribusi(TitleProgress $progress, User $pelaksana, User $actor): void
+    {
+        $progress->loadMissing('orderDetail');
+        $this->toOwner($pelaksana, $actor, [
+            'category' => 'naskah',
+            'title'    => 'Tugas naskah baru untukmu',
+            'message'  => $this->naskahLabel($progress)
+                          . ($progress->sla_due_at ? ' • jatuh tempo ' . $progress->sla_due_at->translatedFormat('j M Y') : ''),
+            'url'      => $this->naskahUrl($progress),
+            'icon'     => 'user-check',
+        ]);
+    }
+
+    /** Produksi mengambil tugas sendiri — PJ & admin bidang perlu tahu antrian berkurang. */
+    public function naskahClaimed(TitleProgress $progress, User $actor): void
+    {
+        $progress->loadMissing('orderDetail');
+
+        $recipients = $this->bidangAdmins($progress, $actor);
+        if ($progress->pj && $progress->pj->id !== $actor->id) {
+            $recipients = $recipients->push($progress->pj)->unique('id')->values();
+        }
+
+        $this->send($recipients, [
+            'category' => 'naskah',
+            'title'    => 'Tugas naskah diambil',
+            'message'  => $this->naskahLabel($progress) . ' • diambil ' . $actor->name,
+            'url'      => $this->naskahUrl($progress),
+            'icon'     => 'hand',
+        ]);
+    }
+
+    /** Tanggung jawab proses berpindah — admin penerima yang wajib tahu. */
+    public function naskahPjTransferred(TitleProgress $progress, User $penerima, User $actor): void
+    {
+        $progress->loadMissing('orderDetail');
+        $this->toOwner($penerima, $actor, [
+            'category' => 'naskah',
+            'title'    => 'Kamu jadi PJ naskah ini',
+            'message'  => $this->naskahLabel($progress),
+            'url'      => $this->naskahUrl($progress),
+            'icon'     => 'users',
+        ]);
+    }
+
+    /** Identitas naskah di notifikasi = kode order, judul sebagai pendamping. */
+    private function naskahLabel(TitleProgress $progress): string
+    {
+        $detail = $progress->orderDetail;
+        $kode   = $detail?->order?->code_order ?? $detail?->titleRef?->code;
+
+        return trim(($kode ? $kode . ' — ' : '') . ($detail?->title ?? 'Naskah'));
+    }
+
+    /**
+     * Admin pemegang bidang naskah. Admin tanpa bidang ikut menerima — bidang belum
+     * punya layar pengisian, jadi menyaringnya ketat justru membuat notifikasi hilang.
+     */
+    private function bidangAdmins(TitleProgress $progress, User $actor): Collection
+    {
+        return $this->roleUsers(['admin'], $actor)
+            ->filter(fn (User $u) => $progress->bidang === null
+                || $u->profile?->bidang === null
+                || $u->profile?->bidang === $progress->bidang)
+            ->values();
+    }
+
+    /**
+     * URL kanonik naskah. Selama transisi modul (route naskah.* lahir di Task 8)
+     * jatuh ke halaman progres lama supaya notifikasi tak pernah menunjuk ke ruang hampa.
+     */
+    private function naskahUrl(TitleProgress $progress): string
+    {
+        return \Illuminate\Support\Facades\Route::has('naskah.show')
+            ? route('naskah.show', $progress->order_detail_id)
+            : route('order.indexJudul.progress', $progress->order_detail_id);
+    }
+
     public function distribusiChanged(TitleProgress $progress, User $actor, string $summary): void
     {
         $progress->loadMissing('orderDetail');

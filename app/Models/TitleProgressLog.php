@@ -32,6 +32,18 @@ class TitleProgressLog extends Model
         'priority_changed' => 'Ubah prioritas',
         'target_set'       => 'Set target terbit',
         'reviewed'         => 'Tandai ditinjau',
+        // Penugasan Naskah
+        'distribusi'          => 'Distribusi tugas',
+        'claim'               => 'Ambil tugas',
+        'tarik_tugas'         => 'Tarik tugas',
+        'oper_pj'             => 'Oper penanggung jawab',
+        'hold'                => 'Tahan sementara',
+        'unhold'              => 'Lanjutkan kembali',
+        'dibatalkan'          => 'Batalkan naskah',
+        'diarsipkan'          => 'Pindah ke arsip',
+        'overdue_reason_set'  => 'Alasan keterlambatan',
+        'auto_advance_upload' => 'Maju otomatis (upload naskah)',
+        'chapters_done'       => 'Semua bab selesai',
     ];
 
     public function eventLabel(): string

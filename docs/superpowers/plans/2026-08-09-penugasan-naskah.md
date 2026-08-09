@@ -71,18 +71,22 @@
 
 ## Task 3: AccessMatrixSeeder — permission `naskah.*`
 
-- [ ] **Step 1:** Tambah action per spec §4 dengan komentar penjelasan pola yang sama seperti action lain di file itu. Permission lama `manuscript.*`/`distribution.*` DIBIARKAN sampai Task 14.
-- [ ] **Step 2:** Feature test `AccessParityTest` diperluas: route `naskah.*` tercakup matrix.
+- [x] **Step 1:** Tambah action per spec §4 dengan komentar penjelasan pola yang sama seperti action lain di file itu. Permission lama `manuscript.*`/`distribution.*` DIBIARKAN sampai Task 14.
+- [x] **Step 2:** ~~Feature test `AccessParityTest` diperluas: route `naskah.*` tercakup matrix.~~ *(Digeser sebagian: `AccessParityTest` memanggil `route($name)`, jadi baru bisa memuat `naskah.*` setelah route-nya lahir di Task 8 — ditambahkan di sana. Sebagai gantinya matriks dikunci SEKARANG di tingkat permission lewat `PermissionMapTest::matriks_naskah_sesuai_keputusan_bisnis` (12 permission × 5 role).)*
 
 ## Task 4: AssignmentService (BARU) + unit test
 
 **Rules yang di-enforce (semua melempar `ValidationException`/`AuthorizationException` dgn pesan Indonesia):**
 
-- [ ] **Step 1:** `distribute($progressOrChapter, int $pelaksanaId, User $actor)` — actor harus `naskah.assign` + bidang cocok; target HARUS role `production` (akun admin ditolak: "Pelaksana harus akun Produksi"); bab tanpa author ditolak ("Petakan author bab terlebih dahulu"); set `sla_due_at = 7 hari kerja` (helper `addWorkdays`); log `distribusi`; notifikasi pelaksana.
-- [ ] **Step 2:** `claim($progressOrChapter, User $actor)` — actor role production; hanya jika pelaksana masih NULL; log `claim`.
-- [ ] **Step 3:** `transferPj($progress, int $adminId, User $actor)` — penerima harus admin dengan `bidang` SAMA (superadmin bebas lintas bidang); log `oper_pj`; notifikasi penerima.
-- [ ] **Step 4:** `withdraw`, `hold`/`unhold` (alasan opsional), `cancel` (alasan WAJIB, set `cancelled_*`) — semua log + aksi grup (fan-out via `group_key` seperti `assignGroup` lama).
-- [ ] **Step 5:** `tests/Unit/AssignmentServiceTest.php` — kasus: admin assign ke produksi ✓; assign ke admin ✗; produksi claim ✓; claim yang sudah berpelaksana ✗; oper PJ sebidang ✓; lintas bidang ✗ (superadmin ✓); bab tanpa author ✗; SLA terhitung benar (lewati akhir pekan); cancel tanpa alasan ✗.
+- [x] **Step 1:** `distribute($progressOrChapter, int $pelaksanaId, User $actor)` — actor harus `naskah.assign` + bidang cocok; target HARUS role `production` (akun admin ditolak: "Pelaksana harus akun Produksi"); bab tanpa author ditolak ("Petakan author bab terlebih dahulu"); set `sla_due_at = 7 hari kerja` (helper `addWorkdays`); log `distribusi`; notifikasi pelaksana. *(Tambahan dari wireframe: distribusi dari antrian SEKALIGUS memasukkan naskah/bab ke tahap Pembuatan — riwayat wireframe "Bab 3 masuk Pembuatan (distribusi ke Fitri, SLA 7 hari)" & stepper "Pembuatan 29 Jul–4 Agu". Ganti pelaksana di tahap lanjut hanya menukar orang, tak menyentuh tahap.)*
+- [x] **Step 2:** `claim($progressOrChapter, User $actor)` — actor role production; hanya jika pelaksana masih NULL; log `claim`.
+- [x] **Step 3:** `transferPj($progress, int $adminId, User $actor)` — penerima harus admin dengan `bidang` SAMA (superadmin bebas lintas bidang); log `oper_pj`; notifikasi penerima.
+- [x] **Step 4:** `withdraw`, `hold`/`unhold` (alasan opsional), `cancel` (alasan WAJIB, set `cancelled_*`) — semua log + aksi grup (fan-out via `group_key` seperti `assignGroup` lama). *(`withdraw` sengaja TIDAK memundurkan tahap — mundur = wilayah koreksi; naskah kembali ke antrian lewat definisi antrian "pelaksana NULL & tahap ≤ pembuatan".)*
+- [x] **Step 5:** `tests/Unit/AssignmentServiceTest.php` — kasus: admin assign ke produksi ✓; assign ke admin ✗; produksi claim ✓; claim yang sudah berpelaksana ✗; oper PJ sebidang ✓; lintas bidang ✗ (superadmin ✓); bab tanpa author ✗; SLA terhitung benar (lewati akhir pekan); cancel tanpa alasan ✗. *(17 test.)*
+
+> **Keputusan implementasi (butuh konfirmasi owner bila tak setuju):** `user_profiles.bidang` kosong = **belum di-scope → boleh semua bidang**, bukan terkunci. Kolom itu baru ada dan belum punya layar pengisian (Manajemen User tak menyentuh tabel profil), jadi tafsir "terkunci" akan mematikan modul untuk SEMUA admin sejak hari pertama. Perbandingan bidang tetap ketat begitu nilainya terisi. Ubah di `AssignmentService::assertBidang()` bila owner mau versi ketat.
+>
+> **Notifier:** tiga method yang dipakai service ini (`naskahDistribusi`, `naskahClaimed`, `naskahPjTransferred`) ditulis di task ini juga supaya suite tetap hijau per-task; Task 7 melengkapi sisanya (`naskahOverdue`, `naskahPublished`) + matriks penerima.
 
 ## Task 5: TitleProgressService — advance/correct
 
