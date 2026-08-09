@@ -13,6 +13,10 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule): void
     {
         $schedule->command('idempotency:prune')->daily();
+
+        // Pagi hari kerja: sebelum orang membuka Meja Kerja, keterlambatan sudah
+        // ketahuan dan PJ/pelaksana sudah dikabari.
+        $schedule->command('naskah:check-overdue')->dailyAt('07:00');
     }
 
     /**

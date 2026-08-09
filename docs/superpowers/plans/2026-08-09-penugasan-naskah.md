@@ -154,9 +154,9 @@
 
 ## Task 13: Commands — migrasi data & overdue
 
-- [ ] **Step 1:** `naskah:migrate-v2` per spec §8 (idempotent, `--dry-run` flag, ringkasan jumlah per langkah). Feature test `NaskahMigrasiTest` dgn data lama sintetis (templating, assigned admin, published, chapter lama).
-- [ ] **Step 2:** `naskah:check-overdue` — tandai & notifikasi (SLA pembuatan + target publish/terbit); daftarkan di `routes/console.php`/Kernel schedule daily.
-- [ ] **Step 3:** Uji manual di dev dgn snapshot DB produksi.
+- [x] **Step 1:** `naskah:migrate-v2` per spec §8 (idempotent, `--dry-run`, ringkasan jumlah per langkah + peringatan naskah yang belum punya PJ). `NaskahMigrasiTest` dgn data lama sintetis — 8 test migrasi + 4 test overdue.
+- [x] **Step 2:** `naskah:check-overdue` — daftar + notifikasi (SLA pembuatan & target publish/terbit), terjadwal `dailyAt('07:00')` di `app/Console/Kernel.php`. *(Naskah yang sedang ditahan sengaja dilewati: penundaannya sudah disepakati, mengabarinya tiap hari hanya jadi kebisingan. Command TIDAK mengisi `overdue_reason` — alasan wajib datang dari manusia lewat Detail Naskah.)*
+- [x] **Step 3:** Uji manual di dev (DB `avidpedi_simapa`, data mirip produksi): `--dry-run` → 1 templating · 126 bidang · 1 PJ dipisahkan · 75 bab · 6 buku roll-up. Dijalankan sungguhan, lalu **diulang → semua nol** (idempotensi terbukti pada data nyata, bukan hanya sintetis). `naskah:check-overdue --dry-run` menemukan 1 naskah lewat target. `AccessMatrixSeeder` di-seed ulang di dev agar permission `naskah.*` aktif.
 
 ## Task 14: Cutover & cleanup (setelah 1 bulan stabil / keputusan owner)
 
