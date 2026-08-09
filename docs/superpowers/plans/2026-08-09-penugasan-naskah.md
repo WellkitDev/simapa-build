@@ -126,29 +126,31 @@
 
 ## Task 9: View Layar 1 — Meja Kerja Saya
 
-- [ ] **Step 1:** Bangun `naskah/meja-kerja.blade.php` PERSIS layout wireframe "LAYAR 1" (stat cards, daftar tugas, antrian claim, badge & warna overdue). Komponen kartu tugas = partial agar dipakai ulang.
-- [ ] **Step 2:** Tombol kontekstual: produksi+`pembuatan` → form upload; admin+tahap admin → tombol "✓ Selesaikan {label} →"; antrian → "✋ Ambil Tugas Ini".
-- [ ] **Step 3:** `tests/Feature/NaskahMejaKerjaTest.php`: urutan sort benar; antrian hanya tampil utk produksi; angka statistik benar.
+- [x] **Step 1:** Bangun `naskah/meja-kerja.blade.php` sesuai wireframe "LAYAR 1" (stat cards, daftar tugas, antrian claim, badge & warna overdue). Kartu tugas = partial `tugas-baris` + `identitas`, dipakai ulang untuk baris judul MAUPUN baris bab.
+- [x] **Step 2:** Tombol kontekstual: pelaksana+`pembuatan` → "⬆ Upload Naskah" (menuju kartu file di Detail, tempat form unggahnya); yang berwenang maju → "✓ Selesaikan Tahap →" (POST langsung); antrian → "✋ Ambil Tugas Ini" (POST langsung).
+- [x] **Step 3:** `tests/Feature/NaskahMejaKerjaTest.php` — 8 test: urutan sort, statistik, tugas orang lain tak bocor, final/dibatalkan tak muncul, antrian & claim, tombol kontekstual, bahasa tanpa jargon.
 
 ## Task 10: View Layar 2/2B — Pelacakan + Arsip
 
-- [ ] **Step 1:** `pelacakan.blade.php` + partials sesuai wireframe LAYAR 2 & 2B: zona artikel (3) & buku (4, termasuk "Produksi per Bab" vs "Produksi Level Buku"), kartu dengan aging/target/grup, kartu buku dgn ringkasan bab + progress bar, kartu duduk di kolom bottleneck.
-- [ ] **Step 2:** Kartu link → `naskah.show` (BUKAN halaman order). Papan read-only; aksi hanya di detail.
-- [ ] **Step 3:** `daftar.blade.php` (DataTable), `riwayat.blade.php` (log per tipe), `arsip.blade.php`.
-- [ ] **Step 4:** `tests/Feature/NaskahPelacakanTest.php`: kolom & zona per tipe; kartu grup tampil 1x dgn badge N order; arsip menampilkan published; papan TIDAK menampilkan archived/cancelled.
+- [x] **Step 1:** `pelacakan.blade.php` + partials sesuai wireframe LAYAR 2 & 2B: zona artikel (3) & buku (4, termasuk "Produksi per Bab" vs "Produksi Level Buku"), kartu dengan lama-di-tahap/target/grup, kartu buku dgn ringkasan bab + progress bar, kartu duduk di kolom bottleneck.
+- [x] **Step 2:** Kartu link → `naskah.show` (BUKAN halaman order). Papan read-only; aksi hanya di detail — dijaga test yang memindai `<form action>` ke `/naskah/`.
+- [x] **Step 3:** `partials/daftar.blade.php` (DataTable), `partials/riwayat-tabel.blade.php` (log per tipe), `arsip.blade.php` (selesai + filter dibatalkan). *(Daftar & riwayat jadi partial dari `pelacakan.blade.php` karena ketiganya berbagi toolbar & filter yang sama — bukan halaman terpisah.)*
+- [x] **Step 4:** `tests/Feature/NaskahPelacakanTest.php` — 10 test: zona per tipe, kartu grup 1× + badge N order, kartu di kolom bottleneck, tautan ke Detail, filter, arsip memisahkan selesai/dibatalkan, papan menyembunyikan archived+cancelled, papan hanya-baca.
 
 ## Task 11: View Layar 3/3B — Detail Naskah
 
-- [ ] **Step 1:** `detail.blade.php` + partials per wireframe LAYAR 3: header + banner grup, stepper (done/aktif+durasi/upcoming, target di step akhir), kartu info/brief/file, kartu aksi per role, riwayat.
-- [ ] **Step 2:** 3B: pintasan level buku, tabel bab (kolom Author wajib tampil; baris tanpa author kuning + "Petakan Author", tombol distribusi disabled), file level buku vs bab, riwayat gabungan.
-- [ ] **Step 3:** Tombol maju TUNGGAL (`nextStage()`); koreksi = modal terpisah dgn dropdown tahap + textarea wajib (hanya render utk superadmin); "Perlu Revisi" = advance khusus `editing`→`revisi` dgn dropdown alasan baku.
-- [ ] **Step 4:** `tests/Feature/NaskahDetailTest.php`: marketing tak melihat blok aksi; admin melihat satu tombol maju dgn label benar; superadmin melihat koreksi; alur upload→auto-advance end-to-end; bab tanpa author tidak bisa didistribusikan (HTTP + pesan).
+- [x] **Step 1:** `detail.blade.php` + partials per wireframe LAYAR 3: header + banner grup (dengan drill-down per order), stepper (done/aktif+durasi/upcoming, target di step akhir), kartu info/brief/file, kartu aksi per izin, riwayat.
+- [x] **Step 2:** 3B: tabel bab (kolom Author selalu tampil; baris tanpa author kuning + "Petakan Author"; distribusi baru muncul setelah author dipetakan), file level buku vs bab, riwayat gabungan (log bab menempel pada linimasa naskah). *(Pintasan "terapkan 1 pelaksana ke semua bab" dan "ubah struktur bab" BELUM dibuat — lihat catatan di bawah.)*
+- [x] **Step 3:** Tombol maju TUNGGAL (`nextStage()`); koreksi = form terpisah (collapse) dgn dropdown tahap + textarea wajib, hanya dirender untuk superadmin; "Perlu Revisi" = jalur khusus dgn dropdown alasan baku.
+- [x] **Step 4:** `tests/Feature/NaskahDetailTest.php` — 14 test: satu tombol maju & tanpa dropdown semua-tahap, maju lewat HTTP, flash "N order", produksi ditolak, koreksi wajib catatan, no-op ramah, marketing tanpa blok aksi tapi tetap bisa set target, upload→auto-advance end-to-end, batal wajib alasan, tabel bab + author, bab tanpa author ditolak, pemetaan author membuka distribusi, gerbang Mulai Layout, file bab terpisah.
+
+> **Belum dibuat (sadar, bukan terlewat):** dua pintasan level buku di wireframe 3B — "Terapkan 1 pelaksana ke semua bab" dan "+ Tambah / ubah struktur bab". Keduanya kenyamanan, bukan syarat alur: mendistribusikan bab satu per satu sudah berjalan penuh, dan struktur bab dibuat otomatis dari jumlah bab order (`ChapterManuscriptService::ensureChapters`) serta bisa diubah lewat Direktori Judul. Ditandai di sini supaya owner bisa memutuskan apakah perlu sebelum rilis.
 
 ## Task 12: Sidebar, istilah, prioritas
 
-- [ ] **Step 1:** Sidebar seksi NASKAH: "Meja Kerja Saya" (`naskah.workdesk`), "Pelacakan Naskah" (`naskah.view`), "Arsip Naskah" (`naskah.view`) — label SAMA untuk semua role. Hapus menu lama dari sidebar (route redirect tetap hidup).
-- [ ] **Step 2:** Form prioritas ada di Detail (kartu aksi) — memastikan fitur prioritas hidup kembali.
-- [ ] **Step 3:** Sweep istilah: `grep -rn "editor\|Editor" resources/views/naskah app/Http/Controllers/Pages/Naskah app/Services/AssignmentService.php` → 0 hasil di UI string.
+- [x] **Step 1:** Sidebar seksi NASKAH: "Meja Kerja Saya" (`naskah.workdesk`), "Pelacakan Naskah" (`naskah.view`), "Arsip Naskah" (`naskah.view`) — label SAMA untuk semua role. *(Menu lama TIDAK dihapus, hanya diberi judul seksi "Produksi (lama)" — modul lama masih harus berfungsi selama transisi; penghapusannya satu paket dengan Task 14.)*
+- [x] **Step 2:** Form prioritas ada di Detail (kartu aksi) — fitur prioritas hidup kembali (dropdown high/normal/low, berlaku serempak untuk grup judul).
+- [x] **Step 3:** Sweep istilah bersih (0 hasil). Diperkuat jadi penjaga permanen: `tests/Feature/NaskahIstilahTest.php` memindai seluruh view+controller+service modul untuk kata "editor"/"tracker"/"aging", plus menguji sidebar dan bahasa layar.
 
 ## Task 13: Commands — migrasi data & overdue
 

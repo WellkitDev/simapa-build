@@ -131,9 +131,40 @@
                 @endcan
             @endcanany
 
-            {{-- ===================== PRODUKSI ===================== --}}
+            {{-- ===================== NASKAH =====================
+                 Nama menu SAMA untuk semua role (keputusan tim: sedikit istilah,
+                 tanpa jargon). Meja Kerja hanya untuk yang benar-benar memegang tugas. --}}
+            @canany(['naskah.view', 'naskah.workdesk'])
+                <li class="nav-item nav-category">Naskah</li>
+                @can('naskah.workdesk')
+                    <li class="nav-item {{ nav_active('naskah.workdesk') }}">
+                        <a href="{{ route('naskah.workdesk') }}" class="nav-link">
+                            <i class="link-icon" data-feather="clipboard"></i>
+                            <span class="link-title">Meja Kerja Saya</span>
+                        </a>
+                    </li>
+                @endcan
+                @can('naskah.view')
+                    <li class="nav-item {{ nav_active(['naskah.pelacakan', 'naskah.show']) }}">
+                        <a href="{{ route('naskah.pelacakan') }}" class="nav-link">
+                            <i class="link-icon" data-feather="git-branch"></i>
+                            <span class="link-title">Pelacakan Naskah</span>
+                        </a>
+                    </li>
+                    <li class="nav-item {{ nav_active('naskah.arsip') }}">
+                        <a href="{{ route('naskah.arsip') }}" class="nav-link">
+                            <i class="link-icon" data-feather="inbox"></i>
+                            <span class="link-title">Arsip Naskah</span>
+                        </a>
+                    </li>
+                @endcan
+            @endcanany
+
+            {{-- ===================== PRODUKSI (modul lama) =====================
+                 Distribusi Artikel/Buku + Pelacak Naskah lama masih hidup selama masa
+                 transisi; dihapus bersama cutover modul Penugasan Naskah. --}}
             @canany(['manuscript.view', 'distribution.view'])
-                <li class="nav-item nav-category">Produksi</li>
+                <li class="nav-item nav-category">Produksi (lama)</li>
                 @can('manuscript.view')
                     <li class="nav-item {{ nav_active('manuscript.*') }}">
                         <a href="{{ route('manuscript.board') }}" class="nav-link">
