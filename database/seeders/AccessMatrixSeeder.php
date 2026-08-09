@@ -48,6 +48,11 @@ class AccessMatrixSeeder extends Seeder
             // dijaga role:production|manager|superadmin. manuscript.detail (lihat progres
             // satu judul) TETAP dapat — route sumbernya tanpa penjagaan role: sama sekali.
             'manuscript.target', 'manuscript.detail',
+            // Penugasan Naskah: marketing melihat semuanya read-only, set target
+            // (request klien, tercatat di riwayat), upload naskah masuk dari klien,
+            // dan memetakan author bab saat struktur buku dibuat. TANPA workdesk —
+            // marketing tidak pernah memegang tugas naskah.
+            'naskah.view', 'naskah.target', 'naskah.upload', 'naskah.author',
             'data.*',
         ],
         'production' => [
@@ -55,6 +60,10 @@ class AccessMatrixSeeder extends Seeder
             // pindah ke modul distribution.* (Distribusi Artikel/Buku).
             'manuscript.view', 'manuscript.detail',
             'distribution.*',
+            // Penugasan Naskah: production = Pelaksana — meja kerja sendiri, claim
+            // antrian tanpa pelaksana, upload naskah (pemicu auto-advance). TANPA
+            // assign/advance — memajukan tahap adalah pekerjaan PJ (admin).
+            'naskah.view', 'naskah.workdesk', 'naskah.upload', 'naskah.claim',
             'title.view', 'title.create', 'title.edit', 'title.delete', 'title.submit',
             'journal.view', 'isbn.*', 'archive.view', 'archive.artifacts', 'archive.submit',
             'data.*',
@@ -70,6 +79,13 @@ class AccessMatrixSeeder extends Seeder
             // read-only, setara production, seiring peran admin naik jadi pendistribusi.
             'manuscript.detail', 'manuscript.view',
             'distribution.*',
+            // Penugasan Naskah: admin = PJ per bidang, aktor utama — distribusi/tarik/
+            // oper PJ, maju tahap, prioritas/hold/batal, target, upload, pemetaan author
+            // bab. naskah.correct TIDAK di sini (superadmin-only, lihat $superadminOnly);
+            // scoping bidang (artikel|buku) ditegakkan di service, bukan di permission.
+            'naskah.view', 'naskah.workdesk', 'naskah.target', 'naskah.upload',
+            'naskah.assign', 'naskah.advance', 'naskah.priority', 'naskah.hold',
+            'naskah.cancel', 'naskah.author',
             'data.*',
         ],
         'accounting' => [
@@ -101,6 +117,9 @@ class AccessMatrixSeeder extends Seeder
         'accounting.period.lock',
         'doc-req.create', 'doc-req.edit', 'doc-req.delete',
         'permission.manage',
+        // Koreksi tahap naskah (mundur/lompat, termasuk membuka tahap final) — keputusan
+        // bisnis Penugasan Naskah #6/#7: hanya superadmin, wajib catatan, selalu tercatat.
+        'naskah.correct',
         // CATATAN: user.view/create/edit/delete/restore TIDAK di sini walau kelihatan
         // "sensitif" — gate 'access-usermanagement' (AuthServiceProvider) adalah
         // superadmin|manager, jadi manager memang berhak dan permission ini justru harus

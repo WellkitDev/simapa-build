@@ -182,6 +182,40 @@ return [
             ],
         ],
 
+        // Modul Penugasan Naskah (pengganti UI Distribusi Artikel/Buku + Papan Manuskrip).
+        // Matriks role per spec docs/superpowers/specs/2026-08-09-penugasan-naskah-design.md §4;
+        // permission manuscript.*/distribution.* lama DIBIARKAN sampai cutover (Task 14).
+        'naskah' => [
+            'label'   => 'Penugasan Naskah',
+            'actions' => [
+                // Pelacakan + detail + arsip: semua role (marketing read-only, tanpa blok aksi).
+                'view'     => ['naskah.pelacakan', 'naskah.show', 'naskah.arsip'],
+                // Meja Kerja Saya: production/admin (marketing TIDAK — tak punya tugas naskah).
+                'workdesk' => ['naskah.workdesk'],
+                // Set target publish/terbit: marketing (request klien, tercatat) + admin.
+                'target'   => ['naskah.target'],
+                // Upload file naskah: semua role (marketing = naskah masuk dari klien;
+                // pelaksana = bukti kerja pemicu auto-advance; admin = hasil per tahap).
+                'upload'   => ['naskah.file', 'naskah.bab.file'],
+                // Ambil tugas dari antrian tanpa pelaksana: production.
+                'claim'    => ['naskah.claim', 'naskah.bab.claim'],
+                // Distribusi/tarik pelaksana + oper PJ antar admin sebidang: admin (bidangnya).
+                'assign'   => ['naskah.distribusi', 'naskah.tarik', 'naskah.operPj',
+                               'naskah.bab.distribusi'],
+                // Satu tombol "Selesaikan tahap →" (maju 1 langkah) + "Perlu Revisi": admin.
+                'advance'  => ['naskah.selesaikan', 'naskah.revisi', 'naskah.bab.selesaikan'],
+                'priority' => ['naskah.prioritas'],
+                'hold'     => ['naskah.hold'],
+                'cancel'   => ['naskah.batal'],
+                // Koreksi mundur/lompat, termasuk membuka tahap final: superadmin SAJA
+                // (masuk daftar $superadminOnly di AccessMatrixSeeder).
+                'correct'  => ['naskah.koreksi'],
+                // Pemetaan author per bab (wajib sebelum bab bisa didistribusikan) —
+                // dilakukan marketing/admin saat struktur buku dibuat.
+                'author'   => ['naskah.bab.author'],
+            ],
+        ],
+
         'archive' => [
             'label'   => 'Arsip Judul',
             'actions' => [

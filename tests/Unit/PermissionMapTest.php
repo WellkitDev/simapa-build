@@ -77,4 +77,50 @@ class PermissionMapTest extends TestCase
         // marketing TIDAK boleh menembusnya.
         $this->assertFalse(Role::findByName('marketing')->hasPermissionTo('manuscript.view'));
     }
+
+    /**
+     * Matriks Penugasan Naskah (spec §4). Dikunci di tingkat PERMISSION di sini;
+     * paritas per-route ditambahkan ke AccessParityTest saat route naskah.* lahir.
+     *
+     * @test
+     */
+    public function matriks_naskah_sesuai_keputusan_bisnis(): void
+    {
+        foreach (['superadmin', 'manager', 'accounting', 'admin', 'marketing', 'production'] as $r) {
+            Role::firstOrCreate(['name' => $r, 'guard_name' => 'web']);
+        }
+
+        (new AccessMatrixSeeder())->run();
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+
+        // [permission, role yang HARUS punya] — role lain di luar daftar harus TIDAK punya.
+        $matrix = [
+            'naskah.view'     => ['marketing', 'production', 'admin', 'manager'],
+            'naskah.workdesk' => ['production', 'admin', 'manager'],
+            'naskah.target'   => ['marketing', 'admin', 'manager'],
+            'naskah.upload'   => ['marketing', 'production', 'admin', 'manager'],
+            'naskah.claim'    => ['production', 'manager'],
+            'naskah.assign'   => ['admin', 'manager'],
+            'naskah.advance'  => ['admin', 'manager'],
+            'naskah.priority' => ['admin', 'manager'],
+            'naskah.hold'     => ['admin', 'manager'],
+            'naskah.cancel'   => ['admin', 'manager'],
+            'naskah.author'   => ['marketing', 'admin', 'manager'],
+            // Koreksi mundur/lompat termasuk tahap final: superadmin SAJA. Superadmin
+            // lolos lewat Gate::before, bukan hibah — karena itu daftar ini kosong dan
+            // SEMUA role (termasuk manager) harus gagal.
+            'naskah.correct'  => [],
+        ];
+
+        foreach ($matrix as $permission => $allowed) {
+            foreach (['marketing', 'production', 'admin', 'manager', 'accounting'] as $role) {
+                $should = in_array($role, $allowed, true);
+                $this->assertSame(
+                    $should,
+                    Role::findByName($role)->hasPermissionTo($permission),
+                    "$role " . ($should ? 'seharusnya punya' : 'TIDAK boleh punya') . " $permission"
+                );
+            }
+        }
+    }
 }
