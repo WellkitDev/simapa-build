@@ -91,6 +91,48 @@ class AccessParityTest extends TestCase
             ['author.index', 'admin',      true],
             ['author.index', 'production', false],
             ['author.index', 'accounting', false],
+
+            // ── Penugasan Naskah (spec §4) ──
+            // Pelacakan & arsip: semua role kerja; marketing hanya-baca tapi TETAP melihat.
+            ['naskah.pelacakan', 'marketing',  true],
+            ['naskah.pelacakan', 'production', true],
+            ['naskah.pelacakan', 'admin',      true],
+            ['naskah.pelacakan', 'accounting', false],
+            ['naskah.arsip',     'marketing',  true],
+            ['naskah.arsip',     'accounting', false],
+
+            // Meja Kerja: hanya yang benar-benar memegang tugas.
+            ['naskah.workdesk', 'production', true],
+            ['naskah.workdesk', 'admin',      true],
+            ['naskah.workdesk', 'marketing',  false],
+
+            // Maju tahap = wewenang PJ (admin). Produksi menyerahkan naskah, tidak memajukan.
+            ['naskah.selesaikan', 'admin',      true],
+            ['naskah.selesaikan', 'production', false],
+            ['naskah.selesaikan', 'marketing',  false],
+
+            // Distribusi/oper tugas: admin. Claim: produksi.
+            ['naskah.distribusi', 'admin',      true],
+            ['naskah.distribusi', 'production', false],
+            ['naskah.claim',      'production', true],
+            ['naskah.claim',      'admin',      false],
+
+            // Koreksi mundur/lompat: superadmin SAJA — manager pun tidak.
+            ['naskah.koreksi', 'superadmin', true],
+            ['naskah.koreksi', 'admin',      false],
+            ['naskah.koreksi', 'manager',    false],
+
+            // Target datang dari request klien lewat marketing; upload terbuka untuk semua.
+            ['naskah.target', 'marketing',  true],
+            ['naskah.target', 'production', false],
+            ['naskah.file',   'marketing',  true],
+            ['naskah.file',   'production', true],
+
+            // Prioritas/hold/batal: admin, bukan produksi.
+            ['naskah.prioritas', 'admin',      true],
+            ['naskah.prioritas', 'production', false],
+            ['naskah.batal',     'admin',      true],
+            ['naskah.batal',     'production', false],
         ];
     }
 
@@ -101,7 +143,7 @@ class AccessParityTest extends TestCase
     public function akses_sama_dengan_sebelum_migrasi(string $routeName, string $role, bool $allowed): void
     {
         $verb = $this->httpVerbFor($routeName);
-        $res  = $this->actingAs($this->user($role))->$verb(route($routeName));
+        $res  = $this->actingAs($this->user($role))->$verb($this->urlFor($routeName));
 
         if ($allowed) {
             $this->assertNotSame(403, $res->getStatusCode(),
@@ -126,6 +168,21 @@ class AccessParityTest extends TestCase
      * login — bukan 403, apa pun hak aksesnya. Pakai verb asli route supaya
      * request benar-benar diuji lewat middleware permission.
      */
+    /**
+     * Sebagian route beraksi butuh parameter (mis. naskah/{id}/selesaikan). Yang diuji
+     * di sini adalah gerbang izin, yang berjalan SEBELUM controller — jadi id boneka
+     * sudah cukup: yang berhak berakhir 404 (bukan 403), yang tak berhak tetap diblok.
+     */
+    private function urlFor(string $routeName): string
+    {
+        $route = \Illuminate\Support\Facades\Route::getRoutes()->getByName($routeName);
+        $params = collect($route?->parameterNames() ?? [])
+            ->mapWithKeys(fn (string $name) => [$name => 1])
+            ->all();
+
+        return route($routeName, $params);
+    }
+
     private function httpVerbFor(string $routeName): string
     {
         $methods = \Illuminate\Support\Facades\Route::getRoutes()->getByName($routeName)?->methods() ?? ['GET'];

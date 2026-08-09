@@ -103,6 +103,41 @@ Route::middleware(['auth', 'access'])->group(function () {
             ->name('manuscript.board');
     });
 
+    /*
+     | Penugasan Naskah (modul v2) — tiga layar: Meja Kerja Saya, Pelacakan Naskah,
+     | Detail Naskah + Arsip. {id} SELALU order_detail_id: identitas utama modul ini
+     | adalah kode order. Rute bab dideklarasikan lebih dulu agar segmen "bab" tidak
+     | tertelan pola {id}.
+     |
+     | Modul Distribusi Artikel/Buku + Papan Manuskrip di bawah SENGAJA masih hidup
+     | selama masa transisi; redirect & penghapusannya menunggu keputusan owner.
+     */
+    Route::prefix('naskah')->name('naskah.')->group(function () {
+        Route::get('meja-kerja', [\App\Http\Controllers\Pages\Naskah\MejaKerjaController::class, 'index'])->name('workdesk');
+        Route::get('pelacakan',  [\App\Http\Controllers\Pages\Naskah\PelacakanNaskahController::class, 'index'])->name('pelacakan');
+        Route::get('arsip',      [\App\Http\Controllers\Pages\Naskah\PelacakanNaskahController::class, 'arsip'])->name('arsip');
+
+        Route::post('bab/{cp}/distribusi', [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'babDistribusi'])->name('bab.distribusi')->whereNumber('cp');
+        Route::post('bab/{cp}/ambil',      [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'babClaim'])->name('bab.claim')->whereNumber('cp');
+        Route::post('bab/{cp}/selesaikan', [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'babSelesaikan'])->name('bab.selesaikan')->whereNumber('cp');
+        Route::post('bab/{cp}/file',       [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'babFile'])->name('bab.file')->whereNumber('cp');
+        Route::post('bab/{cp}/author',     [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'babAuthor'])->name('bab.author')->whereNumber('cp');
+
+        Route::get('{id}',             [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'show'])->name('show')->whereNumber('id');
+        Route::post('{id}/selesaikan', [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'selesaikan'])->name('selesaikan')->whereNumber('id');
+        Route::post('{id}/revisi',     [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'revisi'])->name('revisi')->whereNumber('id');
+        Route::post('{id}/koreksi',    [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'koreksi'])->name('koreksi')->whereNumber('id');
+        Route::post('{id}/distribusi', [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'distribusi'])->name('distribusi')->whereNumber('id');
+        Route::post('{id}/ambil',      [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'claim'])->name('claim')->whereNumber('id');
+        Route::post('{id}/oper-pj',    [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'operPj'])->name('operPj')->whereNumber('id');
+        Route::post('{id}/tarik',      [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'tarik'])->name('tarik')->whereNumber('id');
+        Route::post('{id}/prioritas',  [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'prioritas'])->name('prioritas')->whereNumber('id');
+        Route::post('{id}/target',     [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'target'])->name('target')->whereNumber('id');
+        Route::post('{id}/hold',       [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'hold'])->name('hold')->whereNumber('id');
+        Route::post('{id}/batal',      [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'batal'])->name('batal')->whereNumber('id');
+        Route::post('{id}/file',       [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'file'])->name('file')->whereNumber('id');
+    });
+
     Route::prefix('management/distribusi')->name('distribusi.')->group(function () {
         Route::get('artikel',              [\App\Http\Controllers\Pages\ArticleDistributionController::class, 'index'])->name('artikel.index');
         Route::get('artikel/{id}',         [\App\Http\Controllers\Pages\ArticleDistributionController::class, 'show'])->name('artikel.show')->whereNumber('id');

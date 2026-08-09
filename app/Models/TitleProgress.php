@@ -24,10 +24,12 @@ class TitleProgress extends Model
         'cancelled_at', 'cancelled_by', 'cancel_reason',
     ];
 
-    protected $dates = ['started_at'];
-
+    // CATATAN: `protected $dates` sudah TIDAK berlaku sejak Laravel 10 — properti itu
+    // dulu ada di sini untuk `started_at` dan diam-diam tak berefek, sehingga kolomnya
+    // kembali sebagai string. Semua kolom waktu kini dideklarasikan di $casts.
     protected $casts = [
         'needs_review'  => 'boolean',
+        'started_at'    => 'datetime',
         'target_date'   => 'date',
         'last_log_at'   => 'datetime',
         'sla_due_at'    => 'date',

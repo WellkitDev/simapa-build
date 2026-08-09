@@ -115,15 +115,14 @@
 
 ## Task 8: Routes + Controllers
 
-- [ ] **Step 1:** Group `Route::prefix('naskah')->name('naskah.')` dalam middleware `['auth','access']`:
-  `GET meja-kerja`, `GET pelacakan`, `GET arsip`, `GET {orderDetail}` (whereNumber),
-  `POST {id}/selesaikan|koreksi|revisi|distribusi|claim|oper-pj|tarik|prioritas|target|hold|batal|file`,
-  `POST bab/{cp}/distribusi|claim|selesaikan|file|author`.
-- [ ] **Step 2:** `MejaKerjaController@index` — query: progress aktif milik user (pelaksana ATAU pj) + antrian claim (produksi); statistik 4 angka; sort overdue→deadline→prioritas.
-- [ ] **Step 3:** `PelacakanNaskahController@index` — filter tipe/PJ/pelaksana/prioritas/cari; view papan/daftar/riwayat; data zona per spec §6; `@arsip` — DataTable archived+cancelled.
-- [ ] **Step 4:** `DetailNaskahController@show` — eager load lengkap; blok aksi dirakit per permission actor (view TIDAK memeriksa role sendiri, terima flag dari controller); semua POST delegasi ke service, flash pesan Indonesia, pattern `run()` try/catch seperti controller lama.
-- [ ] **Step 5:** Route lama `management/distribusi/*` & `management/manuscript` → `Route::redirect()` permanen ke `naskah.pelacakan` (hapus di Task 14).
-- [ ] **Step 6:** Feature test rute: role matrix akses (marketing GET ✓ POST ✗ kecuali target/file-masuk; produksi claim/upload ✓ advance ✗; admin bidang lain ✗).
+- [x] **Step 1:** Group `Route::prefix('naskah')->name('naskah.')` dalam middleware `['auth','access']` — semua route sesuai daftar. `{id}` SELALU `order_detail_id` (identitas = kode order); route `bab/*` dideklarasikan lebih dulu agar segmen "bab" tak tertelan pola `{id}`.
+- [x] **Step 2:** `MejaKerjaController@index` — tugas aktif milik user (pelaksana ATAU pj) **digabung dengan tugas bab** (wireframe LAYAR 1 baris ke-2 memang baris bab); antrian claim; statistik 4 angka; sort terlambat→deadline→prioritas. Bab tanpa author sengaja tak masuk antrian karena memang belum boleh didistribusikan.
+- [x] **Step 3:** `PelacakanNaskahController@index` — filter tipe/PJ/pelaksana/prioritas/cari; tampilan papan/daftar/riwayat; zona per spec §6; `@arsip` = DataTable selesai + filter dibatalkan.
+- [x] **Step 4:** `DetailNaskahController@show` — eager load lengkap; flag izin dirakit di controller (view tidak pernah memeriksa role); semua POST delegasi ke service dengan pola `run()` + flash Bahasa Indonesia.
+- [ ] **Step 5:** ~~Route lama → `Route::redirect()` ke `naskah.pelacakan`~~ **DIGESER KE TASK 14.** Mengganti route lama dengan redirect = mematikan modul Distribusi/Pelacak lama, padahal instruksi eksekusi mewajibkannya tetap berfungsi selama masa transisi (dan Task 14 menunggu keputusan owner). Redirect adalah langkah cutover, bukan langkah pembangunan.
+- [x] **Step 6:** Feature test rute: `AccessParityTest` diperluas 27 kasus `naskah.*` (menutup utang Task 3 Step 2) + `NaskahLayarTest` 11 test yang benar-benar me-render keempat layar dengan data nyata.
+
+> **Bug lama yang tersingkap & diperbaiki di sini:** `TitleProgress` memakai `protected $dates = ['started_at']` — properti itu **sudah tidak berlaku sejak Laravel 10**, jadi `started_at` selalu kembali sebagai string dan `->copy()` di `daysInStage()` fatal. Tak pernah terlihat karena tak ada kode lama yang memperlakukannya sebagai Carbon. Diperbaiki dengan memindahkannya ke `$casts`.
 
 ## Task 9: View Layar 1 — Meja Kerja Saya
 
