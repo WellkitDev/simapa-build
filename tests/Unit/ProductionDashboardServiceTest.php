@@ -42,10 +42,10 @@ class ProductionDashboardServiceTest extends TestCase
         $me = User::factory()->create();
         $me->assignRole('production');
 
-        $this->progress(['assigned_user_id' => $me->id, 'status' => 'editing']); // antrian saya
-        $this->progress(['assigned_user_id' => $me->id, 'status' => 'layout', 'target_date' => now()->subDay()->toDateString()]); // antrian + lewat target
-        $this->progress(['assigned_user_id' => null, 'status' => 'editing']);    // belum diambil
-        $this->progress(['assigned_user_id' => null, 'status' => 'menunggu_proses']); // bukan stage produksi → bukan belum-diambil
+        $this->progress(['pelaksana_user_id' => $me->id, 'status' => 'editing']); // antrian saya
+        $this->progress(['pelaksana_user_id' => $me->id, 'status' => 'layout', 'target_date' => now()->subDay()->toDateString()]); // antrian + lewat target
+        $this->progress(['pelaksana_user_id' => null, 'status' => 'editing']);    // belum diambil
+        $this->progress(['pelaksana_user_id' => null, 'status' => 'menunggu_proses']); // bukan stage produksi → bukan belum-diambil
 
         $d = $this->svc->forUser($me);
 
@@ -57,9 +57,9 @@ class ProductionDashboardServiceTest extends TestCase
     /** @test */
     public function global_counts_all_in_production(): void
     {
-        $this->progress(['assigned_user_id' => null, 'status' => 'editing']);
-        $this->progress(['assigned_user_id' => null, 'status' => 'isbn']);
-        $this->progress(['assigned_user_id' => null, 'status' => 'terbit']); // final → bukan in-production
+        $this->progress(['pelaksana_user_id' => null, 'status' => 'editing']);
+        $this->progress(['pelaksana_user_id' => null, 'status' => 'isbn']);
+        $this->progress(['pelaksana_user_id' => null, 'status' => 'terbit']); // final → bukan in-production
 
         $g = $this->svc->global();
         $this->assertEquals(2, $g['total_in_production']);
@@ -71,8 +71,8 @@ class ProductionDashboardServiceTest extends TestCase
         $me = User::factory()->create();
         $me->assignRole('production');
 
-        $this->progress(['assigned_user_id' => $me->id, 'status' => 'editing', 'target_date' => now()->addDays(3)->toDateString()]);  // jatuh tempo ≤7
-        $this->progress(['assigned_user_id' => $me->id, 'status' => 'editing', 'target_date' => now()->addDays(10)->toDateString()]); // di luar 7 hari
+        $this->progress(['pelaksana_user_id' => $me->id, 'status' => 'editing', 'target_date' => now()->addDays(3)->toDateString()]);  // jatuh tempo ≤7
+        $this->progress(['pelaksana_user_id' => $me->id, 'status' => 'editing', 'target_date' => now()->addDays(10)->toDateString()]); // di luar 7 hari
 
         $this->assertEquals(1, $this->svc->forUser($me)['jatuh_tempo_7']);
     }
@@ -81,9 +81,9 @@ class ProductionDashboardServiceTest extends TestCase
     public function for_user_menyertakan_total_selesai_dan_baris_deadline(): void
     {
         $editor = User::factory()->create();
-        $tp = $this->progress(['assigned_user_id' => $editor->id, 'status' => 'editing',
+        $tp = $this->progress(['pelaksana_user_id' => $editor->id, 'status' => 'editing',
                              'target_date' => now()->addDays(3)->toDateString()]);
-        $this->progress(['assigned_user_id' => $editor->id, 'status' => 'terbit',
+        $this->progress(['pelaksana_user_id' => $editor->id, 'status' => 'terbit',
                        'started_at' => now()->subMonths(6)]);
 
         $d = app(ProductionDashboardService::class)->forUser($editor);

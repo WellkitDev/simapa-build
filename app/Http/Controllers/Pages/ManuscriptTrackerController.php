@@ -44,13 +44,13 @@ class ManuscriptTrackerController extends Controller
             })
             ->where($typeFilter)
             ->when($editorFilter !== null && $editorFilter !== '', fn ($q) =>
-                $q->whereHas('titleProgress', fn ($t) => $t->where('assigned_user_id', $editorFilter)))
+                $q->whereHas('titleProgress', fn ($t) => $t->where('pelaksana_user_id', $editorFilter)))
             ->when($request->filled('priority'), fn ($q) =>
                 $q->whereHas('titleProgress', fn ($t) => $t->where('priority', $request->query('priority'))))
             ->when($scope === 'mine', fn ($q) =>
                 $q->whereHas('titleProgress', fn ($t) =>
-                    $t->where('assigned_user_id', Auth::id())
-                      ->orWhere(fn ($w) => $w->whereNull('assigned_user_id')->whereIn('status', $prodStages))))
+                    $t->where('pelaksana_user_id', Auth::id())
+                      ->orWhere(fn ($w) => $w->whereNull('pelaksana_user_id')->whereIn('status', $prodStages))))
             ->get();
 
         $stages   = $tipe === 'buku' ? TitleProgress::BOOK_STAGES : TitleProgress::ARTICLE_STAGES;

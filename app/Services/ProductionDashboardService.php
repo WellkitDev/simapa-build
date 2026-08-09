@@ -18,7 +18,7 @@ class ProductionDashboardService
         $today      = Carbon::today();
 
         $mineActive = TitleProgress::query()
-            ->where('assigned_user_id', $user->id)
+            ->where('pelaksana_user_id', $user->id)
             ->whereNotIn('status', TitleProgress::FINAL_STAGES);
 
         $perStage = (clone $mineActive)->get(['status'])
@@ -26,22 +26,22 @@ class ProductionDashboardService
 
         return [
             'antrian_saya'      => (clone $mineActive)->count(),
-            'belum_diambil'     => TitleProgress::whereNull('assigned_user_id')->whereIn('status', $prodStages)->count(),
+            'belum_diambil'     => TitleProgress::whereNull('pelaksana_user_id')->whereIn('status', $prodStages)->count(),
             'lewat_target'      => (clone $mineActive)->whereNotNull('target_date')->whereDate('target_date', '<', $today)->count(),
             'jatuh_tempo_7'     => (clone $mineActive)->whereNotNull('target_date')
                                     ->whereDate('target_date', '>=', $today)
                                     ->whereDate('target_date', '<=', $today->copy()->addDays(7))->count(),
-            'selesai_bulan_ini' => TitleProgress::where('assigned_user_id', $user->id)
+            'selesai_bulan_ini' => TitleProgress::where('pelaksana_user_id', $user->id)
                                     ->whereIn('status', TitleProgress::FINAL_STAGES)
                                     ->whereYear('started_at', $today->year)->whereMonth('started_at', $today->month)->count(),
-            'total_selesai'     => TitleProgress::where('assigned_user_id', $user->id)
+            'total_selesai'     => TitleProgress::where('pelaksana_user_id', $user->id)
                                     ->whereIn('status', TitleProgress::FINAL_STAGES)->count(),
             'selesai_bulan_ini_delta' => $this->delta(
-                                    TitleProgress::where('assigned_user_id', $user->id)
+                                    TitleProgress::where('pelaksana_user_id', $user->id)
                                         ->whereIn('status', TitleProgress::FINAL_STAGES)
                                         ->whereYear('started_at', $today->year)
                                         ->whereMonth('started_at', $today->month)->count(),
-                                    TitleProgress::where('assigned_user_id', $user->id)
+                                    TitleProgress::where('pelaksana_user_id', $user->id)
                                         ->whereIn('status', TitleProgress::FINAL_STAGES)
                                         ->whereBetween('started_at', [
                                             $today->copy()->startOfMonth()->subMonthNoOverflow(),

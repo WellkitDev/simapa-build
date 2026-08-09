@@ -11,7 +11,7 @@ use Illuminate\Support\Collection;
 class PerformanceService
 {
     /**
-     * Metrik on-time per editor. Atribusi ke assigned_user_id.
+     * Metrik on-time per editor. Atribusi ke pelaksana_user_id.
      * "Selesai" = status final & started_at dalam periode. "Tepat waktu" = started_at <= target_date.
      */
     public function forEditor(User $editor, int $days = 30): array
@@ -19,7 +19,7 @@ class PerformanceService
         $since = Carbon::now()->subDays($days)->startOfDay();
 
         $completed = TitleProgress::query()
-            ->where('assigned_user_id', $editor->id)
+            ->where('pelaksana_user_id', $editor->id)
             ->whereIn('status', TitleProgress::FINAL_STAGES)
             ->where('started_at', '>=', $since)
             ->get(['id', 'started_at', 'target_date']);
@@ -33,7 +33,7 @@ class PerformanceService
             : null;
 
         $activeQueue = TitleProgress::query()
-            ->where('assigned_user_id', $editor->id)
+            ->where('pelaksana_user_id', $editor->id)
             ->whereNotIn('status', TitleProgress::FINAL_STAGES)
             ->count();
 

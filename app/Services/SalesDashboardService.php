@@ -159,11 +159,11 @@ class SalesDashboardService
         );
     }
 
-    /** Baris deadline milik satu editor (scope assigned_user_id, bukan kepemilikan order). */
+    /** Baris deadline milik satu editor (scope pelaksana_user_id, bukan kepemilikan order). */
     public function deadlineRowsForEditor(User $editor): \Illuminate\Support\Collection
     {
         return $this->deadlineFrom(
-            TitleProgress::query()->where('assigned_user_id', $editor->id)
+            TitleProgress::query()->where('pelaksana_user_id', $editor->id)
         );
     }
 

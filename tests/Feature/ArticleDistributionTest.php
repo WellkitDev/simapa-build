@@ -67,7 +67,7 @@ class ArticleDistributionTest extends TestCase
 
         $this->assertDatabaseHas('tb_title_progress', [
             'order_detail_id' => $title->orderDetails()->first()->id,
-            'assigned_user_id' => $editorAdmin->id,
+            'pelaksana_user_id' => $editorAdmin->id,
         ]);
     }
 

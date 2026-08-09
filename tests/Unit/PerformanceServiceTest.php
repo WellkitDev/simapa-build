@@ -50,13 +50,13 @@ class PerformanceServiceTest extends TestCase
         $ed = $this->editor();
 
         // 2 selesai tepat waktu (started_at <= target), 1 telat → rate 66.7%
-        $this->progress(['assigned_user_id' => $ed->id, 'status' => 'terbit', 'started_at' => '2026-06-10', 'target_date' => '2026-06-15']);
-        $this->progress(['assigned_user_id' => $ed->id, 'status' => 'terbit', 'started_at' => '2026-06-10', 'target_date' => '2026-06-12']);
-        $this->progress(['assigned_user_id' => $ed->id, 'status' => 'terbit', 'started_at' => '2026-06-20', 'target_date' => '2026-06-15']); // telat
+        $this->progress(['pelaksana_user_id' => $ed->id, 'status' => 'terbit', 'started_at' => '2026-06-10', 'target_date' => '2026-06-15']);
+        $this->progress(['pelaksana_user_id' => $ed->id, 'status' => 'terbit', 'started_at' => '2026-06-10', 'target_date' => '2026-06-12']);
+        $this->progress(['pelaksana_user_id' => $ed->id, 'status' => 'terbit', 'started_at' => '2026-06-20', 'target_date' => '2026-06-15']); // telat
         // selesai tanpa target → tidak masuk rate, masuk completed
-        $this->progress(['assigned_user_id' => $ed->id, 'status' => 'terbit', 'started_at' => now(), 'target_date' => null]);
+        $this->progress(['pelaksana_user_id' => $ed->id, 'status' => 'terbit', 'started_at' => now(), 'target_date' => null]);
         // milik editor lain → diabaikan
-        $this->progress(['assigned_user_id' => $this->editor()->id, 'status' => 'terbit', 'started_at' => now(), 'target_date' => '2026-01-01']);
+        $this->progress(['pelaksana_user_id' => $this->editor()->id, 'status' => 'terbit', 'started_at' => now(), 'target_date' => '2026-01-01']);
 
         $r = $this->svc->forEditor($ed, 3650); // periode besar agar semua masuk
 
@@ -70,7 +70,7 @@ class PerformanceServiceTest extends TestCase
     public function on_time_rate_is_null_when_no_completed_with_target(): void
     {
         $ed = $this->editor();
-        $this->progress(['assigned_user_id' => $ed->id, 'status' => 'terbit', 'target_date' => null]);
+        $this->progress(['pelaksana_user_id' => $ed->id, 'status' => 'terbit', 'target_date' => null]);
 
         $r = $this->svc->forEditor($ed, 3650);
         $this->assertNull($r['on_time_rate']);
@@ -81,9 +81,9 @@ class PerformanceServiceTest extends TestCase
     public function active_queue_counts_assigned_not_final(): void
     {
         $ed = $this->editor();
-        $this->progress(['assigned_user_id' => $ed->id, 'status' => 'editing']);   // aktif
-        $this->progress(['assigned_user_id' => $ed->id, 'status' => 'layout']);    // aktif
-        $this->progress(['assigned_user_id' => $ed->id, 'status' => 'terbit']);    // final → bukan antrian
+        $this->progress(['pelaksana_user_id' => $ed->id, 'status' => 'editing']);   // aktif
+        $this->progress(['pelaksana_user_id' => $ed->id, 'status' => 'layout']);    // aktif
+        $this->progress(['pelaksana_user_id' => $ed->id, 'status' => 'terbit']);    // final → bukan antrian
 
         $r = $this->svc->forEditor($ed, 30);
         $this->assertEquals(2, $r['active_queue']);
@@ -93,7 +93,7 @@ class PerformanceServiceTest extends TestCase
     public function completion_exactly_on_target_counts_as_on_time(): void
     {
         $ed = $this->editor();
-        $this->progress(['assigned_user_id' => $ed->id, 'status' => 'terbit', 'started_at' => '2026-06-15', 'target_date' => '2026-06-15']);
+        $this->progress(['pelaksana_user_id' => $ed->id, 'status' => 'terbit', 'started_at' => '2026-06-15', 'target_date' => '2026-06-15']);
 
         $r = $this->svc->forEditor($ed, 3650);
         $this->assertEquals(1, $r['on_time']);

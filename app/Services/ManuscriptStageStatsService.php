@@ -38,7 +38,7 @@ class ManuscriptStageStatsService
 
         if ($assignedUserId !== null) {
             $groupKeys = OrderDetail::query()
-                ->whereHas('titleProgress', fn ($t) => $t->where('assigned_user_id', $assignedUserId))
+                ->whereHas('titleProgress', fn ($t) => $t->where('pelaksana_user_id', $assignedUserId))
                 ->pluck('group_key')->unique()->all();
             $query->whereIn('group_key', $groupKeys); // [] → tak ada baris
         }

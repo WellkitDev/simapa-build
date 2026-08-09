@@ -17,7 +17,7 @@ class TitleProgress extends Model
     protected $fillable = [
         'order_detail_id', 'status', 'assigned_role',
         'note', 'updated_by', 'started_at',
-        'assigned_user_id', 'priority', 'needs_review', 'target_date', 'last_log_at',
+        'pelaksana_user_id', 'priority', 'needs_review', 'target_date', 'last_log_at',
     ];
 
     protected $dates = ['started_at'];
@@ -87,7 +87,7 @@ class TitleProgress extends Model
 
     public function assignedUser()
     {
-        return $this->belongsTo(User::class, 'assigned_user_id');
+        return $this->belongsTo(User::class, 'pelaksana_user_id');
     }
 
     public function getStages(): array

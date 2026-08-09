@@ -45,9 +45,9 @@ class ProductionWorkspaceTest extends TestCase
     public function scope_mine_shows_only_my_work_and_unclaimed(): void
     {
         $me = $this->user('production');
-        $this->progress(['assigned_user_id' => $me->id, 'status' => 'editing', 'title' => 'MILIK SAYA']);
-        $this->progress(['assigned_user_id' => null, 'status' => 'editing', 'title' => 'BELUM DIAMBIL']);
-        $this->progress(['assigned_user_id' => $this->user('production')->id, 'status' => 'editing', 'title' => 'MILIK ORANG LAIN']);
+        $this->progress(['pelaksana_user_id' => $me->id, 'status' => 'editing', 'title' => 'MILIK SAYA']);
+        $this->progress(['pelaksana_user_id' => null, 'status' => 'editing', 'title' => 'BELUM DIAMBIL']);
+        $this->progress(['pelaksana_user_id' => $this->user('production')->id, 'status' => 'editing', 'title' => 'MILIK ORANG LAIN']);
 
         $this->actingAs($me);
         $this->get(route('manuscript.board', ['tipe' => 'buku', 'scope' => 'mine']))
@@ -61,7 +61,7 @@ class ProductionWorkspaceTest extends TestCase
     public function production_defaults_to_scope_mine(): void
     {
         $me = $this->user('production');
-        $this->progress(['assigned_user_id' => $this->user('production')->id, 'status' => 'editing', 'title' => 'PUNYA EDITOR LAIN']);
+        $this->progress(['pelaksana_user_id' => $this->user('production')->id, 'status' => 'editing', 'title' => 'PUNYA EDITOR LAIN']);
 
         $this->actingAs($me);
         // tanpa param scope → production default 'mine' → tak melihat punya editor lain
@@ -83,14 +83,14 @@ class ProductionWorkspaceTest extends TestCase
         $this->post(route('distribusi.artikel.editor', $title->id), ['assigned_user_id' => $me->id])
             ->assertRedirect();
 
-        $this->assertDatabaseHas('tb_title_progress', ['id' => $p->id, 'assigned_user_id' => $me->id]);
+        $this->assertDatabaseHas('tb_title_progress', ['id' => $p->id, 'pelaksana_user_id' => $me->id]);
     }
 
     /** @test */
     public function production_dashboard_shows_production_kpis_not_financial(): void
     {
         $me = $this->user('production');
-        $this->progress(['assigned_user_id' => $me->id, 'status' => 'editing']);
+        $this->progress(['pelaksana_user_id' => $me->id, 'status' => 'editing']);
 
         $this->actingAs($me);
         $this->get(route('dashboard'))

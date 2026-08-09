@@ -125,9 +125,9 @@ class TitleProgressService
             }
         }
 
-        if ((int) $progress->assigned_user_id !== (int) $userId) {
-            $from = optional(User::find($progress->assigned_user_id))->name ?? '—';
-            $progress->update(['assigned_user_id' => $userId]);
+        if ((int) $progress->pelaksana_user_id !== (int) $userId) {
+            $from = optional(User::find($progress->pelaksana_user_id))->name ?? '—';
+            $progress->update(['pelaksana_user_id' => $userId]);
             $this->log($progress, 'editor_assigned', $from, optional($assignee)->name ?? '—', $actor);
         }
 
@@ -205,7 +205,7 @@ class TitleProgressService
             'order_detail_id'  => $detail->id,
             'status'           => $status,
             'assigned_role'    => TitleProgress::getHandlerForStatus($status),
-            'assigned_user_id' => $sibling->assigned_user_id ?? null,
+            'pelaksana_user_id' => $sibling->pelaksana_user_id ?? null,
             'priority'         => $sibling->priority ?? 'normal',
             'updated_by'       => $actorId,
             'started_at'       => now(),

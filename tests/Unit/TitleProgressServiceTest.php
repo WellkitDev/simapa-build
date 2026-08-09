@@ -165,10 +165,10 @@ class TitleProgressServiceTest extends TestCase
         $manager = $this->user('manager');
 
         $this->svc->assignEditor($p, $editor->id, $manager);
-        $this->assertEquals($editor->id, $p->fresh()->assigned_user_id);
+        $this->assertEquals($editor->id, $p->fresh()->pelaksana_user_id);
 
         $this->svc->assignEditor($p, null, $manager);
-        $this->assertNull($p->fresh()->assigned_user_id);
+        $this->assertNull($p->fresh()->pelaksana_user_id);
     }
 
     /** @test */
@@ -233,7 +233,7 @@ class TitleProgressServiceTest extends TestCase
 
         $this->svc->assignEditor($p, $admin->id, $this->user('manager'));
 
-        $this->assertEquals($admin->id, $p->fresh()->assigned_user_id);
+        $this->assertEquals($admin->id, $p->fresh()->pelaksana_user_id);
     }
 
     /** @test */
@@ -302,7 +302,7 @@ class TitleProgressServiceTest extends TestCase
         $this->svc->assignGroup($grp, $editor->id, $this->user('manager'));
 
         foreach ($grp as $p) {
-            $this->assertEquals($editor->id, $p->fresh()->assigned_user_id);
+            $this->assertEquals($editor->id, $p->fresh()->pelaksana_user_id);
         }
     }
 

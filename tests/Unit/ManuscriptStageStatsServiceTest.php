@@ -37,7 +37,7 @@ class ManuscriptStageStatsServiceTest extends TestCase
             ]);
             TitleProgress::create([
                 'order_detail_id' => $detail->id, 'status' => $status,
-                'assigned_role' => 'production', 'assigned_user_id' => $assignedTo,
+                'assigned_role' => 'production', 'pelaksana_user_id' => $assignedTo,
                 'started_at' => now(),
             ]);
         }

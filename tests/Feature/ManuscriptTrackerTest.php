@@ -118,7 +118,7 @@ class ManuscriptTrackerTest extends TestCase
             'order_detail_id'  => $detail->id,
             'status'           => 'editing',
             'assigned_role'    => 'production',
-            'assigned_user_id' => $editor->id,
+            'pelaksana_user_id' => $editor->id,
             'priority'         => 'high',
             'started_at'       => now(),
         ]);

@@ -55,10 +55,10 @@
 
 **Files:** 3 migration baru (lihat File Map).
 
-- [ ] **Step 1:** `tb_title_progress`: tambah `pj_user_id` (FK users, nullOnDelete), rename `assigned_user_id`→`pelaksana_user_id`, `bidang` string(10) index, `sla_due_at` date nullable, `overdue_reason` string(30) nullable, `overdue_note` text nullable, `is_on_hold` bool default false, `chapters_done` bool default false, `archived_at` timestamp nullable index, `cancelled_at` timestamp nullable, `cancelled_by` FK users nullable, `cancel_reason` string nullable.
-- [ ] **Step 2:** `tb_chapter_progress`: tambah `pelaksana_user_id` FK nullable, `sla_due_at` date nullable.
-- [ ] **Step 3:** `user_profiles`: tambah `bidang` string(10) nullable (`artikel`|`buku`).
-- [ ] **Step 4:** Jalankan `php artisan migrate` di dev + `php artisan test` → hijau (belum ada perilaku berubah).
+- [x] **Step 1:** `tb_title_progress`: tambah `pj_user_id` (FK users, nullOnDelete), rename `assigned_user_id`→`pelaksana_user_id`, `bidang` string(10) index, `sla_due_at` date nullable, `overdue_reason` string(30) nullable, `overdue_note` text nullable, `is_on_hold` bool default false, `chapters_done` bool default false, `archived_at` timestamp nullable index, `cancelled_at` timestamp nullable, `cancelled_by` FK users nullable, `cancel_reason` string nullable. *(Catatan implementasi: rename via raw `ALTER TABLE … CHANGE` — MariaDB 10.4 XAMPP belum dukung RENAME COLUMN & doctrine/dbal tak terpasang; FK+index dilepas lalu dipasang ulang. Semua referensi kode lama `assigned_user_id` milik tb_title_progress ikut diganti supaya modul lama tetap berfungsi; nama field form HTTP & kolom ChapterProgress lama TIDAK diubah.)*
+- [x] **Step 2:** `tb_chapter_progress`: tambah `pelaksana_user_id` FK nullable, `sla_due_at` date nullable.
+- [x] **Step 3:** `user_profiles`: tambah `bidang` string(10) nullable (`artikel`|`buku`).
+- [x] **Step 4:** Jalankan `php artisan migrate` di dev + `php artisan test` → hijau (belum ada perilaku berubah). *(2026-08-09: dev ter-migrate; suite 815 passed, 1 skipped.)*
 
 ## Task 2: Model — konstanta & relasi
 
