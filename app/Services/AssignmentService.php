@@ -111,12 +111,15 @@ class AssignmentService
         }
 
         $this->requireBidang($actor, $target->bidang);
+        $sebelumnya = $target->pelaksana;
 
         return $this->onGroup($target, function (TitleProgress $p) use ($actor) {
             $from = $p->pelaksana?->name ?? '—';
             $p->update(['pelaksana_user_id' => null, 'sla_due_at' => null]);
             $this->log($p, 'tarik_tugas', $from, '—', $actor, null);
-        });
+        }, $sebelumnya
+            ? fn (TitleProgress $p) => $this->notifier->naskahWithdrawn($p, $sebelumnya, $actor)
+            : null);
     }
 
     // ─── Penanggung jawab ───

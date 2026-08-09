@@ -244,8 +244,14 @@ class TitleProgressService
             }
         });
 
+        $notifier = app(Notifier::class);
         foreach ($changed as [$p, $from]) {
-            app(Notifier::class)->naskahStageChanged($p, $actor, $from, $target);
+            $notifier->naskahTahapBerubah($p, $actor, $from, $target, $isCorrection);
+
+            // Publish/terbit: marketing pemilik TIAP order yang mengabari kliennya.
+            if (TitleProgress::isFinal($target)) {
+                $notifier->naskahPublished($p->fresh(), $actor);
+            }
         }
 
         return count($changed);

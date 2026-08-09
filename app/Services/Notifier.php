@@ -15,6 +15,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
+use Spatie\Permission\Models\Role;
 
 class Notifier
 {
@@ -272,6 +273,90 @@ class Notifier
         ]);
     }
 
+    /** Tugas ditarik kembali — pelaksana yang kehilangan tugas harus tahu. */
+    public function naskahWithdrawn(TitleProgress $progress, User $pelaksana, User $actor): void
+    {
+        $progress->loadMissing('orderDetail');
+        $this->toOwner($pelaksana, $actor, [
+            'category' => 'naskah',
+            'title'    => 'Tugas naskah ditarik',
+            'message'  => $this->naskahLabel($progress) . ' • ditarik ' . $actor->name,
+            'url'      => $this->naskahUrl($progress),
+            'icon'     => 'corner-up-left',
+        ]);
+    }
+
+    /**
+     * Perpindahan tahap (maju maupun koreksi). Penerima = PJ + superadmin, sesuai
+     * keputusan "tanpa approval, hanya notifikasi". Marketing TIDAK dikabari tiap
+     * tahap — mereka menerima kabar saat publish/terbit lewat naskahPublished().
+     */
+    public function naskahTahapBerubah(TitleProgress $progress, User $actor, string $from, string $to, bool $isCorrection = false): void
+    {
+        $progress->loadMissing(['orderDetail', 'pj']);
+
+        $recipients = $this->roleUsers(['superadmin'], $actor);
+        if ($progress->pj && $progress->pj->id !== $actor->id) {
+            $recipients = $recipients->push($progress->pj)->unique('id')->values();
+        }
+
+        $this->send($recipients, [
+            'category' => 'naskah',
+            'title'    => ($isCorrection ? 'Koreksi tahap: ' : 'Naskah maju ke ')
+                          . TitleProgress::labelFor($to),
+            'message'  => $this->naskahLabel($progress) . ' • dari '
+                          . TitleProgress::labelFor($from) . ' oleh ' . $actor->name,
+            'url'      => $this->naskahUrl($progress),
+            'icon'     => $isCorrection ? 'rotate-ccw' : 'arrow-right-circle',
+        ]);
+    }
+
+    /**
+     * Naskah terbit/publish — marketing pemilik order inilah yang mengabari klien.
+     * Dipanggil per order dalam grup supaya tiap pemilik dapat kabarnya sendiri.
+     */
+    public function naskahPublished(TitleProgress $progress, User $actor): void
+    {
+        $progress->loadMissing('orderDetail.order.user');
+        $this->toOwner($progress->orderDetail?->order?->user, $actor, [
+            'category' => 'naskah',
+            'title'    => 'Naskah ' . TitleProgress::labelFor($progress->status) . ' — bisa dikabari ke klien',
+            'message'  => $this->naskahLabel($progress),
+            'url'      => $this->naskahUrl($progress),
+            'icon'     => 'check-circle',
+        ]);
+    }
+
+    /**
+     * Lewat SLA pembuatan atau target publish/terbit (dipicu command harian).
+     * Penerima = PJ + pelaksana + superadmin; aktor sistem, jadi tak ada yang dikecualikan.
+     */
+    public function naskahOverdue(TitleProgress $progress): void
+    {
+        $progress->loadMissing(['orderDetail', 'pj', 'pelaksana']);
+
+        $recipients = Role::where('name', 'superadmin')->where('guard_name', 'web')->exists()
+            ? User::role('superadmin')->get()
+            : collect();
+
+        foreach ([$progress->pj, $progress->pelaksana] as $orang) {
+            if ($orang) {
+                $recipients = $recipients->push($orang);
+            }
+        }
+
+        $tenggat = $progress->status === 'pembuatan' ? $progress->sla_due_at : $progress->target_date;
+
+        $this->send($recipients->unique('id')->values(), [
+            'category' => 'naskah',
+            'title'    => 'Naskah lewat tenggat',
+            'message'  => $this->naskahLabel($progress) . ' • ' . TitleProgress::labelFor($progress->status)
+                          . ($tenggat ? ' • jatuh tempo ' . $tenggat->translatedFormat('j M Y') : ''),
+            'url'      => $this->naskahUrl($progress),
+            'icon'     => 'alert-triangle',
+        ]);
+    }
+
     /** Identitas naskah di notifikasi = kode order, judul sebagai pendamping. */
     private function naskahLabel(TitleProgress $progress): string
     {
@@ -354,7 +439,7 @@ class Notifier
      */
     private function roleUsers(array $roles, User $actor): Collection
     {
-        $existing = \Spatie\Permission\Models\Role::whereIn('name', $roles)
+        $existing = Role::whereIn('name', $roles)
             ->where('guard_name', 'web')->pluck('name')->all();
 
         if (empty($existing)) {

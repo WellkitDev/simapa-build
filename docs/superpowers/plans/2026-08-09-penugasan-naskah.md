@@ -109,8 +109,9 @@
 
 ## Task 7: Notifier
 
-- [ ] **Step 1:** Method baru: `naskahDistribusi`, `naskahClaimed`, `naskahPjTransferred`, `naskahOverdue`, `naskahPublished` (ke marketing pemilik TIAP order grup). Pakai pola method existing (`naskahStageChanged`). Hapus pemakaian `distribusiChanged` di alur baru.
-- [ ] **Step 2:** Penerima per matrix spec §7. Superadmin & (kelak) manager di-resolve via role, bukan hardcode id.
+- [x] **Step 1:** Method baru: `naskahDistribusi`, `naskahClaimed`, `naskahPjTransferred` (Task 4), `naskahAutoAdvanced` (Task 6), `naskahWithdrawn`, `naskahTahapBerubah`, `naskahOverdue`, `naskahPublished` (ke marketing pemilik TIAP order grup). Pakai pola method existing. `distribusiChanged` TIDAK dipakai alur baru sama sekali (tinggal melayani controller distribusi lama).
+- [x] **Step 2:** Penerima per matrix spec §7. Superadmin di-resolve via role (`roleUsers`/`User::role()`), bukan hardcode id. *(Perubahan semantik yang disengaja: di alur v2, maju/koreksi tahap mengabari **PJ + superadmin**, BUKAN marketing tiap tahap — marketing dapat kabar saat publish/terbit lewat `naskahPublished`, persis catatan wireframe LAYAR 3. `naskahStageChanged` lama dibiarkan utuh supaya modul distribusi lama tetap berperilaku sama.)*
+- [x] **Step 3 (tambahan):** `tests/Feature/NaskahNotifikasiTest.php` mengunci matriks penerima — 8 test, satu per baris tabel spec §7, termasuk publish yang mengabari pemilik order BERBEDA dalam satu grup judul.
 
 ## Task 8: Routes + Controllers
 
