@@ -85,13 +85,43 @@
                                     </select>
                                     <button class="btn btn-sm btn-outline-primary">Distribusikan</button>
                                 </form>
+                            @elseif ($cp->status === 'pembuatan' && (int) $cp->pelaksana_user_id === (int) auth()->id() && $izin['upload'])
+                                {{-- Pelaksana bab mengunggah naskahnya di sini; unggahan
+                                     itulah yang memajukan bab ke Editing secara otomatis. --}}
+                                <form method="POST" action="{{ route('naskah.bab.file', $cp->id) }}"
+                                      enctype="multipart/form-data" class="d-flex gap-1">
+                                    @csrf
+                                    <input type="hidden" name="slot" value="masuk">
+                                    <input type="file" name="file" class="form-control form-control-sm"
+                                           accept=".pdf,.doc,.docx,.zip" required>
+                                    <button class="btn btn-sm btn-primary text-nowrap">⬆ Upload Naskah</button>
+                                </form>
                             @elseif ($cp->status !== 'selesai' && $izin['advance'])
                                 <form method="POST" action="{{ route('naskah.bab.selesaikan', $cp->id) }}">
                                     @csrf
                                     <button class="btn btn-sm btn-primary">✓ Selesaikan Bab</button>
                                 </form>
+                            @elseif ($izin['upload'])
+                                <form method="POST" action="{{ route('naskah.bab.file', $cp->id) }}"
+                                      enctype="multipart/form-data" class="d-flex gap-1">
+                                    @csrf
+                                    <input type="hidden" name="slot" value="final">
+                                    <input type="file" name="file" class="form-control form-control-sm"
+                                           accept=".pdf,.doc,.docx,.zip" required>
+                                    <button class="btn btn-sm btn-outline-secondary text-nowrap">⬆ File bab</button>
+                                </form>
                             @else
                                 <span class="text-muted small">—</span>
+                            @endif
+
+                            @if ($b->manuscriptFiles->isNotEmpty())
+                                <div class="small mt-1">
+                                    @foreach ($b->manuscriptFiles as $f)
+                                        <a href="{{ $f->drive_url }}" target="_blank" rel="noopener">
+                                            {{ $f->slotLabel() }} v{{ $f->version }}
+                                        </a>@if (! $loop->last) · @endif
+                                    @endforeach
+                                </div>
                             @endif
                         </td>
                     </tr>

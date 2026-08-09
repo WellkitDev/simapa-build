@@ -49,7 +49,9 @@ class DetailNaskahController extends Controller
             'next'       => $progress->nextStage(),
             'berkas'     => $this->files($progress),
             'isKolab'    => $isKolab,
-            'bab'        => $isKolab ? $book->chapters()->with(['progress.pelaksana', 'authors'])->orderBy('urutan')->get() : collect(),
+            'bab'        => $isKolab
+                ? $book->chapters()->with(['progress.pelaksana', 'authors', 'manuscriptFiles'])->orderBy('urutan')->get()
+                : collect(),
             'ringkasan'  => $isKolab ? $rollup->summary($book) : null,
             'pelaksanaOptions' => $this->usersWithRole('production'),
             'adminOptions'     => $this->usersWithRole('admin'),

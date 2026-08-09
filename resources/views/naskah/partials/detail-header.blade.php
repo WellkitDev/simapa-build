@@ -13,8 +13,11 @@
             @if ($d?->indexation)
                 <span class="badge bg-light text-dark border">{{ $d->indexation }}</span>
             @endif
-            @if ($isKolab && $d?->chapters)
-                <span class="badge bg-light text-dark border">{{ $d->chapters }} bab</span>
+            @if ($isKolab)
+                @php $jumlahBab = $d?->titleRef?->chapters()->count() ?? (int) $d?->chapters; @endphp
+                <span class="badge bg-light text-dark border">
+                    {{ $jumlahBab }} bab · {{ $jumlahAuthorBab ?? 0 }} author
+                </span>
             @endif
             @if ($progress->priority === 'high')
                 <span class="badge bg-danger">Prioritas High</span>
@@ -31,7 +34,17 @@
                 @endif
             </div>
         </div>
+        <a href="{{ route('naskah.pelacakan', ['tipe' => $buku ? 'buku' : 'artikel', 'view' => 'riwayat']) }}"
+           class="btn btn-outline-secondary btn-sm text-nowrap">Riwayat Lengkap</a>
     </div>
+
+    @if ($isKolab)
+        <div class="alert alert-info small mt-3 mb-0">
+            Status buku ini adalah <strong>roll-up otomatis</strong> dari bab paling belakang.
+            Saat ini: <strong>{{ $progress->stageLabelId() }}</strong>. Tahap Layout → Terbit
+            terbuka setelah <strong>semua bab Selesai</strong>.
+        </div>
+    @endif
 
     @if ($grup->count() > 1)
         <div class="alert alert-info small mt-3 mb-0">

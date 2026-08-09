@@ -28,4 +28,11 @@ class TitleChapter extends Model
         return $this->belongsToMany(Author::class, 'tb_title_chapter_authors', 'title_chapter_id', 'author_id')
             ->withPivot('position')->orderByPivot('position');
     }
+
+    /** File naskah milik bab ini (terpisah dari file level buku). Versi terbaru dulu. */
+    public function manuscriptFiles()
+    {
+        return $this->hasMany(ManuscriptFile::class, 'title_chapter_id')
+            ->orderByDesc('version');
+    }
 }

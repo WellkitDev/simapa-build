@@ -9,7 +9,12 @@
     $telat = $progress->isOverdue();
 @endphp
 
-@include('naskah.partials.detail-header', compact('progress', 'grup', 'd', 'kode', 'buku', 'isKolab'))
+@php
+    // Jumlah author unik lintas bab — menjawab "10 bab · 10 author" di wireframe 3B.
+    $jumlahAuthorBab = $isKolab ? $bab->flatMap->authors->unique('id')->count() : 0;
+@endphp
+
+@include('naskah.partials.detail-header', compact('progress', 'grup', 'd', 'kode', 'buku', 'isKolab', 'jumlahAuthorBab'))
 
 @include('naskah.partials.stepper', compact('progress', 'stages', 'isKolab', 'ringkasan'))
 
@@ -31,6 +36,13 @@
                                               => $progress->target_date?->translatedFormat('j M Y') ?? 'Belum diset',
                     'Prioritas'               => ucfirst($progress->priority ?? 'normal'),
                     'Tahap sekarang'          => $progress->stageLabelId() . ' — sudah ' . $progress->daysInStage() . ' hari di tahap ini',
+                    // Gerbang antrian adalah DP terverifikasi, jadi status bayar ikut
+                    // ditampilkan di sini — bukan supaya orang produksi melihat nominal,
+                    // melainkan supaya jelas kenapa naskah sudah/belum boleh jalan.
+                    'Pembayaran'              => $d?->order
+                        ? ($d->order->hasApprovedPayment() ? 'DP ✓' : 'DP belum')
+                          . ' · Pelunasan: ' . ($d->order->isLunas() ? 'lunas' : 'belum')
+                        : '—',
                 ];
             @endphp
             @foreach ($baris as $label => $isi)

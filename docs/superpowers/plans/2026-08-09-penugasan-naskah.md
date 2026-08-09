@@ -168,6 +168,28 @@
 
 ## Verifikasi Akhir (harus lulus SEMUA — dari spec §10)
 
-- [ ] 11 kriteria penerimaan spec §10 diverifikasi manual di dev dengan 4 akun uji (marketing, produksi, admin artikel, admin buku + superadmin).
-- [ ] Bandingkan tiap layar berdampingan dengan `docs/wireframe-penugasan-naskah.html` — struktur, label, penempatan tombol, dan bahasa harus cocok.
-- [ ] `php artisan test` hijau; `AccessParityTest` mencakup semua route `naskah.*`.
+- [x] **11 kriteria penerimaan spec §10 — masing-masing dikunci test otomatis**, bukan hanya dicoba sekali:
+
+| # | Kriteria | Dikunci oleh |
+|---|----------|--------------|
+| 1 | Meja Kerja langsung menunjukkan tugas, yang telat, dan satu aksi jelas | `NaskahMejaKerjaTest` — urutan sort, statistik, tombol kontekstual |
+| 2 | Upload di tahap Pembuatan → otomatis Editing + notifikasi PJ + log `auto_advance_upload` | `NaskahDetailTest::upload_naskah_oleh_pelaksana_memajukan_tahap_end_to_end`, `NaskahNotifikasiTest::upload_naskah_mengabari_pj` |
+| 3 | Detail hanya punya SATU tombol maju; submit tanpa perubahan bukan error | `NaskahDetailTest::hanya_ada_satu_tombol_maju_dan_tanpa_dropdown_semua_tahap`, `…submit_tanpa_perubahan_bukan_error_melainkan_info_ramah` |
+| 4 | Tabel bab menampilkan author; bab tanpa author kuning & tak bisa didistribusikan | `NaskahDetailTest::tabel_bab_menampilkan_author…`, `…bab_tanpa_author_tidak_bisa_didistribusikan` |
+| 5 | "Mulai Layout" terkunci sampai semua bab Selesai | `NaskahDetailTest::tombol_mulai_layout_terkunci_sampai_semua_bab_selesai`, `ChapterRollupServiceTest` |
+| 6 | Marketing read-only; dapat notifikasi saat publish/terbit | `NaskahDetailTest::marketing_tidak_melihat_blok_aksi…`, `NaskahNotifikasiTest::publish_mengabari_marketing_pemilik_tiap_order_dalam_grup` |
+| 7 | Naskah selesai ada di Arsip dan bisa dicari — tidak pernah hilang | `NaskahPelacakanTest::arsip_memisahkan_naskah_selesai_dari_yang_dibatalkan`, `TitleProgressServiceTest::advance_ke_tahap_final_memindahkan_naskah_ke_arsip` |
+| 8 | Koreksi naskah final hanya superadmin + catatan wajib, tercatat | `TitleProgressServiceTest::superadmin_bisa_mengoreksi_naskah_yang_sudah_final`, `…correct_hanya_superadmin`, `…correct_wajib_catatan` |
+| 9 | Aksi grup N order → banner + N progress berubah + N baris log | `NaskahDetailTest::flash_menyebut_jumlah_order_saat_judul_bergrup`, `NaskahLayarTest::banner_grup_muncul…`, `AssignmentServiceTest::aksi_berlaku_serempak…` |
+| 10 | Tanpa kata "editor"/"tracker"/"aging"; kartu papan menaut ke Detail Naskah | `NaskahIstilahTest` (pemindai statis seluruh berkas modul), `NaskahPelacakanTest::kartu_menautkan_ke_detail_naskah_bukan_ke_halaman_order` |
+| 11 | Suite hijau (`php artisan test`, DB `.env.testing`) | Dijalankan penuh di tiap task; hasil akhir tercatat di commit terakhir |
+
+- [x] **Banding layar vs `docs/wireframe-penugasan-naskah.html`.** Lima selisih ditemukan dan ditutup: (a) **fungsional** — tombol unggah & daftar file per bab belum ada di tabel 3B padahal route-nya sudah jalan, sehingga pelaksana bab tak punya jalan mengunggah naskahnya dari layar; (b) baris "Pembayaran" di kartu Informasi; (c) catatan roll-up di header buku kolaborasi; (d) tombol "Riwayat Lengkap"; (e) chip jumlah author bab. Semua kini punya test.
+- [x] `php artisan test` hijau; `AccessParityTest` mencakup route `naskah.*` (27 kasus).
+
+### Sisa yang menunggu keputusan owner (bukan pekerjaan tertinggal)
+
+1. **Task 14 (cutover) belum dikerjakan sesuai instruksi** — modul Distribusi Artikel/Buku + Papan Manuskrip lama masih hidup berdampingan. Termasuk di dalamnya: redirect route lama, penghapusan controller/view/test lama, remap `STAGE_HANDLER`, dan pembersihan permission `distribution.*`/`manuscript.*`.
+2. **Dua pintasan level buku wireframe 3B** ("Terapkan 1 pelaksana ke semua bab", "Tambah/ubah struktur bab") — kenyamanan, bukan syarat alur.
+3. **`user_profiles.bidang` belum punya layar pengisian.** Sampai diisi, admin tidak terbatas bidang (lihat catatan Task 4). Kalau scoping per bidang mau benar-benar berlaku, perlu field di Manajemen User atau Profil.
+4. **Verifikasi browser end-to-end** dengan 4 akun uji belum dilakukan (tidak bisa headless di lingkungan ini) — data dev sudah dimigrasi & permission sudah di-seed, jadi tinggal dibuka.

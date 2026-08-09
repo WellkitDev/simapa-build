@@ -315,6 +315,64 @@ class NaskahDetailTest extends TestCase
     }
 
     /** @test */
+    public function pelaksana_bab_punya_tombol_unggah_di_barisnya_sendiri(): void
+    {
+        $pelaksana = $this->user('production');
+        $p         = $this->buku(['pembuatan']);
+        $bab       = $p->orderDetail->titleRef->chapters()->first();
+        $bab->progress->update(['pelaksana_user_id' => $pelaksana->id]);
+
+        $this->actingAs($pelaksana)->get(route('naskah.show', $p->order_detail_id))
+            ->assertOk()
+            ->assertSee(route('naskah.bab.file', $bab->progress->id), false)
+            ->assertSee('Upload Naskah');
+    }
+
+    /** @test */
+    public function file_bab_yang_sudah_diunggah_bisa_dibuka_dari_tabel_bab(): void
+    {
+        $pelaksana = $this->user('production');
+        $p         = $this->buku(['pembuatan']);
+        $bab       = $p->orderDetail->titleRef->chapters()->first();
+        $bab->progress->update(['pelaksana_user_id' => $pelaksana->id]);
+
+        $this->actingAs($pelaksana)->post(route('naskah.bab.file', $bab->progress->id), [
+            'slot' => 'masuk',
+            'file' => UploadedFile::fake()->create('bab1.docx', 12),
+        ])->assertSessionHas('success');
+
+        $this->actingAs($this->user('admin', 'buku'))
+            ->get(route('naskah.show', $p->order_detail_id))
+            ->assertOk()
+            ->assertSee('Naskah Masuk v1');
+    }
+
+    /** @test */
+    public function header_buku_kolaborasi_menjelaskan_roll_up_dan_jumlah_author(): void
+    {
+        $p = $this->buku(['pembuatan', 'menunggu']);
+
+        $this->actingAs($this->user('admin', 'buku'))
+            ->get(route('naskah.show', $p->order_detail_id))
+            ->assertOk()
+            ->assertSee('roll-up otomatis')
+            ->assertSee('2 bab · 2 author')
+            ->assertSee('Riwayat Lengkap');
+    }
+
+    /** @test */
+    public function kartu_informasi_menampilkan_status_pembayaran(): void
+    {
+        $p = $this->naskah('editing');
+
+        $this->actingAs($this->user('admin', 'artikel'))
+            ->get(route('naskah.show', $p->order_detail_id))
+            ->assertOk()
+            ->assertSee('Pembayaran')
+            ->assertSee('Pelunasan:');
+    }
+
+    /** @test */
     public function file_bab_tersimpan_terpisah_dari_file_level_buku(): void
     {
         $pelaksana = $this->user('production');
