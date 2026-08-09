@@ -3,6 +3,7 @@
 
 namespace App\Services;
 
+use App\Models\ChapterProgress;
 use App\Models\OrderDetail;
 use App\Models\User;
 use App\Models\TitleProgress;
@@ -96,7 +97,93 @@ class TitleProgressService
             return 0;
         }
 
-        return $this->applyGroup($progress, 'editing', $uploader, null, false, 'auto_advance_upload');
+        $affected = $this->applyGroup($progress, 'editing', $uploader, null, false, 'auto_advance_upload');
+
+        if ($affected > 0) {
+            app(Notifier::class)->naskahAutoAdvanced($progress->fresh(), $uploader);
+        }
+
+        return $affected;
+    }
+
+    /**
+     * Selesaikan tahap satu bab (buku kolaborasi). Bab punya alurnya sendiri
+     * (Menunggu → Pembuatan → Editing → Selesai); status buku menyusul lewat roll-up.
+     *
+     * @return string tahap baru bab
+     */
+    public function advanceChapter(ChapterProgress $chapter, User $actor, ?string $note = null): string
+    {
+        $this->requirePermission($actor, 'naskah.advance');
+        $this->requireBidang($actor, 'buku');
+
+        $next = $chapter->nextStage();
+        if ($next === null) {
+            throw ValidationException::withMessages(['status' => 'Bab ini sudah Selesai.']);
+        }
+
+        $this->applyChapterStatus($chapter, $next, $actor, $note, 'status_advanced');
+
+        return $next;
+    }
+
+    /** Upload naskah bab oleh pelaksananya pada tahap Pembuatan → bab maju ke Editing. */
+    public function autoAdvanceChapterOnUpload(ChapterProgress $chapter, User $uploader, string $slot): bool
+    {
+        if ($slot !== 'masuk' || $chapter->status !== 'pembuatan') {
+            return false;
+        }
+
+        if ((int) $chapter->pelaksana_user_id !== (int) $uploader->id) {
+            return false;
+        }
+
+        $this->applyChapterStatus($chapter, 'editing', $uploader, null, 'auto_advance_upload');
+
+        return true;
+    }
+
+    private function applyChapterStatus(ChapterProgress $chapter, string $target, User $actor, ?string $note, string $event): void
+    {
+        $from = $chapter->status;
+
+        DB::transaction(function () use ($chapter, $target, $actor, $note, $event, $from) {
+            $chapter->update([
+                'status'      => $target,
+                'note'        => $note,
+                'updated_by'  => $actor->id,
+                'started_at'  => now(),
+                'last_log_at' => now(),
+                // SLA hanya bermakna selama bab dibuat.
+                'sla_due_at'  => $target === 'pembuatan' ? $chapter->sla_due_at : null,
+            ]);
+
+            $this->logChapter($chapter, $event, $from, $target, $actor, $note);
+        });
+
+        if ($book = $chapter->chapter?->title) {
+            app(ChapterRollupService::class)->recalc($book, $actor);
+        }
+    }
+
+    /** Riwayat bab menempel pada TitleProgress buku — satu linimasa per naskah. */
+    private function logChapter(ChapterProgress $chapter, string $event, string $from, string $to, User $actor, ?string $note): void
+    {
+        $progress = $chapter->chapter?->title?->orderDetails()->with('titleProgress')->get()
+            ->map->titleProgress->filter()->first();
+
+        if (! $progress) {
+            return;
+        }
+
+        $this->log(
+            $progress,
+            $event,
+            ChapterProgress::labelFor($from),
+            $chapter->chapter->judul . ': ' . ChapterProgress::labelFor($to),
+            $actor,
+            $note
+        );
     }
 
     /**

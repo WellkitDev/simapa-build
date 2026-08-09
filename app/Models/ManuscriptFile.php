@@ -10,7 +10,19 @@ class ManuscriptFile extends Model
 
     public const UPDATED_AT = null; // append-only: hanya created_at
 
-    public const SLOTS = ['masuk' => 'Naskah Masuk', 'final' => 'Naskah Final'];
+    /**
+     * Slot file per tahap. `masuk` = naskah yang jadi bukti kerja (memicu maju tahap
+     * otomatis); sisanya keluaran tiap tahap. Kolom `slot` bertipe string(20), jadi
+     * menambah slot tidak perlu migrasi.
+     */
+    public const SLOTS = [
+        'masuk'           => 'Naskah Masuk',
+        'hasil_editing'   => 'Hasil Editing',
+        'hasil_layout'    => 'Hasil Layout',
+        'hasil_proofread' => 'Hasil Proofread',
+        'cover'           => 'Cover',
+        'final'           => 'Naskah Final',
+    ];
 
     protected $fillable = [
         'title_id', 'title_chapter_id', 'slot', 'version',

@@ -145,4 +145,115 @@ class ChapterRollupServiceTest extends TestCase
         $this->assertFalse($this->svc->chaptersDone($this->book(['selesai', 'editing'])));
         $this->assertTrue($this->svc->chaptersDone($this->book(['selesai', 'selesai'])));
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Upload naskah → maju otomatis (end-to-end lewat ManuscriptFileService)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private function pelaksana(): User
+    {
+        $u = User::factory()->create();
+        $u->assignRole('production');
+
+        return $u;
+    }
+
+    /** GoogleDriveService di-mock; unggahan cukup mengembalikan id/url palsu. */
+    private function upload(Title $title, $chapter, string $slot, User $actor): void
+    {
+        $this->mock(\App\Services\GoogleDriveService::class, function ($m) {
+            $m->shouldReceive('uploadFile')->andReturn(['id' => 'drive-1', 'url' => 'https://drive/1']);
+        });
+
+        app(\App\Services\ManuscriptFileService::class)->upload(
+            $title,
+            $chapter,
+            $slot,
+            \Illuminate\Http\UploadedFile::fake()->create('naskah.docx', 12),
+            $actor
+        );
+    }
+
+    /** @test */
+    public function upload_naskah_bab_oleh_pelaksana_memajukan_bab_dan_menghitung_ulang_buku(): void
+    {
+        $book = $this->book(['pembuatan', 'menunggu'], bookStatus: 'pembuatan');
+        $ch1  = $book->chapters()->with('progress')->orderBy('urutan')->first();
+        $me   = $this->pelaksana();
+        $ch1->progress->update(['pelaksana_user_id' => $me->id]);
+
+        $this->upload($book, $ch1, 'masuk', $me);
+
+        $this->assertSame('editing', $ch1->progress->fresh()->status);
+        // Bab 2 masih Menunggu → buku tetap tertahan di Pembuatan.
+        $this->assertSame('pembuatan', $this->bookStatus($book));
+    }
+
+    /** @test */
+    public function bab_terakhir_selesai_membuka_tahap_layout(): void
+    {
+        $book = $this->book(['selesai', 'editing'], bookStatus: 'editing');
+        $ch2  = $book->chapters()->with('progress')->orderBy('urutan')->get()->last();
+        $admin = User::factory()->create();
+        $admin->assignRole('admin');
+
+        app(\App\Services\TitleProgressService::class)->advanceChapter($ch2->progress, $admin);
+
+        $p = $book->orderDetails()->first()->titleProgress->fresh();
+        $this->assertSame('selesai', $ch2->progress->fresh()->status);
+        $this->assertTrue($p->chapters_done, 'Semua bab selesai → tombol Mulai Layout terbuka.');
+
+        // Sekarang buku boleh maju ke Layout.
+        app(\App\Services\TitleProgressService::class)->advance($p, $admin);
+        $this->assertSame('layout', $p->fresh()->status);
+    }
+
+    /** @test */
+    public function layout_terkunci_selama_masih_ada_bab_berjalan(): void
+    {
+        $book  = $this->book(['selesai', 'editing'], bookStatus: 'editing');
+        $admin = User::factory()->create();
+        $admin->assignRole('admin');
+        $p = $book->orderDetails()->first()->titleProgress;
+
+        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        $this->expectExceptionMessage('Semua bab harus Selesai dulu sebelum masuk tahap Layout.');
+        app(\App\Services\TitleProgressService::class)->advance($p, $admin);
+    }
+
+    /** @test */
+    public function buku_mandiri_maju_ke_layout_tanpa_syarat_bab(): void
+    {
+        $book  = $this->book(['menunggu'], type: 'bk_mandiri', bookStatus: 'editing');
+        $admin = User::factory()->create();
+        $admin->assignRole('admin');
+        $p = $book->orderDetails()->first()->titleProgress;
+
+        app(\App\Services\TitleProgressService::class)->advance($p, $admin);
+
+        $this->assertSame('layout', $p->fresh()->status);
+    }
+
+    /** @test */
+    public function upload_naskah_level_judul_memajukan_artikel_ke_editing(): void
+    {
+        $title = Title::create(['title' => 'Artikel Upload', 'jenis' => 'artikel',
+                                'tipe_naskah' => 'mandiri', 'status' => 'disetujui']);
+        $detail = OrderDetail::factory()->create([
+            'type' => 'at_mandiri', 'title' => $title->title, 'title_id' => $title->id,
+        ]);
+        $me = $this->pelaksana();
+        $p  = TitleProgress::create([
+            'order_detail_id' => $detail->id, 'status' => 'pembuatan',
+            'assigned_role' => 'production', 'bidang' => 'artikel',
+            'pelaksana_user_id' => $me->id, 'started_at' => now(),
+        ]);
+
+        $this->upload($title, null, 'masuk', $me);
+
+        $this->assertSame('editing', $p->fresh()->status);
+        $this->assertDatabaseHas('tb_title_progress_logs', [
+            'title_progress_id' => $p->id, 'event' => 'auto_advance_upload',
+        ]);
+    }
 }

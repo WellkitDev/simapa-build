@@ -6,6 +6,7 @@ use App\Models\ManuscriptFile;
 use App\Models\Title;
 use App\Models\TitleChapter;
 use App\Models\User;
+use App\Services\TitleProgressService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\ValidationException;
@@ -31,7 +32,7 @@ class ManuscriptFileService
             throw ValidationException::withMessages(['file' => 'Gagal mengunggah file ke Drive.']);
         }
 
-        return ManuscriptFile::create([
+        $record = ManuscriptFile::create([
             'title_id'         => $title->id,
             'title_chapter_id' => $chapterId,
             'slot'             => $slot,
@@ -43,6 +44,36 @@ class ManuscriptFileService
             'uploaded_by'      => $actor->id,
             'created_at'       => now(),
         ]);
+
+        $this->autoAdvance($title, $chapter, $slot, $actor);
+
+        return $record;
+    }
+
+    /**
+     * Upload naskah masuk = bukti kerja yang memajukan tahap otomatis (keputusan #4,
+     * satu-satunya transisi otomatis). Bab digerakkan sendiri lalu status buku dihitung
+     * ulang; naskah level judul digerakkan lewat TitleProgressService yang sekaligus
+     * menyebarkannya ke seluruh order sejudul.
+     */
+    private function autoAdvance(Title $title, ?TitleChapter $chapter, string $slot, User $actor): void
+    {
+        $stages = app(TitleProgressService::class);
+
+        if ($chapter !== null) {
+            if ($chapter->progress) {
+                $stages->autoAdvanceChapterOnUpload($chapter->progress, $actor, $slot);
+            }
+
+            return;
+        }
+
+        $progress = $title->orderDetails()->with('titleProgress')->get()
+            ->map->titleProgress->filter()->first();
+
+        if ($progress) {
+            $stages->autoAdvanceOnUpload($progress, $actor, $slot);
+        }
     }
 
     public function latest(Title $title, ?int $chapterId, string $slot): ?ManuscriptFile

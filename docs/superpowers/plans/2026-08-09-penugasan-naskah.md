@@ -102,10 +102,10 @@
 
 ## Task 6: ChapterRollupService + auto-advance upload
 
-- [ ] **Step 1:** `ChapterRollupService::recalc(Title $title)` — hitung status buku per spec §3; set `chapters_done`; log `chapters_done` saat pertama true; dipanggil setiap chapter_progress berubah (panggil eksplisit dari service, bukan observer magic, agar mudah dites).
-- [ ] **Step 2:** "Mulai Layout": `advance()` dari `editing`→`layout` untuk buku kolaborasi DITOLAK selama `chapters_done=false` ("Semua bab harus Selesai dulu").
-- [ ] **Step 3:** `ManuscriptFileService::upload()` — slot baru (`hasil_editing`,`hasil_layout`,`hasil_proofread`,`cover`); bila uploader = pelaksana & status `pembuatan` → auto-advance ke `editing` + log `auto_advance_upload` + notifikasi PJ; bila status `menunggu_proses` & slot `masuk` → auto ke `editing` (skip pembuatan, Task 5 Step 4).
-- [ ] **Step 4:** `tests/Unit/ChapterRollupServiceTest.php`: bottleneck benar; semua selesai → chapters_done; layout terkunci/terbuka; auto-advance bab & buku mandiri & artikel.
+- [x] **Step 1:** `ChapterRollupService::recalc(Title $title)` — hitung status buku per spec §3; set `chapters_done`; log `chapters_done` saat pertama true; dipanggil eksplisit dari `TitleProgressService::applyChapterStatus()` setiap bab berpindah. *(Roll-up hanya menggerakkan buku selama masih di wilayah bab (≤ `editing`) — begitu admin menekan "Mulai Layout", perubahan bab tak bisa menariknya mundur. Buku mandiri dikecualikan lewat `isCollaborative()` berbasis tipe order `bk_kolab`. Bonus: `summary()` untuk ringkasan bab + progress bar kartu papan.)*
+- [x] **Step 2:** "Mulai Layout": `advance()` dari `editing`→`layout` untuk buku kolaborasi DITOLAK selama `chapters_done=false` ("Semua bab harus Selesai dulu sebelum masuk tahap Layout.").
+- [x] **Step 3:** `ManuscriptFileService::upload()` — slot baru (`hasil_editing`,`hasil_layout`,`hasil_proofread`,`cover`); bila uploader = pelaksana & status `pembuatan` → auto-advance ke `editing` + log `auto_advance_upload` + notifikasi PJ (`Notifier::naskahAutoAdvanced`); bila status `menunggu_proses` & slot `masuk` → auto ke `editing`. *(Kolom `slot` sudah `string(20)` — tak perlu migrasi. `advanceChapter()`/`autoAdvanceChapterOnUpload()` untuk alur bab ditaruh di TitleProgressService bersama `advance()` karena sama-sama mesin tahap.)*
+- [x] **Step 4:** `tests/Unit/ChapterRollupServiceTest.php`: bottleneck benar; semua selesai → chapters_done; layout terkunci/terbuka; auto-advance bab & buku mandiri & artikel. *(12 test; alur upload diuji end-to-end lewat ManuscriptFileService, bukan memanggil service tahap langsung.)*
 
 ## Task 7: Notifier
 

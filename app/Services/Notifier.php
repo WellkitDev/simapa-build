@@ -246,6 +246,19 @@ class Notifier
         ]);
     }
 
+    /** Naskah maju sendiri karena pelaksana mengunggah hasilnya — PJ yang harus tahu. */
+    public function naskahAutoAdvanced(TitleProgress $progress, User $uploader): void
+    {
+        $progress->loadMissing(['orderDetail', 'pj']);
+        $this->toOwner($progress->pj, $uploader, [
+            'category' => 'naskah',
+            'title'    => 'Naskah maju otomatis ke ' . TitleProgress::labelFor($progress->status),
+            'message'  => $this->naskahLabel($progress) . ' • naskah diunggah ' . $uploader->name,
+            'url'      => $this->naskahUrl($progress),
+            'icon'     => 'upload-cloud',
+        ]);
+    }
+
     /** Tanggung jawab proses berpindah — admin penerima yang wajib tahu. */
     public function naskahPjTransferred(TitleProgress $progress, User $penerima, User $actor): void
     {
