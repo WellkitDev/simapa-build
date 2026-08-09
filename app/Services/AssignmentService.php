@@ -6,7 +6,7 @@ use App\Models\ChapterProgress;
 use App\Models\TitleProgress;
 use App\Models\TitleProgressLog;
 use App\Models\User;
-use Illuminate\Auth\Access\AuthorizationException;
+use App\Services\Concerns\AuthorizesNaskah;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -27,6 +27,8 @@ use Illuminate\Validation\ValidationException;
  */
 class AssignmentService
 {
+    use AuthorizesNaskah;
+
     /** SLA pembuatan naskah = 7 hari kerja (keputusan tim, F23). */
     public const SLA_WORKDAYS = 7;
 
@@ -43,7 +45,7 @@ class AssignmentService
      */
     public function distribute(TitleProgress|ChapterProgress $target, int $pelaksanaId, User $actor): int
     {
-        $this->authorize($actor, 'naskah.assign');
+        $this->requirePermission($actor, 'naskah.assign');
 
         $pelaksana = User::find($pelaksanaId);
         if (! $pelaksana || ! $pelaksana->hasRole('production')) {
@@ -53,13 +55,13 @@ class AssignmentService
         }
 
         if ($target instanceof ChapterProgress) {
-            $this->assertBidang($actor, 'buku');
+            $this->requireBidang($actor, 'buku');
             $this->assertChapterHasAuthor($target);
 
             return $this->applyChapterAssignment($target, $pelaksana, $actor, 'distribusi');
         }
 
-        $this->assertBidang($actor, $target->bidang);
+        $this->requireBidang($actor, $target->bidang);
 
         return $this->onGroup($target, function (TitleProgress $p) use ($pelaksana, $actor) {
             $from = $p->pelaksana?->name ?? '—';
@@ -74,7 +76,7 @@ class AssignmentService
      */
     public function claim(TitleProgress|ChapterProgress $target, User $actor): int
     {
-        $this->authorize($actor, 'naskah.claim');
+        $this->requirePermission($actor, 'naskah.claim');
 
         if ($target->pelaksana_user_id !== null) {
             throw ValidationException::withMessages([
@@ -97,10 +99,10 @@ class AssignmentService
     /** Tarik tugas dari pelaksana. Naskah kembali ke antrian (tanpa memundurkan tahap). */
     public function withdraw(TitleProgress|ChapterProgress $target, User $actor): int
     {
-        $this->authorize($actor, 'naskah.assign');
+        $this->requirePermission($actor, 'naskah.assign');
 
         if ($target instanceof ChapterProgress) {
-            $this->assertBidang($actor, 'buku');
+            $this->requireBidang($actor, 'buku');
             $from = $target->pelaksana?->name ?? '—';
             $target->update(['pelaksana_user_id' => null, 'sla_due_at' => null]);
             $this->logChapter($target, 'tarik_tugas', $from, '—', $actor, null);
@@ -108,7 +110,7 @@ class AssignmentService
             return 1;
         }
 
-        $this->assertBidang($actor, $target->bidang);
+        $this->requireBidang($actor, $target->bidang);
 
         return $this->onGroup($target, function (TitleProgress $p) use ($actor) {
             $from = $p->pelaksana?->name ?? '—';
@@ -122,8 +124,8 @@ class AssignmentService
     /** Oper tanggung jawab proses ke admin lain. Lintas bidang hanya boleh superadmin. */
     public function transferPj(TitleProgress $progress, int $adminId, User $actor): int
     {
-        $this->authorize($actor, 'naskah.assign');
-        $this->assertBidang($actor, $progress->bidang);
+        $this->requirePermission($actor, 'naskah.assign');
+        $this->requireBidang($actor, $progress->bidang);
 
         $admin = User::find($adminId);
         if (! $admin || ! $admin->hasRole('admin')) {
@@ -133,7 +135,7 @@ class AssignmentService
         }
 
         if (! $actor->hasRole('superadmin')) {
-            $adminBidang = $this->bidangOf($admin);
+            $adminBidang = $admin->profile?->bidang;
             if ($progress->bidang !== null && $adminBidang !== null && $adminBidang !== $progress->bidang) {
                 throw ValidationException::withMessages([
                     'pj_user_id' => 'PJ hanya bisa dioper ke admin bidang yang sama.',
@@ -163,8 +165,8 @@ class AssignmentService
     /** Batalkan naskah: alasan WAJIB, hilang dari papan tapi tetap ada di arsip. */
     public function cancel(TitleProgress $progress, User $actor, string $reason): int
     {
-        $this->authorize($actor, 'naskah.cancel');
-        $this->assertBidang($actor, $progress->bidang);
+        $this->requirePermission($actor, 'naskah.cancel');
+        $this->requireBidang($actor, $progress->bidang);
 
         $reason = trim($reason);
         if ($reason === '') {
@@ -205,8 +207,8 @@ class AssignmentService
 
     private function setHold(TitleProgress $progress, User $actor, bool $onHold, ?string $reason): int
     {
-        $this->authorize($actor, 'naskah.hold');
-        $this->assertBidang($actor, $progress->bidang);
+        $this->requirePermission($actor, 'naskah.hold');
+        $this->requireBidang($actor, $progress->bidang);
 
         $event = $onHold ? 'hold' : 'unhold';
 
@@ -302,35 +304,6 @@ class AssignmentService
                 'author' => 'Petakan author bab terlebih dahulu.',
             ]);
         }
-    }
-
-    private function authorize(User $actor, string $permission): void
-    {
-        if (! $actor->can($permission)) {
-            throw new AuthorizationException('Anda tidak berhak melakukan aksi ini.');
-        }
-    }
-
-    /**
-     * Admin hanya berwenang atas bidangnya sendiri. `bidang` kosong berarti BELUM
-     * di-scope (belum ada layar untuk mengisinya) — diperlakukan tanpa batas bidang,
-     * bukan terkunci, supaya modul tetap jalan sebelum profil diisi. Superadmin bebas.
-     */
-    private function assertBidang(User $actor, ?string $bidang): void
-    {
-        if ($actor->hasRole('superadmin') || $bidang === null) {
-            return;
-        }
-
-        $actorBidang = $this->bidangOf($actor);
-        if ($actorBidang !== null && $actorBidang !== $bidang) {
-            throw new AuthorizationException('Naskah ini di luar bidang Anda.');
-        }
-    }
-
-    private function bidangOf(User $user): ?string
-    {
-        return $user->profile?->bidang;
     }
 
     private function slaNote(TitleProgress $progress): ?string

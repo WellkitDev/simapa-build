@@ -90,11 +90,15 @@
 
 ## Task 5: TitleProgressService — advance/correct
 
-- [ ] **Step 1:** `advance($progress, User $actor, ?string $note)` — target SELALU `nextStage()`; gate `naskah.advance` + bidang; catatan opsional; fan-out grup (pakai `changeGroupStatus` yang ada, dipanggil dengan target = next); kembalikan `affected_count` untuk flash "Tahap diperbarui — berlaku untuk N order".
-- [ ] **Step 2:** `correct($progress, string $target, User $actor, string $note)` — HANYA superadmin (`naskah.correct`); catatan wajib; boleh menyentuh FINAL_STAGES (ubah `authorizeChange`: hapus kunci final untuk superadmin); log `status_corrected`.
-- [ ] **Step 3:** Fix no-op: bila target == status sekarang → return flash info "Tidak ada perubahan." tanpa exception.
-- [ ] **Step 4:** Auto-skip `pembuatan`: order tanpa jasa penulisan (deteksi: tidak pernah didistribusikan pelaksana & file `masuk` diupload marketing/admin saat `menunggu_proses`) → langsung `editing` (dipanggil dari ManuscriptFileService, lihat Task 6).
-- [ ] **Step 5:** Update `tests/Unit/TitleProgressServiceTest.php`: advance satu langkah ✓; lompat via advance ✗; correct tanpa note ✗; correct final oleh superadmin ✓ / admin ✗; no-op ramah; grup fan-out N order.
+- [x] **Step 1:** `advance($progress, User $actor, ?string $note)` — target SELALU `nextStage()`; gate `naskah.advance` + bidang; catatan opsional; fan-out grup; kembalikan `affected_count` untuk flash "Tahap diperbarui — berlaku untuk N order". *(Fan-out ditulis sendiri (`applyGroup`), TIDAK lewat `changeGroupStatus` — method itu memakai gerbang lama `authorizeChange` berbasis STAGE_HANDLER dan masih melayani modul distribusi. Tambahan: maju ke tahap final menulis `archived_at` + log `diarsipkan`; koreksi mundur membatalkannya.)*
+- [x] **Step 2:** `correct($progress, string $target, User $actor, string $note)` — HANYA superadmin (`naskah.correct`); catatan wajib; boleh menyentuh FINAL_STAGES; log `status_corrected`. *(`authorizeChange` lama TIDAK diubah — jalur baru tak memakainya sama sekali, jadi kunci final modul lama tetap utuh.)*
+- [x] **Step 3:** Fix no-op: bila target == status sekarang → `correct()` mengembalikan 0 tanpa exception; controller menampilkan flash info "Tidak ada perubahan."
+- [x] **Step 4:** Auto-skip `pembuatan` + auto-advance upload: `autoAdvanceOnUpload($progress, $uploader, $slot)` — slot `masuk` saja; `pembuatan` + diunggah pelaksananya → `editing`; `menunggu_proses` → langsung `editing` (naskah dari klien). Disambungkan ke `ManuscriptFileService` di Task 6.
+- [x] **Step 5:** Update `tests/Unit/TitleProgressServiceTest.php`: advance satu langkah ✓; advance tanpa izin ✗; advance di tahap akhir ✗; arsip otomatis ✓; correct tanpa note ✗; correct final oleh superadmin ✓ / admin ✗; no-op ramah; grup fan-out N order; 4 kasus auto-advance upload. *(14 test baru.)*
+
+> **Remap `STAGE_HANDLER` (sisa Task 2 Step 4) DIGESER KE TASK 14.** Memetakan `editing`..`terbit`→`admin` sekarang akan (a) mematikan `authorizeChange` untuk modul Distribusi lama — production/admin tak bisa lagi memindahkan tahap apa pun selain `pembuatan`, dan (b) mengubah `productionStages()` yang dipakai ProductionDashboardService & ManuscriptTrackerController, sehingga "Antrian Saya"/"belum diambil" salah hitung. Modul baru TIDAK bergantung pada peta ini sama sekali (otorisasinya permission `naskah.*` + bidang), jadi remap murni pekerjaan pembersihan yang aman dilakukan bersamaan penghapusan modul lama.
+>
+> **Trait `App\Services\Concerns\AuthorizesNaskah`** menampung `requirePermission()` + `requireBidang()` supaya aturan bidang tidak bercabang antara AssignmentService & TitleProgressService.
 
 ## Task 6: ChapterRollupService + auto-advance upload
 

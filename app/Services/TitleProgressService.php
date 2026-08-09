@@ -7,13 +7,196 @@ use App\Models\OrderDetail;
 use App\Models\User;
 use App\Models\TitleProgress;
 use App\Models\TitleProgressLog;
+use App\Services\Concerns\AuthorizesNaskah;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class TitleProgressService
 {
+    use AuthorizesNaskah;
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Penugasan Naskah v2: maju SATU langkah (advance) vs koreksi (correct).
+    // Jalur lama changeStatus()/changeGroupStatus() di bawah masih melayani modul
+    // Distribusi Artikel/Buku sampai cutover — sengaja tidak diubah.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Selesaikan tahap berjalan: target SELALU tahap berikutnya. Tidak ada dropdown
+     * semua-tahap — mundur/lompat adalah wewenang correct(). Catatan opsional.
+     *
+     * @return int jumlah order sejudul yang benar-benar berpindah (0 = tak ada perubahan)
+     */
+    public function advance(TitleProgress $progress, User $actor, ?string $note = null): int
+    {
+        $this->requirePermission($actor, 'naskah.advance');
+        $this->requireBidang($actor, $progress->bidang);
+
+        $next = $progress->nextStage();
+        if ($next === null) {
+            throw ValidationException::withMessages(['status' => 'Naskah sudah berada di tahap akhir.']);
+        }
+
+        $this->assertLayoutUnlocked($progress, $next);
+
+        return $this->applyGroup($progress, $next, $actor, $note, false, 'status_advanced');
+    }
+
+    /**
+     * Koreksi tahap (mundur atau lompat), termasuk membuka naskah yang sudah final.
+     * Hanya superadmin — `naskah.correct` tidak dihibahkan ke role mana pun dan
+     * superadmin lolos lewat Gate::before. Catatan WAJIB.
+     *
+     * @return int jumlah order terdampak (0 = target sama dengan tahap sekarang)
+     */
+    public function correct(TitleProgress $progress, string $target, User $actor, string $note): int
+    {
+        $this->requirePermission($actor, 'naskah.correct');
+
+        if (! $progress->isValidStatus($target)) {
+            throw ValidationException::withMessages(['status' => 'Tahap tidak valid untuk jenis naskah ini.']);
+        }
+
+        if (trim($note) === '') {
+            throw ValidationException::withMessages(['note' => 'Catatan wajib diisi untuk koreksi tahap.']);
+        }
+
+        // Submit tanpa perubahan bukan kesalahan — pemanggil menampilkan info ramah.
+        if ($target === $progress->status) {
+            return 0;
+        }
+
+        return $this->applyGroup($progress, $target, $actor, $note, true, 'status_corrected');
+    }
+
+    /**
+     * Satu-satunya perpindahan otomatis: upload naskah masuk.
+     *  - tahap `pembuatan` + diunggah pelaksananya → `editing` (bukti kerja selesai);
+     *  - tahap `menunggu_proses` → langsung `editing`, melewati `pembuatan`, karena
+     *    naskahnya datang dari klien (order tanpa jasa penulisan).
+     *
+     * @return int jumlah order terdampak (0 = tidak memicu apa pun)
+     */
+    public function autoAdvanceOnUpload(TitleProgress $progress, User $uploader, string $slot): int
+    {
+        if ($slot !== 'masuk') {
+            return 0;
+        }
+
+        $memicu = match ($progress->status) {
+            'pembuatan'       => (int) $progress->pelaksana_user_id === (int) $uploader->id,
+            'menunggu_proses' => true,
+            default           => false,
+        };
+
+        if (! $memicu) {
+            return 0;
+        }
+
+        return $this->applyGroup($progress, 'editing', $uploader, null, false, 'auto_advance_upload');
+    }
+
+    /**
+     * Buku kolaborasi: Layout→Terbit berjalan level buku dan baru terbuka setelah
+     * SELURUH bab Selesai. Gerbang ini yang membuat tombol "Mulai Layout" bermakna.
+     */
+    private function assertLayoutUnlocked(TitleProgress $progress, string $next): void
+    {
+        if ($next !== 'layout') {
+            return;
+        }
+
+        $book = $progress->orderDetail?->titleRef;
+        if (! $book) {
+            return;
+        }
+
+        $rollup = app(ChapterRollupService::class);
+        if ($rollup->isCollaborative($book) && ! $rollup->chaptersDone($book)) {
+            throw ValidationException::withMessages([
+                'status' => 'Semua bab harus Selesai dulu sebelum masuk tahap Layout.',
+            ]);
+        }
+    }
+
+    /**
+     * Terapkan tahap ke SELURUH order sejudul dalam satu transaksi.
+     * Maju: hanya order yang masih tertinggal di belakang target ikut bergerak.
+     * Koreksi: seluruh order disinkronkan ke target, termasuk yang sudah di depan.
+     */
+    private function applyGroup(
+        TitleProgress $progress,
+        string $target,
+        User $actor,
+        ?string $note,
+        bool $isCorrection,
+        string $event
+    ): int {
+        $group     = $this->groupOf($progress);
+        $stages    = $progress->getStages();
+        $targetIdx = array_search($target, $stages, true);
+        $changed   = [];
+
+        DB::transaction(function () use ($group, $stages, $target, $targetIdx, $actor, $note, $isCorrection, $event, &$changed) {
+            foreach ($group as $p) {
+                $idx = array_search($p->status, $stages, true);
+                if ($p->status === $target) {
+                    continue;
+                }
+                if (! $isCorrection && $idx !== false && $idx > $targetIdx) {
+                    continue; // sudah lebih maju dari target
+                }
+
+                $from = $p->status;
+                $this->applyStatus($p, $from, $target, $actor, $note, $isCorrection, $event);
+                $this->syncArchiveFlag($p, $target, $actor);
+                $changed[] = [$p, $from];
+            }
+        });
+
+        foreach ($changed as [$p, $from]) {
+            app(Notifier::class)->naskahStageChanged($p, $actor, $from, $target);
+        }
+
+        return count($changed);
+    }
+
+    /**
+     * Naskah selesai pindah ke Arsip, tidak lenyap dari sistem. Koreksi mundur oleh
+     * superadmin mengembalikannya ke papan.
+     */
+    private function syncArchiveFlag(TitleProgress $progress, string $target, User $actor): void
+    {
+        if (TitleProgress::isFinal($target)) {
+            if ($progress->archived_at === null) {
+                $progress->update(['archived_at' => now()]);
+                $this->log($progress, 'diarsipkan', TitleProgress::labelFor($target), 'Arsip', $actor);
+            }
+
+            return;
+        }
+
+        if ($progress->archived_at !== null) {
+            $progress->update(['archived_at' => null]);
+        }
+    }
+
+    /** @return Collection<int,TitleProgress> */
+    private function groupOf(TitleProgress $progress): Collection
+    {
+        $key = $progress->orderDetail?->group_key;
+        if ($key === null) {
+            return collect([$progress]);
+        }
+
+        return TitleProgress::with('orderDetail')
+            ->whereHas('orderDetail', fn ($q) => $q->where('group_key', $key))
+            ->get();
+    }
+
     /**
      * Maju 1 langkah (advance) atau koreksi (superadmin). Menulis log.
      */
@@ -47,8 +230,13 @@ class TitleProgressService
         return $result;
     }
 
-    /** Tulis perubahan status + log untuk satu progress (tanpa validasi — pemanggil yang memvalidasi). */
-    private function applyStatus(TitleProgress $progress, string $from, string $target, User $actor, ?string $note, bool $isCorrection): TitleProgress
+    /**
+     * Tulis perubahan status + log untuk satu progress (tanpa validasi — pemanggil
+     * yang memvalidasi). `$event` boleh ditimpa untuk perpindahan bernama khusus
+     * (mis. `auto_advance_upload`) supaya riwayat menyebut sebabnya, bukan sekadar
+     * "maju tahap".
+     */
+    private function applyStatus(TitleProgress $progress, string $from, string $target, User $actor, ?string $note, bool $isCorrection, ?string $event = null): TitleProgress
     {
         $progress->update([
             'status'        => $target,
@@ -60,7 +248,7 @@ class TitleProgressService
 
         $this->log(
             $progress,
-            $isCorrection ? 'status_corrected' : 'status_advanced',
+            $event ?? ($isCorrection ? 'status_corrected' : 'status_advanced'),
             Str::title(str_replace('_', ' ', $from)),
             Str::title(str_replace('_', ' ', $target)),
             $actor,
