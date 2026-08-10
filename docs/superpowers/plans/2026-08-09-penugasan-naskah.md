@@ -158,11 +158,22 @@
 - [x] **Step 2:** `naskah:check-overdue` — daftar + notifikasi (SLA pembuatan & target publish/terbit), terjadwal `dailyAt('07:00')` di `app/Console/Kernel.php`. *(Naskah yang sedang ditahan sengaja dilewati: penundaannya sudah disepakati, mengabarinya tiap hari hanya jadi kebisingan. Command TIDAK mengisi `overdue_reason` — alasan wajib datang dari manusia lewat Detail Naskah.)*
 - [x] **Step 3:** Uji manual di dev (DB `avidpedi_simapa`, data mirip produksi): `--dry-run` → 1 templating · 126 bidang · 1 PJ dipisahkan · 75 bab · 6 buku roll-up. Dijalankan sungguhan, lalu **diulang → semua nol** (idempotensi terbukti pada data nyata, bukan hanya sintetis). `naskah:check-overdue --dry-run` menemukan 1 naskah lewat target. `AccessMatrixSeeder` di-seed ulang di dev agar permission `naskah.*` aktif.
 
-## Task 14: Cutover & cleanup (setelah 1 bulan stabil / keputusan owner)
+## Task 14: Cutover & cleanup — DIKERJAKAN 2026-08-10 atas permintaan owner
 
-- [ ] **Step 1:** Hapus controller/view/route/test modul lama (`ArticleDistributionController`, `BookDistributionController`, `ManuscriptTrackerController`, `resources/views/distribusi`, `resources/views/manuscript`, test terkait) + permission `distribution.*`, `manuscript.view` dari seeder (migrasikan `manuscript.detail` bila masih dipakai halaman judul).
-- [ ] **Step 2:** Hapus redirect route lama. `php artisan test` hijau penuh.
-- [ ] **Step 3:** Update `docs/` : tandai spec lama distribusi-naskah-split sebagai superseded.
+- [x] **Step 1:** Dihapus: `ArticleDistributionController`, `BookDistributionController`, `ManuscriptTrackerController`, `resources/views/distribusi/`, `resources/views/manuscript/`, 20 route lama, modul permission `distribution.*`, permission `manuscript.view`, dan seksi sidebar-nya. `manuscript.detail` DIPERTAHANKAN — route-nya (`order.indexJudul.detail/.progress`, `title.progress.logs`) milik halaman Order/Direktori Judul, bukan modul yang dihapus.
+- [x] **Step 2:** Tanpa redirect: route lama dihapus langsung karena owner memutuskan cutover penuh, bukan transisi bertahap. Tautan silang di `titles/show` & `orders/detail-title` dialihkan ke Pelacakan/Detail Naskah.
+- [x] **Step 3:** Utang teknis yang selama ini tertahan modul lama ikut dilunasi:
+  - **`STAGE_HANDLER` di-remap** — `pembuatan` satu-satunya tahap milik produksi, sisanya `admin`. `ProductionDashboardService::global()` diberi definisi eksplisit `activeStages()` supaya angka "dalam produksi" tidak ikut menyusut; antrian memakai `TitleProgress::QUEUE_STAGES` yang kini jadi sumber tunggal bersama Meja Kerja.
+  - **`clearLogs()` dicabut** dari `TitleProgressService` — blueprint wireframe menyatakan "Hapus riwayat: tidak ada yang boleh", termasuk superadmin. Dijaga test `tidak_ada_jalur_untuk_menghapus_riwayat`.
+  - **`BOARD_RETENTION_DAYS` dihapus** — naskah selesai pindah ke Arsip, tidak lagi menghilang setelah 30 hari.
+  - **Bug diperbaiki:** `ChapterManuscriptService::advanceBookToStage()` (dipicu registrasi ISBN) masih menyalin nama tahap BUKU ke status bab, padahal bab punya CHAPTER_STAGES sendiri sejak Task 2 — menghasilkan status bab tak dikenal (`isbn`, `cetak`). Kini bab ditandai `selesai`.
+  - Method mati ikut dibuang: `changeStatus`, `changeGroupStatus`, `assignEditor`, `assignGroup` (TitleProgress), `changeStatus`, `assignEditor`, `assignEditorAll`, `syncBookStatus` (Chapter), `Notifier::distribusiChanged`.
+- [x] **Step 4:** Test: 3 berkas yang murni menguji modul lama dihapup (`ChapterBoardTest`, `ChapterStageJumpTest`, `ManuscriptFinalizeTest`) + 3 berkas modul lama (`ArticleDistributionTest`, `BookDistributionTest`, `ManuscriptTrackerTest`). Yang isinya masih berlaku DIALIHKAN, bukan dibuang: `OrderCancelTest`, `TitleProgressTest`, `ProductionWorkspaceTest`, `NotificationHooksTest`, `SidebarTest`, `PermissionPageTest`, `AccessParityTest`, `TitleDirectoryManuscriptTest`.
+
+### Susulan 2026-08-10 (2): penanda jenis naskah & perbaikan DB dev
+
+- **Penanda "Naskah Mandiri" vs "Naskah Dibuatkan"** (`order_details.naskah_type`) kini tampil di kolom Pelaksana tabel bab, chip header detail, baris "Jenis naskah" di kartu Informasi, kartu papan, dan baris Meja Kerja — untuk buku MAUPUN artikel. Alasannya: pada order mandiri kolom Pelaksana yang kosong terbaca seperti "belum ditugaskan", padahal memang tak akan pernah ada pelaksana.
+- **`/titles/{id}` error 500 di dev BUKAN bug kode:** MariaDB 1932 — tablespace `tb_title_doc_checklists.ibd` 0 byte (tabel terdaftar, data hilang di level file). Tabel dibangun ulang sesuai migrasi; isinya memang sudah tak terselamatkan. `tb_title_doc_marks` utuh.
 
 ---
 
@@ -219,7 +230,9 @@ nama permission harus jujur menyebut apa yang diaturnya.
 
 ### Sisa yang menunggu keputusan owner (bukan pekerjaan tertinggal)
 
-1. **Task 14 (cutover) belum dikerjakan sesuai instruksi** — modul Distribusi Artikel/Buku + Papan Manuskrip lama masih hidup berdampingan. Termasuk di dalamnya: redirect route lama, penghapusan controller/view/test lama, remap `STAGE_HANDLER`, dan pembersihan permission `distribution.*`/`manuscript.*`.
-2. ~~Dua pintasan level buku wireframe 3B~~ — **sudah dikerjakan 2026-08-10** (lihat Susulan di atas).
+1. ~~Task 14 cutover~~ — **selesai 2026-08-10** (lihat Task 14 di atas).
+2. ~~Dua pintasan level buku wireframe 3B~~ — **selesai 2026-08-10**.
 3. **`user_profiles.bidang` belum punya layar pengisian.** Sampai diisi, admin tidak terbatas bidang (lihat catatan Task 4). Kalau scoping per bidang mau benar-benar berlaku, perlu field di Manajemen User atau Profil.
 4. **Verifikasi browser end-to-end** dengan 4 akun uji belum dilakukan (tidak bisa headless di lingkungan ini) — data dev sudah dimigrasi & permission sudah di-seed, jadi tinggal dibuka.
+5. **125 naskah aktif belum punya PJ** di dev — `naskah:migrate-v2` hanya bisa memindahkan PJ dari "editor" lama yang berrole admin (1 baris). Sisanya harus ditetapkan manusia lewat Detail Naskah.
+6. **Kolom warisan yang belum di-drop** (sengaja, supaya rollback masih mungkin): `tb_title_progress.needs_review`, `tb_chapter_progress.assigned_user_id` & `needs_review`. Drop-nya migrasi tersendiri kalau owner sudah yakin tak perlu mundur.

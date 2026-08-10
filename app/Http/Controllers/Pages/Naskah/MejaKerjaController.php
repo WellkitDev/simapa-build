@@ -19,9 +19,6 @@ use Illuminate\Support\Collection;
  */
 class MejaKerjaController extends Controller
 {
-    /** Naskah yang boleh diambil sendiri: belum ada pelaksana & belum lewat tahap pembuatan. */
-    private const TAHAP_ANTRIAN = ['menunggu_proses', 'pembuatan'];
-
     public function index(Request $request)
     {
         $actor = $request->user();
@@ -91,7 +88,7 @@ class MejaKerjaController extends Controller
         $judul = TitleProgress::with(['orderDetail.order', 'orderDetail.authors', 'pj'])
             ->active()
             ->whereNull('pelaksana_user_id')
-            ->whereIn('status', self::TAHAP_ANTRIAN)
+            ->whereIn('status', TitleProgress::QUEUE_STAGES)
             ->get()
             ->map(fn (TitleProgress $p) => ['jenis' => 'judul', 'model' => $p]);
 

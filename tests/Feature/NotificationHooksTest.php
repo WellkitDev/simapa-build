@@ -24,7 +24,7 @@ class NotificationHooksTest extends TestCase
     {
         parent::setUp();
         $this->mock(GoogleDriveService::class);
-        foreach (['marketing', 'manager', 'superadmin', 'production'] as $r) {
+        foreach (['marketing', 'manager', 'superadmin', 'production', 'admin'] as $r) {
             Role::create(['name' => $r, 'guard_name' => 'web']);
         }
     }
@@ -65,19 +65,22 @@ class NotificationHooksTest extends TestCase
     }
 
     /** @test */
-    public function advancing_naskah_notifies_owner(): void
+    public function naskah_publish_notifies_owner(): void
     {
-        // Perpindahan tahap kini lewat Distribusi Artikel; changeGroupStatus tetap
-        // memberi tahu marketing pemilik order (naskahStageChanged).
+        // Naskah yang publish/terbit mengabari marketing pemilik order — itulah kabar
+        // yang dipakai menghubungi klien. Perpindahan tahap biasa TIDAK mengabari mereka.
         $owner = $this->user('marketing');
-        $manager = $this->user('manager');
+        $admin = $this->user('admin');
         $title = \App\Models\Title::create(['title' => 'Naskah Z', 'jenis' => 'artikel', 'tipe_naskah' => 'mandiri', 'status' => 'disetujui']);
         $order = Order::factory()->create(['user_id' => $owner->id]);
         $detail = OrderDetail::factory()->create(['order_id' => $order->id, 'type' => 'at_mandiri', 'title' => 'Naskah Z', 'title_id' => $title->id]);
-        TitleProgress::create(['order_detail_id' => $detail->id, 'status' => 'menunggu_proses', 'assigned_role' => 'marketing', 'started_at' => now()]);
+        $p = TitleProgress::create([
+            'order_detail_id' => $detail->id, 'status' => 'loa',
+            'assigned_role' => 'admin', 'bidang' => 'artikel', 'started_at' => now(),
+        ]);
 
         Notification::fake();
-        $this->actingAs($manager)->post(route('distribusi.artikel.tahap', $title->id), ['status' => 'pembuatan']);
+        $this->actingAs($admin)->post(route('naskah.selesaikan', $p->order_detail_id)); // loa → publish
 
         Notification::assertSentTo($owner, DatabaseNotification::class);
     }

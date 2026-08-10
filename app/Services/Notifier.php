@@ -379,28 +379,10 @@ class Notifier
             ->values();
     }
 
-    /**
-     * URL kanonik naskah. Selama transisi modul (route naskah.* lahir di Task 8)
-     * jatuh ke halaman progres lama supaya notifikasi tak pernah menunjuk ke ruang hampa.
-     */
+    /** URL kanonik naskah — halaman Detail Naskah, tempat semua aksi berada. */
     private function naskahUrl(TitleProgress $progress): string
     {
-        return \Illuminate\Support\Facades\Route::has('naskah.show')
-            ? route('naskah.show', $progress->order_detail_id)
-            : route('order.indexJudul.progress', $progress->order_detail_id);
-    }
-
-    public function distribusiChanged(TitleProgress $progress, User $actor, string $summary): void
-    {
-        $progress->loadMissing('orderDetail');
-        $judul = optional($progress->orderDetail)->title ?? '—';
-        $this->send($this->roleUsers(['superadmin', 'manager', 'admin', 'production'], $actor), [
-            'category' => 'manuscript',
-            'title'    => 'Distribusi naskah diperbarui',
-            'message'  => $summary . ' — ' . $judul,
-            'url'      => route('manuscript.board'),
-            'icon'     => 'layers',
-        ]);
+        return route('naskah.show', $progress->order_detail_id);
     }
 
     public function titleInfoUpdated(Title $title, User $actor): void

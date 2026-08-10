@@ -41,50 +41,8 @@ class ProductionWorkspaceTest extends TestCase
         ], $attrs, ['order_detail_id' => $detail->id]));
     }
 
-    /** @test */
-    public function scope_mine_shows_only_my_work_and_unclaimed(): void
-    {
-        $me = $this->user('production');
-        $this->progress(['pelaksana_user_id' => $me->id, 'status' => 'editing', 'title' => 'MILIK SAYA']);
-        $this->progress(['pelaksana_user_id' => null, 'status' => 'editing', 'title' => 'BELUM DIAMBIL']);
-        $this->progress(['pelaksana_user_id' => $this->user('production')->id, 'status' => 'editing', 'title' => 'MILIK ORANG LAIN']);
-
-        $this->actingAs($me);
-        $this->get(route('manuscript.board', ['tipe' => 'buku', 'scope' => 'mine']))
-            ->assertOk()
-            ->assertSee('MILIK SAYA')
-            ->assertSee('BELUM DIAMBIL')
-            ->assertDontSee('MILIK ORANG LAIN');
-    }
-
-    /** @test */
-    public function production_defaults_to_scope_mine(): void
-    {
-        $me = $this->user('production');
-        $this->progress(['pelaksana_user_id' => $this->user('production')->id, 'status' => 'editing', 'title' => 'PUNYA EDITOR LAIN']);
-
-        $this->actingAs($me);
-        // tanpa param scope → production default 'mine' → tak melihat punya editor lain
-        $this->get(route('manuscript.board', ['tipe' => 'buku']))
-            ->assertOk()
-            ->assertDontSee('PUNYA EDITOR LAIN');
-    }
-
-    /** @test */
-    public function ambil_self_assigns_unclaimed_naskah(): void
-    {
-        // Penugasan editor kini lewat Distribusi Artikel (papan Pelacakan read-only).
-        $me = $this->user('production');
-        $title = \App\Models\Title::create(['title' => 'Ambil Ku', 'jenis' => 'artikel', 'tipe_naskah' => 'mandiri', 'status' => 'disetujui']);
-        $detail = OrderDetail::factory()->create(['type' => 'at_mandiri', 'title' => 'Ambil Ku', 'title_id' => $title->id]);
-        $p = TitleProgress::create(['order_detail_id' => $detail->id, 'status' => 'editing', 'assigned_role' => 'production', 'started_at' => now()]);
-
-        $this->actingAs($me);
-        $this->post(route('distribusi.artikel.editor', $title->id), ['assigned_user_id' => $me->id])
-            ->assertRedirect();
-
-        $this->assertDatabaseHas('tb_title_progress', ['id' => $p->id, 'pelaksana_user_id' => $me->id]);
-    }
+    // Papan & pengambilan tugas pindah ke modul Penugasan Naskah (NaskahMejaKerjaTest,
+    // NaskahPelacakanTest). Yang tersisa di sini: dashboard per role.
 
     /** @test */
     public function production_dashboard_shows_production_kpis_not_financial(): void
@@ -130,21 +88,4 @@ class ProductionWorkspaceTest extends TestCase
             ->assertDontSee('Antrian Saya');     // bukan dashboard produksi
     }
 
-    /** @test */
-    public function board_sorts_overdue_before_non_overdue_in_same_column(): void
-    {
-        // dua naskah di kolom 'editing': satu overdue+high, satu normal tanpa target
-        $this->progress(['status' => 'editing', 'priority' => 'high', 'target_date' => now()->subDays(3)->toDateString(), 'title' => 'NASKAH OVERDUE']);
-        $this->progress(['status' => 'editing', 'priority' => 'normal', 'title' => 'NASKAH BIASA']);
-
-        $this->actingAs($this->user('manager'));
-        $content = $this->get(route('manuscript.board', ['tipe' => 'buku', 'scope' => 'all']))
-            ->assertOk()->getContent();
-
-        $this->assertLessThan(
-            strpos($content, 'NASKAH BIASA'),
-            strpos($content, 'NASKAH OVERDUE'),
-            'Naskah overdue mestinya tampil sebelum naskah biasa di kolom yang sama.'
-        );
-    }
 }

@@ -44,10 +44,9 @@ class AccessMatrixSeeder extends Seeder
             'marketing-target.me',
             'title.view', 'journal.view', 'isbn.view', 'archive.view',
             'author.view',
-            // manuscript.view (papan Kanban) TIDAK utk marketing — route manuscript.board
-            // dijaga role:production|manager|superadmin. manuscript.detail (lihat progres
-            // satu judul) TETAP dapat — route sumbernya tanpa penjagaan role: sama sekali.
-            'manuscript.target', 'manuscript.detail',
+            // manuscript.detail (lihat progres satu judul) — route sumbernya tanpa
+            // penjagaan role: sama sekali, terbuka utk semua role yang login.
+            'manuscript.detail',
             // Penugasan Naskah: marketing melihat semuanya read-only, set target
             // (request klien, tercatat di riwayat), upload naskah masuk dari klien,
             // dan memetakan author bab saat struktur buku dibuat. TANPA workdesk —
@@ -56,10 +55,7 @@ class AccessMatrixSeeder extends Seeder
             'data.*',
         ],
         'production' => [
-            // Papan Pelacakan kini hanya-baca (manuscript.view/detail); mutasi tahap/editor
-            // pindah ke modul distribution.* (Distribusi Artikel/Buku).
-            'manuscript.view', 'manuscript.detail',
-            'distribution.*',
+            'manuscript.detail',
             // Penugasan Naskah: production = Pelaksana — meja kerja sendiri, claim
             // antrian tanpa pelaksana, upload naskah (pemicu auto-advance). TANPA
             // assign/advance — memajukan tahap adalah pekerjaan PJ (admin).
@@ -74,11 +70,7 @@ class AccessMatrixSeeder extends Seeder
             'title.doc.*',
             'journal.*', 'isbn.*', 'author.view',
             'archive.view', 'archive.artifacts', 'archive.submit',
-            // manuscript.detail (lihat progres satu judul) terbuka utk semua role login —
-            // manuscript.view (papan Kanban) DITAMBAHKAN agar admin bisa lihat papan
-            // read-only, setara production, seiring peran admin naik jadi pendistribusi.
-            'manuscript.detail', 'manuscript.view',
-            'distribution.*',
+            'manuscript.detail',
             // Penugasan Naskah: admin = PJ per bidang, aktor utama — distribusi/tarik/
             // oper PJ, maju tahap, prioritas/hold/batal, target, upload, pemetaan author
             // bab. naskah.correct TIDAK di sini (superadmin-only, lihat $superadminOnly);

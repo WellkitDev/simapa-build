@@ -19,6 +19,11 @@
                     {{ $jumlahBab }} bab · {{ $jumlahAuthorBab ?? 0 }} author
                 </span>
             @endif
+            {{-- Naskah dibuatkan vs dikirim author menentukan apakah tahap Pembuatan
+                 relevan sama sekali — ditaruh sejajar jenis naskah, bukan disembunyikan. --}}
+            <span class="badge {{ $naskahMandiri ? 'bg-secondary-subtle text-secondary border' : 'bg-warning-subtle text-warning border' }}">
+                {{ $d?->naskahTypeLabel() ?? '—' }}
+            </span>
             @if ($progress->priority === 'high')
                 <span class="badge bg-danger">Prioritas High</span>
             @endif

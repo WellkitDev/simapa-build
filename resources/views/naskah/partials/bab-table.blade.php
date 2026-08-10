@@ -128,9 +128,11 @@
                         <td>
                             @if ($cp?->pelaksana)
                                 {{ $cp->pelaksana->name }}
+                            @elseif ($naskahMandiri)
+                                {{-- Order naskah mandiri: author mengirim naskahnya sendiri,
+                                     jadi memang tidak akan pernah ada pelaksana di sini. --}}
+                                <span class="badge bg-secondary-subtle text-secondary border">Naskah Mandiri</span>
                             @elseif ($cp?->status === 'selesai')
-                                {{-- Bab selesai tanpa pelaksana = naskahnya datang langsung
-                                     dari author, bukan ditulis tim produksi. --}}
                                 — <small class="text-muted">(naskah dari author)</small>
                             @else
                                 —

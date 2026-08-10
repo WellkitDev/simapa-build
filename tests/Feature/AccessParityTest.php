@@ -69,11 +69,6 @@ class AccessParityTest extends TestCase
             ['accounting.journal', 'marketing',  false],
             ['accounting.journal', 'manager',    false],
 
-            // role:production|manager|superadmin
-            ['manuscript.board', 'production', true],
-            ['manuscript.board', 'manager',    true],
-            ['manuscript.board', 'marketing',  false],
-
             // role:superadmin|manager|admin
             ['announcement.index', 'admin',      true],
             ['announcement.index', 'production', false],

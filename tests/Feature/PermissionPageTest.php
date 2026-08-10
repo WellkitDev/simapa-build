@@ -49,15 +49,12 @@ class PermissionPageTest extends TestCase
 
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
-        // NB: EnforcePermission belum terpasang (task terpisah, lihat plan Task 4), jadi rute
-        // seperti order.book.index/manuscript.board masih dijaga role: lama, bukan permission ini.
-        // Test ini memverifikasi apa yang benar-benar sudah ditegakkan sekarang: sinkronisasi
-        // permission pada model Role itu sendiri — production kini benar-benar punya order.view
-        // (sebelumnya tidak) ...
+        // Yang diuji: halaman Hak Akses benar-benar menyinkronkan permission role —
+        // production kini punya order.view (sebelumnya tidak) ...
         $production = Role::findByName('production');
         $this->assertTrue($production->hasPermissionTo('order.view'));
-        // ... dan kehilangan permission yang tak dicentang (mis. manuscript.view, dihibahkan seeder).
-        $this->assertFalse($production->hasPermissionTo('manuscript.view'));
+        // ... dan kehilangan yang tak dicentang (naskah.claim, tadinya dihibahkan seeder).
+        $this->assertFalse($production->hasPermissionTo('naskah.claim'));
     }
 
     /** @test */

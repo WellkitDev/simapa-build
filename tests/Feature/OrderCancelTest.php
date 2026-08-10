@@ -247,15 +247,12 @@ class OrderCancelTest extends TestCase
 
         $this->assertSame(1, TitleProgress::count());
 
-        // Manager (bukan production-only) supaya scope papan default 'all', bukan
-        // 'mine' — progress baru berstatus 'menunggu_proses' (handler marketing) jadi
-        // tak lolos filter scope=mine milik viewer production. Ini menembak rute
-        // manuscript.board sungguhan (ManuscriptTrackerController@index), bukan cuma
-        // menghitung baris — supaya klaim arsitektur "hilang dari papan lewat global
-        // scope, tanpa menyentuh controller-nya" benar-benar teruji.
+        // Menembak papan Pelacakan Naskah sungguhan, bukan sekadar menghitung baris —
+        // supaya klaim arsitektur "hilang dari papan lewat global scope, tanpa menyentuh
+        // controller-nya" benar-benar teruji.
         $viewer = $this->user('manager');
         $this->actingAs($viewer)
-            ->get(route('manuscript.board'))
+            ->get(route('naskah.pelacakan', ['tipe' => 'buku']))
             ->assertOk()
             ->assertSee('Judul Uji');
 
@@ -266,7 +263,7 @@ class OrderCancelTest extends TestCase
         $this->assertSame(1, TitleProgress::withTrashed()->count());
 
         $this->actingAs($viewer)
-            ->get(route('manuscript.board'))
+            ->get(route('naskah.pelacakan', ['tipe' => 'buku']))
             ->assertOk()
             ->assertDontSee('Judul Uji');
     }

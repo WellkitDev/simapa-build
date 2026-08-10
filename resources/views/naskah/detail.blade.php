@@ -12,14 +12,19 @@
 @php
     // Jumlah author unik lintas bab — menjawab "10 bab · 10 author" di wireframe 3B.
     $jumlahAuthorBab = $isKolab ? $bab->flatMap->authors->unique('id')->count() : 0;
+
+    // Order naskah mandiri tidak punya tahap pembuatan oleh tim — ditandai di semua
+    // tempat yang biasanya menampilkan pelaksana, supaya kolom kosong tidak terbaca
+    // sebagai "belum ditugaskan".
+    $naskahMandiri = (bool) $d?->naskahMandiri();
 @endphp
 
-@include('naskah.partials.detail-header', compact('progress', 'grup', 'd', 'kode', 'buku', 'isKolab', 'jumlahAuthorBab'))
+@include('naskah.partials.detail-header', compact('progress', 'grup', 'd', 'kode', 'buku', 'isKolab', 'jumlahAuthorBab', 'naskahMandiri'))
 
 @include('naskah.partials.stepper', compact('progress', 'stages', 'isKolab', 'ringkasan'))
 
 @if ($isKolab)
-    @include('naskah.partials.bab-table', compact('bab', 'ringkasan', 'izin', 'pelaksanaOptions'))
+    @include('naskah.partials.bab-table', compact('bab', 'ringkasan', 'izin', 'pelaksanaOptions', 'progress', 'naskahMandiri'))
 @endif
 
 <div class="row g-3 mt-1">
@@ -29,8 +34,10 @@
             <h6 class="text-uppercase text-muted small fw-bold mb-3">Informasi &amp; Penanggung Jawab</h6>
             @php
                 $baris = [
+                    'Jenis naskah'            => $d?->naskahTypeLabel() ?? '—',
                     'Penanggung Jawab (PJ)'   => $progress->pj?->name ?? 'Belum ditentukan',
-                    'Pelaksana pembuatan'     => $progress->pelaksana?->name ?? 'Belum ditentukan',
+                    'Pelaksana pembuatan'     => $progress->pelaksana?->name
+                        ?? ($naskahMandiri ? 'Tidak ada — naskah dikirim author' : 'Belum ditentukan'),
                     'Bidang'                  => $progress->bidang ? ucfirst($progress->bidang) : '—',
                     'Target ' . ($buku ? 'terbit' : 'publish')
                                               => $progress->target_date?->translatedFormat('j M Y') ?? 'Belum diset',

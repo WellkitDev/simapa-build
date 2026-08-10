@@ -160,35 +160,6 @@
                 @endcan
             @endcanany
 
-            {{-- ===================== PRODUKSI (modul lama) =====================
-                 Distribusi Artikel/Buku + Pelacak Naskah lama masih hidup selama masa
-                 transisi; dihapus bersama cutover modul Penugasan Naskah. --}}
-            @canany(['manuscript.view', 'distribution.view'])
-                <li class="nav-item nav-category">Produksi (lama)</li>
-                @can('manuscript.view')
-                    <li class="nav-item {{ nav_active('manuscript.*') }}">
-                        <a href="{{ route('manuscript.board') }}" class="nav-link">
-                            <i class="link-icon" data-feather="layers"></i>
-                            <span class="link-title">{{ (auth()->user()->hasRole('production') && ! auth()->user()->hasAnyRole(['manager','superadmin'])) ? 'Meja Kerja Saya' : 'Pelacak Naskah' }}</span>
-                        </a>
-                    </li>
-                @endcan
-                @can('distribution.view')
-                    <li class="nav-item {{ nav_active('distribusi.artikel.*') }}">
-                        <a href="{{ route('distribusi.artikel.index') }}" class="nav-link">
-                            <i class="link-icon" data-feather="file-text"></i>
-                            <span class="link-title">Distribusi Artikel</span>
-                        </a>
-                    </li>
-                    <li class="nav-item {{ nav_active('distribusi.buku.*') }}">
-                        <a href="{{ route('distribusi.buku.index') }}" class="nav-link">
-                            <i class="link-icon" data-feather="book"></i>
-                            <span class="link-title">Distribusi Buku</span>
-                        </a>
-                    </li>
-                @endcan
-            @endcanany
-
             {{-- ===================== KEUANGAN ===================== --}}
             @canany(['accounting.overview.view', 'accounting.journal.view', 'accounting.recap.view', 'accounting.distribution.view', 'accounting.assumption.view', 'accounting.target.view', 'accounting.profit.view', 'accounting.audit.view'])
                 <li class="nav-item nav-category">Keuangan</li>

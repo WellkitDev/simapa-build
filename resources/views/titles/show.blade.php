@@ -26,7 +26,7 @@
     <p class="mb-2">Manuskrip:
         @if($mstat)<span class="badge {{ in_array($mstat, \App\Models\TitleProgress::FINAL_STAGES, true) ? 'bg-success' : 'bg-info' }}">{{ $title->manuscriptStatusLabel() }}</span>@else<span class="text-muted">Belum ada order</span>@endif
         @if($canOpenBoard)
-            <a href="{{ route('manuscript.board', ['tipe' => $title->jenis === 'buku' ? 'buku' : 'artikel']) }}" class="btn btn-xs btn-outline-secondary ms-2">Buka Papan Manuskrip</a>
+            <a href="{{ route('naskah.pelacakan', ['tipe' => $title->jenis === 'buku' ? 'buku' : 'artikel']) }}" class="btn btn-xs btn-outline-secondary ms-2">Buka Pelacakan Naskah</a>
         @endif
     </p>
     @if($title->orderDetails->isNotEmpty())

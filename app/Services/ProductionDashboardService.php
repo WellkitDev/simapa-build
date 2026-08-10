@@ -14,8 +14,7 @@ class ProductionDashboardService
     /** KPI + data chart untuk satu production user (kerja saya). */
     public function forUser(User $user): array
     {
-        $prodStages = TitleProgress::productionStages();
-        $today      = Carbon::today();
+        $today = Carbon::today();
 
         $mineActive = TitleProgress::query()
             ->where('pelaksana_user_id', $user->id)
@@ -26,7 +25,8 @@ class ProductionDashboardService
 
         return [
             'antrian_saya'      => (clone $mineActive)->count(),
-            'belum_diambil'     => TitleProgress::whereNull('pelaksana_user_id')->whereIn('status', $prodStages)->count(),
+            'belum_diambil'     => TitleProgress::whereNull('pelaksana_user_id')
+                                    ->whereIn('status', TitleProgress::QUEUE_STAGES)->count(),
             'lewat_target'      => (clone $mineActive)->whereNotNull('target_date')->whereDate('target_date', '<', $today)->count(),
             'jatuh_tempo_7'     => (clone $mineActive)->whereNotNull('target_date')
                                     ->whereDate('target_date', '>=', $today)
@@ -57,10 +57,12 @@ class ProductionDashboardService
     /** KPI + data chart global (manager/superadmin). */
     public function global(): array
     {
-        $prodStages = TitleProgress::productionStages();
-        $today      = Carbon::today();
+        $today = Carbon::today();
 
-        $inProduction = TitleProgress::query()->whereIn('status', $prodStages);
+        // "Dalam produksi" = sudah lepas antrian dan belum selesai. Sengaja TIDAK memakai
+        // productionStages(): sejak peran diperjelas, hanya tahap Pembuatan yang dipegang
+        // produksi, sedangkan angka global ini mengukur seluruh naskah yang sedang berjalan.
+        $inProduction = TitleProgress::query()->whereIn('status', TitleProgress::activeStages());
 
         $perStage = (clone $inProduction)->get(['status'])->groupBy('status')->map->count();
 

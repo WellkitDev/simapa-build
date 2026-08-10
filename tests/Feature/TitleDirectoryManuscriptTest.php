@@ -54,12 +54,14 @@ class TitleDirectoryManuscriptTest extends TestCase
     /** @test */
     public function show_shows_board_link_for_production_not_marketing(): void
     {
+        // Papan Manuskrip lama diganti Pelacakan Naskah (2026-08-10); tautannya tetap
+        // hanya untuk yang menggarap naskah, bukan marketing.
         $title = $this->titleWithProgress('editing');
 
         $this->actingAs($this->user('production'))->get(route('title.show', $title->id))
-            ->assertOk()->assertSee('Buka Papan Manuskrip');
+            ->assertOk()->assertSee('Buka Pelacakan Naskah');
 
         $this->actingAs($this->user('marketing'))->get(route('title.show', $title->id))
-            ->assertOk()->assertDontSee('Buka Papan Manuskrip');
+            ->assertOk()->assertDontSee('Buka Pelacakan Naskah');
     }
 }

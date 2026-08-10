@@ -72,21 +72,14 @@
                         @endforeach
                     </div>
 
-                    {{-- Halaman ini kini READ-ONLY. Kontrol tahap/editor pindah ke Distribusi Naskah. --}}
+                    {{-- Halaman ini READ-ONLY. Seluruh aksi naskah ada di Detail Naskah. --}}
                     @if(! $progress->getNextStatus())
                         <p class="text-success mb-0"><strong>✓ Naskah sudah di tahap akhir.</strong></p>
                     @endif
-                    @can('distribution.view')
-                        @php
-                            $distRoute = $detail->title_id
-                                ? (in_array($detail->type, ['bk_mandiri','bk_kolab'], true)
-                                    ? route('distribusi.buku.show', $detail->title_id)
-                                    : route('distribusi.artikel.show', $detail->title_id))
-                                : null;
-                        @endphp
-                        @if($distRoute)
-                            <a href="{{ $distRoute }}" class="btn btn-sm btn-outline-primary mt-2">Kelola di Distribusi Naskah</a>
-                        @endif
+                    @can('naskah.view')
+                        <a href="{{ route('naskah.show', $detail->id) }}" class="btn btn-sm btn-outline-primary mt-2">
+                            Buka Detail Naskah
+                        </a>
                     @endcan
 
                     @if(session('success'))

@@ -67,4 +67,20 @@ class OrderDetail extends Model
     {
         return $this->hasOne(TitleProgress::class);
     }
+
+    /**
+     * Naskahnya dikirim sendiri oleh author, bukan ditulis tim produksi.
+     * Menentukan apakah tahap Pembuatan relevan sama sekali — order mandiri
+     * melompatinya begitu file masuk.
+     */
+    public function naskahMandiri(): bool
+    {
+        return $this->naskah_type === 'mandiri';
+    }
+
+    /** Label pendek untuk ditampilkan di kolom Pelaksana / meta naskah. */
+    public function naskahTypeLabel(): string
+    {
+        return $this->naskahMandiri() ? 'Naskah Mandiri' : 'Naskah Dibuatkan';
+    }
 }

@@ -36,7 +36,7 @@ class SidebarTest extends TestCase
             ->assertSee('Buat Order')->assertSee('Daftar Order')
             ->assertSee('Tagihan')->assertSee('Invoice')
             ->assertSee('Direktori Judul')->assertSee('Direktori ISBN')->assertSee('Arsip Judul')
-            ->assertSee('Pelacak Naskah')
+            ->assertSee('Meja Kerja Saya')->assertSee('Pelacakan Naskah')->assertSee('Arsip Naskah')
             ->assertSee('Jurnal Kas')->assertSee('Distribusi Profit')->assertSee('Anggaran')
             ->assertSee('Laporan Keuangan')->assertSee('Laporan Harian')->assertSee('Pemantauan Laporan')
             ->assertSee('Papan Tugas')->assertSee('Daftar Tugas')->assertSee('Pemantauan Tugas')
@@ -70,23 +70,20 @@ class SidebarTest extends TestCase
             ->assertDontSee('Direktori Author');   // dibatasi untuk production
     }
 
-    /** @test */
-    public function production_and_admin_see_distribution_menus(): void
+    /**
+     * Modul Distribusi Artikel/Buku + Papan Manuskrip dihapus 2026-08-10; menunya
+     * tidak boleh tersisa di sidebar untuk role mana pun.
+     *
+     * @test
+     */
+    public function menu_modul_lama_sudah_tidak_ada(): void
     {
-        foreach (['production', 'admin'] as $role) {
+        foreach (['production', 'admin', 'marketing', 'manager', 'superadmin'] as $role) {
             $this->actingAsRole($role);
             $this->get(route('dashboard'))->assertOk()
-                ->assertSee('Distribusi Artikel')
-                ->assertSee('Distribusi Buku');
+                ->assertDontSee('Distribusi Artikel')
+                ->assertDontSee('Distribusi Buku')
+                ->assertDontSee('Pelacak Naskah');
         }
-    }
-
-    /** @test */
-    public function marketing_does_not_see_distribution_menus(): void
-    {
-        $this->actingAsRole('marketing');
-        $this->get(route('dashboard'))->assertOk()
-            ->assertDontSee('Distribusi Artikel')
-            ->assertDontSee('Distribusi Buku');
     }
 }

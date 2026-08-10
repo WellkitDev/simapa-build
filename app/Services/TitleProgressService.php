@@ -291,39 +291,6 @@ class TitleProgressService
     }
 
     /**
-     * Maju 1 langkah (advance) atau koreksi (superadmin). Menulis log.
-     */
-    public function changeStatus(TitleProgress $progress, string $target, User $actor, ?string $note = null): TitleProgress
-    {
-        if (!$progress->isValidStatus($target)) {
-            throw ValidationException::withMessages(['status' => 'Status tidak valid untuk tipe naskah ini.']);
-        }
-
-        // Tahap akhir bersifat terminal untuk SEMUA role (termasuk superadmin) —
-        // konsisten dengan perilaku controller sebelumnya. Koreksi naskah yang sudah
-        // terbit/publish di luar cakupan fitur ini.
-        $next = $progress->getNextStatus();
-        if ($next === null) {
-            throw ValidationException::withMessages(['status' => 'Naskah sudah berada di tahap akhir.']);
-        }
-
-        $current      = $progress->status;
-        $isCorrection = ($target !== $next);
-
-        $this->authorizeChange($actor, $current);
-
-        if ($isCorrection && trim((string) $note) === '') {
-            throw ValidationException::withMessages(['note' => 'Catatan wajib diisi untuk koreksi/lompat status.']);
-        }
-
-        $result = DB::transaction(fn () => $this->applyStatus($progress, $current, $target, $actor, $note, $isCorrection));
-
-        app(Notifier::class)->naskahStageChanged($result, $actor, $current, $target);
-
-        return $result;
-    }
-
-    /**
      * Tulis perubahan status + log untuk satu progress (tanpa validasi — pemanggil
      * yang memvalidasi). `$event` boleh ditimpa untuk perpindahan bernama khusus
      * (mis. `auto_advance_upload`) supaya riwayat menyebut sebabnya, bukan sekadar
@@ -366,53 +333,6 @@ class TitleProgressService
         ]);
 
         $progress->update(['last_log_at' => now()]);
-    }
-
-    /**
-     * Gerbang role untuk memindahkan kartu. Sama untuk maju maupun koreksi/lompat —
-     * koreksi oleh non-superadmin diizinkan tetapi wajib catatan & ditandai perlu ditinjau
-     * (lihat changeStatus/changeGroupStatus + applyStatus).
-     */
-    private function authorizeChange(User $actor, string $current): void
-    {
-        if ($actor->hasRole('superadmin')) {
-            return; // bebas: maju, mundur, lompat
-        }
-        if (TitleProgress::isFinal($current)) {
-            throw new AuthorizationException('Naskah sudah final dan terkunci.');
-        }
-        if ($actor->hasRole('manager')) {
-            return; // oversight: stage apa pun (non-final)
-        }
-        if ($actor->hasAnyRole(['production', 'admin']) && TitleProgress::getHandlerForStatus($current) === 'production') {
-            return; // hanya kartu yang sedang jadi domain production
-        }
-        throw new AuthorizationException('Anda tidak berhak memindahkan naskah pada tahap ini.');
-    }
-
-    public function assignEditor(TitleProgress $progress, ?int $userId, User $actor): TitleProgress
-    {
-        if (!$actor->hasAnyRole(['production', 'manager', 'superadmin', 'admin'])) {
-            throw new AuthorizationException();
-        }
-
-        $assignee = null;
-        if ($userId !== null) {
-            $assignee = User::find($userId);
-            if (!$assignee || !$assignee->hasAnyRole(['production', 'manager', 'admin'])) {
-                throw ValidationException::withMessages([
-                    'assigned_user_id' => 'Editor harus user dengan role production, manager, atau admin.',
-                ]);
-            }
-        }
-
-        if ((int) $progress->pelaksana_user_id !== (int) $userId) {
-            $from = optional(User::find($progress->pelaksana_user_id))->name ?? '—';
-            $progress->update(['pelaksana_user_id' => $userId]);
-            $this->log($progress, 'editor_assigned', $from, optional($assignee)->name ?? '—', $actor);
-        }
-
-        return $progress;
     }
 
     public function setPriority(TitleProgress $progress, string $priority, User $actor): TitleProgress
@@ -504,71 +424,6 @@ class TitleProgressService
 
     // ─── Aksi serempak untuk satu grup judul (semua order judul yang sama) ───
 
-    /**
-     * Majukan/koreksi status SELURUH varian dalam satu grup judul sekaligus.
-     * Status kanonik grup = stage paling awal (bottleneck) di antara varian.
-     * Maju: varian yang masih tertinggal dibawa ke target. Koreksi (superadmin): semua disinkron.
-     */
-    public function changeGroupStatus(iterable $progresses, string $target, User $actor, ?string $note = null): void
-    {
-        $progresses = collect($progresses);
-        if ($progresses->isEmpty()) {
-            return;
-        }
-
-        $stages = $progresses->first()->getStages();
-
-        if (!in_array($target, $stages, true)) {
-            throw ValidationException::withMessages(['status' => 'Status tidak valid untuk tipe naskah ini.']);
-        }
-
-        $canonical    = $progresses->sortBy(fn ($p) => array_search($p->status, $stages, true))->first()->status;
-        $canonicalIdx = array_search($canonical, $stages, true);
-        $next         = $stages[$canonicalIdx + 1] ?? null;
-
-        if ($next === null && $target === $canonical) {
-            throw ValidationException::withMessages(['status' => 'Naskah sudah berada di tahap akhir.']);
-        }
-
-        $isCorrection = ($target !== $next);
-        $this->authorizeChange($actor, $canonical);
-
-        if ($isCorrection && trim((string) $note) === '') {
-            throw ValidationException::withMessages(['note' => 'Catatan wajib diisi untuk koreksi/lompat status.']);
-        }
-
-        $targetIdx = array_search($target, $stages, true);
-
-        $changed = [];
-        DB::transaction(function () use ($progresses, $stages, $target, $targetIdx, $actor, $note, $isCorrection, &$changed) {
-            foreach ($progresses as $p) {
-                $idx = array_search($p->status, $stages, true);
-                // Maju: hanya varian di belakang target. Koreksi: seluruh varian.
-                if (($isCorrection || $idx < $targetIdx) && $p->status !== $target) {
-                    $from = $p->status;
-                    $this->applyStatus($p, $from, $target, $actor, $note, $isCorrection);
-                    $changed[] = [$p, $from];
-                }
-            }
-        });
-
-        foreach ($changed as [$p, $from]) {
-            app(Notifier::class)->naskahStageChanged($p, $actor, $from, $target);
-        }
-        if (! empty($changed)) {
-            app(Notifier::class)->distribusiChanged($changed[0][0], $actor, 'Tahap naskah diperbarui');
-        }
-    }
-
-    public function assignGroup(iterable $progresses, ?int $userId, User $actor): void
-    {
-        DB::transaction(function () use ($progresses, $userId, $actor) {
-            foreach (collect($progresses) as $p) {
-                $this->assignEditor($p, $userId, $actor);
-            }
-        });
-    }
-
     public function setGroupPriority(iterable $progresses, string $priority, User $actor): void
     {
         DB::transaction(function () use ($progresses, $priority, $actor) {
@@ -587,18 +442,7 @@ class TitleProgressService
         });
     }
 
-    /** Bersihkan seluruh riwayat aktivitas grup. Hanya superadmin. */
-    public function clearLogs(iterable $progresses, User $actor): void
-    {
-        if (! $actor->hasRole('superadmin')) {
-            throw new AuthorizationException();
-        }
-
-        DB::transaction(function () use ($progresses) {
-            foreach (collect($progresses) as $p) {
-                $p->logs()->delete();
-                $p->update(['last_log_at' => null]);
-            }
-        });
-    }
+    // CATATAN: clearLogs() dihapus 2026-08-10 bersama modul distribusi lama. Blueprint
+    // wireframe menyatakan "Hapus riwayat — tidak ada yang boleh", termasuk superadmin;
+    // audit total baru bermakna kalau memang tak ada jalurnya di kode.
 }

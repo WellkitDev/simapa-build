@@ -73,9 +73,17 @@ class PermissionMapTest extends TestCase
                 "$r seharusnya punya manuscript.detail (route sumbernya tanpa penjagaan role)"
             );
         }
-        // manuscript.view (papan Kanban) tetap dijaga role:production|manager|superadmin —
-        // marketing TIDAK boleh menembusnya.
-        $this->assertFalse(Role::findByName('marketing')->hasPermissionTo('manuscript.view'));
+
+        // Modul lama (papan Kanban + Distribusi Artikel/Buku) dihapus 2026-08-10 —
+        // permission-nya harus ikut lenyap, bukan tertinggal jadi hibah mati.
+        foreach (['manuscript.view', 'distribution.view', 'distribution.assign',
+                  'distribution.move', 'distribution.priority', 'distribution.target',
+                  'distribution.upload'] as $mati) {
+            $this->assertNull(
+                \Spatie\Permission\Models\Permission::where('name', $mati)->first(),
+                "Permission $mati seharusnya sudah tidak ada."
+            );
+        }
     }
 
     /**

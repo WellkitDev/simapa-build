@@ -153,32 +153,14 @@ return [
             ],
         ],
 
+        // Sisa modul manuskrip lama: papan Kanban & Distribusi Artikel/Buku dihapus
+        // 2026-08-10 (digantikan modul naskah di bawah). Yang tersisa hanya "lihat detail
+        // progres satu judul", karena route-nya milik halaman Order/Direktori Judul —
+        // bukan bagian dari modul yang dihapus — dan terbuka untuk semua role yang login.
         'manuscript' => [
-            'label'   => 'Papan Manuskrip',
+            'label'   => 'Detail Progres Judul',
             'actions' => [
-                'view'   => ['manuscript.board'],
-                // "Lihat detail progres satu judul" — order.indexJudul.detail/.progress dan
-                // title.progress.logs SAMA-SAMA tanpa middleware role: sama sekali hari ini
-                // (terbuka utk semua role yang login), beda dgn manuscript.board yang dijaga
-                // role:production|manager|superadmin. Dipisah jadi action sendiri supaya satu
-                // permission tidak mencampur route berpenjagaan dgn route tanpa penjagaan.
-                // (order.indexJudul.progress masih di sini sampai progressDetail dipensiunkan.)
                 'detail' => ['order.indexJudul.detail', 'order.indexJudul.progress', 'title.progress.logs'],
-            ],
-        ],
-
-        'distribution' => [
-            'label'   => 'Distribusi Naskah',
-            'actions' => [
-                'view'     => ['distribusi.artikel.index', 'distribusi.artikel.show',
-                               'distribusi.buku.index', 'distribusi.buku.show'],
-                'assign'   => ['distribusi.artikel.editor', 'distribusi.buku.editorSemua',
-                               'distribusi.buku.chapter.editor'],
-                'move'     => ['distribusi.artikel.tahap', 'distribusi.buku.chapter.tahap'],
-                'priority' => ['distribusi.artikel.prioritas', 'distribusi.buku.prioritas'],
-                'target'   => ['distribusi.artikel.target', 'distribusi.buku.target'],
-                'upload'   => ['distribusi.artikel.file', 'distribusi.buku.file',
-                               'distribusi.buku.chapter.file'],
             ],
         ],
 

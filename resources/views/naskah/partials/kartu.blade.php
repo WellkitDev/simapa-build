@@ -37,7 +37,16 @@
     @endif
 
     <div class="text-muted mt-1">
-        PJ: {{ $p->pj?->name ?? '—' }} · Pelaksana: {{ $p->pelaksana?->name ?? '—' }}
+        PJ: {{ $p->pj?->name ?? '—' }} ·
+        Pelaksana:
+        @if ($p->pelaksana)
+            {{ $p->pelaksana->name }}
+        @elseif ($detail?->naskahMandiri())
+            {{-- Bukan "belum ditugaskan": order ini memang tak butuh pelaksana. --}}
+            Naskah Mandiri
+        @else
+            —
+        @endif
     </div>
     <div class="text-muted">{{ $p->daysInStage() }} hari di tahap ini</div>
 

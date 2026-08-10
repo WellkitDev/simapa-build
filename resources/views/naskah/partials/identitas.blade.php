@@ -11,6 +11,7 @@
         $buku   = in_array($detail?->type, ['bk_mandiri', 'bk_kolab'], true);
         $meta   = collect([
             $buku ? ($detail?->type === 'bk_kolab' ? 'Buku Kolaborasi' : 'Buku Mandiri') : 'Artikel',
+            $detail?->naskahTypeLabel(),
             $detail?->indexation,
             $detail?->authors->isNotEmpty() ? 'Author: ' . $detail->authors->pluck('name')->join(', ') : null,
             $model->pj ? 'PJ: ' . $model->pj->name : null,
@@ -23,6 +24,7 @@
         $judul  = trim(($bukuRef?->title ?? 'Buku') . ' — ' . ($bab?->judul ?? 'Bab'));
         $meta   = collect([
             'Buku Kolaborasi',
+            $detail?->naskahTypeLabel(),
             $bab?->authors->isNotEmpty()
                 ? 'Author bab: ' . $bab->authors->pluck('name')->join(', ')
                 : 'Author bab belum dipetakan',

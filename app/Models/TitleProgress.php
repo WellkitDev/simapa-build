@@ -58,25 +58,27 @@ class TitleProgress extends Model
     ];
 
     /**
-     * Handler per tahap. 'pembuatan' = satu-satunya tahap milik pelaksana (production).
-     * CATATAN TRANSISI: pemetaan penuh editing..terbit → 'admin' menyusul bersama
-     * refactor advance()/correct() (otorisasi berbasis permission naskah.*) — diubah
-     * sekarang akan mengunci modul distribusi lama yang masih memakai gerbang
-     * handler === 'production'.
+     * Siapa yang memegang naskah di tiap tahap — dipakai sebagai penanda (`assigned_role`)
+     * dan untuk menurunkan daftar tahap milik produksi.
+     *
+     * **Pembuatan adalah SATU-SATUNYA tahap milik produksi**: setelah naskah diserahkan,
+     * admin (PJ) memegang seluruh proses sampai publish/terbit. Ini realita kerja tim,
+     * dan sejak modul distribusi lama dihapus (2026-08-10) peta ini tak lagi dipakai
+     * sebagai gerbang otorisasi — wewenang ditentukan permission `naskah.*` + bidang.
      */
     const STAGE_HANDLER = [
         'menunggu_proses' => 'marketing',
         'pembuatan'       => 'production',
-        'editing'         => 'production',
-        'revisi'          => 'production',
-        'submit'          => 'production',
-        'loa'             => 'superadmin',
-        'publish'         => 'superadmin',
-        'layout'          => 'production',
-        'proofreading'    => 'production',
-        'isbn'            => 'production',
-        'cetak'           => 'superadmin',
-        'terbit'          => 'superadmin',
+        'editing'         => 'admin',
+        'revisi'          => 'admin',
+        'submit'          => 'admin',
+        'loa'             => 'admin',
+        'publish'         => 'admin',
+        'layout'          => 'admin',
+        'proofreading'    => 'admin',
+        'isbn'            => 'admin',
+        'cetak'           => 'admin',
+        'terbit'          => 'admin',
     ];
 
     /** Label tahap Bahasa Indonesia (identitas UI modul Penugasan Naskah). */
@@ -101,12 +103,28 @@ class TitleProgress extends Model
 
     const OVERDUE_REASONS = ['internal', 'eksternal', 'lainnya'];
 
-    const BOARD_RETENTION_DAYS = 30;
+    // BOARD_RETENTION_DAYS dihapus 2026-08-10: naskah selesai tidak lagi menghilang dari
+    // papan setelah 30 hari, melainkan pindah ke Arsip lewat `archived_at` (keputusan #14).
+
+    /**
+     * Tahap tempat naskah boleh diambil/ditugaskan ke pelaksana: masih di antrian, atau
+     * sedang dibuat tapi belum ada yang memegang. Satu sumber kebenaran untuk Meja Kerja
+     * dan dashboard produksi supaya keduanya tak pernah berbeda hitungan.
+     */
+    const QUEUE_STAGES = ['menunggu_proses', 'pembuatan'];
 
     /** Daftar status yang handler-nya production (diturunkan dari STAGE_HANDLER). */
     public static function productionStages(): array
     {
         return array_keys(array_filter(self::STAGE_HANDLER, fn ($role) => $role === 'production'));
+    }
+
+    /** Sedang dikerjakan: sudah lepas dari antrian, belum selesai. */
+    public static function activeStages(): array
+    {
+        $stages = array_unique(array_merge(self::ARTICLE_STAGES, self::BOOK_STAGES));
+
+        return array_values(array_diff($stages, ['menunggu_proses'], self::FINAL_STAGES));
     }
 
     public static function isFinal(string $status): bool
