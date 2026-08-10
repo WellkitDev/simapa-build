@@ -30,12 +30,24 @@ class DocChecklistServiceTest extends TestCase
         return new DocChecklistService($drive);
     }
 
+    /** Berkas naskah final level judul — sumber item kelengkapan yang otomatis. */
+    private function naskahFinal(Title $book, int $version = 1): \App\Models\ManuscriptFile
+    {
+        return \App\Models\ManuscriptFile::create([
+            'title_id' => $book->id, 'title_chapter_id' => null, 'slot' => 'final',
+            'version' => $version, 'original_name' => 'buku-final.pdf',
+            'drive_url' => 'http://drive/final.pdf', 'created_at' => now(),
+        ]);
+    }
+
     /** @test */
     public function progress_counts_ada_over_active_total_per_category(): void
     {
         $book = $this->book();
-        $penerbit = DocRequirement::where('category', 'penerbit')->orderBy('position')->get();
-        // tandai 2 item penerbit 'ada'
+        // Item pertama penerbit kini otomatis (Naskah Lengkap ← slot Naskah Final),
+        // jadi yang bisa ditandai manual mulai dari item kedua.
+        $penerbit = DocRequirement::where('category', 'penerbit')->whereNull('auto_source')
+            ->orderBy('position')->get();
         TitleDocMark::create(['title_id' => $book->id, 'doc_requirement_id' => $penerbit[0]->id, 'status' => 'ada']);
         TitleDocMark::create(['title_id' => $book->id, 'doc_requirement_id' => $penerbit[1]->id, 'status' => 'ada']);
 
@@ -44,11 +56,81 @@ class DocChecklistServiceTest extends TestCase
         $this->assertSame(2, $prog['done']);
     }
 
+    /**
+     * "Naskah Lengkap (Final Draft)" adalah berkas yang SAMA dengan slot Naskah Final di
+     * Pelacakan Naskah. Diminta dua kali, keduanya bisa berbeda isi dan tak ada cara tahu
+     * mana yang benar — jadi item ini dipenuhi dari sumbernya, bukan diunggah ulang.
+     *
+     * @test
+     */
+    public function item_naskah_lengkap_tercentang_saat_slot_naskah_final_terisi(): void
+    {
+        $book = $this->book();
+        $req  = DocRequirement::where('auto_source', 'naskah_final')->firstOrFail();
+
+        // Belum ada berkas final → belum terpenuhi, walau tak ada TitleDocMark sama sekali.
+        $this->assertNull($this->service()->autoFile($book, $req));
+        $this->assertSame(0, $this->service()->progress($book, 'penerbit')['done']);
+
+        $this->naskahFinal($book);
+
+        $this->assertNotNull($this->service()->autoFile($book, $req));
+        $this->assertSame(1, $this->service()->progress($book, 'penerbit')['done']);
+    }
+
+    /** @test */
+    public function item_otomatis_mengambil_versi_terbaru_naskah_final(): void
+    {
+        $book = $this->book();
+        $req  = DocRequirement::where('auto_source', 'naskah_final')->firstOrFail();
+
+        $this->naskahFinal($book, 1);
+        $baru = $this->naskahFinal($book, 2);
+
+        $this->assertSame($baru->id, $this->service()->autoFile($book, $req)->id);
+    }
+
+    /** @test */
+    public function file_bab_tidak_dianggap_naskah_final_buku(): void
+    {
+        $book = $this->book();
+        $req  = DocRequirement::where('auto_source', 'naskah_final')->firstOrFail();
+        $bab  = $book->chapters()->create(['judul' => 'Bab 1', 'urutan' => 1]);
+
+        \App\Models\ManuscriptFile::create([
+            'title_id' => $book->id, 'title_chapter_id' => $bab->id, 'slot' => 'final',
+            'version' => 1, 'original_name' => 'bab1.pdf', 'drive_url' => 'http://drive/bab1.pdf',
+            'created_at' => now(),
+        ]);
+
+        $this->assertNull($this->service()->autoFile($book, $req),
+            'Berkas final milik BAB bukan naskah final level buku.');
+    }
+
+    /** @test */
+    public function isian_manual_tidak_bisa_menimpa_status_item_otomatis(): void
+    {
+        $book  = $this->book();
+        $req   = DocRequirement::where('auto_source', 'naskah_final')->firstOrFail();
+        $actor = User::factory()->create();
+
+        $this->service()->saveMarks($book, [
+            ['requirement_id' => $req->id, 'status' => 'ada', 'catatan' => 'akal-akalan', 'file' => null],
+        ], $actor);
+
+        $this->assertNull(
+            TitleDocMark::where('title_id', $book->id)->where('doc_requirement_id', $req->id)->first(),
+            'Item otomatis tidak boleh punya penanda manual — sumber kebenarannya berkas naskah.'
+        );
+        $this->assertSame(0, $this->service()->progress($book, 'penerbit')['done']);
+    }
+
     /** @test */
     public function save_marks_upserts_status_and_note(): void
     {
         $book = $this->book();
-        $rid = DocRequirement::where('category', 'penerbit')->first()->id;
+        // Item manual — yang ber-auto_source sengaja tak menerima isian dari layar ini.
+        $rid = DocRequirement::where('category', 'penerbit')->whereNull('auto_source')->first()->id;
         $actor = User::factory()->create();
 
         $this->service()->saveMarks($book, [

@@ -323,7 +323,13 @@
             {{ optional($docChecklist)->status === 'diajukan' ? 'Diajukan ' . optional($docChecklist->submitted_at)->format('d M Y') : 'Draft' }}
         </span>
     </div>
-    <p class="text-muted small mb-0">Dokumen yang diperlukan untuk pengajuan ISBN &amp; HKI.</p>
+    <p class="text-muted small mb-0">
+        Dokumen yang diperlukan untuk pengajuan ISBN &amp; HKI.
+        @if($naskahDetailId)
+            Berkas naskahnya sendiri dikelola di
+            <a href="{{ route('naskah.show', $naskahDetailId) }}">Pelacakan Naskah</a>.
+        @endif
+    </p>
 
     @if($canMarkDocs)
     @can('title.doc.edit')
@@ -350,15 +356,31 @@
 
         <div class="list-group list-group-flush">
             @forelse($items as $i => $req)
-                @php $mark = $docMarks[$req->id] ?? null; $st = optional($mark)->status ?? 'belum'; @endphp
+                @php
+                    $mark = $docMarks[$req->id] ?? null;
+                    $st   = optional($mark)->status ?? 'belum';
+                    // Item otomatis: berkasnya milik Pelacakan Naskah, bukan diunggah di sini.
+                    $auto     = $req->isAuto();
+                    $autoFile = $auto ? ($docAutoFiles[$req->id] ?? null) : null;
+                @endphp
                 <div class="list-group-item px-0 py-3">
                     <div class="d-flex justify-content-between align-items-start gap-3">
                         <div class="flex-grow-1" style="min-width:0">
                             <div class="fw-semibold" style="font-size:13px">{{ $i + 1 }}. {{ $req->label }}</div>
                             @if($req->description)<div class="text-muted mt-1" style="font-size:11px; line-height:1.4">{{ $req->description }}</div>@endif
+                            @if($auto)
+                                <div class="text-muted mt-1" style="font-size:11px; line-height:1.4">
+                                    Terisi otomatis dari <strong>{{ $req->autoSourceLabel() }}</strong> —
+                                    tidak perlu diunggah ulang di sini.
+                                </div>
+                            @endif
                         </div>
                         <div class="flex-shrink-0" style="width:132px">
-                            @if($canMarkDocs)
+                            @if($auto)
+                                <span class="badge w-100 {{ $autoFile ? 'bg-success' : 'bg-secondary' }}">
+                                    {{ $autoFile ? 'Ada (otomatis)' : 'Belum' }}
+                                </span>
+                            @elseif($canMarkDocs)
                                 @can('title.doc.edit')
                                     <select name="marks[{{ $req->id }}][status]" class="form-select form-select-sm">
                                         @foreach(\App\Models\TitleDocMark::STATUSES as $sv => $sl)
@@ -374,21 +396,35 @@
                         </div>
                     </div>
 
-                    @if(optional($mark)->file_url)
-                        <a href="{{ $mark->file_url }}" target="_blank" rel="noopener" class="d-inline-block text-truncate mt-2" style="max-width:100%; font-size:11px">📎 {{ $mark->file_name ?: 'file' }}</a>
-                    @endif
+                    @if($auto)
+                        @if($autoFile)
+                            <a href="{{ $autoFile->drive_url }}" target="_blank" rel="noopener"
+                               class="d-inline-block text-truncate mt-2" style="max-width:100%; font-size:11px">
+                                📎 {{ $autoFile->original_name ?: 'Naskah Final' }} (v{{ $autoFile->version }})
+                            </a>
+                        @elseif($naskahDetailId)
+                            <a href="{{ route('naskah.show', $naskahDetailId) }}"
+                               class="d-inline-block mt-2" style="font-size:11px">
+                                Unggah di Pelacakan Naskah →
+                            </a>
+                        @endif
+                    @else
+                        @if(optional($mark)->file_url)
+                            <a href="{{ $mark->file_url }}" target="_blank" rel="noopener" class="d-inline-block text-truncate mt-2" style="max-width:100%; font-size:11px">📎 {{ $mark->file_name ?: 'file' }}</a>
+                        @endif
 
-                    @if($canMarkDocs)
-                        @can('title.doc.edit')
-                            <div class="row g-2 mt-1">
-                                <div class="col-sm-6"><input type="file" name="marks[{{ $req->id }}][file]" class="form-control form-control-sm" aria-label="Unggah dokumen {{ $req->label }}"></div>
-                                <div class="col-sm-6"><input type="text" name="marks[{{ $req->id }}][catatan]" value="{{ optional($mark)->catatan }}" class="form-control form-control-sm" placeholder="Catatan (opsional)"></div>
-                            </div>
+                        @if($canMarkDocs)
+                            @can('title.doc.edit')
+                                <div class="row g-2 mt-1">
+                                    <div class="col-sm-6"><input type="file" name="marks[{{ $req->id }}][file]" class="form-control form-control-sm" aria-label="Unggah dokumen {{ $req->label }}"></div>
+                                    <div class="col-sm-6"><input type="text" name="marks[{{ $req->id }}][catatan]" value="{{ optional($mark)->catatan }}" class="form-control form-control-sm" placeholder="Catatan (opsional)"></div>
+                                </div>
+                            @elseif(optional($mark)->catatan)
+                                <div class="text-muted mt-1" style="font-size:11px">Catatan: {{ $mark->catatan }}</div>
+                            @endcan
                         @elseif(optional($mark)->catatan)
                             <div class="text-muted mt-1" style="font-size:11px">Catatan: {{ $mark->catatan }}</div>
-                        @endcan
-                    @elseif(optional($mark)->catatan)
-                        <div class="text-muted mt-1" style="font-size:11px">Catatan: {{ $mark->catatan }}</div>
+                        @endif
                     @endif
                 </div>
             @empty

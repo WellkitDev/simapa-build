@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\DocRequirement;
+use App\Models\ManuscriptFile;
 use App\Models\Title;
 use App\Models\TitleDocChecklist;
 use App\Models\TitleDocMark;
@@ -15,7 +16,9 @@ class DocChecklistService
     /** @param array $items list of ['requirement_id'=>int,'status'=>string,'catatan'=>?string,'file'=>?\Illuminate\Http\UploadedFile] */
     public function saveMarks(Title $title, array $items, User $actor): void
     {
-        $activeIds = DocRequirement::active()->pluck('id')->all();
+        // Item ber-auto_source diabaikan: berkasnya milik modul lain dan statusnya
+        // dihitung dari sana, jadi tak boleh ditimpa isian manual dari layar ini.
+        $activeIds = DocRequirement::active()->whereNull('auto_source')->pluck('id')->all();
 
         foreach ($items as $item) {
             $rid = (int) ($item['requirement_id'] ?? 0);
@@ -49,15 +52,45 @@ class DocChecklistService
         );
     }
 
-    /** @return array{done:int,total:int} */
+    /**
+     * Berkas pemenuh item otomatis (mis. "Naskah Lengkap" ← slot Naskah Final).
+     * Versi terbaru saja; null bila belum diunggah di modul sumbernya.
+     */
+    public function autoFile(Title $title, DocRequirement $requirement): ?ManuscriptFile
+    {
+        if (! $requirement->isAuto()) {
+            return null;
+        }
+
+        return ManuscriptFile::where('title_id', $title->id)
+            ->whereNull('title_chapter_id')
+            ->where('slot', $requirement->auto_source === 'naskah_final' ? 'final' : $requirement->auto_source)
+            ->orderByDesc('version')
+            ->first();
+    }
+
+    /**
+     * @return array{done:int,total:int}
+     *
+     * Item otomatis dihitung dari keberadaan berkas sumbernya, bukan dari TitleDocMark —
+     * kalau tidak, kelengkapan bisa mengaku 100% padahal naskah finalnya belum ada.
+     */
     public function progress(Title $title, string $category): array
     {
-        $reqIds = DocRequirement::active()->where('category', $category)->pluck('id');
+        $requirements = DocRequirement::active()->where('category', $category)->get();
+
+        $manual = $requirements->where('auto_source', null);
         $done = TitleDocMark::where('title_id', $title->id)
-            ->whereIn('doc_requirement_id', $reqIds)
+            ->whereIn('doc_requirement_id', $manual->pluck('id'))
             ->where('status', 'ada')
             ->count();
 
-        return ['done' => $done, 'total' => $reqIds->count()];
+        foreach ($requirements->filter->isAuto() as $requirement) {
+            if ($this->autoFile($title, $requirement) !== null) {
+                $done++;
+            }
+        }
+
+        return ['done' => $done, 'total' => $requirements->count()];
     }
 }

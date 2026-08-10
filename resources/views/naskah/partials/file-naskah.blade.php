@@ -28,6 +28,17 @@
         </div>
     @endforeach
 
+    @if ($buku && $progress->orderDetail->title_id)
+        {{-- Arah balik: berkas naskah diunggah di sini, kelengkapan administratif untuk
+             pengajuan ISBN & HKI hidup di Direktori Judul. Item "Naskah Lengkap" di sana
+             mengambil berkasnya dari slot Naskah Final di kartu ini. --}}
+        <div class="border-top pt-2 mt-2 small">
+            <a href="{{ route('title.show', $progress->orderDetail->title_id) }}">
+                Cek Kelengkapan Data (ISBN &amp; HKI) →
+            </a>
+        </div>
+    @endif
+
     @if ($izin['upload'] && ! $progress->cancelled_at)
         <form method="POST" action="{{ route('naskah.file', $progress->order_detail_id) }}"
               enctype="multipart/form-data" class="mt-3">

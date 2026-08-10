@@ -125,6 +125,14 @@ class TitleController extends Controller
             'docRequirements' => \App\Models\DocRequirement::active()->orderBy('position')->get()->groupBy('category'),
             'docMarks'        => $title->docMarks->keyBy('doc_requirement_id'),
             'docChecklist'    => $title->docChecklist,
+            // Berkas pemenuh item otomatis, dikunci per requirement id supaya view tak
+            // perlu tahu slot mana yang menjadi sumbernya.
+            'docAutoFiles'    => \App\Models\DocRequirement::active()->whereNotNull('auto_source')->get()
+                ->mapWithKeys(fn ($req) => [
+                    $req->id => app(\App\Services\DocChecklistService::class)->autoFile($title, $req),
+                ]),
+            // Tautan ke Detail Naskah judul ini (halaman tempat berkas naskah diunggah).
+            'naskahDetailId'  => $title->orderDetails->first()?->id,
             'docProgress'     => [
                 'penerbit' => app(\App\Services\DocChecklistService::class)->progress($title, 'penerbit'),
                 'hki'      => app(\App\Services\DocChecklistService::class)->progress($title, 'hki'),

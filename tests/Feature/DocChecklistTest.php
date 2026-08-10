@@ -35,6 +35,41 @@ class DocChecklistTest extends TestCase
         return Title::create(['title' => 'Buku Doc ' . uniqid(), 'jenis' => 'buku', 'tipe_naskah' => 'mandiri', 'status' => 'disetujui']);
     }
 
+    /**
+     * Satu berkas, satu tempat unggah. Item "Naskah Lengkap" tak lagi punya kotak
+     * unggah sendiri di layar kelengkapan — ia menunjuk ke Pelacakan Naskah, dan
+     * kedua halaman saling menautkan supaya orang tak mencari-cari.
+     *
+     * @test
+     */
+    public function item_otomatis_tidak_punya_kotak_unggah_dan_menautkan_ke_pelacakan(): void
+    {
+        $book   = $this->book();
+        $detail = \App\Models\OrderDetail::factory()->create([
+            'type' => 'bk_mandiri', 'title' => $book->title, 'title_id' => $book->id,
+        ]);
+        \App\Models\TitleProgress::create([
+            'order_detail_id' => $detail->id, 'status' => 'layout',
+            'assigned_role' => 'admin', 'bidang' => 'buku', 'started_at' => now(),
+        ]);
+        $req = DocRequirement::where('auto_source', 'naskah_final')->firstOrFail();
+
+        $isi = $this->actingAs($this->user('admin'))
+            ->get(route('title.show', $book->id))->assertOk()->getContent();
+
+        $this->assertStringContainsString('Terisi otomatis', $isi);
+        $this->assertStringContainsString(route('naskah.show', $detail->id), $isi);
+        $this->assertStringNotContainsString("marks[{$req->id}][file]", $isi,
+            'Item otomatis tidak boleh punya input unggah sendiri.');
+
+        // Arah balik: dari Detail Naskah buku ada tautan ke kelengkapan dokumen.
+        $this->actingAs($this->user('admin'))
+            ->get(route('naskah.show', $detail->id))
+            ->assertOk()
+            ->assertSee('Cek Kelengkapan Data')
+            ->assertSee(route('title.show', $book->id), false);
+    }
+
     /** @test */
     public function superadmin_crud_requirement(): void
     {
@@ -65,7 +100,9 @@ class DocChecklistTest extends TestCase
         });
 
         $book = $this->book();
-        $rid = DocRequirement::where('category', 'penerbit')->first()->id;
+        // Item manual: "Naskah Lengkap" kini otomatis dari slot Naskah Final, jadi
+        // tidak lagi menerima unggahan dari layar kelengkapan dokumen.
+        $rid = DocRequirement::where('category', 'penerbit')->whereNull('auto_source')->first()->id;
 
         $this->actingAs($this->user('admin'))->put(route('title.doc.save', $book->id), [
             'marks' => [
