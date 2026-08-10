@@ -19,11 +19,15 @@
                     {{ $jumlahBab }} bab · {{ $jumlahAuthorBab ?? 0 }} author
                 </span>
             @endif
-            {{-- Jenis naskah ORDER INI (halaman detail memang per order). Kalau order
-                 sejudul lainnya berbeda jenis, itu disebut di banner grup di bawah. --}}
-            <span class="badge {{ $d?->naskahMandiri() ? 'bg-secondary-subtle text-secondary border' : 'bg-warning-subtle text-warning border' }}">
-                {{ $d?->naskahTypeLabel() ?? '—' }}
-            </span>
+            @if ($jenisNaskahGrup !== 'campuran')
+                {{-- Chip ini duduk sejajar jenis & jumlah bab, jadi terbaca sebagai sifat
+                     JUDUL. Karena itu hanya ditampilkan bila seluruh order sejudul
+                     sepakat; kalau tidak seragam, lebih baik diam daripada menyesatkan —
+                     rinciannya ada di banner grup dan di kolom tiap bab. --}}
+                <span class="badge {{ $jenisNaskahGrup === 'mandiri' ? 'bg-secondary-subtle text-secondary border' : 'bg-warning-subtle text-warning border' }}">
+                    {{ \App\Models\OrderDetail::labelJenisNaskah($jenisNaskahGrup) }}
+                </span>
+            @endif
             @if ($progress->priority === 'high')
                 <span class="badge bg-danger">Prioritas High</span>
             @endif

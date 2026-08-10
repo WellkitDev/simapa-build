@@ -39,7 +39,11 @@
             <h6 class="text-uppercase text-muted small fw-bold mb-3">Informasi &amp; Penanggung Jawab</h6>
             @php
                 $baris = [
-                    'Jenis naskah'            => $d?->naskahTypeLabel() ?? '—',
+                    // Kartu ini memang tentang ORDER yang sedang dibuka. Bila order
+                    // sejudul lainnya berbeda jenis, dibubuhi "(order ini)" supaya tak
+                    // terbaca sebagai sifat seluruh judul.
+                    'Jenis naskah'            => ($d?->naskahTypeLabel() ?? '—')
+                        . ($jenisNaskahGrup === 'campuran' ? ' (order ini)' : ''),
                     'Penanggung Jawab (PJ)'   => $progress->pj?->name ?? 'Belum ditentukan',
                     'Pelaksana pembuatan'     => $progress->pelaksana?->name
                         ?? ($naskahMandiri ? 'Tidak ada — naskah dikirim author' : 'Belum ditentukan'),

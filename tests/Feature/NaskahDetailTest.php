@@ -554,6 +554,63 @@ class NaskahDetailTest extends TestCase
         $this->assertStringContainsString('Naskah dari Author', $isi);
     }
 
+    /**
+     * Chip jenis naskah di header duduk sejajar jenis & jumlah bab, jadi terbaca sebagai
+     * sifat JUDUL. Kalau order sejudul tidak seragam, chip itu disembunyikan — lebih baik
+     * diam daripada menyebut satu jenis yang tak berlaku untuk order lainnya.
+     *
+     * @test
+     */
+    public function chip_jenis_naskah_disembunyikan_saat_order_sejudul_tidak_seragam(): void
+    {
+        $book = \App\Models\Title::create(['title' => 'Kolab Tak Seragam', 'jenis' => 'buku',
+                                           'tipe_naskah' => 'kolaborasi', 'status' => 'disetujui']);
+
+        $mandiri = null;
+        foreach ([[1, 'dibuatkan'], [2, 'mandiri']] as [$nomor, $jenis]) {
+            $order  = \App\Models\Order::factory()->create(['user_id' => $this->user('marketing')->id]);
+            $detail = OrderDetail::factory()->create([
+                'order_id' => $order->id, 'type' => 'bk_kolab',
+                'title' => $book->title, 'title_id' => $book->id,
+                'chapters' => $nomor, 'naskah_type' => $jenis,
+            ]);
+            \App\Models\TitleProgress::create([
+                'order_detail_id' => $detail->id, 'status' => 'pembuatan',
+                'assigned_role' => 'production', 'bidang' => 'buku', 'started_at' => now(),
+            ]);
+            if ($jenis === 'mandiri') {
+                $mandiri = $detail;
+            }
+        }
+
+        // Dibuka dari order yang justru bernaskah mandiri — chip tetap tak boleh muncul.
+        $isi = $this->actingAs($this->user('admin', 'buku'))
+            ->get(route('naskah.show', $mandiri->id))->assertOk()->getContent();
+
+        // Header = bagian sebelum judul besar; di situlah chip jenis naskah berada.
+        $header = substr($isi, 0, strpos($isi, 'Kolab Tak Seragam'));
+        $this->assertStringNotContainsString('Naskah Mandiri', $header,
+            'Header tidak boleh mengklaim jenis naskah saat order sejudul tidak seragam.');
+        $this->assertStringNotContainsString('Naskah Dibuatkan', $header);
+
+        // Sebagai gantinya banner grup mengaku tidak seragam, dan kartu Informasi
+        // menegaskan jenis yang disebutnya hanya berlaku untuk order yang dibuka.
+        $this->assertStringContainsString('Jenis naskahnya tidak seragam', $isi);
+        $this->assertStringContainsString('Naskah Mandiri (order ini)', $isi);
+    }
+
+    /** @test */
+    public function chip_jenis_naskah_tampil_saat_seluruh_order_sejudul_sepakat(): void
+    {
+        $p = $this->naskah('editing');
+        $p->orderDetail->update(['naskah_type' => 'dibuatkan']);
+
+        $this->actingAs($this->user('admin', 'artikel'))
+            ->get(route('naskah.show', $p->order_detail_id))
+            ->assertOk()
+            ->assertSee('Naskah Dibuatkan');
+    }
+
     /** @test */
     public function produksi_bisa_mengambil_bab_langsung_dari_tabel_bab(): void
     {
