@@ -128,14 +128,16 @@
                         <td>
                             @if ($cp?->pelaksana)
                                 {{ $cp->pelaksana->name }}
+                            @elseif ($cp?->naskahDariAuthor())
+                                {{-- Naskahnya sudah ada padahal tak pernah ditugaskan ke
+                                     siapa pun → datang langsung dari author bab ini. --}}
+                                <span class="badge bg-info-subtle text-info border">Naskah dari author</span>
                             @elseif ($naskahMandiri)
-                                {{-- Order naskah mandiri: author mengirim naskahnya sendiri,
-                                     jadi memang tidak akan pernah ada pelaksana di sini. --}}
+                                {{-- Order mandiri: author yang mengirim naskah, jadi memang
+                                     tidak akan pernah ada pelaksana — bukan "belum ditugaskan". --}}
                                 <span class="badge bg-secondary-subtle text-secondary border">Naskah Mandiri</span>
-                            @elseif ($cp?->status === 'selesai')
-                                — <small class="text-muted">(naskah dari author)</small>
                             @else
-                                —
+                                <span class="text-muted">Belum ditugaskan</span>
                             @endif
                         </td>
                         <td>
@@ -176,6 +178,14 @@
                                         @endforeach
                                     </select>
                                     <button class="btn btn-sm btn-outline-primary">Distribusikan</button>
+                                </form>
+                            @elseif ($cp->pelaksana_user_id === null && $cp->status !== 'selesai' && $izin['claim'])
+                                {{-- Model campuran: admin boleh menugaskan, produksi boleh
+                                     mengambil sendiri. Tanpa tombol ini produksi tak punya
+                                     jalan menggarap bab dari halaman bukunya. --}}
+                                <form method="POST" action="{{ route('naskah.bab.claim', $cp->id) }}">
+                                    @csrf
+                                    <button class="btn btn-sm btn-outline-primary">✋ Ambil Bab Ini</button>
                                 </form>
                             @elseif ($cp->status === 'pembuatan' && (int) $cp->pelaksana_user_id === (int) auth()->id() && $izin['upload'])
                                 {{-- Pelaksana bab mengunggah naskahnya di sini; unggahan

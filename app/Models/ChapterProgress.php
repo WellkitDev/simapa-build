@@ -92,6 +92,25 @@ class ChapterProgress extends Model
             && $this->sla_due_at->lt(now()->startOfDay());
     }
 
+    /**
+     * Naskah bab ini dikirim authornya sendiri, bukan ditulis tim produksi.
+     *
+     * TIDAK ada kolomnya, dan memang tidak bisa diambil dari order: satu buku kolaborasi
+     * bisa dicakup beberapa order dengan `naskah_type` berbeda (di data nyata ada buku
+     * yang punya order 'dibuatkan' DAN 'mandiri' sekaligus). Jadi jawabannya diturunkan
+     * per bab — bab yang naskahnya sudah ada padahal tak pernah punya pelaksana berarti
+     * datang dari authornya.
+     */
+    public function naskahDariAuthor(): bool
+    {
+        if ($this->pelaksana_user_id !== null) {
+            return false;
+        }
+
+        return $this->status === 'selesai'
+            || ($this->chapter?->manuscriptFiles?->isNotEmpty() ?? false);
+    }
+
     public function chapter()
     {
         return $this->belongsTo(TitleChapter::class, 'title_chapter_id');

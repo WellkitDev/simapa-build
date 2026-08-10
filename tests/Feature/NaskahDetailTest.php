@@ -452,6 +452,69 @@ class NaskahDetailTest extends TestCase
         $this->assertSame(1, $p->orderDetail->titleRef->chapters()->count());
     }
 
+    /**
+     * Satu buku kolaborasi bisa dicakup beberapa order dengan naskah_type berbeda, jadi
+     * "bab ini naskahnya dari siapa" tidak bisa dijawab dari order. Diturunkan per bab:
+     * naskah sudah ada padahal tak pernah ditugaskan = datang dari authornya.
+     *
+     * @test
+     */
+    public function bab_tanpa_pelaksana_yang_naskahnya_sudah_ada_ditandai_dari_author(): void
+    {
+        $p = $this->buku(['selesai', 'menunggu']);
+        // Order "dibuatkan": tim yang menulis. Bab 1 tetap selesai tanpa pelaksana —
+        // itulah tanda naskahnya datang dari author sendiri, bukan dari tim.
+        $p->orderDetail->update(['naskah_type' => 'dibuatkan']);
+        $bab = $p->orderDetail->titleRef->chapters()->get()->sortBy('urutan')->values();
+
+        $isi = $this->actingAs($this->user('admin', 'buku'))
+            ->get(route('naskah.show', $p->order_detail_id))->assertOk()->getContent();
+
+        $this->assertStringContainsString('Naskah dari author', $isi);
+        // Bab yang belum digarap TIDAK boleh ikut diklaim datang dari author.
+        $this->assertStringContainsString('Belum ditugaskan', $isi);
+        $this->assertTrue($bab[0]->progress->naskahDariAuthor());
+        $this->assertFalse($bab[1]->progress->naskahDariAuthor());
+    }
+
+    /** @test */
+    public function produksi_bisa_mengambil_bab_langsung_dari_tabel_bab(): void
+    {
+        $me = $this->user('production');
+        $p  = $this->buku(['menunggu']);
+        $cp = $p->orderDetail->titleRef->chapters()->first()->progress;
+
+        $this->actingAs($me)->get(route('naskah.show', $p->order_detail_id))
+            ->assertOk()
+            ->assertSee('Ambil Bab Ini');
+
+        $this->actingAs($me)
+            ->post(route('naskah.bab.claim', $cp->id))
+            ->assertSessionHas('success');
+
+        $cp->refresh();
+        $this->assertSame($me->id, $cp->pelaksana_user_id);
+        $this->assertSame('pembuatan', $cp->status);
+    }
+
+    /** @test */
+    public function unggahan_yang_ditolak_validasi_memberi_pesan_bukan_diam_diam_gagal(): void
+    {
+        $pelaksana = $this->user('production');
+        $p         = $this->naskah('pembuatan', ['pelaksana_user_id' => $pelaksana->id]);
+
+        // Format di luar pdf/doc/docx/zip → ditolak validasi. Yang diuji: pesannya
+        // benar-benar sampai ke pengguna, bukan halaman termuat ulang tanpa keterangan.
+        $this->actingAs($pelaksana)
+            ->post(route('naskah.file', $p->order_detail_id), [
+                'slot' => 'masuk',
+                'file' => UploadedFile::fake()->create('gambar.png', 10),
+            ])
+            ->assertSessionHasErrors('file');
+
+        $this->assertSame('pembuatan', $p->fresh()->status);
+    }
+
     /** @test */
     public function file_bab_tersimpan_terpisah_dari_file_level_buku(): void
     {

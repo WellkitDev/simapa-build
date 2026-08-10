@@ -382,6 +382,23 @@
 
 
 <nav class="massege">
+    {{-- Galat validasi ($errors) sebelumnya TIDAK pernah dirender di layout mana pun:
+         setiap validate() yang gagal hanya memuat ulang halaman tanpa keterangan, sehingga
+         unggahan yang ditolak (mis. lebih dari 20 MB atau format di luar pdf/doc/docx/zip)
+         terlihat seperti "gagal tanpa sebab". --}}
+    @if ($errors->any())
+        <div x-data="{ show: true }" x-init="setTimeout(() => show = false, 8000)" x-show="show">
+            <div class="alert alert-danger alert-dismissible" role="alert">
+                <ul class="mb-0 ps-3">
+                    @foreach ($errors->all() as $pesan)
+                        <li>{{ $pesan }}</li>
+                    @endforeach
+                </ul>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="btn-close"></button>
+            </div>
+        </div>
+    @endif
+
     <!-- errors message -->
     @if (session('error'))
         <div x-data="{ show: true }" x-init="setTimeout(() => show = false, 5000)" x-show="show">
