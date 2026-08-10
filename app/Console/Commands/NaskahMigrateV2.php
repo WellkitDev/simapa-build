@@ -38,7 +38,7 @@ class NaskahMigrateV2 extends Command
             'Pisahkan PJ (admin) & pelaksana'      => $this->pisahkanPeran(),
             'Naskah publish/terbit → arsip'        => $this->arsipkanFinal(),
             'Status bab lama → CHAPTER_STAGES'     => $this->migrasiBab(),
-            'Perbaiki author bab buku kolaborasi'  => $this->perbaikiAuthorBab(),
+            'Selaraskan author bab dgn ordernya'   => $this->selaraskanAuthorBab(),
             'Hitung ulang roll-up buku kolaborasi' => $this->hitungRollup(),
         ];
 
@@ -171,35 +171,37 @@ class NaskahMigrateV2 extends Command
     }
 
     /**
-     * Penyemaian lama menyalin SELURUH author order ke setiap bab, sehingga kolom
-     * "bab ini naskah dari siapa" tak menjawab apa pun. Petakan ulang satu author per
-     * bab menurut urutan; bab yang tak kebagian dibiarkan kosong agar ditandai kuning
-     * dan dipetakan manusia, bukan ditebak.
+     * Author tiap bab buku kolaborasi harus sama dengan author ORDER yang memesan bab
+     * itu (`order_details.chapters` = nomor bab). Dua penyemaian sebelumnya tidak
+     * melihat nomor bab — yang pertama menyalin seluruh author ke tiap bab, yang kedua
+     * menebak lewat urutan daftar author — sehingga bab bisa tertulis atas nama orang
+     * yang salah, dan asal naskahnya (mandiri/dibuatkan) ikut salah.
+     *
+     * @return int jumlah bab yang pemetaannya berubah
      */
-    private function perbaikiAuthorBab(): int
+    private function selaraskanAuthorBab(): int
     {
         $svc  = app(\App\Services\ChapterAuthorService::class);
-        $buku = \App\Models\Title::where('jenis', 'buku')->get();
+        $buku = \App\Models\Title::where('jenis', 'buku')->with('orderDetails')->get();
         $n    = 0;
 
         foreach ($buku as $b) {
             if ($this->dry) {
-                // Hitung tanpa menulis: tiru syarat yang dipakai repair.
-                $sets = $b->chapters()->with('authors')->get()
-                    ->map(fn ($c) => $c->authors->pluck('id')->sort()->values()->all());
-
-                $perluDiperbaiki = $b->orderDetails()->where('type', 'bk_kolab')->exists()
-                    && $sets->isNotEmpty()
-                    && ! $sets->contains([])
-                    && $sets->unique(fn ($s) => implode(',', $s))->count() === 1
-                    && count($sets->first()) >= 2;
-
-                $n += $perluDiperbaiki ? 1 : 0;
+                foreach ($b->chapters()->with('authors')->get() as $bab) {
+                    $order = $b->orderForChapter((int) $bab->urutan);
+                    if (! $order) {
+                        continue;
+                    }
+                    $seharusnya = $order->authors()->orderByPivot('position')->pluck('tb_authors.id')->all();
+                    if ($seharusnya !== [] && $seharusnya !== $bab->authors->pluck('id')->all()) {
+                        $n++;
+                    }
+                }
 
                 continue;
             }
 
-            $n += $svc->repairCollaborativeMapping($b) ? 1 : 0;
+            $n += $svc->remapFromOrders($b);
         }
 
         return $n;

@@ -380,6 +380,10 @@ class NaskahDetailTest extends TestCase
         $p         = $this->buku(['menunggu', 'menunggu']);
         $book      = $p->orderDetail->titleRef;
 
+        // Order helper ini bernaskah 'dibuatkan' dan bernomor bab di luar 1–3, jadi
+        // ketiga bab belum terpesan → tak ada yang bernaskah mandiri.
+        $p->orderDetail->update(['naskah_type' => 'dibuatkan']);
+
         // Satu bab tambahan tanpa author — harus dilewati, bukan menggagalkan semuanya.
         $tanpaAuthor = $book->chapters()->create(['judul' => 'Bab 3', 'urutan' => 3]);
         $tanpaAuthor->progress()->create(['status' => 'menunggu', 'started_at' => now()]);
@@ -389,7 +393,7 @@ class NaskahDetailTest extends TestCase
                 'pelaksana_user_id' => $pelaksana->id,
             ])
             ->assertSessionHas('success', fn (string $pesan) => str_contains($pesan, '2 bab')
-                && str_contains($pesan, '1 bab dilewati'));
+                && str_contains($pesan, 'author belum dipetakan'));
 
         $bab = $book->chapters()->with('progress')->get()->sortBy('urutan')->values();
         $this->assertSame($pelaksana->id, $bab[0]->progress->pelaksana_user_id);
@@ -503,28 +507,51 @@ class NaskahDetailTest extends TestCase
     }
 
     /**
-     * Satu buku kolaborasi bisa dicakup beberapa order dengan naskah_type berbeda, jadi
-     * "bab ini naskahnya dari siapa" tidak bisa dijawab dari order. Diturunkan per bab:
-     * naskah sudah ada padahal tak pernah ditugaskan = datang dari authornya.
+     * Asal naskah tiap bab datang dari ORDER yang memesan bab itu — pada buku kolaborasi
+     * `order_details.chapters` menyimpan nomor babnya. Tabel bab harus menyebutnya apa
+     * adanya: bab bernaskah mandiri tak boleh terbaca sebagai "belum ditugaskan", karena
+     * itulah yang membuat pelaksana menulis naskah yang sudah dikirim authornya.
      *
      * @test
      */
-    public function bab_tanpa_pelaksana_yang_naskahnya_sudah_ada_ditandai_dari_author(): void
+    public function tabel_bab_menyebut_asal_naskah_sesuai_ordernya(): void
     {
-        $p = $this->buku(['selesai', 'menunggu']);
-        // Order "dibuatkan": tim yang menulis. Bab 1 tetap selesai tanpa pelaksana —
-        // itulah tanda naskahnya datang dari author sendiri, bukan dari tim.
-        $p->orderDetail->update(['naskah_type' => 'dibuatkan']);
-        $bab = $p->orderDetail->titleRef->chapters()->get()->sortBy('urutan')->values();
+        $book = \App\Models\Title::create(['title' => 'Kolab Campur', 'jenis' => 'buku',
+                                           'tipe_naskah' => 'kolaborasi', 'status' => 'disetujui']);
+
+        // Bab 1 dibuatkan tim, Bab 2 dikirim authornya sendiri.
+        $pertama = null;
+        foreach ([[1, 'dibuatkan'], [2, 'mandiri']] as [$nomor, $jenis]) {
+            $order  = \App\Models\Order::factory()->create(['user_id' => $this->user('marketing')->id]);
+            $detail = OrderDetail::factory()->create([
+                'order_id' => $order->id, 'type' => 'bk_kolab',
+                'title' => $book->title, 'title_id' => $book->id,
+                'chapters' => $nomor, 'naskah_type' => $jenis,
+            ]);
+            $detail->authors()->attach(Author::create(['name' => 'Penulis ' . $nomor])->id, ['position' => 1]);
+            \App\Models\TitleProgress::create([
+                'order_detail_id' => $detail->id, 'status' => 'pembuatan',
+                'assigned_role' => 'production', 'bidang' => 'buku', 'started_at' => now(),
+            ]);
+            $pertama ??= $detail;
+
+            $bab = $book->chapters()->create(['judul' => 'Bab ' . $nomor, 'urutan' => $nomor]);
+            $bab->progress()->create(['status' => 'menunggu', 'started_at' => now()]);
+        }
+
+        app(\App\Services\ChapterAuthorService::class)->seedFromOrders($book);
+
+        $bab = $book->chapters()->with('progress')->get()->sortBy('urutan')->values();
+        $this->assertSame('dibuatkan', $bab[0]->progress->sumberNaskah());
+        $this->assertSame('mandiri', $bab[1]->progress->sumberNaskah());
 
         $isi = $this->actingAs($this->user('admin', 'buku'))
-            ->get(route('naskah.show', $p->order_detail_id))->assertOk()->getContent();
+            ->get(route('naskah.show', $pertama->id))->assertOk()->getContent();
 
-        $this->assertStringContainsString('Naskah dari author', $isi);
-        // Bab yang belum digarap TIDAK boleh ikut diklaim datang dari author.
+        $this->assertStringContainsString('Naskah Mandiri', $isi);
         $this->assertStringContainsString('Belum ditugaskan', $isi);
-        $this->assertTrue($bab[0]->progress->naskahDariAuthor());
-        $this->assertFalse($bab[1]->progress->naskahDariAuthor());
+        // Bab mandiri menawarkan unggahan naskah author, BUKAN distribusi ke pelaksana.
+        $this->assertStringContainsString('Naskah dari Author', $isi);
     }
 
     /** @test */

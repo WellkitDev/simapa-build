@@ -73,7 +73,19 @@ class ChapterAuthorServiceTest extends TestCase
         $this->assertSame(0, Author::count());
     }
 
-    /** Buat order tertaut ke buku + author (urut posisi). */
+    /**
+     * Satu order kolaborasi = satu author = satu bab tertentu; `chapters` menyimpan
+     * NOMOR bab yang dikontribusikan order itu.
+     */
+    private function orderBab(Title $book, int $nomorBab, Author $author, string $naskahType = 'dibuatkan'): void
+    {
+        \App\Models\OrderDetail::factory()->create([
+            'title_id' => $book->id, 'type' => 'bk_kolab',
+            'chapters' => $nomorBab, 'naskah_type' => $naskahType,
+        ])->authors()->attach($author->id, ['position' => 1]);
+    }
+
+    /** Buat order tertaut ke buku + author (urut posisi) — dipakai kasus buku mandiri. */
     private function attachOrderAuthors(Title $book, array $authors): void
     {
         $detail = \App\Models\OrderDetail::factory()->create(['title_id' => $book->id, 'type' => 'bk_kolab']);
@@ -84,19 +96,22 @@ class ChapterAuthorServiceTest extends TestCase
     }
 
     /**
-     * DIUBAH 2026-08-10. Test ini dulu menuntut SETIAP bab memuat SELURUH author order —
-     * dan itulah bug yang dilaporkan pengguna: buku 10 bab menampilkan kesepuluh nama di
-     * tiap bab, sehingga kolom "bab ini naskah dari siapa" tak menjawab apa pun.
-     * Kolaborasi berarti satu penulis menyumbang babnya sendiri: author ke-N → bab ke-N.
+     * DIUBAH 2026-08-11 setelah owner mengoreksi model domainnya. Test ini sempat dua kali
+     * salah: mula-mula menuntut SETIAP bab memuat seluruh author, lalu menebak author
+     * ke-N → bab ke-N. Keduanya mengabaikan nomor bab yang tercatat di ordernya, padahal
+     * di situlah jawabannya — dan salah pasang berarti nama author bab jadi salah orang.
      *
      * @test
      */
-    public function seed_from_orders_memasangkan_satu_author_per_bab(): void
+    public function seed_from_orders_memasangkan_author_sesuai_nomor_bab_ordernya(): void
     {
         $book = $this->book(2);
         $a = Author::create(['name' => 'Ani']);
         $b = Author::create(['name' => 'Budi']);
-        $this->attachOrderAuthors($book, [$a, $b]);
+
+        // Sengaja dibuat terbalik: Budi dicatat lebih dulu, tapi ordernya untuk Bab 2.
+        $this->orderBab($book, 2, $b);
+        $this->orderBab($book, 1, $a);
 
         $this->svc->seedFromOrders($book);
 
@@ -106,22 +121,24 @@ class ChapterAuthorServiceTest extends TestCase
     }
 
     /**
-     * Pemetaan manual tak pernah ditimpa. Pasangan author↔bab tetap dihitung menurut
-     * URUTAN, bukan digeser mengisi lubang: author ke-2 milik bab ke-2, dan kalau
-     * daftar author habis, bab sisanya dibiarkan kosong supaya UI menandainya kuning
-     * dan manusia yang memutuskan — bukan sistem menebak.
+     * Penyemaian tak menimpa bab yang sudah punya author, dan bab yang BELUM DIPESAN
+     * dibiarkan kosong — UI menandainya "Bab belum dipesan" supaya manusia yang
+     * memutuskan, bukan sistem menebak.
+     *
+     * (Beda dengan `remapFromOrders()` yang memang sengaja menimpa: itu dipakai command
+     * migrasi untuk membetulkan pemetaan lama yang bertentangan dengan ordernya.)
      *
      * @test
      */
-    public function seed_from_orders_tidak_menimpa_pemetaan_manual(): void
+    public function seed_from_orders_tidak_menimpa_dan_membiarkan_bab_tanpa_order(): void
     {
         $book = $this->book(2);
         $chapters = $book->chapters()->orderBy('urutan')->get();
         $manual = Author::create(['name' => 'Manual']);
         $chapters[0]->authors()->attach($manual->id, ['position' => 1]);
 
-        $order = Author::create(['name' => 'Order']);
-        $this->attachOrderAuthors($book, [$order]);
+        // Hanya Bab 1 yang dipesan — dan babnya sudah dipetakan manusia.
+        $this->orderBab($book, 1, Author::create(['name' => 'Order']));
 
         $this->svc->seedFromOrders($book);
 

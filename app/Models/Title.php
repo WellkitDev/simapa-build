@@ -220,6 +220,33 @@ class Title extends Model
         return $reached !== false && $reached >= $isbnIdx;
     }
 
+    /**
+     * Order yang memesan bab ke-$urutan.
+     *
+     * Pada buku KOLABORASI, `order_details.chapters` menyimpan **nomor bab** yang
+     * dikontribusikan order itu (satu order = satu author = satu bab), bukan jumlah bab.
+     * Dari sinilah asal naskah tiap bab diketahui: `naskah_type` order itulah yang
+     * menentukan apakah babnya ditulis tim ('dibuatkan') atau dikirim authornya
+     * ('mandiri'). Buku MANDIRI hanya punya satu order yang mencakup seluruh buku.
+     *
+     * Mengembalikan null bila babnya belum dipesan siapa pun (wajar: belum semua bab
+     * terjual) — pemanggil harus memperlakukannya sebagai "belum diketahui", bukan
+     * mengasumsikan dibuatkan.
+     */
+    public function orderForChapter(int $urutan): ?OrderDetail
+    {
+        $details = $this->relationLoaded('orderDetails')
+            ? $this->orderDetails
+            : $this->orderDetails()->get();
+
+        if ($details->contains(fn ($d) => $d->type === 'bk_kolab')) {
+            return $details->firstWhere(fn ($d) => $d->type === 'bk_kolab'
+                && (int) $d->chapters === $urutan);
+        }
+
+        return $details->first();
+    }
+
     /** Label rapi untuk satu status tahap manuskrip. */
     public static function stageLabel(?string $status): ?string
     {

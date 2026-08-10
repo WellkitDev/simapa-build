@@ -114,6 +114,9 @@
                     @php
                         $cp        = $b->progress;
                         $adaAuthor = $b->authors->isNotEmpty();
+                        // Asal naskah bab ini, dari order yang memesannya (kolom
+                        // order_details.chapters = nomor bab pada buku kolaborasi).
+                        $sumber    = $cp?->sumberNaskah();
                     @endphp
                     <tr class="{{ ! $adaAuthor ? 'table-warning' : '' }}">
                         <td class="text-muted fw-bold">{{ $b->urutan }}</td>
@@ -126,18 +129,16 @@
                             @endif
                         </td>
                         <td>
-                            @if ($cp?->pelaksana)
+                            @if ($sumber === 'mandiri')
+                                {{-- Naskahnya dikirim author sendiri (dari order bab ini),
+                                     jadi memang tak akan pernah ada pelaksana. --}}
+                                <span class="badge bg-info-subtle text-info border">Naskah Mandiri</span>
+                            @elseif ($cp?->pelaksana)
                                 {{ $cp->pelaksana->name }}
-                            @elseif ($cp?->naskahDariAuthor())
-                                {{-- Naskahnya sudah ada padahal tak pernah ditugaskan ke
-                                     siapa pun → datang langsung dari author bab ini. --}}
-                                <span class="badge bg-info-subtle text-info border">Naskah dari author</span>
-                            @elseif ($naskahMandiri)
-                                {{-- Order mandiri: author yang mengirim naskah, jadi memang
-                                     tidak akan pernah ada pelaksana — bukan "belum ditugaskan". --}}
-                                <span class="badge bg-secondary-subtle text-secondary border">Naskah Mandiri</span>
-                            @else
+                            @elseif ($sumber === 'dibuatkan')
                                 <span class="text-muted">Belum ditugaskan</span>
+                            @else
+                                <span class="text-warning">Bab belum dipesan</span>
                             @endif
                         </td>
                         <td>
@@ -168,6 +169,21 @@
                                 @else
                                     <span class="text-muted small">Menunggu pemetaan author</span>
                                 @endif
+                            @elseif ($sumber === 'mandiri' && $cp->status !== 'selesai' && $izin['upload'])
+                                {{-- Bab bernaskah mandiri: naskahnya datang dari author,
+                                     jadi yang dibutuhkan unggahan — bukan pelaksana.
+                                     Menawarkan distribusi di sini akan membuat tim menulis
+                                     ulang naskah yang sebenarnya sudah ada. --}}
+                                <form method="POST" action="{{ route('naskah.bab.file', $cp->id) }}"
+                                      enctype="multipart/form-data" class="d-flex gap-1">
+                                    @csrf
+                                    <input type="hidden" name="slot" value="masuk">
+                                    <input type="file" name="file" class="form-control form-control-sm"
+                                           accept=".pdf,.doc,.docx,.zip" required>
+                                    <button class="btn btn-sm btn-primary text-nowrap">⬆ Naskah dari Author</button>
+                                </form>
+                            @elseif ($sumber === 'mandiri')
+                                <span class="text-muted small">Menunggu naskah dari author</span>
                             @elseif ($cp->status === 'menunggu' && $izin['assign'])
                                 <form method="POST" action="{{ route('naskah.bab.distribusi', $cp->id) }}" class="d-flex gap-1">
                                     @csrf

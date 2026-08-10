@@ -50,118 +50,161 @@ class ChapterManuscriptServiceTest extends TestCase
     }
 
     /**
-     * BUG (2026-08-10): penyemaian lama menyalin SELURUH author order ke SETIAP bab,
-     * sehingga kolom "bab ini naskah dari siapa" tak menjawab apa pun — di data dev
-     * ada buku 10 bab yang tiap babnya memuat kesepuluh author. Kolaborasi berarti
-     * satu penulis menyumbang babnya sendiri: pasangkan satu author per bab.
+     * Buku kolaborasi seperti data nyata: satu order per author, dan
+     * `order_details.chapters` menyimpan NOMOR BAB yang dikontribusikan order itu.
+     *
+     * @param array<int,array{0:int,1:string,2:string}> $orders [nomorBab, namaAuthor, naskahType]
+     */
+    private function bukuKolaborasi(array $orders, int $jumlahBab): Title
+    {
+        $book = Title::create(['title' => 'Kolab ' . fake()->unique()->word(), 'jenis' => 'buku',
+                               'tipe_naskah' => 'kolaborasi', 'status' => 'disetujui']);
+
+        foreach ($orders as [$nomorBab, $nama, $naskahType]) {
+            $detail = OrderDetail::factory()->create([
+                'type' => 'bk_kolab', 'title' => $book->title, 'title_id' => $book->id,
+                'chapters' => $nomorBab, 'naskah_type' => $naskahType,
+            ]);
+            $detail->authors()->attach(\App\Models\Author::create(['name' => $nama])->id, ['position' => 1]);
+        }
+
+        for ($i = 1; $i <= $jumlahBab; $i++) {
+            $bab = $book->chapters()->create(['judul' => 'Bab ' . $i, 'urutan' => $i]);
+            $bab->progress()->create(['status' => 'menunggu', 'started_at' => now()]);
+        }
+
+        return $book->fresh();
+    }
+
+    /**
+     * BENTUK DATA NYATA (judul 45): 5 order, tiap order satu author dan satu nomor bab.
+     * Order bernomor bab 4 kebetulan tercatat PALING AWAL — menebak lewat urutan daftar
+     * author akan menaruh authornya di Bab 1. Sumber kebenarannya nomor bab di order.
      *
      * @test
      */
-    public function buku_kolaborasi_dipasangkan_satu_author_per_bab(): void
+    public function author_bab_mengikuti_nomor_bab_di_order_bukan_urutan_daftar(): void
     {
-        $book   = \App\Models\Title::create(['title' => 'Buku Kolaborasi', 'jenis' => 'buku',
-                                             'tipe_naskah' => 'kolaborasi', 'status' => 'disetujui']);
-        $detail = \App\Models\OrderDetail::factory()->create([
-            'type' => 'bk_kolab', 'title' => $book->title, 'title_id' => $book->id, 'chapters' => 3,
-        ]);
+        $book = $this->bukuKolaborasi([
+            [4, 'Dr. Reza Ronal', 'mandiri'],      // tercatat pertama, tapi mengisi Bab 4
+            [1, 'Emaya Kurniawati', 'dibuatkan'],
+            [2, 'I Gusti Kade', 'dibuatkan'],
+            [3, 'Rahmat Hidayat', 'dibuatkan'],
+            [5, 'Ibnu Adham', 'dibuatkan'],
+        ], jumlahBab: 5);
 
-        foreach (['Penulis A', 'Penulis B', 'Penulis C'] as $i => $nama) {
-            $detail->authors()->attach(
-                \App\Models\Author::create(['name' => $nama])->id,
-                ['position' => $i + 1]
-            );
-        }
-
-        app(\App\Services\ChapterManuscriptService::class)->ensureChapters($book);
+        app(\App\Services\ChapterAuthorService::class)->seedFromOrders($book);
 
         $bab = $book->chapters()->with('authors')->get()->sortBy('urutan')->values();
-        $this->assertCount(3, $bab);
-
-        foreach (['Penulis A', 'Penulis B', 'Penulis C'] as $i => $nama) {
-            $this->assertCount(1, $bab[$i]->authors, "Bab " . ($i + 1) . " harus punya TEPAT satu author.");
-            $this->assertSame($nama, $bab[$i]->authors->first()->name);
-        }
+        $this->assertSame('Emaya Kurniawati', $bab[0]->authors->first()->name);
+        $this->assertSame('Dr. Reza Ronal', $bab[3]->authors->first()->name, 'Bab 4 milik order bernomor bab 4.');
+        $this->assertSame('Ibnu Adham', $bab[4]->authors->first()->name);
     }
 
     /** @test */
-    public function bab_yang_tak_kebagian_author_dibiarkan_kosong_bukan_ditebak(): void
+    public function sumber_naskah_bab_diambil_dari_naskah_type_ordernya(): void
     {
-        $book   = \App\Models\Title::create(['title' => 'Kolab Kurang Author', 'jenis' => 'buku',
-                                             'tipe_naskah' => 'kolaborasi', 'status' => 'disetujui']);
-        $detail = \App\Models\OrderDetail::factory()->create([
-            'type' => 'bk_kolab', 'title' => $book->title, 'title_id' => $book->id, 'chapters' => 4,
-        ]);
-        $detail->authors()->attach(\App\Models\Author::create(['name' => 'Satu-satunya'])->id, ['position' => 1]);
+        $book = $this->bukuKolaborasi([
+            [1, 'Penulis Satu', 'dibuatkan'],
+            [2, 'Penulis Dua', 'mandiri'],
+        ], jumlahBab: 3);
 
-        app(\App\Services\ChapterManuscriptService::class)->ensureChapters($book);
+        $bab = $book->chapters()->with('progress')->get()->sortBy('urutan')->values();
+
+        $this->assertSame('dibuatkan', $bab[0]->progress->sumberNaskah());
+        $this->assertSame('mandiri', $bab[1]->progress->sumberNaskah());
+        $this->assertTrue($bab[1]->progress->naskahDariAuthor());
+        // Bab 3 belum dipesan siapa pun → belum diketahui, JANGAN diasumsikan dibuatkan.
+        $this->assertNull($bab[2]->progress->sumberNaskah());
+    }
+
+    /**
+     * Inti keluhan owner: kalau bab bernaskah mandiri diperlakukan 'dibuatkan',
+     * pelaksana akan menulis naskah yang sebenarnya sudah dikirim authornya.
+     *
+     * @test
+     */
+    public function bab_bernaskah_mandiri_tidak_bisa_ditugaskan_ke_pelaksana(): void
+    {
+        $book = $this->bukuKolaborasi([[1, 'Penulis Mandiri', 'mandiri']], jumlahBab: 1);
+        app(\App\Services\ChapterAuthorService::class)->seedFromOrders($book);
+
+        $cp    = $book->chapters()->with('progress')->first()->progress;
+        $admin = $this->user('admin');
+        $prod  = $this->user('production');
+
+        try {
+            app(\App\Services\AssignmentService::class)->distribute($cp, $prod->id, $admin);
+            $this->fail('Bab bernaskah mandiri mestinya menolak pelaksana.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->assertStringContainsString('bernaskah mandiri', collect($e->errors())->flatten()->first());
+        }
+
+        $this->assertNull($cp->fresh()->pelaksana_user_id);
+    }
+
+    /** @test */
+    public function bab_dibuatkan_tetap_bisa_ditugaskan(): void
+    {
+        $book = $this->bukuKolaborasi([[1, 'Penulis Ditulis Tim', 'dibuatkan']], jumlahBab: 1);
+        app(\App\Services\ChapterAuthorService::class)->seedFromOrders($book);
+
+        $cp   = $book->chapters()->with('progress')->first()->progress;
+        $prod = $this->user('production');
+
+        app(\App\Services\AssignmentService::class)->distribute($cp, $prod->id, $this->user('admin'));
+
+        $this->assertSame($prod->id, $cp->fresh()->pelaksana_user_id);
+        $this->assertSame('pembuatan', $cp->fresh()->status);
+    }
+
+    /** @test */
+    /**
+     * Pemetaan lama (menyalin seluruh author ke tiap bab, lalu menebak lewat urutan
+     * daftar author) sama-sama tidak melihat nomor bab di ordernya. Penyelarasan
+     * MENIMPA pemetaan yang bertentangan dengan order — memang itu tujuannya, karena
+     * ordernya yang jadi sumber kebenaran, bukan tebakan sebelumnya.
+     *
+     * @test
+     */
+    public function penyelarasan_menimpa_pemetaan_yang_bertentangan_dengan_order(): void
+    {
+        $book = $this->bukuKolaborasi([
+            [1, 'Author Bab Satu', 'dibuatkan'],
+            [2, 'Author Bab Dua', 'dibuatkan'],
+        ], jumlahBab: 2);
+
+        // Tiru hasil penyemaian lama: kedua bab memuat KEDUA author.
+        $semua = \App\Models\Author::pluck('id')->mapWithKeys(fn ($id, $i) => [$id => ['position' => $i + 1]])->all();
+        $bab = $book->chapters()->get()->sortBy('urutan')->values();
+        foreach ($bab as $b) { $b->authors()->sync($semua); }
+
+        $svc = app(\App\Services\ChapterAuthorService::class);
+        $this->assertSame(2, $svc->remapFromOrders($book));
+
+        $bab = $book->chapters()->with('authors')->get()->sortBy('urutan')->values();
+        $this->assertSame('Author Bab Satu', $bab[0]->authors->first()->name);
+        $this->assertSame('Author Bab Dua', $bab[1]->authors->first()->name);
+        $this->assertCount(1, $bab[0]->authors);
+
+        // Idempotent: dijalankan lagi tak mengubah apa pun.
+        $this->assertSame(0, $svc->remapFromOrders($book->fresh()));
+    }
+
+    /** @test */
+    public function bab_yang_belum_dipesan_dibiarkan_kosong_bukan_ditebak(): void
+    {
+        // Hanya bab 1 yang dipesan; bab 2 dan 3 belum terjual.
+        $book = $this->bukuKolaborasi([[1, 'Satu-satunya', 'dibuatkan']], jumlahBab: 3);
+
+        app(\App\Services\ChapterAuthorService::class)->seedFromOrders($book);
 
         $bab = $book->chapters()->with('authors')->get()->sortBy('urutan')->values();
         $this->assertCount(1, $bab[0]->authors);
-        foreach ([1, 2, 3] as $i) {
-            $this->assertCount(0, $bab[$i]->authors,
-                'Bab tanpa author harus tetap kosong supaya ditandai kuning dan dipetakan manusia.');
-        }
+        $this->assertCount(0, $bab[1]->authors, 'Bab tanpa order harus tetap kosong.');
+        $this->assertCount(0, $bab[2]->authors);
     }
 
-    /** @test */
-    public function pemetaan_author_lama_yang_menumpuk_bisa_diperbaiki(): void
-    {
-        $book   = \App\Models\Title::create(['title' => 'Kolab Rusak', 'jenis' => 'buku',
-                                             'tipe_naskah' => 'kolaborasi', 'status' => 'disetujui']);
-        $detail = \App\Models\OrderDetail::factory()->create([
-            'type' => 'bk_kolab', 'title' => $book->title, 'title_id' => $book->id, 'chapters' => 3,
-        ]);
-
-        $ids = [];
-        foreach (['A', 'B', 'C'] as $i => $nama) {
-            $ids[] = $id = \App\Models\Author::create(['name' => 'Penulis ' . $nama])->id;
-            $detail->authors()->attach($id, ['position' => $i + 1]);
-        }
-
-        // Bentuk data rusak: ketiga bab memuat ketiga author.
-        $pivot = collect($ids)->mapWithKeys(fn ($id, $i) => [$id => ['position' => $i + 1]])->all();
-        foreach ([1, 2, 3] as $n) {
-            $book->chapters()->create(['judul' => 'Bab ' . $n, 'urutan' => $n])->authors()->sync($pivot);
-        }
-
-        $svc = app(\App\Services\ChapterAuthorService::class);
-        $this->assertTrue($svc->repairCollaborativeMapping($book));
-
-        $bab = $book->chapters()->with('authors')->get()->sortBy('urutan')->values();
-        foreach ([0, 1, 2] as $i) {
-            $this->assertCount(1, $bab[$i]->authors);
-            $this->assertSame($ids[$i], $bab[$i]->authors->first()->id);
-        }
-
-        // Idempotent: data yang sudah benar tidak disentuh lagi.
-        $this->assertFalse($svc->repairCollaborativeMapping($book->fresh()));
-    }
-
-    /** @test */
-    public function pemetaan_manual_yang_berbeda_antar_bab_tidak_ditimpa_perbaikan(): void
-    {
-        $book   = \App\Models\Title::create(['title' => 'Kolab Manual', 'jenis' => 'buku',
-                                             'tipe_naskah' => 'kolaborasi', 'status' => 'disetujui']);
-        $detail = \App\Models\OrderDetail::factory()->create([
-            'type' => 'bk_kolab', 'title' => $book->title, 'title_id' => $book->id, 'chapters' => 2,
-        ]);
-        $a = \App\Models\Author::create(['name' => 'Penulis A'])->id;
-        $b = \App\Models\Author::create(['name' => 'Penulis B'])->id;
-        $detail->authors()->attach($a, ['position' => 1]);
-        $detail->authors()->attach($b, ['position' => 2]);
-
-        // Sengaja dibalik oleh manusia: Bab 1 → B, Bab 2 → A.
-        $book->chapters()->create(['judul' => 'Bab 1', 'urutan' => 1])->authors()->sync([$b => ['position' => 1]]);
-        $book->chapters()->create(['judul' => 'Bab 2', 'urutan' => 2])->authors()->sync([$a => ['position' => 1]]);
-
-        $this->assertFalse(app(\App\Services\ChapterAuthorService::class)->repairCollaborativeMapping($book));
-
-        $bab = $book->chapters()->with('authors')->get()->sortBy('urutan')->values();
-        $this->assertSame($b, $bab[0]->authors->first()->id);
-        $this->assertSame($a, $bab[1]->authors->first()->id);
-    }
-
-    /** @test */
     public function ensure_generates_chapters_and_progress_from_order_count(): void
     {
         $book = $this->bookWithOrder(3);

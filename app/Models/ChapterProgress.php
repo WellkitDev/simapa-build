@@ -93,22 +93,32 @@ class ChapterProgress extends Model
     }
 
     /**
-     * Naskah bab ini dikirim authornya sendiri, bukan ditulis tim produksi.
+     * Asal naskah bab ini: 'mandiri' (dikirim authornya) | 'dibuatkan' (ditulis tim)
+     * | null (babnya belum dipesan siapa pun, jadi belum diketahui).
      *
-     * TIDAK ada kolomnya, dan memang tidak bisa diambil dari order: satu buku kolaborasi
-     * bisa dicakup beberapa order dengan `naskah_type` berbeda (di data nyata ada buku
-     * yang punya order 'dibuatkan' DAN 'mandiri' sekaligus). Jadi jawabannya diturunkan
-     * per bab — bab yang naskahnya sudah ada padahal tak pernah punya pelaksana berarti
-     * datang dari authornya.
+     * Diambil dari ORDER yang memesan bab ini — pada buku kolaborasi satu order = satu
+     * author = satu bab, dan `naskah_type` order itulah jawabannya. Ini penting bukan
+     * sekadar untuk label: kalau bab bernaskah mandiri diperlakukan sebagai 'dibuatkan',
+     * pelaksana akan menulis naskah yang sebenarnya sudah dikirim authornya.
      */
-    public function naskahDariAuthor(): bool
+    public function sumberNaskah(): ?string
     {
-        if ($this->pelaksana_user_id !== null) {
-            return false;
+        $bab  = $this->chapter;
+        $buku = $bab?->title;
+
+        if (! $bab || ! $buku) {
+            return null;
         }
 
-        return $this->status === 'selesai'
-            || ($this->chapter?->manuscriptFiles?->isNotEmpty() ?? false);
+        $order = $buku->orderForChapter((int) $bab->urutan);
+
+        return $order === null ? null : ($order->naskahMandiri() ? 'mandiri' : 'dibuatkan');
+    }
+
+    /** Naskah bab ini dikirim authornya sendiri — tak perlu (dan tak boleh) ada pelaksana. */
+    public function naskahDariAuthor(): bool
+    {
+        return $this->sumberNaskah() === 'mandiri';
     }
 
     public function chapter()

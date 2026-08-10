@@ -74,9 +74,15 @@ class ChapterAuthorTest extends TestCase
     }
 
     /** Buat order tertaut ke judul + author (urut posisi). */
-    private function attachOrderAuthors(Title $title, string $type, array $names): void
+    /**
+     * Pada buku kolaborasi `chapters` adalah NOMOR BAB yang dikontribusikan order ini —
+     * dari situlah bab tahu siapa authornya. Default 1 supaya order menunjuk Bab 1.
+     */
+    private function attachOrderAuthors(Title $title, string $type, array $names, int $nomorBab = 1): void
     {
-        $detail = \App\Models\OrderDetail::factory()->create(['title_id' => $title->id, 'type' => $type]);
+        $detail = \App\Models\OrderDetail::factory()->create([
+            'title_id' => $title->id, 'type' => $type, 'chapters' => $nomorBab,
+        ]);
         $pos = 1;
         foreach ($names as $n) {
             $detail->authors()->attach(Author::create(['name' => $n])->id, ['position' => $pos++]);

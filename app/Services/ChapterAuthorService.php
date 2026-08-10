@@ -42,15 +42,13 @@ class ChapterAuthorService
      * Isi author bab dari author order (level buku) untuk menghindari input ulang.
      * Hanya bab yang MASIH KOSONG yang diisi (idempotent; author manual tak ditimpa).
      *
-     * **Buku kolaborasi dipasangkan satu author : satu bab menurut urutan** — itulah arti
-     * kolaborasi: tiap penulis menyumbang babnya sendiri, dan kolom Author menjawab
-     * "bab ini naskah dari siapa". Menyalin SELURUH daftar author ke setiap bab (perilaku
-     * lama) membuat pertanyaan itu tak terjawab sama sekali. Bab yang tak kebagian author
-     * sengaja dibiarkan kosong: UI menandainya kuning dan memblokir distribusinya sampai
-     * dipetakan manusia — jauh lebih baik daripada tebakan yang salah.
+     * **Buku kolaborasi: bab diambil dari ORDER-nya** — `order_details.chapters` menyimpan
+     * nomor bab yang dikontribusikan order itu, dan authornya adalah author order tersebut.
+     * Bab yang belum dipesan siapa pun sengaja dibiarkan kosong: UI menandainya dan
+     * memblokir distribusinya sampai dipetakan manusia — jauh lebih baik daripada tebakan.
      *
-     * Buku mandiri tidak dipecah per bab, jadi seluruh author order tetap dilekatkan
-     * apa adanya (tabel bab pun tidak dirender untuk buku mandiri).
+     * Buku mandiri tidak dipecah per bab, jadi seluruh author order dilekatkan apa adanya
+     * (tabel bab pun tidak dirender untuk buku mandiri).
      */
     public function seedFromOrders(Title $book): void
     {
@@ -66,12 +64,28 @@ class ChapterAuthorService
         $chapters = $book->chapters()->get()->sortBy('urutan')->values();
 
         if ($this->isCollaborative($book)) {
-            foreach ($chapters as $i => $chapter) {
-                $author = $orderAuthors[$i] ?? null;
-                if ($author === null || $chapter->authors()->exists()) {
+            // Pasangan bab↔author diambil dari ORDER-nya: `order_details.chapters` pada
+            // buku kolaborasi adalah NOMOR BAB yang dikontribusikan order itu. Menebak
+            // lewat urutan daftar author salah — di data nyata ada order bernomor bab 4
+            // yang authornya kebetulan tercatat pertama.
+            foreach ($chapters as $chapter) {
+                if ($chapter->authors()->exists()) {
                     continue;
                 }
-                $chapter->authors()->sync([$author->id => ['position' => 1]]);
+
+                $order = $book->orderForChapter((int) $chapter->urutan);
+                if (! $order) {
+                    continue; // babnya belum dipesan siapa pun → biarkan kosong
+                }
+
+                $pivot = [];
+                $pos   = 1;
+                foreach ($order->authors()->orderByPivot('position')->get() as $author) {
+                    $pivot[$author->id] = ['position' => $pos++];
+                }
+                if ($pivot !== []) {
+                    $chapter->authors()->sync($pivot);
+                }
             }
 
             return;
@@ -92,50 +106,54 @@ class ChapterAuthorService
     }
 
     /**
-     * Perbaiki buku kolaborasi yang seluruh babnya terlanjur memuat daftar author yang
-     * sama persis — jejak penyemaian lama. Pemetaan yang benar-benar dikerjakan manusia
-     * hampir pasti berbeda antar bab, jadi syarat "semua bab identik DAN berisi lebih
-     * dari satu author" cukup tajam untuk membedakan keduanya.
+     * Selaraskan author bab buku kolaborasi dengan ORDER-nya (sumber kebenaran).
      *
-     * @return bool true bila buku ini benar-benar dipetakan ulang
+     * Menimpa pemetaan yang ada bila berbeda — memang itu tujuannya: pemetaan lama
+     * dihasilkan otomatis (mula-mula seluruh author disalin ke tiap bab, lalu ditebak
+     * lewat urutan daftar author) dan keduanya tidak melihat nomor bab di ordernya.
+     * Bab yang belum dipesan siapa pun dibiarkan apa adanya, bukan dikosongkan.
+     *
+     * @return int jumlah bab yang pemetaannya berubah
      */
-    public function repairCollaborativeMapping(Title $book): bool
+    public function remapFromOrders(Title $book): int
     {
         if (! $this->isCollaborative($book)) {
-            return false;
+            return 0;
         }
 
-        $chapters = $book->chapters()->with('authors')->get()->sortBy('urutan')->values();
-        if ($chapters->isEmpty()) {
-            return false;
+        $berubah = 0;
+
+        foreach ($book->chapters()->with('authors')->get() as $chapter) {
+            $order = $book->orderForChapter((int) $chapter->urutan);
+            if (! $order) {
+                continue;
+            }
+
+            $seharusnya = $order->authors()->orderByPivot('position')->pluck('tb_authors.id')->all();
+            $sekarang   = $chapter->authors->pluck('id')->all();
+
+            if ($seharusnya === [] || $seharusnya === $sekarang) {
+                continue;
+            }
+
+            $pivot = [];
+            $pos   = 1;
+            foreach ($seharusnya as $id) {
+                $pivot[$id] = ['position' => $pos++];
+            }
+            $chapter->authors()->sync($pivot);
+            $berubah++;
         }
 
-        $sets = $chapters->map(fn ($c) => $c->authors->pluck('id')->sort()->values()->all());
-
-        // Belum tersentuh masalahnya: ada bab kosong, atau tiap bab sudah beda author.
-        if ($sets->contains([]) || $sets->unique(fn ($s) => implode(',', $s))->count() > 1) {
-            return false;
-        }
-        if (count($sets->first()) < 2) {
-            return false;
-        }
-
-        $orderAuthors = $this->orderAuthors($book);
-        if ($orderAuthors->isEmpty()) {
-            return false;
-        }
-
-        foreach ($chapters as $i => $chapter) {
-            $author = $orderAuthors[$i] ?? null;
-            $chapter->authors()->sync(
-                $author === null ? [] : [$author->id => ['position' => 1]]
-            );
-        }
-
-        return true;
+        return $berubah;
     }
 
-    /** Author order level buku, unik, urut posisi. */
+    private function isCollaborative(Title $book): bool
+    {
+        return $book->orderDetails()->where('type', 'bk_kolab')->exists();
+    }
+
+    /** Author order level buku, unik, urut posisi — dipakai buku mandiri. */
     private function orderAuthors(Title $book)
     {
         return $book->orderDetails()
@@ -144,10 +162,5 @@ class ChapterAuthorService
             ->flatMap(fn ($detail) => $detail->authors)
             ->unique('id')
             ->values();
-    }
-
-    private function isCollaborative(Title $book): bool
-    {
-        return $book->orderDetails()->where('type', 'bk_kolab')->exists();
     }
 }

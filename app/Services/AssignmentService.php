@@ -57,6 +57,7 @@ class AssignmentService
         if ($target instanceof ChapterProgress) {
             $this->requireBidang($actor, 'buku');
             $this->assertChapterHasAuthor($target);
+            $this->assertChapterButuhPelaksana($target);
 
             return $this->applyChapterAssignment($target, $pelaksana, $actor, 'distribusi');
         }
@@ -86,6 +87,7 @@ class AssignmentService
 
         if ($target instanceof ChapterProgress) {
             $this->assertChapterHasAuthor($target);
+            $this->assertChapterButuhPelaksana($target);
 
             return $this->applyChapterAssignment($target, $actor, $actor, 'claim');
         }
@@ -305,6 +307,21 @@ class AssignmentService
         if (! $cp->chapter?->authors()->exists()) {
             throw ValidationException::withMessages([
                 'author' => 'Petakan author bab terlebih dahulu.',
+            ]);
+        }
+    }
+
+    /**
+     * Bab yang naskahnya dikirim authornya sendiri tidak boleh ditugaskan ke pelaksana.
+     * Tanpa gerbang ini, pelaksana bisa diminta menulis naskah yang sebenarnya sudah ada
+     * — kerja ganda, dan naskah tim berpotensi menggantikan naskah asli author.
+     */
+    private function assertChapterButuhPelaksana(ChapterProgress $cp): void
+    {
+        if ($cp->naskahDariAuthor()) {
+            throw ValidationException::withMessages([
+                'pelaksana_user_id' => 'Bab ini bernaskah mandiri — naskahnya dikirim author, '
+                    . 'jadi tidak perlu pelaksana. Cukup unggah naskah dari author.',
             ]);
         }
     }

@@ -293,15 +293,22 @@ class DetailNaskahController extends Controller
         }
 
         return $this->run($request, function () use ($svc, $book, $request) {
-            $terpasang = 0;
-            $dilewati  = 0;
+            $terpasang    = 0;
+            $tanpaAuthor  = 0;
+            $naskahSendiri = 0;
 
             foreach ($book->chapters()->with(['progress', 'authors'])->orderBy('urutan')->get() as $bab) {
                 if (! $bab->progress) {
                     continue;
                 }
                 if ($bab->authors->isEmpty()) {
-                    $dilewati++;
+                    $tanpaAuthor++;
+                    continue;
+                }
+                // Bab bernaskah mandiri memang tak butuh pelaksana — dilewati, bukan
+                // menggagalkan seluruh aksi, dan jumlahnya dilaporkan.
+                if ($bab->progress->naskahDariAuthor()) {
+                    $naskahSendiri++;
                     continue;
                 }
 
@@ -309,8 +316,13 @@ class DetailNaskahController extends Controller
                 $terpasang++;
             }
 
+            $catatan = collect([
+                $tanpaAuthor > 0 ? "{$tanpaAuthor} bab dilewati karena author belum dipetakan" : null,
+                $naskahSendiri > 0 ? "{$naskahSendiri} bab dilewati karena naskahnya dikirim author" : null,
+            ])->filter()->join(' · ');
+
             return "Pelaksana diterapkan ke {$terpasang} bab."
-                . ($dilewati > 0 ? " {$dilewati} bab dilewati karena author belum dipetakan." : '');
+                . ($catatan !== '' ? ' ' . $catatan . '.' : '');
         });
     }
 
