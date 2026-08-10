@@ -120,9 +120,32 @@
         window.swalError = function (msg) { Swal.fire({ icon: 'error', title: 'Gagal', text: msg }); };
         window.swalSuccess = function (msg) { Swal.fire({ icon: 'success', title: 'Berhasil', text: msg, timer: 2000, showConfirmButton: false }); };
         window.swalInfo = function (msg) { Swal.fire({ icon: 'info', title: 'Info', text: msg }); };
+
+        /*
+         | Galat validasi. Sebelumnya TIDAK pernah ditampilkan di layout mana pun: setiap
+         | validate() yang gagal hanya memuat ulang halaman tanpa keterangan, sehingga
+         | penolakan yang wajar (format file salah, ukuran lewat batas, isian kosong)
+         | terbaca sebagai "gagal tanpa sebab". Disalurkan lewat kanal yang sama dengan
+         | flash lain supaya seluruh halaman kebagian tanpa menyentuh view satu per satu.
+         */
+        window.swalValidation = function (messages) {
+            Swal.fire({
+                icon: 'error',
+                title: messages.length > 1 ? 'Ada ' + messages.length + ' isian yang perlu diperbaiki' : 'Gagal',
+                html: '<ul style="text-align:left;margin:0;padding-left:1.1rem">'
+                    + messages.map(function (m) {
+                        return '<li>' + String(m).replace(/[&<>"']/g, function (c) {
+                            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+                        }) + '</li>';
+                    }).join('')
+                    + '</ul>',
+            });
+        };
+
         @if(session('success')) window.swalSuccess(@json(session('success'))); @endif
         @if(session('error')) window.swalError(@json(session('error'))); @endif
         @if(session('info')) window.swalInfo(@json(session('info'))); @endif
+        @if($errors->any()) window.swalValidation(@json($errors->all())); @endif
     })();
     </script>
 </body>
