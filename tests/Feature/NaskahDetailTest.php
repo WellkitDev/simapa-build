@@ -373,6 +373,86 @@ class NaskahDetailTest extends TestCase
     }
 
     /** @test */
+    public function terapkan_satu_pelaksana_ke_semua_bab_melewati_bab_tanpa_author(): void
+    {
+        $admin     = $this->user('admin', 'buku');
+        $pelaksana = $this->user('production');
+        $p         = $this->buku(['menunggu', 'menunggu']);
+        $book      = $p->orderDetail->titleRef;
+
+        // Satu bab tambahan tanpa author — harus dilewati, bukan menggagalkan semuanya.
+        $tanpaAuthor = $book->chapters()->create(['judul' => 'Bab 3', 'urutan' => 3]);
+        $tanpaAuthor->progress()->create(['status' => 'menunggu', 'started_at' => now()]);
+
+        $this->actingAs($admin)
+            ->post(route('naskah.bab.pelaksanaSemua', $p->order_detail_id), [
+                'pelaksana_user_id' => $pelaksana->id,
+            ])
+            ->assertSessionHas('success', fn (string $pesan) => str_contains($pesan, '2 bab')
+                && str_contains($pesan, '1 bab dilewati'));
+
+        $bab = $book->chapters()->with('progress')->get()->sortBy('urutan')->values();
+        $this->assertSame($pelaksana->id, $bab[0]->progress->pelaksana_user_id);
+        $this->assertSame($pelaksana->id, $bab[1]->progress->pelaksana_user_id);
+        $this->assertNull($bab[2]->progress->fresh()->pelaksana_user_id);
+    }
+
+    /** @test */
+    public function struktur_bab_bisa_ditambah_dan_judulnya_diubah(): void
+    {
+        $admin = $this->user('admin', 'buku');
+        $p     = $this->buku(['menunggu']);
+        $book  = $p->orderDetail->titleRef;
+        $bab1  = $book->chapters()->first();
+
+        $this->actingAs($admin)
+            ->post(route('naskah.bab.struktur', $p->order_detail_id), [
+                'judul'  => [$bab1->id => 'Pengantar Ekonomi Digital'],
+                'tambah' => 2,
+            ])
+            ->assertSessionHas('success');
+
+        $this->assertSame('Pengantar Ekonomi Digital', $bab1->fresh()->judul);
+        $this->assertSame(3, $book->chapters()->count());
+        // Bab baru langsung punya progress supaya muncul di tabel & antrian.
+        $this->assertSame(3, \App\Models\ChapterProgress::count());
+    }
+
+    /** @test */
+    public function bab_yang_sudah_dikerjakan_tidak_bisa_dihapus_lewat_struktur(): void
+    {
+        $admin     = $this->user('admin', 'buku');
+        $pelaksana = $this->user('production');
+        $p         = $this->buku(['menunggu', 'menunggu']);
+        $book      = $p->orderDetail->titleRef;
+        $bab       = $book->chapters()->get()->sortBy('urutan')->values();
+
+        $bab[1]->progress->update(['pelaksana_user_id' => $pelaksana->id, 'status' => 'pembuatan']);
+
+        $this->actingAs($admin)
+            ->post(route('naskah.bab.struktur', $p->order_detail_id), [
+                'hapus' => [$bab[0]->id, $bab[1]->id],
+            ])
+            ->assertSessionHas('success', fn (string $pesan) => str_contains($pesan, '1 bab tidak dihapus'));
+
+        $this->assertNull($book->chapters()->find($bab[0]->id), 'Bab yang belum tersentuh boleh dihapus.');
+        $this->assertNotNull($book->chapters()->find($bab[1]->id), 'Bab yang sudah dikerjakan harus bertahan.');
+    }
+
+    /** @test */
+    public function produksi_tidak_boleh_mengubah_struktur_bab(): void
+    {
+        $p = $this->buku(['menunggu']);
+
+        $this->actingAs($this->user('production'))
+            ->post(route('naskah.bab.struktur', $p->order_detail_id), ['tambah' => 5])
+            ->assertRedirect()
+            ->assertSessionHas('error');
+
+        $this->assertSame(1, $p->orderDetail->titleRef->chapters()->count());
+    }
+
+    /** @test */
     public function file_bab_tersimpan_terpisah_dari_file_level_buku(): void
     {
         $pelaksana = $this->user('production');

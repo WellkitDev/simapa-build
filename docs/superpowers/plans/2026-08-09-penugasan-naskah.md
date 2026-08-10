@@ -187,9 +187,39 @@
 - [x] **Banding layar vs `docs/wireframe-penugasan-naskah.html`.** Lima selisih ditemukan dan ditutup: (a) **fungsional** — tombol unggah & daftar file per bab belum ada di tabel 3B padahal route-nya sudah jalan, sehingga pelaksana bab tak punya jalan mengunggah naskahnya dari layar; (b) baris "Pembayaran" di kartu Informasi; (c) catatan roll-up di header buku kolaborasi; (d) tombol "Riwayat Lengkap"; (e) chip jumlah author bab. Semua kini punya test.
 - [x] `php artisan test` hijau; `AccessParityTest` mencakup route `naskah.*` (27 kasus).
 
+### Susulan 2026-08-10 (permintaan owner)
+
+**Bug pemetaan author bab — diperbaiki.** Dilaporkan owner: pada buku kolaborasi seluruh
+nama author muncul di setiap bab. Sebabnya `ChapterAuthorService::seedFromOrders()`
+menyalin daftar author order lengkap ke tiap bab, jadi kolom "bab ini naskah dari siapa"
+tak menjawab apa pun. Sekarang **satu author dipasangkan ke satu bab menurut urutan**;
+bab yang tak kebagian author dibiarkan KOSONG (ditandai kuning + distribusi diblokir)
+karena menebak lebih berbahaya daripada mengaku tidak tahu.
+
+- Perbaikan data lama jadi langkah baru di `naskah:migrate-v2`
+  (`ChapterAuthorService::repairCollaborativeMapping`). Syaratnya tajam: hanya buku
+  kolaborasi yang **semua babnya memuat daftar author identik berisi >1 nama** — jejak
+  penyemaian lama. Pemetaan manual yang berbeda antar bab TIDAK tersentuh (dikunci test).
+- Dijalankan di dev: **5 buku diperbaiki** (judul 21, 26, 34, 45, 60); dijalankan ulang = 0.
+  Judul 60 (4 bab, 2 author) kini bab 3–4 sengaja kosong menunggu pemetaan manusia.
+- Dua test lama (`ChapterAuthorServiceTest`) DULU mengunci perilaku buggy itu dan sudah
+  ditulis ulang menyatakan aturan yang benar, lengkap dengan alasannya.
+
+**Wireframe 3B dituntaskan.** Dua pintasan yang tadinya ditunda kini ada:
+- "Terapkan 1 pelaksana ke semua bab" (`naskah.bab.pelaksanaSemua`, izin `naskah.assign`) —
+  bab tanpa author dilewati dan jumlahnya dilaporkan di flash, bukan diam-diam.
+- "+ Tambah / ubah struktur bab" (`naskah.bab.struktur`, izin baru `naskah.struktur`
+  untuk marketing+admin) — ubah judul, tambah bab, hapus bab yang belum tersentuh. Bab
+  yang sudah punya pelaksana/file/status maju DITOLAK supaya riwayat kerja tak lenyap.
+- Kolom Pelaksana menulis "— (naskah dari author)" untuk bab selesai tanpa pelaksana,
+  sesuai baris pertama tabel di wireframe.
+
+`naskah.struktur` sengaja dipisah dari `naskah.author` walau penerima hibahnya sama —
+nama permission harus jujur menyebut apa yang diaturnya.
+
 ### Sisa yang menunggu keputusan owner (bukan pekerjaan tertinggal)
 
 1. **Task 14 (cutover) belum dikerjakan sesuai instruksi** — modul Distribusi Artikel/Buku + Papan Manuskrip lama masih hidup berdampingan. Termasuk di dalamnya: redirect route lama, penghapusan controller/view/test lama, remap `STAGE_HANDLER`, dan pembersihan permission `distribution.*`/`manuscript.*`.
-2. **Dua pintasan level buku wireframe 3B** ("Terapkan 1 pelaksana ke semua bab", "Tambah/ubah struktur bab") — kenyamanan, bukan syarat alur.
+2. ~~Dua pintasan level buku wireframe 3B~~ — **sudah dikerjakan 2026-08-10** (lihat Susulan di atas).
 3. **`user_profiles.bidang` belum punya layar pengisian.** Sampai diisi, admin tidak terbatas bidang (lihat catatan Task 4). Kalau scoping per bidang mau benar-benar berlaku, perlu field di Manajemen User atau Profil.
 4. **Verifikasi browser end-to-end** dengan 4 akun uji belum dilakukan (tidak bisa headless di lingkungan ini) — data dev sudah dimigrasi & permission sudah di-seed, jadi tinggal dibuka.

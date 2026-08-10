@@ -49,6 +49,118 @@ class ChapterManuscriptServiceTest extends TestCase
         return $book;
     }
 
+    /**
+     * BUG (2026-08-10): penyemaian lama menyalin SELURUH author order ke SETIAP bab,
+     * sehingga kolom "bab ini naskah dari siapa" tak menjawab apa pun — di data dev
+     * ada buku 10 bab yang tiap babnya memuat kesepuluh author. Kolaborasi berarti
+     * satu penulis menyumbang babnya sendiri: pasangkan satu author per bab.
+     *
+     * @test
+     */
+    public function buku_kolaborasi_dipasangkan_satu_author_per_bab(): void
+    {
+        $book   = \App\Models\Title::create(['title' => 'Buku Kolaborasi', 'jenis' => 'buku',
+                                             'tipe_naskah' => 'kolaborasi', 'status' => 'disetujui']);
+        $detail = \App\Models\OrderDetail::factory()->create([
+            'type' => 'bk_kolab', 'title' => $book->title, 'title_id' => $book->id, 'chapters' => 3,
+        ]);
+
+        foreach (['Penulis A', 'Penulis B', 'Penulis C'] as $i => $nama) {
+            $detail->authors()->attach(
+                \App\Models\Author::create(['name' => $nama])->id,
+                ['position' => $i + 1]
+            );
+        }
+
+        app(\App\Services\ChapterManuscriptService::class)->ensureChapters($book);
+
+        $bab = $book->chapters()->with('authors')->get()->sortBy('urutan')->values();
+        $this->assertCount(3, $bab);
+
+        foreach (['Penulis A', 'Penulis B', 'Penulis C'] as $i => $nama) {
+            $this->assertCount(1, $bab[$i]->authors, "Bab " . ($i + 1) . " harus punya TEPAT satu author.");
+            $this->assertSame($nama, $bab[$i]->authors->first()->name);
+        }
+    }
+
+    /** @test */
+    public function bab_yang_tak_kebagian_author_dibiarkan_kosong_bukan_ditebak(): void
+    {
+        $book   = \App\Models\Title::create(['title' => 'Kolab Kurang Author', 'jenis' => 'buku',
+                                             'tipe_naskah' => 'kolaborasi', 'status' => 'disetujui']);
+        $detail = \App\Models\OrderDetail::factory()->create([
+            'type' => 'bk_kolab', 'title' => $book->title, 'title_id' => $book->id, 'chapters' => 4,
+        ]);
+        $detail->authors()->attach(\App\Models\Author::create(['name' => 'Satu-satunya'])->id, ['position' => 1]);
+
+        app(\App\Services\ChapterManuscriptService::class)->ensureChapters($book);
+
+        $bab = $book->chapters()->with('authors')->get()->sortBy('urutan')->values();
+        $this->assertCount(1, $bab[0]->authors);
+        foreach ([1, 2, 3] as $i) {
+            $this->assertCount(0, $bab[$i]->authors,
+                'Bab tanpa author harus tetap kosong supaya ditandai kuning dan dipetakan manusia.');
+        }
+    }
+
+    /** @test */
+    public function pemetaan_author_lama_yang_menumpuk_bisa_diperbaiki(): void
+    {
+        $book   = \App\Models\Title::create(['title' => 'Kolab Rusak', 'jenis' => 'buku',
+                                             'tipe_naskah' => 'kolaborasi', 'status' => 'disetujui']);
+        $detail = \App\Models\OrderDetail::factory()->create([
+            'type' => 'bk_kolab', 'title' => $book->title, 'title_id' => $book->id, 'chapters' => 3,
+        ]);
+
+        $ids = [];
+        foreach (['A', 'B', 'C'] as $i => $nama) {
+            $ids[] = $id = \App\Models\Author::create(['name' => 'Penulis ' . $nama])->id;
+            $detail->authors()->attach($id, ['position' => $i + 1]);
+        }
+
+        // Bentuk data rusak: ketiga bab memuat ketiga author.
+        $pivot = collect($ids)->mapWithKeys(fn ($id, $i) => [$id => ['position' => $i + 1]])->all();
+        foreach ([1, 2, 3] as $n) {
+            $book->chapters()->create(['judul' => 'Bab ' . $n, 'urutan' => $n])->authors()->sync($pivot);
+        }
+
+        $svc = app(\App\Services\ChapterAuthorService::class);
+        $this->assertTrue($svc->repairCollaborativeMapping($book));
+
+        $bab = $book->chapters()->with('authors')->get()->sortBy('urutan')->values();
+        foreach ([0, 1, 2] as $i) {
+            $this->assertCount(1, $bab[$i]->authors);
+            $this->assertSame($ids[$i], $bab[$i]->authors->first()->id);
+        }
+
+        // Idempotent: data yang sudah benar tidak disentuh lagi.
+        $this->assertFalse($svc->repairCollaborativeMapping($book->fresh()));
+    }
+
+    /** @test */
+    public function pemetaan_manual_yang_berbeda_antar_bab_tidak_ditimpa_perbaikan(): void
+    {
+        $book   = \App\Models\Title::create(['title' => 'Kolab Manual', 'jenis' => 'buku',
+                                             'tipe_naskah' => 'kolaborasi', 'status' => 'disetujui']);
+        $detail = \App\Models\OrderDetail::factory()->create([
+            'type' => 'bk_kolab', 'title' => $book->title, 'title_id' => $book->id, 'chapters' => 2,
+        ]);
+        $a = \App\Models\Author::create(['name' => 'Penulis A'])->id;
+        $b = \App\Models\Author::create(['name' => 'Penulis B'])->id;
+        $detail->authors()->attach($a, ['position' => 1]);
+        $detail->authors()->attach($b, ['position' => 2]);
+
+        // Sengaja dibalik oleh manusia: Bab 1 → B, Bab 2 → A.
+        $book->chapters()->create(['judul' => 'Bab 1', 'urutan' => 1])->authors()->sync([$b => ['position' => 1]]);
+        $book->chapters()->create(['judul' => 'Bab 2', 'urutan' => 2])->authors()->sync([$a => ['position' => 1]]);
+
+        $this->assertFalse(app(\App\Services\ChapterAuthorService::class)->repairCollaborativeMapping($book));
+
+        $bab = $book->chapters()->with('authors')->get()->sortBy('urutan')->values();
+        $this->assertSame($b, $bab[0]->authors->first()->id);
+        $this->assertSame($a, $bab[1]->authors->first()->id);
+    }
+
     /** @test */
     public function ensure_generates_chapters_and_progress_from_order_count(): void
     {

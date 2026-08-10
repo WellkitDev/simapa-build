@@ -123,6 +123,10 @@ Route::middleware(['auth', 'access'])->group(function () {
         Route::post('bab/{cp}/file',       [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'babFile'])->name('bab.file')->whereNumber('cp');
         Route::post('bab/{cp}/author',     [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'babAuthor'])->name('bab.author')->whereNumber('cp');
 
+        // Pintasan level buku (wireframe 3B) — {id} tetap order_detail_id.
+        Route::post('{id}/bab/pelaksana-semua', [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'babPelaksanaSemua'])->name('bab.pelaksanaSemua')->whereNumber('id');
+        Route::post('{id}/bab/struktur',        [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'babStruktur'])->name('bab.struktur')->whereNumber('id');
+
         Route::get('{id}',             [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'show'])->name('show')->whereNumber('id');
         Route::post('{id}/selesaikan', [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'selesaikan'])->name('selesaikan')->whereNumber('id');
         Route::post('{id}/revisi',     [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'revisi'])->name('revisi')->whereNumber('id');

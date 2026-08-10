@@ -83,8 +83,15 @@ class ChapterAuthorServiceTest extends TestCase
         }
     }
 
-    /** @test */
-    public function seed_from_orders_fills_empty_chapters_from_order_authors(): void
+    /**
+     * DIUBAH 2026-08-10. Test ini dulu menuntut SETIAP bab memuat SELURUH author order —
+     * dan itulah bug yang dilaporkan pengguna: buku 10 bab menampilkan kesepuluh nama di
+     * tiap bab, sehingga kolom "bab ini naskah dari siapa" tak menjawab apa pun.
+     * Kolaborasi berarti satu penulis menyumbang babnya sendiri: author ke-N → bab ke-N.
+     *
+     * @test
+     */
+    public function seed_from_orders_memasangkan_satu_author_per_bab(): void
     {
         $book = $this->book(2);
         $a = Author::create(['name' => 'Ani']);
@@ -93,13 +100,20 @@ class ChapterAuthorServiceTest extends TestCase
 
         $this->svc->seedFromOrders($book);
 
-        foreach ($book->chapters()->get() as $ch) {
-            $this->assertSame([$a->id, $b->id], $ch->authors()->pluck('tb_authors.id')->all());
-        }
+        $chapters = $book->chapters()->get()->sortBy('urutan')->values();
+        $this->assertSame([$a->id], $chapters[0]->authors()->pluck('tb_authors.id')->all());
+        $this->assertSame([$b->id], $chapters[1]->authors()->pluck('tb_authors.id')->all());
     }
 
-    /** @test */
-    public function seed_from_orders_does_not_overwrite_existing_chapter_authors(): void
+    /**
+     * Pemetaan manual tak pernah ditimpa. Pasangan author↔bab tetap dihitung menurut
+     * URUTAN, bukan digeser mengisi lubang: author ke-2 milik bab ke-2, dan kalau
+     * daftar author habis, bab sisanya dibiarkan kosong supaya UI menandainya kuning
+     * dan manusia yang memutuskan — bukan sistem menebak.
+     *
+     * @test
+     */
+    public function seed_from_orders_tidak_menimpa_pemetaan_manual(): void
     {
         $book = $this->book(2);
         $chapters = $book->chapters()->orderBy('urutan')->get();
@@ -111,9 +125,8 @@ class ChapterAuthorServiceTest extends TestCase
 
         $this->svc->seedFromOrders($book);
 
-        // bab 1 dipertahankan (tak ditimpa); bab 2 (kosong) terisi dari order
         $this->assertSame([$manual->id], $chapters[0]->authors()->pluck('tb_authors.id')->all());
-        $this->assertSame([$order->id], $chapters[1]->authors()->pluck('tb_authors.id')->all());
+        $this->assertSame([], $chapters[1]->authors()->pluck('tb_authors.id')->all());
     }
 
     /** @test */

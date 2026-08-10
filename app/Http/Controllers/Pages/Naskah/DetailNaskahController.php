@@ -278,6 +278,113 @@ class DetailNaskahController extends Controller
         });
     }
 
+    /**
+     * Pintasan "Terapkan 1 pelaksana ke semua bab". Bab yang author-nya belum dipetakan
+     * dilewati — aturannya tetap berlaku, dan jumlah yang dilewati dilaporkan supaya
+     * tidak diam-diam terlewat.
+     */
+    public function babPelaksanaSemua(Request $request, int $id, AssignmentService $svc)
+    {
+        $request->validate(['pelaksana_user_id' => 'required|integer']);
+        $book = $this->progress($id)->orderDetail->titleRef;
+
+        if (! $book) {
+            return back()->with('error', 'Naskah ini belum tertaut ke judul.');
+        }
+
+        return $this->run($request, function () use ($svc, $book, $request) {
+            $terpasang = 0;
+            $dilewati  = 0;
+
+            foreach ($book->chapters()->with(['progress', 'authors'])->orderBy('urutan')->get() as $bab) {
+                if (! $bab->progress) {
+                    continue;
+                }
+                if ($bab->authors->isEmpty()) {
+                    $dilewati++;
+                    continue;
+                }
+
+                $svc->distribute($bab->progress, (int) $request->input('pelaksana_user_id'), $request->user());
+                $terpasang++;
+            }
+
+            return "Pelaksana diterapkan ke {$terpasang} bab."
+                . ($dilewati > 0 ? " {$dilewati} bab dilewati karena author belum dipetakan." : '');
+        });
+    }
+
+    /**
+     * Susunan bab: ubah judul, tambah bab baru, hapus bab yang belum tersentuh.
+     * Bab yang sudah berjalan (punya pelaksana/file/status maju) TIDAK bisa dihapus —
+     * riwayat kerja tidak boleh lenyap gara-gara rapi-rapi struktur.
+     */
+    public function babStruktur(Request $request, int $id)
+    {
+        $request->validate([
+            'judul'  => 'array',
+            'tambah' => 'nullable|integer|min:0|max:50',
+            'hapus'  => 'array',
+        ]);
+
+        $book = $this->progress($id)->orderDetail->titleRef;
+        if (! $book) {
+            return back()->with('error', 'Naskah ini belum tertaut ke judul.');
+        }
+
+        return $this->run($request, function () use ($book, $request) {
+            $pesan = [];
+
+            foreach ((array) $request->input('judul', []) as $babId => $judul) {
+                $bab = $book->chapters()->find($babId);
+                if ($bab && trim((string) $judul) !== '' && $bab->judul !== trim($judul)) {
+                    $bab->update(['judul' => trim($judul)]);
+                }
+            }
+
+            $ditolak = 0;
+            foreach ((array) $request->input('hapus', []) as $babId) {
+                $bab = $book->chapters()->with(['progress', 'manuscriptFiles'])->find($babId);
+                if (! $bab) {
+                    continue;
+                }
+
+                $sudahJalan = $bab->manuscriptFiles->isNotEmpty()
+                    || $bab->progress?->pelaksana_user_id !== null
+                    || ($bab->progress && $bab->progress->status !== 'menunggu');
+
+                if ($sudahJalan) {
+                    $ditolak++;
+                    continue;
+                }
+
+                $bab->progress?->delete();
+                $bab->authors()->detach();
+                $bab->delete();
+            }
+            if ($ditolak > 0) {
+                $pesan[] = "{$ditolak} bab tidak dihapus karena sudah dikerjakan";
+            }
+
+            $tambah = (int) $request->input('tambah', 0);
+            if ($tambah > 0) {
+                $mulai = (int) $book->chapters()->max('urutan');
+                for ($i = 1; $i <= $tambah; $i++) {
+                    $bab = $book->chapters()->create([
+                        'judul'  => 'Bab ' . ($mulai + $i),
+                        'urutan' => $mulai + $i,
+                    ]);
+                    $bab->progress()->create(['status' => 'menunggu', 'started_at' => now()]);
+                }
+                $pesan[] = "{$tambah} bab ditambahkan";
+            }
+
+            app(ChapterRollupService::class)->recalc($book->fresh(), $request->user());
+
+            return 'Struktur bab diperbarui' . (empty($pesan) ? '.' : ' — ' . implode(', ', $pesan) . '.');
+        });
+    }
+
     /** Pemetaan bab→author: wajib sebelum bab bisa didistribusikan. */
     public function babAuthor(Request $request, int $cp)
     {
@@ -360,6 +467,7 @@ class DetailNaskahController extends Controller
             'upload'   => $actor->can('naskah.upload'),
             'claim'    => $actor->can('naskah.claim'),
             'author'   => $actor->can('naskah.author'),
+            'struktur' => $actor->can('naskah.struktur'),
         ];
     }
 

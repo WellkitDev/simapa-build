@@ -38,6 +38,7 @@ class NaskahMigrateV2 extends Command
             'Pisahkan PJ (admin) & pelaksana'      => $this->pisahkanPeran(),
             'Naskah publish/terbit → arsip'        => $this->arsipkanFinal(),
             'Status bab lama → CHAPTER_STAGES'     => $this->migrasiBab(),
+            'Perbaiki author bab buku kolaborasi'  => $this->perbaikiAuthorBab(),
             'Hitung ulang roll-up buku kolaborasi' => $this->hitungRollup(),
         ];
 
@@ -167,6 +168,41 @@ class NaskahMigrateV2 extends Command
         }
 
         return $diubah + $pelaksana->count();
+    }
+
+    /**
+     * Penyemaian lama menyalin SELURUH author order ke setiap bab, sehingga kolom
+     * "bab ini naskah dari siapa" tak menjawab apa pun. Petakan ulang satu author per
+     * bab menurut urutan; bab yang tak kebagian dibiarkan kosong agar ditandai kuning
+     * dan dipetakan manusia, bukan ditebak.
+     */
+    private function perbaikiAuthorBab(): int
+    {
+        $svc  = app(\App\Services\ChapterAuthorService::class);
+        $buku = \App\Models\Title::where('jenis', 'buku')->get();
+        $n    = 0;
+
+        foreach ($buku as $b) {
+            if ($this->dry) {
+                // Hitung tanpa menulis: tiru syarat yang dipakai repair.
+                $sets = $b->chapters()->with('authors')->get()
+                    ->map(fn ($c) => $c->authors->pluck('id')->sort()->values()->all());
+
+                $perluDiperbaiki = $b->orderDetails()->where('type', 'bk_kolab')->exists()
+                    && $sets->isNotEmpty()
+                    && ! $sets->contains([])
+                    && $sets->unique(fn ($s) => implode(',', $s))->count() === 1
+                    && count($sets->first()) >= 2;
+
+                $n += $perluDiperbaiki ? 1 : 0;
+
+                continue;
+            }
+
+            $n += $svc->repairCollaborativeMapping($b) ? 1 : 0;
+        }
+
+        return $n;
     }
 
     private function hitungRollup(): int

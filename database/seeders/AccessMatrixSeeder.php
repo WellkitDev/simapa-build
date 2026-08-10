@@ -52,7 +52,7 @@ class AccessMatrixSeeder extends Seeder
             // (request klien, tercatat di riwayat), upload naskah masuk dari klien,
             // dan memetakan author bab saat struktur buku dibuat. TANPA workdesk —
             // marketing tidak pernah memegang tugas naskah.
-            'naskah.view', 'naskah.target', 'naskah.upload', 'naskah.author',
+            'naskah.view', 'naskah.target', 'naskah.upload', 'naskah.author', 'naskah.struktur',
             'data.*',
         ],
         'production' => [
@@ -85,7 +85,7 @@ class AccessMatrixSeeder extends Seeder
             // scoping bidang (artikel|buku) ditegakkan di service, bukan di permission.
             'naskah.view', 'naskah.workdesk', 'naskah.target', 'naskah.upload',
             'naskah.assign', 'naskah.advance', 'naskah.priority', 'naskah.hold',
-            'naskah.cancel', 'naskah.author',
+            'naskah.cancel', 'naskah.author', 'naskah.struktur',
             'data.*',
         ],
         'accounting' => [

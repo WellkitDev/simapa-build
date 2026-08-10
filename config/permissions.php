@@ -201,7 +201,7 @@ return [
                 'claim'    => ['naskah.claim', 'naskah.bab.claim'],
                 // Distribusi/tarik pelaksana + oper PJ antar admin sebidang: admin (bidangnya).
                 'assign'   => ['naskah.distribusi', 'naskah.tarik', 'naskah.operPj',
-                               'naskah.bab.distribusi'],
+                               'naskah.bab.distribusi', 'naskah.bab.pelaksanaSemua'],
                 // Satu tombol "Selesaikan tahap →" (maju 1 langkah) + "Perlu Revisi": admin.
                 'advance'  => ['naskah.selesaikan', 'naskah.revisi', 'naskah.bab.selesaikan'],
                 'priority' => ['naskah.prioritas'],
@@ -213,6 +213,10 @@ return [
                 // Pemetaan author per bab (wajib sebelum bab bisa didistribusikan) —
                 // dilakukan marketing/admin saat struktur buku dibuat.
                 'author'   => ['naskah.bab.author'],
+                // Susunan bab buku (tambah/ubah judul/hapus bab kosong). Dipisah dari
+                // 'author' supaya nama permission tetap jujur menyebut apa yang diaturnya,
+                // walau penerima hibahnya kebetulan sama (marketing + admin).
+                'struktur' => ['naskah.bab.struktur'],
             ],
         ],
 

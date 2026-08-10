@@ -106,6 +106,7 @@ class PermissionMapTest extends TestCase
             'naskah.hold'     => ['admin', 'manager'],
             'naskah.cancel'   => ['admin', 'manager'],
             'naskah.author'   => ['marketing', 'admin', 'manager'],
+            'naskah.struktur' => ['marketing', 'admin', 'manager'],
             // Koreksi mundur/lompat termasuk tahap final: superadmin SAJA. Superadmin
             // lolos lewat Gate::before, bukan hibah — karena itu daftar ini kosong dan
             // SEMUA role (termasuk manager) harus gagal.
