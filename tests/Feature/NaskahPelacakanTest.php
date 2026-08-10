@@ -162,6 +162,45 @@ class NaskahPelacakanTest extends TestCase
             ->assertSee('1 menunggu');
     }
 
+    /**
+     * `naskah_type` melekat pada ORDER, sedangkan kartu papan mewakili satu GRUP judul.
+     * Data nyata punya buku kolaborasi dengan 4 order "dibuatkan" + 1 "mandiri" — memakai
+     * jenis satu order perwakilan membuat kartunya mengaku "Naskah Mandiri" dan
+     * menyesatkan bagi empat order lainnya.
+     *
+     * @test
+     */
+    public function kartu_grup_tidak_mengaku_mandiri_saat_ordernya_campuran(): void
+    {
+        $title = $this->judul('Investasi Cerdas', ['pembuatan', 'pembuatan'], 'bk_kolab');
+        $detail = \App\Models\OrderDetail::where('title_id', $title->id)->orderBy('id')->get();
+        $detail[0]->update(['naskah_type' => 'mandiri']);
+        $detail[1]->update(['naskah_type' => 'dibuatkan']);
+
+        $res = $this->actingAs($this->user('admin', 'buku'))
+            ->get(route('naskah.pelacakan', ['tipe' => 'buku']))->assertOk();
+
+        $kartu = $res->viewData('kartu')->flatten(1)->firstWhere('progress.order_detail_id', $detail[0]->id)
+            ?? $res->viewData('kartu')->flatten(1)->first();
+
+        $this->assertSame('campuran', $kartu['jenisNaskah']);
+        $res->assertSee('campuran antar order');
+        $res->assertDontSee('Pelaksana: Naskah Mandiri');
+    }
+
+    /** @test */
+    public function kartu_grup_menyebut_mandiri_hanya_bila_semua_ordernya_mandiri(): void
+    {
+        $title = $this->judul('Semua Mandiri', ['pembuatan', 'pembuatan'], 'bk_kolab');
+        \App\Models\OrderDetail::where('title_id', $title->id)->update(['naskah_type' => 'mandiri']);
+
+        $res = $this->actingAs($this->user('admin', 'buku'))
+            ->get(route('naskah.pelacakan', ['tipe' => 'buku']))->assertOk();
+
+        $this->assertSame('mandiri', $res->viewData('kartu')->flatten(1)->first()['jenisNaskah']);
+        $res->assertSee('Naskah Mandiri');
+    }
+
     /** @test */
     public function filter_pencarian_dan_prioritas_mempersempit_hasil(): void
     {

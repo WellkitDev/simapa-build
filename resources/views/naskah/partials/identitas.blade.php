@@ -22,9 +22,11 @@
         $detail = $bukuRef?->orderDetails->first();
         $kode   = $detail?->order?->code_order ?? $bukuRef?->code ?? '—';
         $judul  = trim(($bukuRef?->title ?? 'Buku') . ' — ' . ($bab?->judul ?? 'Bab'));
+        // Jenis naskah SENGAJA tidak disebut di baris bab: `naskah_type` melekat pada
+        // order, sedangkan bab milik judul yang bisa dicakup beberapa order berbeda
+        // jenis. Menyebut jenis satu order di sini hanya akan salah untuk order lain.
         $meta   = collect([
             'Buku Kolaborasi',
-            $detail?->naskahTypeLabel(),
             $bab?->authors->isNotEmpty()
                 ? 'Author bab: ' . $bab->authors->pluck('name')->join(', ')
                 : 'Author bab belum dipetakan',

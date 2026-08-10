@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Pages\Naskah;
 
 use App\Http\Controllers\Controller;
+use App\Models\OrderDetail;
 use App\Models\TitleProgress;
 use App\Models\TitleProgressLog;
 use App\Models\User;
@@ -122,6 +123,9 @@ class PelacakanNaskahController extends Controller
                     'status'    => $utama->status,
                     'kolab'     => $kolab,
                     'ringkasan' => $kolab ? $rollup->summary($book) : null,
+                    // Dihitung dari SELURUH order sejudul, bukan dari order perwakilan —
+                    // satu judul bisa dicakup order "dibuatkan" dan "mandiri" sekaligus.
+                    'jenisNaskah' => OrderDetail::jenisNaskahGrup($varian->map->orderDetail),
                 ];
             })
             ->values()

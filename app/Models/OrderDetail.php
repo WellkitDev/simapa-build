@@ -83,4 +83,33 @@ class OrderDetail extends Model
     {
         return $this->naskahMandiri() ? 'Naskah Mandiri' : 'Naskah Dibuatkan';
     }
+
+    /**
+     * Jenis naskah untuk SEKUMPULAN order sejudul → 'mandiri' | 'dibuatkan' | 'campuran'.
+     *
+     * `naskah_type` melekat pada order, bukan judul, dan satu judul bisa dicakup beberapa
+     * order dengan jenis berbeda (di data nyata ada buku kolaborasi dengan 4 order
+     * "dibuatkan" + 1 "mandiri"). Karena itu kartu papan yang mewakili satu grup TIDAK
+     * boleh memakai jenis satu order perwakilan — hasilnya menyesatkan bagi empat order
+     * lainnya. Kembalikan 'campuran' supaya layar mengaku tidak seragam.
+     */
+    public static function jenisNaskahGrup(iterable $details): string
+    {
+        $jenis = collect($details)->filter()
+            ->map(fn (self $d) => $d->naskahMandiri() ? 'mandiri' : 'dibuatkan')
+            ->unique()
+            ->values();
+
+        return $jenis->count() === 1 ? $jenis->first() : 'campuran';
+    }
+
+    /** Label siap tampil untuk hasil jenisNaskahGrup(). */
+    public static function labelJenisNaskah(string $jenis): string
+    {
+        return match ($jenis) {
+            'mandiri'   => 'Naskah Mandiri',
+            'dibuatkan' => 'Naskah Dibuatkan',
+            default     => 'Naskah Campuran',
+        };
+    }
 }

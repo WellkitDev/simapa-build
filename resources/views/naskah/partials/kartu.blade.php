@@ -41,13 +41,19 @@
         Pelaksana:
         @if ($p->pelaksana)
             {{ $p->pelaksana->name }}
-        @elseif ($detail?->naskahMandiri())
-            {{-- Bukan "belum ditugaskan": order ini memang tak butuh pelaksana. --}}
+        @elseif (($k['jenisNaskah'] ?? null) === 'mandiri')
+            {{-- Seluruh order sejudul bernaskah mandiri → memang tak butuh pelaksana. --}}
             Naskah Mandiri
         @else
             —
         @endif
     </div>
+
+    @if (($k['jenisNaskah'] ?? null) === 'campuran')
+        {{-- Jujur mengaku tidak seragam: sebagian order naskahnya dibuatkan, sebagian
+             dikirim author. Menyebut salah satu saja menyesatkan bagi order lainnya. --}}
+        <div class="text-muted">Jenis naskah: campuran antar order</div>
+    @endif
     <div class="text-muted">{{ $p->daysInStage() }} hari di tahap ini</div>
 
     @if ($p->target_date)

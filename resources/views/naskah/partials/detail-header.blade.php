@@ -19,9 +19,9 @@
                     {{ $jumlahBab }} bab · {{ $jumlahAuthorBab ?? 0 }} author
                 </span>
             @endif
-            {{-- Naskah dibuatkan vs dikirim author menentukan apakah tahap Pembuatan
-                 relevan sama sekali — ditaruh sejajar jenis naskah, bukan disembunyikan. --}}
-            <span class="badge {{ $naskahMandiri ? 'bg-secondary-subtle text-secondary border' : 'bg-warning-subtle text-warning border' }}">
+            {{-- Jenis naskah ORDER INI (halaman detail memang per order). Kalau order
+                 sejudul lainnya berbeda jenis, itu disebut di banner grup di bawah. --}}
+            <span class="badge {{ $d?->naskahMandiri() ? 'bg-secondary-subtle text-secondary border' : 'bg-warning-subtle text-warning border' }}">
                 {{ $d?->naskahTypeLabel() ?? '—' }}
             </span>
             @if ($progress->priority === 'high')
@@ -55,6 +55,12 @@
         <div class="alert alert-info small mt-3 mb-0">
             Judul ini mencakup <strong>{{ $grup->count() }} order</strong>. Aksi tahap berlaku
             serempak untuk semuanya.
+            @if ($jenisNaskahGrup === 'campuran')
+                <div class="mt-1">
+                    <strong>Jenis naskahnya tidak seragam</strong> — sebagian order naskahnya
+                    dibuatkan tim, sebagian dikirim author. Rinciannya di bawah.
+                </div>
+            @endif
             <details class="mt-1">
                 <summary class="text-decoration-underline" style="cursor:pointer">Lihat rincian per order</summary>
                 <ul class="mb-0 mt-2">
@@ -62,6 +68,7 @@
                         <li>
                             {{ $g->orderDetail?->order?->code_order ?? '—' }}
                             — {{ $g->stageLabelId() }}
+                            · {{ $g->orderDetail?->naskahTypeLabel() ?? '—' }}
                             @if ($g->orderDetail?->order?->user)
                                 · marketing: {{ $g->orderDetail->order->user->name }}
                             @endif

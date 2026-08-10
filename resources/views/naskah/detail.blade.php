@@ -16,10 +16,15 @@
     // Order naskah mandiri tidak punya tahap pembuatan oleh tim — ditandai di semua
     // tempat yang biasanya menampilkan pelaksana, supaya kolom kosong tidak terbaca
     // sebagai "belum ditugaskan".
-    $naskahMandiri = (bool) $d?->naskahMandiri();
+    //
+    // Bab milik JUDUL, bukan order, sedangkan naskah_type melekat pada order — jadi
+    // tabel bab hanya boleh memakai penanda ini bila SELURUH order sejudul sepakat.
+    // Kalau campuran, biarkan asal naskah diturunkan per bab.
+    $jenisNaskahGrup = \App\Models\OrderDetail::jenisNaskahGrup($grup->map->orderDetail);
+    $naskahMandiri   = $jenisNaskahGrup === 'mandiri';
 @endphp
 
-@include('naskah.partials.detail-header', compact('progress', 'grup', 'd', 'kode', 'buku', 'isKolab', 'jumlahAuthorBab', 'naskahMandiri'))
+@include('naskah.partials.detail-header', compact('progress', 'grup', 'd', 'kode', 'buku', 'isKolab', 'jumlahAuthorBab', 'naskahMandiri', 'jenisNaskahGrup'))
 
 @include('naskah.partials.stepper', compact('progress', 'stages', 'isKolab', 'ringkasan'))
 
