@@ -75,7 +75,7 @@
             <p class="small text-muted mb-0">{{ $d?->order?->note ?: 'Belum ada brief dari marketing.' }}</p>
         </div></div>
 
-        @include('naskah.partials.file-naskah', compact('progress', 'berkas', 'izin', 'isKolab'))
+        @include('naskah.partials.file-naskah', compact('progress', 'berkas', 'izin', 'isKolab', 'buku'))
     </div>
 
     <div class="col-lg-7">

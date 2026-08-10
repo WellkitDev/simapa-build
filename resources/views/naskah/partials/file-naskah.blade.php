@@ -7,7 +7,9 @@
         {{ $isKolab ? 'File Level Buku' : 'File Naskah' }}
     </h6>
 
-    @foreach (\App\Models\ManuscriptFile::SLOTS as $slot => $label)
+    @php $slotTersedia = \App\Models\ManuscriptFile::slotsFor($buku); @endphp
+
+    @foreach ($slotTersedia as $slot => $label)
         @php $versi = $berkas[$slot] ?? collect(); @endphp
         <div class="d-flex justify-content-between align-items-center border-bottom border-dashed py-2 small">
             <span class="{{ $versi->isEmpty() ? 'text-muted' : '' }}">
@@ -32,7 +34,7 @@
             @csrf
             <label class="form-label small fw-bold mb-1">Unggah file</label>
             <select name="slot" class="form-select form-select-sm mb-2" required>
-                @foreach (\App\Models\ManuscriptFile::SLOTS as $slot => $label)
+                @foreach ($slotTersedia as $slot => $label)
                     <option value="{{ $slot }}">{{ $label }}</option>
                 @endforeach
             </select>

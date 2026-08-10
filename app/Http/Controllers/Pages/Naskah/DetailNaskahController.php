@@ -427,7 +427,7 @@ class DetailNaskahController extends Controller
             ->get();
     }
 
-    /** Versi file per slot, level judul. */
+    /** Versi file per slot yang relevan untuk jenis naskah ini, level judul. */
     private function files(TitleProgress $progress): array
     {
         $title = $progress->orderDetail->titleRef;
@@ -435,9 +435,11 @@ class DetailNaskahController extends Controller
             return [];
         }
 
-        $svc = app(ManuscriptFileService::class);
-        $out = [];
-        foreach (array_keys(ManuscriptFile::SLOTS) as $slot) {
+        $buku = in_array($progress->orderDetail->type, ['bk_mandiri', 'bk_kolab'], true);
+        $svc  = app(ManuscriptFileService::class);
+        $out  = [];
+
+        foreach (array_keys(ManuscriptFile::slotsFor($buku)) as $slot) {
             $out[$slot] = $svc->versions($title, null, $slot);
         }
 

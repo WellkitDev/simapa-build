@@ -453,6 +453,56 @@ class NaskahDetailTest extends TestCase
     }
 
     /**
+     * Slot file mengikuti jenis naskah. Artikel butuh LoA (surat penerimaan dari jurnal)
+     * dan tak pernah punya layout/proofread/cover; buku sebaliknya. Menampilkan semuanya
+     * di kedua jenis hanya melahirkan baris "belum ada" yang tak akan pernah terisi.
+     *
+     * @test
+     */
+    public function artikel_punya_slot_loa_dan_tanpa_slot_khas_buku(): void
+    {
+        $p = $this->naskah('submit');
+
+        $this->actingAs($this->user('admin', 'artikel'))
+            ->get(route('naskah.show', $p->order_detail_id))
+            ->assertOk()
+            ->assertSee('LoA (Letter of Acceptance)')
+            ->assertDontSee('Hasil Layout')
+            ->assertDontSee('Hasil Proofread');
+    }
+
+    /** @test */
+    public function buku_punya_slot_layout_cover_tanpa_slot_loa(): void
+    {
+        $p = $this->naskah('layout', [], 'bk_mandiri');
+
+        $this->actingAs($this->user('admin', 'buku'))
+            ->get(route('naskah.show', $p->order_detail_id))
+            ->assertOk()
+            ->assertSee('Hasil Layout')
+            ->assertSee('Cover')
+            ->assertDontSee('LoA (Letter of Acceptance)');
+    }
+
+    /** @test */
+    public function file_loa_artikel_benar_benar_tersimpan(): void
+    {
+        $p = $this->naskah('loa');
+
+        $this->actingAs($this->user('admin', 'artikel'))
+            ->post(route('naskah.file', $p->order_detail_id), [
+                'slot' => 'loa',
+                'file' => UploadedFile::fake()->create('loa-jurnal.pdf', 12),
+            ])
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseHas('tb_manuscript_files', [
+            'title_id' => $p->orderDetail->title_id,
+            'slot'     => 'loa',
+        ]);
+    }
+
+    /**
      * Satu buku kolaborasi bisa dicakup beberapa order dengan naskah_type berbeda, jadi
      * "bab ini naskahnya dari siapa" tidak bisa dijawab dari order. Diturunkan per bab:
      * naskah sudah ada padahal tak pernah ditugaskan = datang dari authornya.

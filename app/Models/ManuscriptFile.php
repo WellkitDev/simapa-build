@@ -21,8 +21,26 @@ class ManuscriptFile extends Model
         'hasil_layout'    => 'Hasil Layout',
         'hasil_proofread' => 'Hasil Proofread',
         'cover'           => 'Cover',
+        'loa'             => 'LoA (Letter of Acceptance)',
         'final'           => 'Naskah Final',
     ];
+
+    /**
+     * Slot yang relevan per jenis naskah. Artikel tidak pernah punya layout/proofread/
+     * cover, dan buku tidak pernah punya LoA — menampilkan semuanya di kedua jenis
+     * hanya membuat daftar file penuh baris "belum ada" yang tak akan pernah terisi.
+     */
+    public const SLOTS_ARTIKEL = ['masuk', 'hasil_editing', 'loa', 'final'];
+
+    public const SLOTS_BUKU = ['masuk', 'hasil_editing', 'hasil_layout', 'hasil_proofread', 'cover', 'final'];
+
+    /** @return array<string,string> slot => label, sesuai jenis naskah. */
+    public static function slotsFor(bool $buku): array
+    {
+        $keys = $buku ? self::SLOTS_BUKU : self::SLOTS_ARTIKEL;
+
+        return array_replace(array_flip($keys), array_intersect_key(self::SLOTS, array_flip($keys)));
+    }
 
     protected $fillable = [
         'title_id', 'title_chapter_id', 'slot', 'version',
