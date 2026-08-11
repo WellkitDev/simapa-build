@@ -43,7 +43,7 @@ Baca sekali sebelum Task 1. Melanggar salah satu ini membuat suite merah dengan 
 ```
 ServiceClient.php          master klien; hasMany invoices
 ServiceCatalog.php         katalog + konstanta CATEGORIES
-ServiceInvoice.php         inti: relasi, konstanta, recalcTotals(), applyWorkStatus(), isEditable()
+ServiceInvoice.php         inti: relasi, konstanta, recalcTotals(), isEditable()
 ServiceInvoiceItem.php     baris item (snapshot)
 ServiceInvoicePayment.php  baris pembayaran + konstanta TYPES/METHODS
 ServiceInvoiceLog.php      jejak; tanpa perilaku
@@ -54,6 +54,11 @@ ServiceInvoiceLog.php      jejak; tanpa perilaku
 ServiceInvoiceNumber.php   penomoran anti-balapan + pembungkus retry
 ServiceInvoiceForm.php     aturan validasi, normalisasi angka, sync item, resolve klien
 ServiceInvoicePdfData.php  perakit data PDF — dipakai bersama route unduh & job email
+```
+
+**Service** (`app/Services/`) — pola "ubah keadaan + tulis baris log", mengikuti konvensi `CashPeriodService`/`TitleProgressService`:
+```
+ServiceInvoiceWorkflow.php  changeStatus() (Task 5) + cancel() (Task 10)
 ```
 
 **Controller** (`app/Http/Controllers/Pages/`):
@@ -1590,10 +1595,10 @@ git commit -m "layanan: penomoran invoice anti-balapan + pembungkus retry"
 Menutup T-WS-1..3. (T-WS-4 — batal hanya superadmin — butuh route, jadi ada di Task 11.)
 
 **Files:**
-- Modify: `app/Models/ServiceInvoice.php` (tambah satu metode)
+- Create: `app/Services/ServiceInvoiceWorkflow.php`
 - Test: `tests/Feature/ServiceInvoiceWorkStatusTest.php`
 
-> **Pertimbangkan sebelum menulis:** codebase ini punya konvensi hidup bahwa "pindah status + tulis baris log" tinggal di Service, bukan di model — lihat `TitleProgressService`, `ChapterManuscriptService`, dan `CashPeriodService`. `applyWorkStatus()` di bawah melanggar konvensi itu. Alasan tetap ditaruh di model: cakupannya sempit (hanya baris invoice itu sendiri plus anak log-nya, tanpa orkestrasi lintas agregat), dan `ServiceInvoice` masih ~140 baris. **Kalau setelah Task 5 model itu melewati ~200 baris atau `applyWorkStatus()` mulai menyentuh agregat lain, pindahkan ke `app/Services/ServiceInvoiceWorkflow.php`** — Task 10 satu-satunya pemanggilnya, jadi ongkos pindahnya kecil.
+> **Kenapa Service, bukan metode di model.** Rancangan awal menaruh ini sebagai `ServiceInvoice::applyWorkStatus()`. Diubah setelah review Task 4, atas tiga alasan: (1) codebase ini punya konvensi hidup bahwa "ubah keadaan + tulis baris log" tinggal di Service — `CashPeriodService::lock()/unlock()` dan `TitleProgressService::log()` persis pola itu; (2) `ServiceInvoice` sudah 179 baris, dan metode ini akan melewatkannya ~200; (3) yang menentukan — Task 10 punya `cancel()` dengan bentuk yang sama persis (ubah status, tulis log, bungkus transaksi), jadi tanpa Service pola itu ditulis dua kali di dua tempat berbeda. Task 10 menambahkan `cancel()` ke kelas yang sama. Model tetap sekadar rekaman.
 
 - [ ] **Step 1: Tulis tes yang gagal**
 
@@ -1606,6 +1611,7 @@ namespace Tests\Feature;
 
 use App\Models\ServiceInvoice;
 use App\Models\User;
+use App\Services\ServiceInvoiceWorkflow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -1613,20 +1619,25 @@ class ServiceInvoiceWorkStatusTest extends TestCase
 {
     use RefreshDatabase;
 
+    private function workflow(): ServiceInvoiceWorkflow
+    {
+        return app(ServiceInvoiceWorkflow::class);
+    }
+
     /** @test */
     public function moving_to_proses_stamps_started_at_once_only(): void
     {
         $user = User::factory()->create();
         $inv  = ServiceInvoice::factory()->create(['work_status' => 'belum']);
 
-        $inv->applyWorkStatus('proses', 'mulai instalasi', $user->id);
+        $this->workflow()->changeStatus($inv, 'proses', 'mulai instalasi', $user->id);
         $inv->refresh();
         $firstStamp = $inv->work_started_at;
         $this->assertNotNull($firstStamp);
 
         // Bolak-balik: kembali ke Proses TIDAK boleh menimpa stempel awal.
-        $inv->applyWorkStatus('selesai', null, $user->id);
-        $inv->applyWorkStatus('proses', 'revisi klien', $user->id);
+        $this->workflow()->changeStatus($inv, 'selesai', null, $user->id);
+        $this->workflow()->changeStatus($inv, 'proses', 'revisi klien', $user->id);
         $inv->refresh();
 
         $this->assertEquals($firstStamp->toDateTimeString(), $inv->work_started_at->toDateTimeString());
@@ -1638,12 +1649,12 @@ class ServiceInvoiceWorkStatusTest extends TestCase
         $user = User::factory()->create();
         $inv  = ServiceInvoice::factory()->create(['work_status' => 'proses']);
 
-        $inv->applyWorkStatus('selesai', null, $user->id);
+        $this->workflow()->changeStatus($inv, 'selesai', null, $user->id);
         $inv->refresh();
         $this->assertNotNull($inv->work_finished_at);
 
         // Tanggal selesai tidak boleh berbohong setelah pekerjaan dibuka lagi.
-        $inv->applyWorkStatus('proses', 'klien minta revisi tema', $user->id);
+        $this->workflow()->changeStatus($inv, 'proses', 'klien minta revisi tema', $user->id);
         $inv->refresh();
         $this->assertNull($inv->work_finished_at);
     }
@@ -1654,8 +1665,8 @@ class ServiceInvoiceWorkStatusTest extends TestCase
         $user = User::factory()->create();
         $inv  = ServiceInvoice::factory()->create(['work_status' => 'belum']);
 
-        $inv->applyWorkStatus('proses', 'mulai', $user->id);
-        $inv->applyWorkStatus('selesai', 'beres', $user->id);
+        $this->workflow()->changeStatus($inv, 'proses', 'mulai', $user->id);
+        $this->workflow()->changeStatus($inv, 'selesai', 'beres', $user->id);
         $inv->refresh();
 
         $this->assertCount(2, $inv->logs);
@@ -1674,42 +1685,86 @@ class ServiceInvoiceWorkStatusTest extends TestCase
         $user = User::factory()->create();
         $inv  = ServiceInvoice::factory()->create(['work_status' => 'proses']);
 
-        $inv->applyWorkStatus('proses', 'tidak berubah', $user->id);
+        $moved = $this->workflow()->changeStatus($inv, 'proses', 'tidak berubah', $user->id);
         $inv->refresh();
 
+        $this->assertFalse($moved);
         $this->assertCount(0, $inv->logs);
+    }
+
+    /** @test */
+    public function a_failed_log_write_rolls_the_status_back(): void
+    {
+        $inv = ServiceInvoice::factory()->create(['work_status' => 'belum']);
+
+        // `changed_by` punya foreign key ke users, jadi id yang tidak ada membuat
+        // INSERT log gagal SETELAH baris invoice diperbarui. Keduanya harus jatuh
+        // bersama — tak boleh ada perpindahan status yang tidak punya jejak.
+        try {
+            $this->workflow()->changeStatus($inv, 'proses', null, 999999);
+            $this->fail('INSERT log dengan changed_by tak dikenal seharusnya gagal.');
+        } catch (\Illuminate\Database\QueryException $e) {
+            // yang diuji adalah keadaan sesudahnya, bukan pesannya
+        }
+
+        // Dibaca ulang dari basis data: instance di memori sudah terlanjur dimutasi
+        // oleh update() walau transaksinya dibatalkan.
+        $this->assertSame('belum', ServiceInvoice::find($inv->id)->work_status);
+        $this->assertSame(0, $inv->logs()->count());
     }
 }
 ```
 
+> Tes terakhir memaksa kegagalan di tengah transaksi untuk membuktikan `DB::transaction` di dalam `changeStatus()` benar-benar mengikat perpindahan status dengan penulisan lognya.
+
 - [ ] **Step 2: Jalankan tes, pastikan gagal**
 
 Run: `php artisan test --filter=ServiceInvoiceWorkStatusTest`
-Expected: FAIL — `Call to undefined method App\Models\ServiceInvoice::applyWorkStatus()`
+Expected: FAIL — `Class "App\Services\ServiceInvoiceWorkflow" not found`
 
-- [ ] **Step 3: Tambahkan `applyWorkStatus()` ke `ServiceInvoice`**
+- [ ] **Step 3: Tulis `ServiceInvoiceWorkflow`**
 
-Sisipkan tepat setelah `recalcTotals()` di `app/Models/ServiceInvoice.php`:
+`app/Services/ServiceInvoiceWorkflow.php`:
 
 ```php
+<?php
+
+namespace App\Services;
+
+use App\Models\ServiceInvoice;
+use Illuminate\Support\Facades\DB;
+
+/**
+ * Perpindahan status pengerjaan invoice layanan, beserta jejaknya.
+ *
+ * Ditaruh di Service mengikuti konvensi yang sudah hidup di codebase ini untuk
+ * pola "ubah keadaan + tulis baris log": CashPeriodService::lock()/unlock() dan
+ * TitleProgressService::log(). Model tetap sekadar rekaman.
+ *
+ * Gerbang "siapa boleh" TIDAK ada di sini — itu urusan permission di rute.
+ */
+class ServiceInvoiceWorkflow
+{
     /**
      * Pindahkan status pengerjaan dan catat jejaknya. Transisi bebas antara
      * belum/proses/selesai — pekerjaan jasa rutin kembali ke Proses karena revisi
      * klien, dan memaksa satu arah cuma membuat operator berbohong.
      *
-     * Pembatalan TIDAK lewat sini: 'batal' butuh alasan + pelaku superadmin,
-     * ditangani ServiceInvoiceController::cancel().
+     * Pembatalan TIDAK lewat sini: 'batal' keadaan terminal yang butuh alasan.
+     * Lihat cancel() (ditambahkan di Task 10).
+     *
+     * @return bool true bila status benar-benar berpindah; false bila sama.
      */
-    public function applyWorkStatus(string $to, ?string $note, ?int $userId): void
+    public function changeStatus(ServiceInvoice $invoice, string $to, ?string $note, ?int $userId): bool
     {
-        $from = $this->work_status;
+        $from = $invoice->work_status;
         if ($from === $to) {
-            return;
+            return false;
         }
 
         $attrs = ['work_status' => $to];
 
-        if ($to === 'proses' && $this->work_started_at === null) {
+        if ($to === 'proses' && $invoice->work_started_at === null) {
             $attrs['work_started_at'] = now();
         }
         if ($to === 'selesai') {
@@ -1719,29 +1774,35 @@ Sisipkan tepat setelah `recalcTotals()` di `app/Models/ServiceInvoice.php`:
             $attrs['work_finished_at'] = null;
         }
 
-        $this->update($attrs);
+        // Perpindahan status dan jejaknya harus jatuh bersama: status yang berpindah
+        // tanpa baris log adalah riwayat yang berbohong.
+        DB::transaction(function () use ($invoice, $attrs, $from, $to, $note, $userId) {
+            $invoice->update($attrs);
 
-        $this->logs()->create([
-            'event'       => 'status_changed',
-            'from_status' => $from,
-            'to_status'   => $to,
-            'note'        => $note,
-            'changed_by'  => $userId,
-        ]);
+            $invoice->logs()->create([
+                'event'       => 'status_changed',
+                'from_status' => $from,
+                'to_status'   => $to,
+                'note'        => $note,
+                'changed_by'  => $userId,
+            ]);
+        });
+
+        return true;
     }
-
+}
 ```
 
 - [ ] **Step 4: Jalankan tes, pastikan lulus**
 
 Run: `php artisan test --filter=ServiceInvoiceWorkStatusTest`
-Expected: PASS (4 tests)
+Expected: PASS (5 tests)
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add app/Models/ServiceInvoice.php tests/Feature/ServiceInvoiceWorkStatusTest.php
-git commit -m "layanan: mesin status pengerjaan + jejak transisi"
+git add app/Services/ServiceInvoiceWorkflow.php tests/Feature/ServiceInvoiceWorkStatusTest.php
+git commit -m "layanan: ServiceInvoiceWorkflow — perpindahan status + jejaknya"
 ```
 
 ---
@@ -4146,6 +4207,7 @@ git commit -m "layanan: ubah & hapus invoice dengan kunci edit setelah terbayar/
 Menutup T-WS-4.
 
 **Files:**
+- Modify: `app/Services/ServiceInvoiceWorkflow.php` (tambah `cancel`)
 - Modify: `app/Http/Controllers/Pages/ServiceInvoiceController.php` (tambah `status`, `cancel`)
 - Modify: `resources/views/services/invoices/show.blade.php` (panel status)
 - Modify: `routes/web.php`, `config/permissions.php`, `database/seeders/AccessMatrixSeeder.php`
@@ -4260,12 +4322,52 @@ class ServiceInvoiceStatusRouteTest extends TestCase
 Run: `php artisan test --filter=ServiceInvoiceStatusRouteTest`
 Expected: FAIL — `Route [service.invoice.status] not defined.`
 
-- [ ] **Step 3: Tambahkan `status` & `cancel` ke controller**
+- [ ] **Step 3a: Tambahkan `cancel()` ke `ServiceInvoiceWorkflow`**
 
-Sisipkan setelah `destroy()` di `app/Http/Controllers/Pages/ServiceInvoiceController.php`:
+Sisipkan setelah `changeStatus()` di `app/Services/ServiceInvoiceWorkflow.php`:
 
 ```php
-    public function status(Request $request, int $id)
+    /**
+     * Batalkan invoice. Keadaan terminal: hanya bisa dimasuki, wajib beralasan.
+     * Gerbang "siapa boleh" ada di permission rute (superadmin), bukan di sini.
+     *
+     * @return bool false bila invoice sudah dibatalkan sebelumnya.
+     */
+    public function cancel(ServiceInvoice $invoice, string $reason, ?int $userId): bool
+    {
+        if ($invoice->isCancelled()) {
+            return false;
+        }
+
+        $from = $invoice->work_status;
+
+        DB::transaction(function () use ($invoice, $reason, $userId, $from) {
+            $invoice->update([
+                'work_status'   => 'batal',
+                'cancel_reason' => $reason,
+                'cancelled_by'  => $userId,
+                'cancelled_at'  => now(),
+            ]);
+
+            $invoice->logs()->create([
+                'event'       => 'cancelled',
+                'from_status' => $from,
+                'to_status'   => 'batal',
+                'note'        => $reason,
+                'changed_by'  => $userId,
+            ]);
+        });
+
+        return true;
+    }
+```
+
+- [ ] **Step 3b: Tambahkan `status` & `cancel` ke controller**
+
+Sisipkan setelah `destroy()` di `app/Http/Controllers/Pages/ServiceInvoiceController.php`. Controller-nya tipis: memvalidasi, menyerahkan ke workflow, lalu menerjemahkan hasilnya jadi pesan.
+
+```php
+    public function status(Request $request, int $id, ServiceInvoiceWorkflow $workflow)
     {
         $invoice = ServiceInvoice::findOrFail($id);
 
@@ -4280,41 +4382,28 @@ Sisipkan setelah `destroy()` di `app/Http/Controllers/Pages/ServiceInvoiceContro
             return back()->with('error', 'Invoice yang dibatalkan tidak bisa diubah statusnya.');
         }
 
-        $invoice->applyWorkStatus($data['work_status'], $data['note'] ?? null, Auth::id());
+        $workflow->changeStatus($invoice, $data['work_status'], $data['note'] ?? null, Auth::id());
 
         return back()->with('success', 'Status pengerjaan diperbarui.');
     }
 
-    public function cancel(Request $request, int $id)
+    public function cancel(Request $request, int $id, ServiceInvoiceWorkflow $workflow)
     {
         $invoice = ServiceInvoice::findOrFail($id);
         $data    = $request->validate(['cancel_reason' => 'required|string']);
 
-        if ($invoice->isCancelled()) {
+        if (! $workflow->cancel($invoice, $data['cancel_reason'], Auth::id())) {
             return back()->with('error', 'Invoice ini sudah dibatalkan.');
         }
 
-        $from = $invoice->work_status;
-
-        DB::transaction(function () use ($invoice, $data, $from) {
-            $invoice->update([
-                'work_status'   => 'batal',
-                'cancel_reason' => $data['cancel_reason'],
-                'cancelled_by'  => Auth::id(),
-                'cancelled_at'  => now(),
-            ]);
-
-            $invoice->logs()->create([
-                'event'       => 'cancelled',
-                'from_status' => $from,
-                'to_status'   => 'batal',
-                'note'        => $data['cancel_reason'],
-                'changed_by'  => Auth::id(),
-            ]);
-        });
-
         return back()->with('warning', 'Invoice dibatalkan.');
     }
+```
+
+Tambahkan `use` di bagian atas controller:
+
+```php
+use App\Services\ServiceInvoiceWorkflow;
 ```
 
 - [ ] **Step 4: Daftarkan rute**
@@ -4407,7 +4496,8 @@ Expected: PASS (4 tests)
 - [ ] **Step 8: Commit**
 
 ```bash
-git add app/Http/Controllers/Pages/ServiceInvoiceController.php \
+git add app/Services/ServiceInvoiceWorkflow.php \
+        app/Http/Controllers/Pages/ServiceInvoiceController.php \
         resources/views/services/invoices/show.blade.php \
         routes/web.php config/permissions.php database/seeders/AccessMatrixSeeder.php \
         tests/Feature/ServiceInvoiceStatusRouteTest.php
@@ -6053,7 +6143,7 @@ Kalau tidak ada perubahan, lewati langkah ini.
 | §4 model & relasi | Task 1, 2 |
 | §5.1 penomoran | Task 4 |
 | §5.2 recalcTotals | Task 3 |
-| §5.3 mesin status kerja | Task 5, 10 |
+| §5.3 mesin status kerja | Task 5 (`ServiceInvoiceWorkflow::changeStatus`), Task 10 (`::cancel`) |
 | §5.4 kunci edit | Task 9 |
 | §5.5 alur kirim email | Task 13 |
 | §5.6 aturan kecil (diskon nominal, label bayar, klien baru, soft delete, hapus katalog) | Task 6, 7, 8, 9, 11 |

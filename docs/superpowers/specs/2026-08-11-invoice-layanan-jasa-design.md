@@ -296,6 +296,8 @@ Semua aritmetika di server. JavaScript di form hanya **pratinjau**; nilai yang d
 
 ### 5.3 Mesin status pengerjaan
 
+Tinggal di `App\Services\ServiceInvoiceWorkflow` (`changeStatus()` + `cancel()`), bukan sebagai metode model — mengikuti konvensi "ubah keadaan + tulis baris log" yang sudah dipakai `CashPeriodService` dan `TitleProgressService`. Model tetap sekadar rekaman, dan kedua jalur (pindah status & batal) memakai satu implementasi yang sama alih-alih ditulis dua kali.
+
 Transisi bebas antara `belum ⇄ proses ⇄ selesai`. `batal` adalah keadaan terminal yang hanya bisa dimasuki (dan hanya oleh superadmin).
 
 ```
@@ -561,6 +563,7 @@ app/Models/            ServiceClient, ServiceCatalog, ServiceInvoice,
 app/Http/Controllers/Pages/  ServiceInvoiceController, ServiceInvoicePaymentController,
                              ServiceCatalogController, ServiceClientController
 app/Support/ServiceInvoicePdfData.php
+app/Services/ServiceInvoiceWorkflow.php
 app/Mail/ServiceInvoiceMail.php
 app/Jobs/SendServiceInvoiceJob.php
 resources/views/services/     invoices/{index,create,edit,show}, invoice_pdf,
