@@ -266,9 +266,11 @@ $no = $prefix . str_pad((string) (((int) $last) + 1), 4, '0', STR_PAD_LEFT);
 ```
 
 Tiga lapis pengaman:
-1. `lockForUpdate` di dalam transaksi → dua permintaan bersamaan berbaris, tidak balapan.
+1. `lockForUpdate` di dalam transaksi → dua permintaan bersamaan berbaris. **Dengan satu celah yang diketahui:** pada bulan yang masih kosong, `LIKE 'prefix%' FOR UPDATE` hanya mengambil *gap lock* yang kompatibel-bersama, jadi dua pemanggil sama-sama menghitung `0001` lalu saling mengunci saat INSERT dan salah satunya kena deadlock. Karena itu lapis 3 wajib ikut menangani `40001`/`1213`, bukan hanya duplikat.
 2. `withTrashed()` → nomor invoice yang dihapus **tidak** pernah didaur ulang.
-3. Unique index + retry maksimal 3× pada `QueryException` duplikat → jaring terakhir.
+3. Unique index + retry maksimal 3× pada `QueryException` yang **benar-benar** balapan. Dicocokkan lewat SQLSTATE + kode driver di `errorInfo` (pola yang sudah dipakai `EnforceIdempotency`), **bukan** teks pesan — Laravel menempelkan seluruh SQL ke pesan, sehingga mencari nama kolom di sana ikut cocok dengan duplikat kolom lain.
+
+Dua gerbang yang gagal keras, bukan menebak: sufiks non-angka di bawah prefiks yang sama, dan kuota `9999` per bulan. Keduanya membuat nomor yang sama diterbitkan dua kali kalau dibiarkan diam.
 
 > Sengaja berbeda dari `SalarySlipController::generateSlipNo()` yang memakai `count() + 1`: pola itu balapan, dan menghasilkan nomor duplikat begitu ada baris yang dihapus.
 

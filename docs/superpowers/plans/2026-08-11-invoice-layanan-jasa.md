@@ -1279,7 +1279,9 @@ namespace Tests\Feature;
 
 use App\Models\ServiceInvoice;
 use App\Support\ServiceInvoiceNumber;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class ServiceInvoiceNumberTest extends TestCase
@@ -1323,27 +1325,129 @@ class ServiceInvoiceNumberTest extends TestCase
     }
 
     /** @test */
-    public function retrying_does_not_repeat_non_duplicate_errors(): void
+    public function malformed_last_number_fails_loudly_instead_of_colliding(): void
     {
-        $calls = 0;
+        $aug = \Carbon\Carbon::parse('2026-08-11');
+        ServiceInvoice::factory()->create([
+            'invoice_no' => 'INV-JS-202608-REV', 'issued_at' => $aug->toDateString(),
+        ]);
 
-        // expectException() TIDAK dipakai di sini: baris setelah pemanggilan yang
-        // melempar tidak akan pernah jalan, sehingga assertion jumlah panggilannya
-        // jadi mati diam-diam. try/catch membuat keduanya benar-benar diperiksa.
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessageMatches('/tidak berformat angka/');
+
+        ServiceInvoiceNumber::next($aug);
+    }
+
+    /** @test */
+    public function running_out_of_numbers_in_a_month_fails_legibly(): void
+    {
+        $aug = \Carbon\Carbon::parse('2026-08-11');
+        ServiceInvoice::factory()->create([
+            'invoice_no' => 'INV-JS-202608-9999', 'issued_at' => $aug->toDateString(),
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessageMatches('/habis/');
+
+        ServiceInvoiceNumber::next($aug);
+    }
+
+    /** @test */
+    public function retrying_recovers_from_a_real_duplicate_number(): void
+    {
+        ServiceInvoice::factory()->create(['invoice_no' => 'INV-JS-202608-0001']);
+
+        $attempts = 0;
+
+        $result = ServiceInvoiceNumber::retrying(function () use (&$attempts) {
+            $attempts++;
+            // Percobaan pertama sengaja memakai nomor yang sudah terpakai, jadi
+            // duplikatnya datang dari unique index sungguhan — bukan pengecualian
+            // yang dirakit tangan.
+            $no = $attempts === 1 ? 'INV-JS-202608-0001' : 'INV-JS-202608-0002';
+
+            return ServiceInvoice::factory()->create(['invoice_no' => $no]);
+        });
+
+        $this->assertSame(2, $attempts, 'Duplikat harus diulang sekali lalu berhasil.');
+        $this->assertSame('INV-JS-202608-0002', $result->invoice_no);
+    }
+
+    /** @test */
+    public function retrying_gives_up_after_the_configured_attempts(): void
+    {
+        ServiceInvoice::factory()->create(['invoice_no' => 'INV-JS-202608-0001']);
+
+        $attempts = 0;
+
         try {
-            ServiceInvoiceNumber::retrying(function () use (&$calls) {
-                $calls++;
-                throw new \RuntimeException('bukan galat duplikat');
+            ServiceInvoiceNumber::retrying(function () use (&$attempts) {
+                $attempts++;
+
+                return ServiceInvoice::factory()->create(['invoice_no' => 'INV-JS-202608-0001']);
             });
-            $this->fail('Galat non-duplikat seharusnya dilempar apa adanya.');
-        } catch (\RuntimeException $e) {
-            $this->assertSame('bukan galat duplikat', $e->getMessage());
+            $this->fail('Tabrakan yang tak kunjung reda harus akhirnya dilempar.');
+        } catch (QueryException $e) {
+            $this->assertSame('23000', (string) $e->errorInfo[0]);
         }
 
-        $this->assertSame(1, $calls);
+        $this->assertSame(3, $attempts);
+    }
+
+    /** @test */
+    public function retrying_does_not_repeat_unrelated_database_errors(): void
+    {
+        $attempts = 0;
+
+        try {
+            ServiceInvoiceNumber::retrying(function () use (&$attempts) {
+                $attempts++;
+
+                DB::table('tabel_yang_tidak_ada')->insert(['x' => 1]);
+            });
+            $this->fail('Galat non-balapan harus dilempar apa adanya.');
+        } catch (QueryException $e) {
+            $this->assertStringContainsString('tabel_yang_tidak_ada', $e->getMessage());
+        }
+
+        $this->assertSame(1, $attempts, 'Galat non-balapan tidak boleh diulang.');
+    }
+
+    /** @test */
+    public function deadlock_is_treated_as_a_race_and_retried(): void
+    {
+        // Deadlock TIDAK bisa dipicu dari satu koneksi tes, jadi pengecualiannya
+        // dirakit dengan bentuk errorInfo yang sama persis seperti yang dilempar
+        // MySQL. Ini satu-satunya tes di berkas ini yang memakai galat rakitan —
+        // dan memang harus, karena jalur inilah yang membuat invoice PERTAMA tiap
+        // bulan tidak berakhir 500.
+        $attempts = 0;
+
+        $result = ServiceInvoiceNumber::retrying(function () use (&$attempts) {
+            $attempts++;
+
+            if ($attempts === 1) {
+                $pdoException = new \PDOException('SQLSTATE[40001]: Serialization failure: 1213 Deadlock found when trying to get lock');
+                $pdoException->errorInfo = ['40001', 1213, 'Deadlock found when trying to get lock'];
+
+                throw new QueryException(
+                    'mysql',
+                    'insert into `tb_service_invoices` (`invoice_no`) values (?)',
+                    ['INV-JS-202608-0001'],
+                    $pdoException
+                );
+            }
+
+            return 'berhasil';
+        });
+
+        $this->assertSame(2, $attempts, 'Deadlock adalah balapan murni dan harus diulang.');
+        $this->assertSame('berhasil', $result);
     }
 }
 ```
+
+> **Sebelum menulis tes deadlock:** periksa tanda tangan konstruktor `QueryException` di `vendor/laravel/framework/src/Illuminate/Database/QueryException.php`. Laravel 10 memakai `($connectionName, $sql, array $bindings, Throwable $previous)`; Laravel 9 tanpa `$connectionName`. Sesuaikan dan laporkan yang Anda temukan.
 
 - [ ] **Step 2: Jalankan tes, pastikan gagal**
 
@@ -1385,14 +1489,40 @@ class ServiceInvoiceNumber
             ->lockForUpdate()
             ->max('invoice_no');
 
-        $seq = $last ? ((int) substr($last, strlen($prefix))) + 1 : 1;
+        $suffix = $last !== null ? substr($last, strlen($prefix)) : null;
+
+        // Gagal keras, jangan menebak. Sufiks non-angka (data hasil sunting tangan
+        // atau importer) membuat (int) menghasilkan 0, `next()` mengembalikan 0001
+        // yang sudah terpakai, dan bulan itu macet permanen dengan galat SQL
+        // yang tak menjelaskan apa pun.
+        if ($suffix !== null && ! ctype_digit($suffix)) {
+            throw new \RuntimeException(
+                "Nomor invoice layanan terakhir tidak berformat angka: {$last}. "
+                . 'Perbaiki datanya sebelum menerbitkan invoice baru.'
+            );
+        }
+
+        $seq = $suffix !== null ? ((int) $suffix) + 1 : 1;
+
+        // Di 10000 sufiksnya jadi 5 digit dan urutan leksikografis MAX() putus —
+        // '1' < '9' membuat baris 5 digit terabaikan dan nomor yang sama diterbitkan
+        // berulang. Tak terjangkau pada volume jasa, tapi harus berbunyi jelas.
+        if ($seq > 9999) {
+            throw new \RuntimeException(
+                'Kuota nomor invoice layanan bulan ' . $issuedAt->format('F Y') . ' habis (9999). '
+                . 'Lebarkan format penomoran sebelum menerbitkan invoice baru.'
+            );
+        }
 
         return $prefix . str_pad((string) $seq, 4, '0', STR_PAD_LEFT);
     }
 
     /**
-     * Jalankan $fn, ulangi hanya bila gagal karena tabrakan invoice_no. Galat lain
+     * Jalankan $fn, ulangi hanya bila gagal karena balapan alokasi nomor. Galat lain
      * dilempar apa adanya — mengulang galat sembarangan menyembunyikan bug.
+     *
+     * Jeda acak kecil antar-percobaan supaya dua pemanggil yang bertabrakan tidak
+     * langsung bertabrakan lagi di percobaan berikutnya.
      */
     public static function retrying(callable $fn, int $tries = 3)
     {
@@ -1400,14 +1530,43 @@ class ServiceInvoiceNumber
             try {
                 return $fn();
             } catch (QueryException $e) {
-                $duplicate = str_contains($e->getMessage(), 'invoice_no')
-                    && (str_contains($e->getMessage(), 'Duplicate') || str_contains($e->getMessage(), 'UNIQUE'));
-
-                if (! $duplicate || $attempt >= $tries) {
+                if (! self::isRaceCollision($e) || $attempt >= $tries) {
                     throw $e;
                 }
+
+                usleep(random_int(10_000, 50_000));
             }
         }
+    }
+
+    /**
+     * Dicocokkan lewat SQLSTATE + kode driver di `errorInfo`, BUKAN teks pesan:
+     * Laravel menempelkan seluruh SQL ke pesan, sehingga mencari 'invoice_no' di
+     * sana ikut cocok dengan duplikat kolom lain hanya karena nama kolomnya muncul
+     * di daftar INSERT. Presedennya sudah ada di `EnforceIdempotency`.
+     *
+     * Deadlock & lock-wait ikut dianggap balapan karena justru DIPICU oleh
+     * lockForUpdate() di next(): pada bulan yang masih kosong, `LIKE 'prefix%'
+     * FOR UPDATE` hanya mengambil gap lock yang kompatibel-bersama, jadi dua
+     * transaksi sama-sama menghitung 0001 lalu saling mengunci saat INSERT.
+     * Tanpa memasukkan 40001/1213 ke sini, invoice PERTAMA tiap bulan bisa
+     * berakhir 500 — tepat di kasus yang retry ini dibuat untuk menanganinya.
+     */
+    private static function isRaceCollision(QueryException $e): bool
+    {
+        $sqlState   = (string) ($e->errorInfo[0] ?? '');
+        $driverCode = (int) ($e->errorInfo[1] ?? 0);
+        $detail     = (string) ($e->errorInfo[2] ?? '');
+
+        if ($sqlState === '40001' || in_array($driverCode, [1213, 1205], true)) {
+            return true;
+        }
+
+        // errorInfo[2] hanya memuat nama indeks yang bentrok, tanpa SQL-nya —
+        // jadi ini benar-benar menyaring unique index invoice_no.
+        return $sqlState === '23000'
+            && $driverCode === 1062
+            && str_contains($detail, 'invoice_no');
     }
 }
 ```
@@ -1415,7 +1574,7 @@ class ServiceInvoiceNumber
 - [ ] **Step 4: Jalankan tes, pastikan lulus**
 
 Run: `php artisan test --filter=ServiceInvoiceNumberTest`
-Expected: PASS (4 tests)
+Expected: PASS (8 tests)
 
 - [ ] **Step 5: Commit**
 
