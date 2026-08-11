@@ -122,23 +122,40 @@ class ServiceInvoice extends Model
      * ini sengaja didenormalisasi supaya daftar bisa mengurutkan & memfilter di SQL.
      *
      * payment_status TIDAK PERNAH diketik manusia; selalu hasil hitungan di sini.
+     *
+     * Semua nilai dibulatkan ke 2 desimal SEBELUM dibandingkan. Tanpa itu, invoice
+     * yang dibayar tepat lunas bisa tersangkut di 'dp' selamanya: float tak bisa
+     * mewakili sebagian pecahan rupiah, sehingga `paid >= total` bernilai false
+     * padahal selisihnya 6e-8 — dan selisih itu tersimpan sebagai 0.00 di kolom
+     * decimal(15,2), membuat barisnya menyangkal dirinya sendiri (sisa nol, status DP).
+     *
+     * DUA HAL YANG PERLU DIINGAT PEMANGGIL:
+     *  - `save()` menulis SEMUA atribut yang kotor, bukan hanya lima kolom di bawah.
+     *    Jangan panggil metode ini sambil menggantung perubahan lain di memori
+     *    kecuali memang ingin ikut tersimpan.
+     *  - SUM di sini adalah consistent read TANPA kunci baris, jadi membungkusnya
+     *    dengan `DB::transaction` saja TIDAK menyerialkan dua pencatatan pembayaran
+     *    yang bersamaan — yang terakhir bisa menimpa dengan angka basi. Hitungannya
+     *    derivatif (bukan inkremental), jadi panggilan berikutnya memulihkannya.
+     *    Diterima sebagai risiko: alat internal dengan satu-dua operator.
      */
     public function recalcTotals(): void
     {
-        $subtotal = (float) $this->items()->sum('subtotal');
-        $total    = max($subtotal - (float) $this->discount, 0);
-        $paid     = (float) $this->payments()->sum('amount');
+        $subtotal  = round((float) $this->items()->sum('subtotal'), 2);
+        $total     = round(max($subtotal - (float) $this->discount, 0), 2);
+        $paid      = round((float) $this->payments()->sum('amount'), 2);
+        $remaining = round($total - $paid, 2);
 
         $status = 'belum';
         if ($paid > 0) {
-            $status = $paid >= $total ? 'lunas' : 'dp';
+            $status = $remaining <= 0 ? 'lunas' : 'dp';
         }
 
         $this->forceFill([
             'subtotal'       => $subtotal,
             'total'          => $total,
             'paid_total'     => $paid,
-            'remaining'      => $total - $paid,   // negatif = lebih bayar, sengaja dipertahankan
+            'remaining'      => $remaining,   // negatif = lebih bayar, sengaja dipertahankan
             'payment_status' => $status,
         ])->save();
     }

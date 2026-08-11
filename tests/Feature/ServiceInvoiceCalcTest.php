@@ -82,13 +82,54 @@ class ServiceInvoiceCalcTest extends TestCase
     }
 
     /** @test */
-    public function discount_larger_than_subtotal_clamps_total_at_zero(): void
+    public function exactly_paid_invoice_with_odd_cents_is_lunas_not_dp(): void
     {
-        $inv = ServiceInvoice::factory()->create(['discount' => 999999999]);
+        // Jebakan float sungguhan: (float) total menghasilkan ...9900000002
+        // sementara (float) paid menghasilkan ...9899999999, sehingga perbandingan
+        // mentah `paid >= total` gagal dan invoice yang sudah lunas tersangkut di
+        // 'dp' SELAMANYA — sementara `remaining` tersimpan 0.00 karena kolomnya
+        // decimal(15,2). Barisnya jadi menyangkal dirinya sendiri.
+        $inv = ServiceInvoice::factory()->create(['discount' => 636766.00]);
+        $inv->items()->create([
+            'name' => 'Hosting prorata', 'qty' => 1,
+            'unit_price' => 2548189.99, 'subtotal' => 2548189.99,
+        ]);
+        $inv->payments()->create([
+            'paid_at' => now()->toDateString(), 'type' => 'pelunasan', 'amount' => 1911423.99,
+        ]);
+        $inv->recalcTotals();
+        $inv->refresh();
+
+        $this->assertEquals(1911423.99, $inv->total);
+        $this->assertEquals(1911423.99, $inv->paid_total);
+        $this->assertEquals(0, $inv->remaining);
+        $this->assertSame('lunas', $inv->payment_status);
+        $this->assertFalse($inv->isOverpaid());
+    }
+
+    /** @test */
+    public function zero_total_invoice_stays_belum_until_money_arrives(): void
+    {
+        $inv = ServiceInvoice::factory()->create([
+            'discount' => 999999999,
+            'due_at'   => today()->subDays(10)->toDateString(),
+        ]);
         $inv->items()->create(['name' => 'X', 'qty' => 1, 'unit_price' => 100000, 'subtotal' => 100000]);
         $inv->recalcTotals();
         $inv->refresh();
 
         $this->assertEquals(0, $inv->total);
+        $this->assertEquals(0, $inv->remaining);
+        $this->assertSame('belum', $inv->payment_status);
+        $this->assertFalse($inv->isOverdue(), 'Utang nol tak pernah telat, walau jatuh temponya lewat.');
+
+        // Cabang sebaliknya: total nol tapi ada uang masuk = lebih bayar.
+        $inv->payments()->create(['paid_at' => now()->toDateString(), 'type' => 'dp', 'amount' => 50000]);
+        $inv->recalcTotals();
+        $inv->refresh();
+
+        $this->assertSame('lunas', $inv->payment_status);
+        $this->assertEquals(-50000, $inv->remaining);
+        $this->assertTrue($inv->isOverpaid());
     }
 }
