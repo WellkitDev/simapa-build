@@ -161,12 +161,26 @@ class ServiceInvoiceStoreTest extends TestCase
     }
 
     /** @test */
-    public function index_and_create_render_for_manager(): void
+    public function every_screen_renders_for_manager_and_superadmin(): void
     {
-        ServiceInvoice::factory()->create();
+        $inv = ServiceInvoice::factory()->create();
+        $inv->items()->create(['name' => 'Instalasi OJS', 'qty' => 1, 'unit_price' => 750000, 'subtotal' => 750000]);
+        $inv->payments()->create(['paid_at' => now()->toDateString(), 'type' => 'dp', 'amount' => 250000]);
+        $inv->logs()->create(['event' => 'created']);
+        $inv->recalcTotals();
 
-        $manager = $this->user('manager');
-        $this->actingAs($manager)->get(route('service.invoice.index'))->assertOk();
-        $this->actingAs($manager)->get(route('service.invoice.create'))->assertOk();
+        // Blade yang gagal DIKOMPILASI hanya terlihat kalau view-nya benar-benar
+        // dirender — tes store() cuma menegaskan redirect dan tak pernah mengikutinya.
+        // Superadmin ikut diuji karena Gate::before membuatnya menempuh jalur berbeda
+        // dari manager (aturan global 10).
+        foreach (['manager', 'superadmin'] as $role) {
+            $user = $this->user($role);
+
+            $this->actingAs($user)->get(route('service.invoice.index'))->assertOk();
+            $this->actingAs($user)->get(route('service.invoice.create'))->assertOk();
+            $this->actingAs($user)->get(route('service.invoice.show', $inv->id))
+                ->assertOk()
+                ->assertSee($inv->invoice_no);
+        }
     }
 }
