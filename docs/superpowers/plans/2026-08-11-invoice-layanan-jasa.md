@@ -2759,6 +2759,24 @@ class ServiceClientCrudTest extends TestCase
                 ->assertForbidden();
         }
     }
+
+    /** @test */
+    public function a_rejected_save_is_shown_to_the_operator(): void
+    {
+        $manager = $this->user('manager');
+
+        $this->actingAs($manager)
+            ->from(route('service.client.index'))
+            ->post(route('service.client.store'), ['name' => 'Tanpa Email Valid', 'email' => 'bukan-email'])
+            ->assertRedirect(route('service.client.index'));
+
+        // Galat yang cuma sampai ke sesi tidak berguna: layouts/master tidak
+        // merender $errors, jadi view-nya harus menampilkannya sendiri.
+        $this->actingAs($manager)
+            ->get(route('service.client.index'))
+            ->assertOk()
+            ->assertSee('Data belum tersimpan.');
+    }
 }
 ```
 
@@ -2838,8 +2856,9 @@ class ServiceClientController extends Controller
             $client->delete();
         });
 
+        // 'info', bukan 'warning': layouts/master hanya merender success/error/info.
         return redirect()->route('service.client.index')
-            ->with('warning', 'Klien dihapus. Invoice lamanya tetap utuh.');
+            ->with('info', 'Klien dihapus. Invoice lamanya tetap utuh.');
     }
 
     private function rules(Request $request): array
@@ -2924,6 +2943,20 @@ Di `resources/views/layouts/sidebar.blade.php`, di dalam grup **Layanan**, tepat
                     @endcan
                 </div>
 
+                {{-- WAJIB: layouts/master hanya merender session success/error/info, BUKAN $errors.
+                     Tanpa blok ini, email yang salah format memantul kembali ke daftar tanpa satu
+                     pun tanda dan operator mengira aplikasinya macet. --}}
+                @if ($errors->any())
+                    <div class="alert alert-danger">
+                        <strong>Data belum tersimpan.</strong>
+                        <ul class="mb-0 mt-1">
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
                 <div class="table-responsive">
                     <table class="table table-centered datatable dt-responsive nowrap" style="width:100%;">
                         <thead>
@@ -2939,11 +2972,23 @@ Di `resources/views/layouts/sidebar.blade.php`, di dalam grup **Layanan**, tepat
                                 <td><span class="badge bg-info">{{ $c->invoices_count }}</span></td>
                                 <td>
                                     @can('service_client.manage')
+                                    {{-- Payload dirakit eksplisit, bukan $c->toJson(): hanya kolom
+                                         yang memang dipakai form yang perlu sampai ke browser. --}}
                                     <button class="btn btn-xs btn-outline-secondary"
                                             data-bs-toggle="modal" data-bs-target="#clientModal"
-                                            data-client="{{ $c->toJson() }}" onclick="fillClientForm(this)">Edit</button>
+                                            data-client="{{ json_encode([
+                                                'id'          => $c->id,
+                                                'name'        => $c->name,
+                                                'institution' => $c->institution,
+                                                'email'       => $c->email,
+                                                'phone'       => $c->phone,
+                                                'address'     => $c->address,
+                                                'note'        => $c->note,
+                                            ]) }}" onclick="fillClientForm(this)">Edit</button>
+                                    {{-- data-confirm: listener SweetAlert terdelegasi di layouts/master,
+                                         dipakai seluruh aksi destruktif lain di aplikasi ini. --}}
                                     <form action="{{ route('service.client.destroy', $c->id) }}" method="POST" class="d-inline"
-                                          onsubmit="return confirm('Hapus klien ini? Invoice lamanya tetap utuh.')">
+                                          data-confirm="Hapus klien ini? Invoice lamanya tetap utuh.">
                                         @csrf @method('DELETE')
                                         <button class="btn btn-xs btn-outline-danger">Hapus</button>
                                     </form>
@@ -3016,6 +3061,10 @@ Di `resources/views/layouts/sidebar.blade.php`, di dalam grup **Layanan**, tepat
 
 @push('custom-scripts')
 <script>
+    // Rute update dari template bernama, bukan URL yang diketik tangan: kalau
+    // prefiks `layanan` kelak berpindah, tombol Edit ikut pindah sendiri.
+    const CLIENT_UPDATE_URL = "{{ route('service.client.update', ['id' => '__ID__']) }}";
+
     $(function () {
         $(".datatable").DataTable({
             pageLength: 25, responsive: true,
@@ -3035,7 +3084,7 @@ Di `resources/views/layouts/sidebar.blade.php`, di dalam grup **Layanan**, tepat
     function fillClientForm(button) {
         const c = JSON.parse(button.dataset.client);
         document.getElementById('clientModalTitle').textContent = 'Edit Klien';
-        document.getElementById('clientForm').action = "{{ url('layanan/klien') }}/" + c.id;
+        document.getElementById('clientForm').action = CLIENT_UPDATE_URL.replace('__ID__', c.id);
         document.getElementById('clientMethod').value = 'PUT';
         document.getElementById('clientName').value = c.name;
         document.getElementById('clientInstitution').value = c.institution ?? '';
@@ -3115,7 +3164,7 @@ Di `resources/views/layouts/sidebar.blade.php`, di dalam grup **Layanan**, tepat
 - [ ] **Step 9: Jalankan tes, pastikan lulus**
 
 Run: `php artisan test --filter=ServiceClientCrudTest`
-Expected: PASS (4 tests)
+Expected: PASS (5 tests)
 
 - [ ] **Step 10: Commit**
 
