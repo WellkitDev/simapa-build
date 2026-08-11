@@ -117,6 +117,33 @@ class ServiceInvoice extends Model
     }
 
     /**
+     * Tulis ulang subtotal/total/paid_total/remaining/payment_status dari baris anaknya.
+     * WAJIB dipanggil setiap kali item, diskon, atau pembayaran berubah — kolom-kolom
+     * ini sengaja didenormalisasi supaya daftar bisa mengurutkan & memfilter di SQL.
+     *
+     * payment_status TIDAK PERNAH diketik manusia; selalu hasil hitungan di sini.
+     */
+    public function recalcTotals(): void
+    {
+        $subtotal = (float) $this->items()->sum('subtotal');
+        $total    = max($subtotal - (float) $this->discount, 0);
+        $paid     = (float) $this->payments()->sum('amount');
+
+        $status = 'belum';
+        if ($paid > 0) {
+            $status = $paid >= $total ? 'lunas' : 'dp';
+        }
+
+        $this->forceFill([
+            'subtotal'       => $subtotal,
+            'total'          => $total,
+            'paid_total'     => $paid,
+            'remaining'      => $total - $paid,   // negatif = lebih bayar, sengaja dipertahankan
+            'payment_status' => $status,
+        ])->save();
+    }
+
+    /**
      * Dua hal yang mudah salah di sini:
      *  - `lt(today())`, BUKAN `isPast()`. `due_at` di-cast `date` sehingga jatuh di
      *    tengah malam, dan `isPast()` menandai invoice telat sejak pukul 00:00 pada
