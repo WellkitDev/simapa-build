@@ -24,6 +24,10 @@ Baca sekali sebelum Task 1. Melanggar salah satu ini membuat suite merah dengan 
 6. **Cast `decimal:2` mengembalikan string.** Di assertion pakai `assertEquals` (longgar), bukan `assertSame`.
 7. **Jangan menyentuh** `tb_orders`, `tb_payments`, `tb_invoices`, `tb_cash_*`, atau modul keuangan mana pun. Task 14 punya tes yang mengunci ini.
 8. **Commit tiap akhir task**, dengan `git add` jalur berkas eksplisit — jangan `git add -A`.
+9. **JANGAN menaruh `route()` ke rute yang belum ada di dalam `@can`/`@canany`.** `Gate::before` di `AuthServiceProvider` meloloskan superadmin untuk ability **apa pun**, termasuk permission yang belum terdaftar — jadi penjaga itu tidak menahan apa-apa baginya, `route()` di dalamnya tetap dievaluasi, dan halamannya 500. Terbukti di Task 7: `@can('service_invoice.view')` aman bagi manager (Spatie mengembalikan false) tapi meledak bagi superadmin. Tunggu sampai rutenya lahir di task-nya sendiri.
+10. **Tes akses selalu sertakan superadmin, bukan hanya manager.** Karena Gate::before, keduanya menempuh jalur kode yang berbeda; tes manager saja tidak akan pernah melihat jebakan di aturan 9.
+11. **Layar apa pun yang punya form WAJIB punya blok `@if ($errors->any())` sendiri.** `layouts/master.blade.php:123-125` hanya merender `session('success')`, `session('error')`, dan `session('info')` — **tidak** `$errors`, dan **tidak** `session('warning')`. Tanpa blok itu setiap simpan yang ditolak validasi memantul tanpa satu pun tanda.
+12. **Jangan pernah mengirim nilai berkolom `decimal:2` ke input teks yang nilainya nanti dibersihkan pemisah ribuan.** Cast-nya memancarkan `"350000.00"`, pembersihnya membuang titik desimal, dan angkanya jadi 100×. Pakai `(int)` seperti `accounting/journal.blade.php:255` dan `salary/slips/form.blade.php:7`.
 
 ---
 
@@ -2751,6 +2755,22 @@ class ServiceClientCrudTest extends TestCase
     }
 
     /** @test */
+    public function superadmin_can_open_a_client_detail_page(): void
+    {
+        $client = ServiceClient::factory()->create();
+        ServiceInvoice::factory()->create(['service_client_id' => $client->id]);
+
+        // BUKAN pengulangan tes manager. Gate::before (AuthServiceProvider) meloloskan
+        // superadmin untuk ability APA PUN, termasuk permission yang belum terdaftar —
+        // jadi blok @can yang benar-benar aman bagi manager tetap DIEVALUASI bagi
+        // superadmin, dan setiap route() yang belum ada di dalamnya meledak jadi 500.
+        // Tes ini yang menahan pola itu supaya tidak masuk lagi.
+        $this->actingAs($this->user('superadmin'))
+            ->get(route('service.client.show', $client->id))
+            ->assertOk();
+    }
+
+    /** @test */
     public function other_roles_are_locked_out(): void
     {
         foreach (['admin', 'marketing', 'production'] as $role) {
@@ -3140,11 +3160,13 @@ Di `resources/views/layouts/sidebar.blade.php`, di dalam grup **Layanan**, tepat
                                 <td>Rp {{ number_format($inv->total, 0, ',', '.') }}</td>
                                 <td><span class="badge bg-secondary">{{ $inv->workStatusLabel() }}</span></td>
                                 <td><span class="badge bg-info">{{ $inv->paymentStatusLabel() }}</span></td>
-                                <td>
-                                    @can('service_invoice.view')
-                                        <a href="{{ route('service.invoice.show', $inv->id) }}" class="btn btn-xs btn-primary">Detail</a>
-                                    @endcan
-                                </td>
+                                {{-- Tombol Detail sengaja BELUM ada di sini; ditambahkan di Task 8
+                                     bersama rute service.invoice.show. Membungkusnya dengan
+                                     @can('service_invoice.view') TIDAK aman: Gate::before di
+                                     AuthServiceProvider meloloskan superadmin untuk ability APA PUN,
+                                     termasuk permission yang belum terdaftar — jadi blok itu tetap
+                                     dievaluasi dan route() yang belum ada melempar 500. --}}
+                                <td></td>
                             </tr>
                             @empty
                             <tr><td colspan="6" class="text-center text-muted">Belum ada invoice untuk klien ini.</td></tr>
@@ -3159,12 +3181,12 @@ Di `resources/views/layouts/sidebar.blade.php`, di dalam grup **Layanan**, tepat
 @endsection
 ```
 
-> View ini memanggil `route('service.invoice.show', ...)`, yang baru terdaftar di Task 8. Aman dijalankan sekarang karena dibungkus `@can('service_invoice.view')` — permission itu juga belum ada di Task 7, jadi blok-nya tidak pernah dievaluasi dan tes Task 7 tetap hijau.
+> **Koreksi terhadap draf sebelumnya.** Draf awal menaruh tombol Detail di sini, dibungkus `@can('service_invoice.view')`, dengan alasan "permission-nya belum ada jadi blok-nya tak pernah dievaluasi". **Itu salah**, dan sudah terbukti 500 di lingkungan nyata: alasan itu hanya berlaku untuk manager. `Gate::before` meloloskan superadmin untuk ability apa pun, jadi baginya blok itu tetap dijalankan dan `route()` yang belum ada melempar `RouteNotFoundException`. Tombolnya pindah ke Task 8. Lihat aturan global 9 & 10.
 
 - [ ] **Step 9: Jalankan tes, pastikan lulus**
 
 Run: `php artisan test --filter=ServiceClientCrudTest`
-Expected: PASS (5 tests)
+Expected: PASS (6 tests)
 
 - [ ] **Step 10: Commit**
 
@@ -3192,6 +3214,7 @@ Menutup T-CLIENT-1.
 - Create: `resources/views/services/invoices/form.blade.php`
 - Create: `resources/views/services/invoices/show.blade.php`
 - Modify: `routes/web.php`, `config/permissions.php`, `resources/views/layouts/sidebar.blade.php`
+- Modify: `resources/views/services/clients/show.blade.php` (tombol Detail yang ditunda dari Task 7)
 - Test: `tests/Feature/ServiceInvoiceStoreTest.php`
 
 - [ ] **Step 1: Tulis tes yang gagal**
@@ -3656,6 +3679,26 @@ Di `resources/views/layouts/sidebar.blade.php`, di dalam grup **Layanan**, tepat
                     </li>
                 @endcan
 ```
+
+- [ ] **Step 7b: Pasang tombol Detail yang ditunda dari Task 7**
+
+Sekarang `service.invoice.show` sudah ada, jadi tautan dari halaman klien aman dipasang. Di `resources/views/services/clients/show.blade.php`, ganti sel kosong beserta komentarnya:
+
+```blade
+                                <td></td>
+```
+
+dengan:
+
+```blade
+                                <td>
+                                    @can('service_invoice.view')
+                                        <a href="{{ route('service.invoice.show', $inv->id) }}" class="btn btn-xs btn-primary">Detail</a>
+                                    @endcan
+                                </td>
+```
+
+Tes `superadmin_can_open_a_client_detail_page` di `ServiceClientCrudTest` yang menjaga langkah ini: ia harus tetap hijau setelah tautannya dipasang. Kalau merah, rutenya belum benar-benar terdaftar.
 
 - [ ] **Step 8: Tulis view daftar invoice**
 

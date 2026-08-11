@@ -87,6 +87,22 @@ class ServiceClientCrudTest extends TestCase
     }
 
     /** @test */
+    public function superadmin_can_open_a_client_detail_page(): void
+    {
+        $client = ServiceClient::factory()->create();
+        ServiceInvoice::factory()->create(['service_client_id' => $client->id]);
+
+        // BUKAN pengulangan tes manager. Gate::before (AuthServiceProvider) meloloskan
+        // superadmin untuk ability APA PUN, termasuk permission yang belum terdaftar —
+        // jadi blok @can yang benar-benar aman bagi manager tetap DIEVALUASI bagi
+        // superadmin, dan setiap route() yang belum ada di dalamnya meledak jadi 500.
+        // Tes ini yang menahan pola itu supaya tidak masuk lagi.
+        $this->actingAs($this->user('superadmin'))
+            ->get(route('service.client.show', $client->id))
+            ->assertOk();
+    }
+
+    /** @test */
     public function other_roles_are_locked_out(): void
     {
         foreach (['admin', 'marketing', 'production'] as $role) {
