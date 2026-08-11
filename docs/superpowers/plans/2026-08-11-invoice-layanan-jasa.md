@@ -28,6 +28,8 @@ Baca sekali sebelum Task 1. Melanggar salah satu ini membuat suite merah dengan 
 10. **Tes akses selalu sertakan superadmin, bukan hanya manager.** Karena Gate::before, keduanya menempuh jalur kode yang berbeda; tes manager saja tidak akan pernah melihat jebakan di aturan 9.
 11. **Layar apa pun yang punya form WAJIB punya blok `@if ($errors->any())` sendiri.** `layouts/master.blade.php:123-125` hanya merender `session('success')`, `session('error')`, dan `session('info')` — **tidak** `$errors`, dan **tidak** `session('warning')`. Tanpa blok itu setiap simpan yang ditolak validasi memantul tanpa satu pun tanda.
 12. **Jangan pernah mengirim nilai berkolom `decimal:2` ke input teks yang nilainya nanti dibersihkan pemisah ribuan.** Cast-nya memancarkan `"350000.00"`, pembersihnya membuang titik desimal, dan angkanya jadi 100×. Pakai `(int)` seperti `accounting/journal.blade.php:255` dan `salary/slips/form.blade.php:7`.
+13. **Jangan menaruh ekspresi berkurung dalam sebagai argumen direktif Blade.** Pencocok argumen direktif menghitung tanda kurung dengan regex naif; kombinasi `old(...)` + ternary + arrow function + array literal membuatnya salah hitung dan view-nya gagal dikompilasi dengan `ParseError: Unclosed '['`. Hitung dulu ke sebuah variabel di blok php, lalu oper variabel tunggal itu. **Blade yang tidak bisa dikompilasi tidak akan tertangkap tes yang hanya menegaskan redirect** — hanya tes yang benar-benar merender view-nya yang melihatnya.
+14. **Komentar Blade tidak boleh memuat token direktif blok php secara harfiah.** Blade memasangkan blok php mentah dengan regex sebelum komentar dibuang, jadi token itu di dalam komentar akan dikawinkan dengan penutup blok nyata di bawahnya dan merusak berkasnya.
 
 ---
 
@@ -3385,13 +3387,27 @@ class ServiceInvoiceStoreTest extends TestCase
     }
 
     /** @test */
-    public function index_and_create_render_for_manager(): void
+    public function every_screen_renders_for_manager_and_superadmin(): void
     {
-        ServiceInvoice::factory()->create();
+        $inv = ServiceInvoice::factory()->create();
+        $inv->items()->create(['name' => 'Instalasi OJS', 'qty' => 1, 'unit_price' => 750000, 'subtotal' => 750000]);
+        $inv->payments()->create(['paid_at' => now()->toDateString(), 'type' => 'dp', 'amount' => 250000]);
+        $inv->logs()->create(['event' => 'created']);
+        $inv->recalcTotals();
 
-        $manager = $this->user('manager');
-        $this->actingAs($manager)->get(route('service.invoice.index'))->assertOk();
-        $this->actingAs($manager)->get(route('service.invoice.create'))->assertOk();
+        // Blade yang gagal DIKOMPILASI hanya terlihat kalau view-nya benar-benar
+        // dirender — tes store() cuma menegaskan redirect dan tak pernah mengikutinya.
+        // Superadmin ikut diuji karena Gate::before membuatnya menempuh jalur berbeda
+        // dari manager (aturan global 10).
+        foreach (['manager', 'superadmin'] as $role) {
+            $user = $this->user($role);
+
+            $this->actingAs($user)->get(route('service.invoice.index'))->assertOk();
+            $this->actingAs($user)->get(route('service.invoice.create'))->assertOk();
+            $this->actingAs($user)->get(route('service.invoice.show', $inv->id))
+                ->assertOk()
+                ->assertSee($inv->invoice_no);
+        }
     }
 }
 ```
@@ -3869,6 +3885,20 @@ Tes `superadmin_can_open_a_client_detail_page` di `ServiceClientCrudTest` yang m
     @csrf
     @if($mode === 'edit') @method('PUT') @endif
 
+    {{-- WAJIB (aturan global 11). @error per-field tidak cukup: baris item dibuat
+         JavaScript, jadi galat pada items.0.name dsb. tidak punya jangkar @error
+         sama sekali dan akan memantul tanpa jejak. --}}
+    @if ($errors->any())
+        <div class="alert alert-danger">
+            <strong>Data belum tersimpan.</strong>
+            <ul class="mb-0 mt-1">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     <div class="row">
         <div class="col-md-5 grid-margin stretch-card">
             <div class="card">
@@ -4020,16 +4050,30 @@ Tes `superadmin_can_open_a_client_detail_page` di `ServiceClientCrudTest` yang m
     // di server dari qty & unit_price mentah (ServiceInvoiceForm::syncItems).
     let rowIndex = 0;
 
-    const existingItems = @json(
-        old('items', isset($invoice)
+    {{-- Ekspresinya dihitung di blok php dulu, BUKAN ditaruh langsung sebagai
+        argumen direktif. Pencocok argumen direktif Blade menghitung tanda kurung
+        dengan regex naif; kombinasi old(...) + ternary + arrow function + array
+        literal membuatnya salah hitung, memotong array di tengah kunci, dan
+        melempar ParseError "Unclosed '['" saat view dikompilasi. Variabel
+        tunggal tidak kena masalah ini.
+
+        CATATAN UNTUK PENYUNTING SELANJUTNYA: komentar Blade ini SENGAJA menghindari
+        menulis kata "at-php" atau "at-json" apa adanya. Blade mencari pasangan blok
+        php mentah dengan regex naif SEBELUM komentar dibuang, jadi kata itu di sini
+        akan dikawinkan dengan penutup blok php nyata di bawah dan meledak lagi persis
+        seperti bug yang baru saja diperbaiki.
+    --}}
+    @php
+        $existingItemsForJs = old('items', isset($invoice)
             ? $invoice->items->map(fn ($i) => [
                 'service_catalog_id' => $i->service_catalog_id,
                 'name'               => $i->name,
                 'qty'                => (float) $i->qty,
                 'unit_price'         => (int) $i->unit_price,
               ])->values()
-            : [])
-    );
+            : []);
+    @endphp
+    const existingItems = @json($existingItemsForJs);
 
     function rupiah(n) {
         return 'Rp ' + (Math.round(n) || 0).toLocaleString('id-ID');
