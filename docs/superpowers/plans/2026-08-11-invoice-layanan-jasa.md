@@ -247,7 +247,11 @@ class ServiceClient extends Model
 
     public function invoices()
     {
-        return $this->hasMany(ServiceInvoice::class)->latest('issued_at');
+        // Pemecah seri wajib: issued_at bertipe date (tanpa jam), jadi dua invoice
+        // di hari yang sama akan bertukar urutan antar-request tanpa `id`.
+        return $this->hasMany(ServiceInvoice::class)
+            ->orderByDesc('issued_at')
+            ->orderByDesc('id');
     }
 
     /** "Nama — Instansi" untuk dropdown; instansi kosong tidak menyisakan tanda pisah. */
@@ -308,9 +312,14 @@ class ServiceCatalog extends Model
         return $query->where('is_active', true);
     }
 
-    public function categoryLabel(): string
+    /**
+     * Statis, karena kedua pemanggilnya (daftar katalog & optgroup form invoice)
+     * memegang KUNCI kategori hasil groupBy, bukan instance model. Fallback `?? $key`
+     * tinggal di satu tempat.
+     */
+    public static function categoryLabel(?string $key): string
     {
-        return self::CATEGORIES[$this->category] ?? $this->category;
+        return self::CATEGORIES[$key] ?? (string) $key;
     }
 
     /** "Rp 500.000 – Rp 1.000.000" bila berkisar, "Rp 750.000" bila tetap. */
@@ -1839,7 +1848,7 @@ Di `resources/views/layouts/sidebar.blade.php`, sisipkan grup baru tepat setelah
                             @foreach($catalogs as $category => $rows)
                                 @foreach($rows as $c)
                                 <tr>
-                                    <td><span class="badge bg-secondary">{{ $categories[$category] ?? $category }}</span></td>
+                                    <td><span class="badge bg-secondary">{{ \App\Models\ServiceCatalog::categoryLabel($category) }}</span></td>
                                     <td>
                                         {{ $c->name }}
                                         @if($c->description)
@@ -3191,7 +3200,7 @@ Di `resources/views/layouts/sidebar.blade.php`, di dalam grup **Layanan**, tepat
                         <select id="catalogPicker" class="form-select" onchange="addFromCatalog()">
                             <option value="">— Pilih layanan —</option>
                             @foreach($catalogs->groupBy('category') as $category => $rows)
-                                <optgroup label="{{ \App\Models\ServiceCatalog::CATEGORIES[$category] ?? $category }}">
+                                <optgroup label="{{ \App\Models\ServiceCatalog::categoryLabel($category) }}">
                                     @foreach($rows as $cat)
                                         <option value="{{ $cat->id }}"
                                                 data-name="{{ $cat->name }}"
