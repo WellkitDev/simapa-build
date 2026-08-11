@@ -3306,18 +3306,31 @@ class ServiceInvoiceStoreTest extends TestCase
     }
 
     /** @test */
-    public function typing_the_same_client_twice_reuses_the_master_row(): void
+    public function the_same_client_is_matched_by_email_not_by_name(): void
     {
         $manager = $this->user('manager');
 
+        // Email sama, nama beda → satu baris master (email yang jadi kuncinya).
         $this->actingAs($manager)->post(route('service.invoice.store'), $this->payload());
-        $this->actingAs($manager)->post(route('service.invoice.store'), $this->payload());
-
-        // Dicocokkan lewat email. Tanpa itu, operator yang mengetik klien yang sama
-        // berkali-kali memecah riwayat pekerjaannya menjadi beberapa baris master
-        // dan halaman detail klien hanya menampilkan sebagian invoice-nya.
+        $this->actingAs($manager)->post(route('service.invoice.store'), $this->payload(['client_name' => 'Nama Lain']));
         $this->assertSame(1, ServiceClient::count());
-        $this->assertSame(2, ServiceClient::first()->invoices()->count());
+
+        // Nama sama, email beda → dua baris. Kalau pencocokannya jatuh ke nama,
+        // assertion inilah yang merah.
+        $this->actingAs($manager)->post(route('service.invoice.store'), $this->payload(['client_email' => 'lain@unbari.ac.id']));
+        $this->assertSame(2, ServiceClient::count());
+    }
+
+    /** @test */
+    public function discount_is_persisted_and_subtracted_from_the_total(): void
+    {
+        $this->actingAs($this->user('manager'))
+            ->post(route('service.invoice.store'), $this->payload(['discount' => '150.000']));
+
+        $inv = ServiceInvoice::first();
+        $this->assertEquals(150000, $inv->discount);
+        $this->assertEquals(1650000, $inv->subtotal);
+        $this->assertEquals(1500000, $inv->total);
     }
 
     /** @test */
@@ -3409,6 +3422,52 @@ class ServiceInvoiceStoreTest extends TestCase
                 ->assertSee($inv->invoice_no);
         }
     }
+
+    /** @test */
+    public function a_bounced_form_keeps_the_items_the_operator_typed(): void
+    {
+        // Kunci berlubang meniru operator yang menghapus baris di tengah.
+        $items = [
+            1 => ['name' => 'Instalasi OJS', 'qty' => 1, 'unit_price' => '750000'],
+            2 => ['name' => 'Maintenance',   'qty' => 3, 'unit_price' => '300000'],
+        ];
+
+        $this->actingAs($this->user('manager'))
+            ->from(route('service.invoice.create'))
+            ->post(route('service.invoice.store'), $this->payload(['items' => $items, 'discount' => '99000000']))
+            ->assertSessionHasErrors('discount');
+
+        $content = $this->actingAs($this->user('manager'))
+            ->get(route('service.invoice.create'))
+            ->assertOk()
+            ->assertSee('Instalasi OJS')
+            ->assertSee('Maintenance')
+            ->getContent();
+
+        // assertSee() di atas TIDAK CUKUP untuk membuktikan baris itemnya benar-benar
+        // muncul di form: nama layanan selalu ada di HTML mentah lewat JSON yang
+        // ditanam @json() di dalam <script>, baik itu dikodekan sebagai array MAUPUN
+        // objek JS — PHPUnit tak pernah mengeksekusi JavaScript, jadi ia tak bisa
+        // melihat bahwa existingItems.length bernilai undefined pada objek dan
+        // cabang else (satu addRow() kosong) itulah yang berjalan di browser
+        // sungguhan. Yang BISA dibuktikan lewat HTML mentah adalah BENTUK datanya:
+        // kalau existingItems tercetak sebagai objek ({"1":...,"2":...}, kunci
+        // berlubang dari items[1]/items[2]) alih-alih larik ([...]), maka baris
+        // yang sudah diketik operator lenyap di layar walau teksnya tetap ada di
+        // HTML yang tak pernah dijalankan mesin JS manapun di sini.
+        preg_match('/const existingItems = (.+);\s*$/m', $content, $m);
+        $this->assertNotEmpty($m, 'existingItems tidak ditemukan di HTML.');
+
+        $decoded = json_decode($m[1], true);
+        $this->assertTrue(
+            array_is_list($decoded),
+            'existingItems harus larik JS ([...]), bukan objek ({...}) — kunci berlubang '
+            . 'membuat json_encode memancarkan objek dan existingItems.length jadi undefined.'
+        );
+        $this->assertCount(2, $decoded);
+        $this->assertSame('Instalasi OJS', $decoded[0]['name'] ?? null);
+        $this->assertSame('Maintenance', $decoded[1]['name'] ?? null);
+    }
 }
 ```
 
@@ -3458,7 +3517,7 @@ class ServiceInvoiceForm
             'items.*.service_catalog_id' => 'nullable|exists:tb_service_catalogs,id',
             'items.*.name'               => 'required|string|max:190',
             'items.*.description'        => 'nullable|string',
-            'items.*.qty'                => 'required|numeric|min:0.01|max:999999',
+            'items.*.qty'                => 'required|numeric|min:0.01|max:999999|decimal:0,2',
             'items.*.unit_price'         => 'required|numeric|min:0|max:9999999999999.99',
         ];
     }
@@ -3474,7 +3533,15 @@ class ServiceInvoiceForm
      */
     public static function normalize(Request $request): void
     {
-        if ($request->filled('discount')) {
+        // is_scalar(): kalau operatornya (atau penyerang) mengirim discount[]=1,
+        // JANGAN disentuh di sini. discount pakai aturan `nullable`, dan string
+        // kosong dianggap Laravel "tidak diisi" untuk nullable — jadi kalau larik
+        // itu ditimpa jadi '' di sini, `numeric` tak pernah dievaluasi, baris lolos
+        // ke database dengan discount='', dan MySQL menolaknya di lapisan SQL
+        // (SQLSTATE 22007) alih-alih galat validasi yang rapi. Membiarkannya
+        // sebagai larik apa adanya membuat `numeric` (is_numeric(array) === false)
+        // yang menolaknya dengan semestinya.
+        if ($request->filled('discount') && is_scalar($request->input('discount'))) {
             $request->merge(['discount' => self::digits($request->input('discount'))]);
         }
 
@@ -3484,7 +3551,7 @@ class ServiceInvoiceForm
         }
 
         foreach ($items as $i => $row) {
-            if (isset($row['unit_price'])) {
+            if (isset($row['unit_price']) && is_scalar($row['unit_price'])) {
                 $items[$i]['unit_price'] = self::digits($row['unit_price']);
             }
         }
@@ -3493,6 +3560,15 @@ class ServiceInvoiceForm
 
     private static function digits($value): string
     {
+        // Jaring pengaman: normalize() di atas sudah menyaring nilai non-skalar
+        // sebelum sampai sini, tapi kalau suatu saat dipanggil langsung dengan
+        // larik, jangan 500 lewat "Array to string conversion" — kembalikan
+        // string kosong dan biarkan pemanggilnya (bukan digits() sendiri) yang
+        // memutuskan apakah itu berarti "tolak" atau "biarkan apa adanya".
+        if (! is_scalar($value)) {
+            return '';
+        }
+
         return preg_replace('/[.,\s]/', '', (string) $value);
     }
 
@@ -3611,14 +3687,24 @@ class ServiceInvoiceController extends Controller
 {
     public function index(Request $request)
     {
+        // Tanpa ini, filter yang salah ketik (mis. to=bukan-tanggal) diam-diam
+        // menghasilkan nol baris lewat where() yang tak pernah cocok — operator
+        // mengira invoice-nya hilang, bukan mengira filternya salah format.
+        $request->validate([
+            'work_status'    => 'nullable|in:belum,proses,selesai,batal',
+            'payment_status' => 'nullable|in:belum,dp,lunas',
+            'from'           => 'nullable|date',
+            'to'             => 'nullable|date',
+        ]);
+
         $invoices = ServiceInvoice::query()
             ->when($request->filled('work_status'),    fn ($q) => $q->where('work_status', $request->input('work_status')))
             ->when($request->filled('payment_status'), fn ($q) => $q->where('payment_status', $request->input('payment_status')))
             // `where`, bukan `whereDate`: issued_at SUDAH bertipe DATE, jadi
             // whereDate() cuma membungkusnya dengan date() dan membuat indeksnya
             // tak terpakai tanpa memberi apa pun.
-            ->when($request->filled('from'),           fn ($q) => $q->where('issued_at', '>=', $request->input('from')))
-            ->when($request->filled('to'),             fn ($q) => $q->where('issued_at', '<=', $request->input('to')))
+            ->when($request->filled('from'), fn ($q) => $q->where('issued_at', '>=', $request->input('from')))
+            ->when($request->filled('to'),   fn ($q) => $q->where('issued_at', '<=', $request->input('to')))
             ->latest('issued_at')
             ->latest('id')
             ->get();
@@ -3885,9 +3971,9 @@ Tes `superadmin_can_open_a_client_detail_page` di `ServiceClientCrudTest` yang m
     @csrf
     @if($mode === 'edit') @method('PUT') @endif
 
-    {{-- WAJIB (aturan global 11). @error per-field tidak cukup: baris item dibuat
-         JavaScript, jadi galat pada items.0.name dsb. tidak punya jangkar @error
-         sama sekali dan akan memantul tanpa jejak. --}}
+    {{-- WAJIB: layouts/master hanya merender session success/error/info, BUKAN $errors.
+         Tanpa blok ini, kegagalan validasi pada baris item (yang dirender lewat JS,
+         bukan @error per-baris) memantul ke form ini tanpa satu pun tanda terlihat. --}}
     @if ($errors->any())
         <div class="alert alert-danger">
             <strong>Data belum tersimpan.</strong>
@@ -3910,8 +3996,18 @@ Tes `superadmin_can_open_a_client_detail_page` di `ServiceClientCrudTest` yang m
                         <select id="clientPicker" class="form-select" onchange="applyClient()">
                             <option value="">— Klien baru (isi manual di bawah) —</option>
                             @foreach($clients as $c)
+                                {{-- Payload dirakit eksplisit, bukan $c->toJson(): applyClient() hanya
+                                     memakai enam kolom ini — toJson() ikut mengirim note/created_by/
+                                     timestamps internal klien ke browser tanpa alasan. --}}
                                 <option value="{{ $c->id }}"
-                                    data-client="{{ $c->toJson() }}"
+                                    data-client="{{ json_encode([
+                                        'id'          => $c->id,
+                                        'name'        => $c->name,
+                                        'institution' => $c->institution,
+                                        'email'       => $c->email,
+                                        'phone'       => $c->phone,
+                                        'address'     => $c->address,
+                                    ]) }}"
                                     {{ old('service_client_id', $invoice->service_client_id ?? '') == $c->id ? 'selected' : '' }}>
                                     {{ $c->displayName() }}
                                 </option>
@@ -4050,11 +4146,15 @@ Tes `superadmin_can_open_a_client_detail_page` di `ServiceClientCrudTest` yang m
     // di server dari qty & unit_price mentah (ServiceInvoiceForm::syncItems).
     let rowIndex = 0;
 
-    {{-- Ekspresinya dihitung di blok php dulu, BUKAN ditaruh langsung sebagai
-        argumen direktif. Pencocok argumen direktif Blade menghitung tanda kurung
-        dengan regex naif; kombinasi old(...) + ternary + arrow function + array
-        literal membuatnya salah hitung, memotong array di tengah kunci, dan
-        melempar ParseError "Unclosed '['" saat view dikompilasi. Variabel
+    {{--
+        Perakitan dipindah ke blok PHP terpisah (bukan langsung di dalam pemanggilan
+        json(...) di JS di bawah) karena kombinasi old(...) + ternary isset(...) +
+        closure fn ($i) => [...] membuat pemroses arahan Blade (penghitung tanda
+        kurung berbasis token) berhenti pada ')' yang salah dan memotong array di
+        tengah — terverifikasi lewat compileString() di luar app: hasil kompilasinya
+        terpotong jadi "json_encode($invoice->items->map(fn ($i) => ['service_catalog_id'
+        => ..., 'name' => ...)" (tanda kurung siku dan sisa key tak pernah ikut), yang
+        meledak jadi ParseError saat view dicompile. Memanggilnya atas satu variabel
         tunggal tidak kena masalah ini.
 
         CATATAN UNTUK PENYUNTING SELANJUTNYA: komentar Blade ini SENGAJA menghindari
@@ -4064,14 +4164,20 @@ Tes `superadmin_can_open_a_client_detail_page` di `ServiceClientCrudTest` yang m
         seperti bug yang baru saja diperbaiki.
     --}}
     @php
-        $existingItemsForJs = old('items', isset($invoice)
+        // array_values WAJIB: removeRow() tidak menomori ulang, jadi menghapus baris
+        // di tengah menyisakan kunci berlubang ([1,2]) dan json_encode memancarkannya
+        // sebagai OBJEK, bukan larik. `existingItems.length` jadi undefined, cabang
+        // else berjalan, dan seluruh baris yang sudah diketik operator lenyap saat
+        // form memantul karena galat validasi.
+        $existingItemsForJs = array_values((array) old('items', isset($invoice)
             ? $invoice->items->map(fn ($i) => [
                 'service_catalog_id' => $i->service_catalog_id,
                 'name'               => $i->name,
+                'description'        => $i->description,
                 'qty'                => (float) $i->qty,
                 'unit_price'         => (int) $i->unit_price,
-              ])->values()
-            : []);
+              ])->values()->all()
+            : []));
     @endphp
     const existingItems = @json($existingItemsForJs);
 
@@ -4085,21 +4191,42 @@ Tes `superadmin_can_open_a_client_detail_page` di `ServiceClientCrudTest` yang m
 
     function addRow(item = {}) {
         const i = rowIndex++;
-        const html = `
-            <tr id="row-${i}">
-                <td>
-                    <input type="hidden" name="items[${i}][service_catalog_id]" value="${item.service_catalog_id ?? ''}">
-                    <input type="text" name="items[${i}][name]" class="form-control form-control-sm"
-                           value="${item.name ?? ''}" required maxlength="190">
-                </td>
-                <td><input type="number" step="0.01" min="0.01" name="items[${i}][qty]"
-                           class="form-control form-control-sm qty" value="${item.qty ?? 1}" required oninput="recalc()"></td>
-                <td><input type="text" name="items[${i}][unit_price]"
-                           class="form-control form-control-sm price" value="${item.unit_price ?? 0}" required oninput="recalc()"></td>
-                <td class="subtotal text-end">Rp 0</td>
-                <td><button type="button" class="btn btn-xs btn-outline-danger" onclick="removeRow(${i})">×</button></td>
-            </tr>`;
-        document.getElementById('itemRows').insertAdjacentHTML('beforeend', html);
+
+        // Dibangun lewat DOM, BUKAN insertAdjacentHTML dengan interpolasi. Nilai yang
+        // masuk ke sini berasal dari old() dan — sejak Task 9 — dari basis data, jadi
+        // menyisipkannya sebagai HTML membuat nama layanan bisa membobol atribut
+        // value="" dan mengeksekusi skrip di browser operator lain. `.value =` menugaskan
+        // properti string dan tidak pernah mengurai markup.
+        const field = (attrs) => Object.assign(document.createElement('input'), attrs);
+
+        const catalogId = field({ type: 'hidden', name: `items[${i}][service_catalog_id]`, value: item.service_catalog_id ?? '' });
+        const description = field({ type: 'hidden', name: `items[${i}][description]`, value: item.description ?? '' });
+        const name = field({ type: 'text', name: `items[${i}][name]`, className: 'form-control form-control-sm', value: item.name ?? '', required: true, maxLength: 190 });
+
+        const qty = field({ type: 'number', step: '0.01', min: '0.01', name: `items[${i}][qty]`, className: 'form-control form-control-sm qty', value: item.qty ?? 1, required: true });
+        const price = field({ type: 'text', name: `items[${i}][unit_price]`, className: 'form-control form-control-sm price', value: item.unit_price ?? 0, required: true });
+        qty.addEventListener('input', recalc);
+        price.addEventListener('input', recalc);
+
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'btn btn-xs btn-outline-danger';
+        remove.textContent = '×';
+        remove.addEventListener('click', () => removeRow(i));
+
+        const cells = [document.createElement('td'), document.createElement('td'), document.createElement('td'), document.createElement('td'), document.createElement('td')];
+        cells[0].append(catalogId, description, name);
+        cells[1].append(qty);
+        cells[2].append(price);
+        cells[3].className = 'subtotal text-end';
+        cells[3].textContent = 'Rp 0';
+        cells[4].append(remove);
+
+        const tr = document.createElement('tr');
+        tr.id = 'row-' + i;
+        tr.append(...cells);
+
+        document.getElementById('itemRows').append(tr);
         recalc();
     }
 
@@ -4286,7 +4413,7 @@ Tes `superadmin_can_open_a_client_detail_page` di `ServiceClientCrudTest` yang m
 - [ ] **Step 11: Jalankan tes, pastikan lulus**
 
 Run: `php artisan test --filter=ServiceInvoiceStoreTest`
-Expected: PASS (8 tests)
+Expected: PASS (11 tests)
 
 - [ ] **Step 12: Commit**
 

@@ -80,18 +80,31 @@ class ServiceInvoiceStoreTest extends TestCase
     }
 
     /** @test */
-    public function typing_the_same_client_twice_reuses_the_master_row(): void
+    public function the_same_client_is_matched_by_email_not_by_name(): void
     {
         $manager = $this->user('manager');
 
+        // Email sama, nama beda → satu baris master (email yang jadi kuncinya).
         $this->actingAs($manager)->post(route('service.invoice.store'), $this->payload());
-        $this->actingAs($manager)->post(route('service.invoice.store'), $this->payload());
-
-        // Dicocokkan lewat email. Tanpa itu, operator yang mengetik klien yang sama
-        // berkali-kali memecah riwayat pekerjaannya menjadi beberapa baris master
-        // dan halaman detail klien hanya menampilkan sebagian invoice-nya.
+        $this->actingAs($manager)->post(route('service.invoice.store'), $this->payload(['client_name' => 'Nama Lain']));
         $this->assertSame(1, ServiceClient::count());
-        $this->assertSame(2, ServiceClient::first()->invoices()->count());
+
+        // Nama sama, email beda → dua baris. Kalau pencocokannya jatuh ke nama,
+        // assertion inilah yang merah.
+        $this->actingAs($manager)->post(route('service.invoice.store'), $this->payload(['client_email' => 'lain@unbari.ac.id']));
+        $this->assertSame(2, ServiceClient::count());
+    }
+
+    /** @test */
+    public function discount_is_persisted_and_subtracted_from_the_total(): void
+    {
+        $this->actingAs($this->user('manager'))
+            ->post(route('service.invoice.store'), $this->payload(['discount' => '150.000']));
+
+        $inv = ServiceInvoice::first();
+        $this->assertEquals(150000, $inv->discount);
+        $this->assertEquals(1650000, $inv->subtotal);
+        $this->assertEquals(1500000, $inv->total);
     }
 
     /** @test */
@@ -182,5 +195,51 @@ class ServiceInvoiceStoreTest extends TestCase
                 ->assertOk()
                 ->assertSee($inv->invoice_no);
         }
+    }
+
+    /** @test */
+    public function a_bounced_form_keeps_the_items_the_operator_typed(): void
+    {
+        // Kunci berlubang meniru operator yang menghapus baris di tengah.
+        $items = [
+            1 => ['name' => 'Instalasi OJS', 'qty' => 1, 'unit_price' => '750000'],
+            2 => ['name' => 'Maintenance',   'qty' => 3, 'unit_price' => '300000'],
+        ];
+
+        $this->actingAs($this->user('manager'))
+            ->from(route('service.invoice.create'))
+            ->post(route('service.invoice.store'), $this->payload(['items' => $items, 'discount' => '99000000']))
+            ->assertSessionHasErrors('discount');
+
+        $content = $this->actingAs($this->user('manager'))
+            ->get(route('service.invoice.create'))
+            ->assertOk()
+            ->assertSee('Instalasi OJS')
+            ->assertSee('Maintenance')
+            ->getContent();
+
+        // assertSee() di atas TIDAK CUKUP untuk membuktikan baris itemnya benar-benar
+        // muncul di form: nama layanan selalu ada di HTML mentah lewat JSON yang
+        // ditanam @json() di dalam <script>, baik itu dikodekan sebagai array MAUPUN
+        // objek JS — PHPUnit tak pernah mengeksekusi JavaScript, jadi ia tak bisa
+        // melihat bahwa existingItems.length bernilai undefined pada objek dan
+        // cabang else (satu addRow() kosong) itulah yang berjalan di browser
+        // sungguhan. Yang BISA dibuktikan lewat HTML mentah adalah BENTUK datanya:
+        // kalau existingItems tercetak sebagai objek ({"1":...,"2":...}, kunci
+        // berlubang dari items[1]/items[2]) alih-alih larik ([...]), maka baris
+        // yang sudah diketik operator lenyap di layar walau teksnya tetap ada di
+        // HTML yang tak pernah dijalankan mesin JS manapun di sini.
+        preg_match('/const existingItems = (.+);\s*$/m', $content, $m);
+        $this->assertNotEmpty($m, 'existingItems tidak ditemukan di HTML.');
+
+        $decoded = json_decode($m[1], true);
+        $this->assertTrue(
+            array_is_list($decoded),
+            'existingItems harus larik JS ([...]), bukan objek ({...}) — kunci berlubang '
+            . 'membuat json_encode memancarkan objek dan existingItems.length jadi undefined.'
+        );
+        $this->assertCount(2, $decoded);
+        $this->assertSame('Instalasi OJS', $decoded[0]['name'] ?? null);
+        $this->assertSame('Maintenance', $decoded[1]['name'] ?? null);
     }
 }

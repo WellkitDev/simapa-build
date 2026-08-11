@@ -17,14 +17,24 @@ class ServiceInvoiceController extends Controller
 {
     public function index(Request $request)
     {
+        // Tanpa ini, filter yang salah ketik (mis. to=bukan-tanggal) diam-diam
+        // menghasilkan nol baris lewat where() yang tak pernah cocok — operator
+        // mengira invoice-nya hilang, bukan mengira filternya salah format.
+        $request->validate([
+            'work_status'    => 'nullable|in:belum,proses,selesai,batal',
+            'payment_status' => 'nullable|in:belum,dp,lunas',
+            'from'           => 'nullable|date',
+            'to'             => 'nullable|date',
+        ]);
+
         $invoices = ServiceInvoice::query()
             ->when($request->filled('work_status'),    fn ($q) => $q->where('work_status', $request->input('work_status')))
             ->when($request->filled('payment_status'), fn ($q) => $q->where('payment_status', $request->input('payment_status')))
             // `where`, bukan `whereDate`: issued_at SUDAH bertipe DATE, jadi
             // whereDate() cuma membungkusnya dengan date() dan membuat indeksnya
             // tak terpakai tanpa memberi apa pun.
-            ->when($request->filled('from'),           fn ($q) => $q->where('issued_at', '>=', $request->input('from')))
-            ->when($request->filled('to'),              fn ($q) => $q->where('issued_at', '<=', $request->input('to')))
+            ->when($request->filled('from'), fn ($q) => $q->where('issued_at', '>=', $request->input('from')))
+            ->when($request->filled('to'),   fn ($q) => $q->where('issued_at', '<=', $request->input('to')))
             ->latest('issued_at')
             ->latest('id')
             ->get();

@@ -32,8 +32,18 @@
                         <select id="clientPicker" class="form-select" onchange="applyClient()">
                             <option value="">— Klien baru (isi manual di bawah) —</option>
                             @foreach($clients as $c)
+                                {{-- Payload dirakit eksplisit, bukan $c->toJson(): applyClient() hanya
+                                     memakai enam kolom ini — toJson() ikut mengirim note/created_by/
+                                     timestamps internal klien ke browser tanpa alasan. --}}
                                 <option value="{{ $c->id }}"
-                                    data-client="{{ $c->toJson() }}"
+                                    data-client="{{ json_encode([
+                                        'id'          => $c->id,
+                                        'name'        => $c->name,
+                                        'institution' => $c->institution,
+                                        'email'       => $c->email,
+                                        'phone'       => $c->phone,
+                                        'address'     => $c->address,
+                                    ]) }}"
                                     {{ old('service_client_id', $invoice->service_client_id ?? '') == $c->id ? 'selected' : '' }}>
                                     {{ $c->displayName() }}
                                 </option>
@@ -186,18 +196,24 @@
         CATATAN UNTUK PENYUNTING SELANJUTNYA: komentar Blade ini SENGAJA menghindari
         menulis kata "at-php" atau "at-json" apa adanya. Blade mencari pasangan blok
         php mentah dengan regex naif SEBELUM komentar dibuang, jadi kata itu di sini
-        akan dikawinkan dengan panutup blok php nyata di bawah dan meledak lagi persis
+        akan dikawinkan dengan penutup blok php nyata di bawah dan meledak lagi persis
         seperti bug yang baru saja diperbaiki.
     --}}
     @php
-        $existingItemsForJs = old('items', isset($invoice)
+        // array_values WAJIB: removeRow() tidak menomori ulang, jadi menghapus baris
+        // di tengah menyisakan kunci berlubang ([1,2]) dan json_encode memancarkannya
+        // sebagai OBJEK, bukan larik. `existingItems.length` jadi undefined, cabang
+        // else berjalan, dan seluruh baris yang sudah diketik operator lenyap saat
+        // form memantul karena galat validasi.
+        $existingItemsForJs = array_values((array) old('items', isset($invoice)
             ? $invoice->items->map(fn ($i) => [
                 'service_catalog_id' => $i->service_catalog_id,
                 'name'               => $i->name,
+                'description'        => $i->description,
                 'qty'                => (float) $i->qty,
                 'unit_price'         => (int) $i->unit_price,
-              ])->values()
-            : []);
+              ])->values()->all()
+            : []));
     @endphp
     const existingItems = @json($existingItemsForJs);
 
@@ -211,21 +227,42 @@
 
     function addRow(item = {}) {
         const i = rowIndex++;
-        const html = `
-            <tr id="row-${i}">
-                <td>
-                    <input type="hidden" name="items[${i}][service_catalog_id]" value="${item.service_catalog_id ?? ''}">
-                    <input type="text" name="items[${i}][name]" class="form-control form-control-sm"
-                           value="${item.name ?? ''}" required maxlength="190">
-                </td>
-                <td><input type="number" step="0.01" min="0.01" name="items[${i}][qty]"
-                           class="form-control form-control-sm qty" value="${item.qty ?? 1}" required oninput="recalc()"></td>
-                <td><input type="text" name="items[${i}][unit_price]"
-                           class="form-control form-control-sm price" value="${item.unit_price ?? 0}" required oninput="recalc()"></td>
-                <td class="subtotal text-end">Rp 0</td>
-                <td><button type="button" class="btn btn-xs btn-outline-danger" onclick="removeRow(${i})">×</button></td>
-            </tr>`;
-        document.getElementById('itemRows').insertAdjacentHTML('beforeend', html);
+
+        // Dibangun lewat DOM, BUKAN insertAdjacentHTML dengan interpolasi. Nilai yang
+        // masuk ke sini berasal dari old() dan — sejak Task 9 — dari basis data, jadi
+        // menyisipkannya sebagai HTML membuat nama layanan bisa membobol atribut
+        // value="" dan mengeksekusi skrip di browser operator lain. `.value =` menugaskan
+        // properti string dan tidak pernah mengurai markup.
+        const field = (attrs) => Object.assign(document.createElement('input'), attrs);
+
+        const catalogId = field({ type: 'hidden', name: `items[${i}][service_catalog_id]`, value: item.service_catalog_id ?? '' });
+        const description = field({ type: 'hidden', name: `items[${i}][description]`, value: item.description ?? '' });
+        const name = field({ type: 'text', name: `items[${i}][name]`, className: 'form-control form-control-sm', value: item.name ?? '', required: true, maxLength: 190 });
+
+        const qty = field({ type: 'number', step: '0.01', min: '0.01', name: `items[${i}][qty]`, className: 'form-control form-control-sm qty', value: item.qty ?? 1, required: true });
+        const price = field({ type: 'text', name: `items[${i}][unit_price]`, className: 'form-control form-control-sm price', value: item.unit_price ?? 0, required: true });
+        qty.addEventListener('input', recalc);
+        price.addEventListener('input', recalc);
+
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'btn btn-xs btn-outline-danger';
+        remove.textContent = '×';
+        remove.addEventListener('click', () => removeRow(i));
+
+        const cells = [document.createElement('td'), document.createElement('td'), document.createElement('td'), document.createElement('td'), document.createElement('td')];
+        cells[0].append(catalogId, description, name);
+        cells[1].append(qty);
+        cells[2].append(price);
+        cells[3].className = 'subtotal text-end';
+        cells[3].textContent = 'Rp 0';
+        cells[4].append(remove);
+
+        const tr = document.createElement('tr');
+        tr.id = 'row-' + i;
+        tr.append(...cells);
+
+        document.getElementById('itemRows').append(tr);
         recalc();
     }
 

@@ -34,7 +34,7 @@ class ServiceInvoiceForm
             'items.*.service_catalog_id' => 'nullable|exists:tb_service_catalogs,id',
             'items.*.name'               => 'required|string|max:190',
             'items.*.description'        => 'nullable|string',
-            'items.*.qty'                => 'required|numeric|min:0.01|max:999999',
+            'items.*.qty'                => 'required|numeric|min:0.01|max:999999|decimal:0,2',
             'items.*.unit_price'         => 'required|numeric|min:0|max:9999999999999.99',
         ];
     }
@@ -50,7 +50,15 @@ class ServiceInvoiceForm
      */
     public static function normalize(Request $request): void
     {
-        if ($request->filled('discount')) {
+        // is_scalar(): kalau operatornya (atau penyerang) mengirim discount[]=1,
+        // JANGAN disentuh di sini. discount pakai aturan `nullable`, dan string
+        // kosong dianggap Laravel "tidak diisi" untuk nullable — jadi kalau larik
+        // itu ditimpa jadi '' di sini, `numeric` tak pernah dievaluasi, baris lolos
+        // ke database dengan discount='', dan MySQL menolaknya di lapisan SQL
+        // (SQLSTATE 22007) alih-alih galat validasi yang rapi. Membiarkannya
+        // sebagai larik apa adanya membuat `numeric` (is_numeric(array) === false)
+        // yang menolaknya dengan semestinya.
+        if ($request->filled('discount') && is_scalar($request->input('discount'))) {
             $request->merge(['discount' => self::digits($request->input('discount'))]);
         }
 
@@ -60,7 +68,7 @@ class ServiceInvoiceForm
         }
 
         foreach ($items as $i => $row) {
-            if (isset($row['unit_price'])) {
+            if (isset($row['unit_price']) && is_scalar($row['unit_price'])) {
                 $items[$i]['unit_price'] = self::digits($row['unit_price']);
             }
         }
@@ -69,6 +77,15 @@ class ServiceInvoiceForm
 
     private static function digits($value): string
     {
+        // Jaring pengaman: normalize() di atas sudah menyaring nilai non-skalar
+        // sebelum sampai sini, tapi kalau suatu saat dipanggil langsung dengan
+        // larik, jangan 500 lewat "Array to string conversion" — kembalikan
+        // string kosong dan biarkan pemanggilnya (bukan digits() sendiri) yang
+        // memutuskan apakah itu berarti "tolak" atau "biarkan apa adanya".
+        if (! is_scalar($value)) {
+            return '';
+        }
+
         return preg_replace('/[.,\s]/', '', (string) $value);
     }
 
