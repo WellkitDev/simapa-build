@@ -1613,6 +1613,8 @@ use App\Models\ServiceInvoice;
 use App\Models\User;
 use App\Services\ServiceInvoiceWorkflow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class ServiceInvoiceWorkStatusTest extends TestCase
@@ -1630,17 +1632,83 @@ class ServiceInvoiceWorkStatusTest extends TestCase
         $user = User::factory()->create();
         $inv  = ServiceInvoice::factory()->create(['work_status' => 'belum']);
 
+        // Waktu WAJIB dikendalikan di sini. Kolom `work_started_at` bertipe timestamp
+        // tanpa pecahan detik, dan ketiga panggilan di bawah selesai dalam milidetik —
+        // tanpa travelTo(), tes ini tetap lulus walau stempelnya ditimpa setiap kali,
+        // karena kedua nilai kebetulan jatuh di detik yang sama.
+        $this->travelTo(Carbon::parse('2026-08-11 09:00:00'));
         $this->workflow()->changeStatus($inv, 'proses', 'mulai instalasi', $user->id);
         $inv->refresh();
-        $firstStamp = $inv->work_started_at;
-        $this->assertNotNull($firstStamp);
+        $this->assertSame('2026-08-11 09:00:00', $inv->work_started_at->toDateTimeString());
 
         // Bolak-balik: kembali ke Proses TIDAK boleh menimpa stempel awal.
+        $this->travelTo(Carbon::parse('2026-08-12 14:30:00'));
         $this->workflow()->changeStatus($inv, 'selesai', null, $user->id);
+
+        $this->travelTo(Carbon::parse('2026-08-13 08:15:00'));
         $this->workflow()->changeStatus($inv, 'proses', 'revisi klien', $user->id);
         $inv->refresh();
 
-        $this->assertEquals($firstStamp->toDateTimeString(), $inv->work_started_at->toDateTimeString());
+        $this->assertSame(
+            '2026-08-11 09:00:00',
+            $inv->work_started_at->toDateTimeString(),
+            'Stempel mulai hanya dipasang sekali, tidak ditimpa saat kembali ke Proses.'
+        );
+    }
+
+    /** @test */
+    public function leaving_selesai_in_any_direction_clears_the_finish_date(): void
+    {
+        $user = User::factory()->create();
+        $inv  = ServiceInvoice::factory()->create(['work_status' => 'belum']);
+
+        $this->workflow()->changeStatus($inv, 'selesai', null, $user->id);
+        $this->workflow()->changeStatus($inv, 'belum', 'salah tandai', $user->id);
+        $inv->refresh();
+
+        $this->assertSame('belum', $inv->work_status);
+        $this->assertNull($inv->work_finished_at);
+    }
+
+    /** @test */
+    public function a_stale_instance_cannot_strand_a_finish_date_on_an_unfinished_row(): void
+    {
+        $user = User::factory()->create();
+        $inv  = ServiceInvoice::factory()->create(['work_status' => 'belum']);
+
+        // Dua operator memuat invoice yang sama sebelum salah satunya menyimpan.
+        // Instance kedua memegang $from yang basi ('belum'), jadi logika yang
+        // berkunci pada asal akan melewatkan pembersihan tanggal selesai.
+        $a = ServiceInvoice::find($inv->id);
+        $b = ServiceInvoice::find($inv->id);
+
+        $this->workflow()->changeStatus($a, 'selesai', null, $user->id);
+        $this->workflow()->changeStatus($b, 'proses', null, $user->id);
+
+        $fresh = ServiceInvoice::find($inv->id);
+        $this->assertSame('proses', $fresh->work_status);
+        $this->assertNull($fresh->work_finished_at, 'Baris Proses tak boleh menyimpan tanggal selesai.');
+    }
+
+    /** @test */
+    public function unknown_and_terminal_statuses_are_refused(): void
+    {
+        $user = User::factory()->create();
+
+        foreach (['batal', 'Selesai', 'done', ''] as $bogus) {
+            $inv = ServiceInvoice::factory()->create(['work_status' => 'proses']);
+
+            try {
+                $this->workflow()->changeStatus($inv, $bogus, null, $user->id);
+                $this->fail("Status '{$bogus}' seharusnya ditolak.");
+            } catch (ValidationException $e) {
+                // sesuai harapan
+            }
+
+            $inv->refresh();
+            $this->assertSame('proses', $inv->work_status, "Status '{$bogus}' tak boleh tersimpan.");
+            $this->assertCount(0, $inv->logs);
+        }
     }
 
     /** @test */
@@ -1733,6 +1801,7 @@ namespace App\Services;
 
 use App\Models\ServiceInvoice;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Perpindahan status pengerjaan invoice layanan, beserta jejaknya.
@@ -1745,6 +1814,9 @@ use Illuminate\Support\Facades\DB;
  */
 class ServiceInvoiceWorkflow
 {
+    /** Status yang boleh dimasuki lewat changeStatus(). 'batal' sengaja di luar. */
+    public const CHANGEABLE = ['belum', 'proses', 'selesai'];
+
     /**
      * Pindahkan status pengerjaan dan catat jejaknya. Transisi bebas antara
      * belum/proses/selesai — pekerjaan jasa rutin kembali ke Proses karena revisi
@@ -1757,6 +1829,19 @@ class ServiceInvoiceWorkflow
      */
     public function changeStatus(ServiceInvoice $invoice, string $to, ?string $note, ?int $userId): bool
     {
+        // Divalidasi DI SINI, bukan hanya di aturan `in:` milik controller. Kolomnya
+        // varchar biasa, jadi basis data bukan jaring pengaman: 'Selesai' berkapital
+        // akan tersimpan apa adanya dan lolos dari setiap filter, sedangkan 'batal'
+        // lewat jalur ini menghasilkan invoice batal tanpa alasan/pelaku yang tak
+        // bisa digerakkan lagi dari mana pun. Kedua service sejenis di codebase ini
+        // (TitleProgressService, ChapterManuscriptService) juga memvalidasi di dalam.
+        if (! in_array($to, self::CHANGEABLE, true)) {
+            throw ValidationException::withMessages([
+                'work_status' => "Status pengerjaan '{$to}' tidak dikenal. "
+                    . 'Pembatalan punya jalurnya sendiri lewat cancel().',
+            ]);
+        }
+
         $from = $invoice->work_status;
         if ($from === $to) {
             return false;
@@ -1767,10 +1852,15 @@ class ServiceInvoiceWorkflow
         if ($to === 'proses' && $invoice->work_started_at === null) {
             $attrs['work_started_at'] = now();
         }
+
+        // Berkunci pada TUJUAN, bukan asal. `elseif ($from === 'selesai')` tampak
+        // setara, tapi $from bisa basi: kalau dua orang memuat invoice yang sama
+        // lalu yang satu menandai Selesai dan yang lain memindahkannya ke Proses,
+        // $from si kedua masih 'belum' sehingga tanggal selesai milik yang pertama
+        // ikut tertinggal di baris berstatus Proses. Tak ada yang memperbaikinya.
         if ($to === 'selesai') {
             $attrs['work_finished_at'] = now();
-        } elseif ($from === 'selesai') {
-            // Keluar dari Selesai: kosongkan supaya tanggal selesai tidak berbohong.
+        } else {
             $attrs['work_finished_at'] = null;
         }
 
@@ -1796,7 +1886,7 @@ class ServiceInvoiceWorkflow
 - [ ] **Step 4: Jalankan tes, pastikan lulus**
 
 Run: `php artisan test --filter=ServiceInvoiceWorkStatusTest`
-Expected: PASS (5 tests)
+Expected: PASS (8 tests)
 
 - [ ] **Step 5: Commit**
 
