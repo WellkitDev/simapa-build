@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\ServiceInvoice;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Perpindahan status pengerjaan invoice layanan, beserta jejaknya.
@@ -16,6 +17,9 @@ use Illuminate\Support\Facades\DB;
  */
 class ServiceInvoiceWorkflow
 {
+    /** Status yang boleh dimasuki lewat changeStatus(). 'batal' sengaja di luar. */
+    public const CHANGEABLE = ['belum', 'proses', 'selesai'];
+
     /**
      * Pindahkan status pengerjaan dan catat jejaknya. Transisi bebas antara
      * belum/proses/selesai — pekerjaan jasa rutin kembali ke Proses karena revisi
@@ -28,6 +32,29 @@ class ServiceInvoiceWorkflow
      */
     public function changeStatus(ServiceInvoice $invoice, string $to, ?string $note, ?int $userId): bool
     {
+        // Divalidasi DI SINI, bukan hanya di aturan `in:` milik controller. Kolomnya
+        // varchar biasa, jadi basis data bukan jaring pengaman: 'Selesai' berkapital
+        // akan tersimpan apa adanya dan lolos dari setiap filter, sedangkan 'batal'
+        // lewat jalur ini menghasilkan invoice batal tanpa alasan/pelaku yang tak
+        // bisa digerakkan lagi dari mana pun. Kedua service sejenis di codebase ini
+        // (TitleProgressService, ChapterManuscriptService) juga memvalidasi di dalam.
+        if (! in_array($to, self::CHANGEABLE, true)) {
+            throw ValidationException::withMessages([
+                'work_status' => "Status pengerjaan '{$to}' tidak dikenal. "
+                    . 'Pembatalan punya jalurnya sendiri lewat cancel().',
+            ]);
+        }
+
+        // Baca ulang dari basis data SEBELUM memutuskan apa pun. Instance yang dipegang
+        // pemanggil bisa basi (dua operator memuat baris yang sama sebelum salah satu
+        // menyimpan). Tanpa ini dua hal salah sekaligus: (1) $from di bawah bisa keliru,
+        // dan (2) Eloquent's update() cuma mengirim kolom yang "dirty" RELATIF KE
+        // SNAPSHOT ASLI MODEL INI, bukan relatif ke isi tabel saat ini — jadi kalau nilai
+        // baru yang kita tulis (mis. work_finished_at = null) KEBETULAN sama dengan nilai
+        // basi yang pertama kali dimuat model ini, kolom itu diam-diam tidak pernah masuk
+        // ke SQL UPDATE sama sekali, dan tanggal selesai tulisan penulis lain bertahan.
+        $invoice->refresh();
+
         $from = $invoice->work_status;
         if ($from === $to) {
             return false;
@@ -38,10 +65,15 @@ class ServiceInvoiceWorkflow
         if ($to === 'proses' && $invoice->work_started_at === null) {
             $attrs['work_started_at'] = now();
         }
+
+        // Berkunci pada TUJUAN, bukan asal. `elseif ($from === 'selesai')` tampak
+        // setara, tapi $from bisa basi: kalau dua orang memuat invoice yang sama
+        // lalu yang satu menandai Selesai dan yang lain memindahkannya ke Proses,
+        // $from si kedua masih 'belum' sehingga tanggal selesai milik yang pertama
+        // ikut tertinggal di baris berstatus Proses. Tak ada yang memperbaikinya.
         if ($to === 'selesai') {
             $attrs['work_finished_at'] = now();
-        } elseif ($from === 'selesai') {
-            // Keluar dari Selesai: kosongkan supaya tanggal selesai tidak berbohong.
+        } else {
             $attrs['work_finished_at'] = null;
         }
 

@@ -6,6 +6,8 @@ use App\Models\ServiceInvoice;
 use App\Models\User;
 use App\Services\ServiceInvoiceWorkflow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class ServiceInvoiceWorkStatusTest extends TestCase
@@ -23,17 +25,83 @@ class ServiceInvoiceWorkStatusTest extends TestCase
         $user = User::factory()->create();
         $inv  = ServiceInvoice::factory()->create(['work_status' => 'belum']);
 
+        // Waktu WAJIB dikendalikan di sini. Kolom `work_started_at` bertipe timestamp
+        // tanpa pecahan detik, dan ketiga panggilan di bawah selesai dalam milidetik —
+        // tanpa travelTo(), tes ini tetap lulus walau stempelnya ditimpa setiap kali,
+        // karena kedua nilai kebetulan jatuh di detik yang sama.
+        $this->travelTo(Carbon::parse('2026-08-11 09:00:00'));
         $this->workflow()->changeStatus($inv, 'proses', 'mulai instalasi', $user->id);
         $inv->refresh();
-        $firstStamp = $inv->work_started_at;
-        $this->assertNotNull($firstStamp);
+        $this->assertSame('2026-08-11 09:00:00', $inv->work_started_at->toDateTimeString());
 
         // Bolak-balik: kembali ke Proses TIDAK boleh menimpa stempel awal.
+        $this->travelTo(Carbon::parse('2026-08-12 14:30:00'));
         $this->workflow()->changeStatus($inv, 'selesai', null, $user->id);
+
+        $this->travelTo(Carbon::parse('2026-08-13 08:15:00'));
         $this->workflow()->changeStatus($inv, 'proses', 'revisi klien', $user->id);
         $inv->refresh();
 
-        $this->assertEquals($firstStamp->toDateTimeString(), $inv->work_started_at->toDateTimeString());
+        $this->assertSame(
+            '2026-08-11 09:00:00',
+            $inv->work_started_at->toDateTimeString(),
+            'Stempel mulai hanya dipasang sekali, tidak ditimpa saat kembali ke Proses.'
+        );
+    }
+
+    /** @test */
+    public function leaving_selesai_in_any_direction_clears_the_finish_date(): void
+    {
+        $user = User::factory()->create();
+        $inv  = ServiceInvoice::factory()->create(['work_status' => 'belum']);
+
+        $this->workflow()->changeStatus($inv, 'selesai', null, $user->id);
+        $this->workflow()->changeStatus($inv, 'belum', 'salah tandai', $user->id);
+        $inv->refresh();
+
+        $this->assertSame('belum', $inv->work_status);
+        $this->assertNull($inv->work_finished_at);
+    }
+
+    /** @test */
+    public function a_stale_instance_cannot_strand_a_finish_date_on_an_unfinished_row(): void
+    {
+        $user = User::factory()->create();
+        $inv  = ServiceInvoice::factory()->create(['work_status' => 'belum']);
+
+        // Dua operator memuat invoice yang sama sebelum salah satunya menyimpan.
+        // Instance kedua memegang $from yang basi ('belum'), jadi logika yang
+        // berkunci pada asal akan melewatkan pembersihan tanggal selesai.
+        $a = ServiceInvoice::find($inv->id);
+        $b = ServiceInvoice::find($inv->id);
+
+        $this->workflow()->changeStatus($a, 'selesai', null, $user->id);
+        $this->workflow()->changeStatus($b, 'proses', null, $user->id);
+
+        $fresh = ServiceInvoice::find($inv->id);
+        $this->assertSame('proses', $fresh->work_status);
+        $this->assertNull($fresh->work_finished_at, 'Baris Proses tak boleh menyimpan tanggal selesai.');
+    }
+
+    /** @test */
+    public function unknown_and_terminal_statuses_are_refused(): void
+    {
+        $user = User::factory()->create();
+
+        foreach (['batal', 'Selesai', 'done', ''] as $bogus) {
+            $inv = ServiceInvoice::factory()->create(['work_status' => 'proses']);
+
+            try {
+                $this->workflow()->changeStatus($inv, $bogus, null, $user->id);
+                $this->fail("Status '{$bogus}' seharusnya ditolak.");
+            } catch (ValidationException $e) {
+                // sesuai harapan
+            }
+
+            $inv->refresh();
+            $this->assertSame('proses', $inv->work_status, "Status '{$bogus}' tak boleh tersimpan.");
+            $this->assertCount(0, $inv->logs);
+        }
     }
 
     /** @test */
