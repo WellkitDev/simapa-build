@@ -106,6 +106,19 @@ class ServiceInvoice extends Model
         return $this->work_status === 'batal';
     }
 
+    /**
+     * Boleh diedit bebas selama nomornya belum "beredar": belum ada pembayaran,
+     * belum pernah dikirim email, dan belum dibatalkan. Setelah itu hanya superadmin,
+     * wajib beralasan — mengubah nominal invoice yang sudah dipegang klien secara
+     * diam-diam membuat dokumen di tangan mereka berbeda dari yang ada di sistem.
+     */
+    public function isEditable(): bool
+    {
+        return $this->sent_at === null
+            && ! $this->isCancelled()
+            && $this->payments()->doesntExist();
+    }
+
     public function isOverpaid(): bool
     {
         return (float) $this->remaining < 0;

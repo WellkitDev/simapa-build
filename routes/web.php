@@ -346,6 +346,9 @@ Route::middleware(['auth', 'access'])->group(function () {
         Route::get ('invoice/create', [\App\Http\Controllers\Pages\ServiceInvoiceController::class, 'create']) ->name('invoice.create');
         Route::post('invoice',        [\App\Http\Controllers\Pages\ServiceInvoiceController::class, 'store'])  ->name('invoice.store');
         Route::get ('invoice/{id}',   [\App\Http\Controllers\Pages\ServiceInvoiceController::class, 'show'])   ->name('invoice.show')->whereNumber('id');
+        Route::get   ('invoice/{id}/edit', [\App\Http\Controllers\Pages\ServiceInvoiceController::class, 'edit'])   ->name('invoice.edit')->whereNumber('id');
+        Route::put   ('invoice/{id}',      [\App\Http\Controllers\Pages\ServiceInvoiceController::class, 'update']) ->name('invoice.update')->whereNumber('id');
+        Route::delete('invoice/{id}',      [\App\Http\Controllers\Pages\ServiceInvoiceController::class, 'destroy'])->name('invoice.destroy')->whereNumber('id');
 
         // Katalog
         Route::get   ('katalog',      [\App\Http\Controllers\Pages\ServiceCatalogController::class, 'index'])  ->name('catalog.index');

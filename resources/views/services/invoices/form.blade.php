@@ -164,6 +164,19 @@
                         </div>
                     </div>
 
+                    @if($mode === 'edit' && ! $invoice->isEditable())
+                        <div class="alert alert-warning py-2 mt-3">
+                            Invoice ini sudah dibayar atau sudah dikirim ke klien. Koreksi tetap bisa dilakukan,
+                            tapi wajib beralasan dan akan tercatat di riwayat.
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label">Alasan Koreksi <span class="text-danger">*</span></label>
+                            <textarea name="correction_reason" rows="2" required
+                                      class="form-control @error('correction_reason') is-invalid @enderror">{{ old('correction_reason') }}</textarea>
+                            @error('correction_reason') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
+                    @endif
+
                     <div class="mt-3 d-flex gap-2">
                         <button type="submit" class="btn btn-primary">Simpan</button>
                         <a href="{{ $mode === 'create' ? route('service.invoice.index') : route('service.invoice.show', $invoice->id) }}"

@@ -339,6 +339,8 @@ return [
             'actions' => [
                 'view'   => ['service.invoice.index', 'service.invoice.show'],
                 'create' => ['service.invoice.create', 'service.invoice.store'],
+                'edit'   => ['service.invoice.edit', 'service.invoice.update'],
+                'delete' => ['service.invoice.destroy'],
             ],
         ],
 

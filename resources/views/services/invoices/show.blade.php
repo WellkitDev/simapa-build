@@ -16,7 +16,19 @@
                         <span class="badge bg-{{ $workColors[$invoice->work_status] ?? 'secondary' }}">{{ $invoice->workStatusLabel() }}</span>
                         <span class="badge bg-{{ $payColors[$invoice->payment_status] ?? 'secondary' }}">{{ $invoice->paymentStatusLabel() }}</span>
                     </div>
-                    <a href="{{ route('service.invoice.index') }}" class="btn btn-sm btn-outline-secondary">← Daftar</a>
+                    <div class="d-flex gap-1">
+                        @can('service_invoice.edit')
+                            <a href="{{ route('service.invoice.edit', $invoice->id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                        @endcan
+                        @can('service_invoice.delete')
+                            <form action="{{ route('service.invoice.destroy', $invoice->id) }}" method="POST"
+                                  onsubmit="return confirm('Hapus invoice ini? Nomornya tidak akan dipakai ulang.')">
+                                @csrf @method('DELETE')
+                                <button class="btn btn-sm btn-outline-danger">Hapus</button>
+                            </form>
+                        @endcan
+                        <a href="{{ route('service.invoice.index') }}" class="btn btn-sm btn-outline-secondary">← Daftar</a>
+                    </div>
                 </div>
 
                 <div class="row mb-3">

@@ -99,4 +99,81 @@ class ServiceInvoiceController extends Controller
 
         return view('services.invoices.show', compact('invoice'));
     }
+
+    public function edit(int $id)
+    {
+        $invoice = ServiceInvoice::with('items')->findOrFail($id);
+
+        if (! $invoice->isEditable() && ! Auth::user()->hasRole('superadmin')) {
+            return redirect()->route('service.invoice.show', $invoice->id)
+                ->with('error', 'Invoice ini sudah dibayar atau sudah dikirim — hanya superadmin yang bisa mengoreksinya.');
+        }
+
+        return view('services.invoices.form', [
+            'invoice'  => $invoice,
+            'mode'     => 'edit',
+            'clients'  => ServiceClient::orderBy('name')->get(),
+            'catalogs' => ServiceCatalog::active()->orderBy('category')->orderBy('position')->get(),
+        ]);
+    }
+
+    public function update(Request $request, int $id)
+    {
+        $invoice = ServiceInvoice::findOrFail($id);
+        $locked  = ! $invoice->isEditable();
+
+        if ($locked && ! Auth::user()->hasRole('superadmin')) {
+            return redirect()->route('service.invoice.show', $invoice->id)
+                ->with('error', 'Invoice ini sudah dibayar atau sudah dikirim — hanya superadmin yang bisa mengoreksinya.');
+        }
+
+        ServiceInvoiceForm::normalize($request);
+
+        $rules = ServiceInvoiceForm::rules();
+        if ($locked) {
+            // Koreksi atas dokumen yang sudah beredar wajib punya jejak alasan.
+            $rules['correction_reason'] = 'required|string';
+        }
+        $data = $request->validate($rules);
+        ServiceInvoiceForm::assertDiscount($data);
+
+        DB::transaction(function () use ($invoice, $data, $locked) {
+            $client = ServiceInvoiceForm::resolveClient($data);
+
+            // invoice_no SENGAJA tidak ikut — nomor tidak pernah bisa diedit lewat form.
+            $invoice->update(
+                ServiceInvoiceForm::snapshotFrom($client, $data) + [
+                    'issued_at'     => $data['issued_at'],
+                    'due_at'        => $data['due_at'] ?? null,
+                    'discount'      => $data['discount'] ?? 0,
+                    'note'          => $data['note'] ?? null,
+                    'internal_note' => $data['internal_note'] ?? null,
+                    'updated_by'    => Auth::id(),
+                ]
+            );
+
+            ServiceInvoiceForm::syncItems($invoice, $data);
+            $invoice->recalcTotals();
+
+            $invoice->logs()->create([
+                'event'      => 'updated',
+                'note'       => $locked ? 'Koreksi superadmin: ' . $data['correction_reason'] : null,
+                'changed_by' => Auth::id(),
+            ]);
+        });
+
+        return redirect()->route('service.invoice.show', $invoice->id)->with('success', 'Invoice diperbarui.');
+    }
+
+    public function destroy(int $id)
+    {
+        $invoice = ServiceInvoice::findOrFail($id);
+        $no      = $invoice->invoice_no;
+
+        // Soft delete: nomornya tetap terpakai selamanya (ServiceInvoiceNumber::next
+        // memakai withTrashed), jadi tidak ada nomor invoice yang didaur ulang.
+        $invoice->delete();
+
+        return redirect()->route('service.invoice.index')->with('warning', 'Invoice ' . $no . ' dihapus.');
+    }
 }
