@@ -3186,7 +3186,7 @@ Di `resources/views/layouts/sidebar.blade.php`, di dalam grup **Layanan**, tepat
 - [ ] **Step 9: Jalankan tes, pastikan lulus**
 
 Run: `php artisan test --filter=ServiceClientCrudTest`
-Expected: PASS (6 tests)
+Expected: PASS (8 tests)
 
 - [ ] **Step 10: Commit**
 
@@ -3301,6 +3301,21 @@ class ServiceInvoiceStoreTest extends TestCase
         $this->assertSame($client->id, $inv->service_client_id);
         $this->assertSame('Dr. Sartika', $inv->client_name);
         $this->assertSame('Universitas Batanghari', $inv->client_institution);
+    }
+
+    /** @test */
+    public function typing_the_same_client_twice_reuses_the_master_row(): void
+    {
+        $manager = $this->user('manager');
+
+        $this->actingAs($manager)->post(route('service.invoice.store'), $this->payload());
+        $this->actingAs($manager)->post(route('service.invoice.store'), $this->payload());
+
+        // Dicocokkan lewat email. Tanpa itu, operator yang mengetik klien yang sama
+        // berkali-kali memecah riwayat pekerjaannya menjadi beberapa baris master
+        // dan halaman detail klien hanya menampilkan sebagian invoice-nya.
+        $this->assertSame(1, ServiceClient::count());
+        $this->assertSame(2, ServiceClient::first()->invoices()->count());
     }
 
     /** @test */
@@ -3489,6 +3504,24 @@ class ServiceInvoiceForm
     {
         if (! empty($data['service_client_id'])) {
             return ServiceClient::findOrFail($data['service_client_id']);
+        }
+
+        // Email dipakai sebagai kunci alami SEBELUM membuat baris baru. Tanpa ini,
+        // operator yang mengetik klien yang sama di empat invoice (alih-alih
+        // memilihnya dari daftar) melahirkan empat baris master — dan pertanyaan
+        // "pekerjaan apa saja untuk Universitas X", satu-satunya tugas nyata
+        // service_client_id menurut spec §2.2, cuma terjawab seperempatnya.
+        //
+        // Sisa risikonya: klien TANPA email masih bisa terduplikasi. Diterima
+        // sadar; penutupnya kelak pencocokan nama+instansi atau kolom `code`.
+        $email = trim((string) ($data['client_email'] ?? ''));
+
+        if ($email !== '') {
+            $existing = ServiceClient::whereRaw('LOWER(email) = ?', [mb_strtolower($email)])->first();
+
+            if ($existing) {
+                return $existing;
+            }
         }
 
         return ServiceClient::create([

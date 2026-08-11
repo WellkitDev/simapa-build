@@ -56,7 +56,15 @@ class ServiceClientController extends Controller
             // Soft delete Eloquent tidak memicu FK nullOnDelete di database, jadi
             // tautannya dilepas manual. Snapshot di invoice sengaja TIDAK disentuh —
             // dokumen yang sudah terbit harus tetap mencetak isi yang sama.
-            ServiceInvoice::where('service_client_id', $client->id)
+            //
+            // Sengaja lewat query builder, BUKAN ServiceInvoice::where(...):
+            //  - Eloquent akan ikut menaikkan `updated_at` tiap invoice, sehingga
+            //    barisnya berbohong "diubah hari ini" padahal isinya tak berubah
+            //    dan `updated_by` masih menunjuk penyunting sebelumnya;
+            //  - global scope SoftDeletes akan melewati invoice yang sudah di-trash,
+            //    meninggalkan FK menggantung ke klien yang sudah tidak ada.
+            DB::table('tb_service_invoices')
+                ->where('service_client_id', $client->id)
                 ->update(['service_client_id' => null]);
 
             $client->delete();

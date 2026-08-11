@@ -6,6 +6,7 @@ use App\Models\ServiceClient;
 use App\Models\ServiceInvoice;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -84,6 +85,45 @@ class ServiceClientCrudTest extends TestCase
         $invoice->refresh();
         $this->assertNull($invoice->service_client_id);       // FK dilepas
         $this->assertSame('Nama Tersalin', $invoice->client_name);   // snapshot utuh
+
+        // Penghapusannya harus LUNAK. Tanpa dua assertion ini, mengganti seluruh
+        // destroy() dengan forceDelete() polos tetap membuat tes ini hijau — FK
+        // nullOnDelete di basis data ikut menyalakan kolomnya jadi null, dan
+        // snapshot-nya memang tak pernah tersentuh. Yang hilang justru kemampuan
+        // menelusuri klien yang sudah dihapus.
+        $this->assertSoftDeleted('tb_service_clients', ['id' => $client->id]);
+        $this->assertSame(1, ServiceClient::withTrashed()->whereKey($client->id)->count());
+    }
+
+    /** @test */
+    public function deleting_a_client_also_unlinks_its_soft_deleted_invoices(): void
+    {
+        $client  = ServiceClient::factory()->create();
+        $trashed = ServiceInvoice::factory()->create(['service_client_id' => $client->id]);
+        $trashed->delete();
+
+        $this->actingAs($this->user('manager'))->delete(route('service.client.destroy', $client->id));
+
+        // Global scope SoftDeletes akan melewatkan baris ini kalau pelepasan FK-nya
+        // memakai Eloquent, meninggalkan tautan menggantung ke klien yang tak ada.
+        $this->assertNull(ServiceInvoice::withTrashed()->find($trashed->id)->service_client_id);
+    }
+
+    /** @test */
+    public function unlinking_invoices_does_not_pretend_they_were_edited(): void
+    {
+        $client  = ServiceClient::factory()->create();
+        $invoice = ServiceInvoice::factory()->create(['service_client_id' => $client->id]);
+
+        $stamp = '2026-01-01 08:00:00';
+        DB::table('tb_service_invoices')->where('id', $invoice->id)->update(['updated_at' => $stamp]);
+
+        $this->actingAs($this->user('manager'))->delete(route('service.client.destroy', $client->id));
+
+        // Isi invoice tidak berubah, jadi jejak "terakhir diubah" tidak boleh ikut
+        // maju — kalau ia maju, barisnya mengaku disunting oleh orang yang cuma
+        // menghapus kliennya, sementara updated_by masih menunjuk penyunting lama.
+        $this->assertSame($stamp, DB::table('tb_service_invoices')->where('id', $invoice->id)->value('updated_at'));
     }
 
     /** @test */
@@ -105,11 +145,20 @@ class ServiceClientCrudTest extends TestCase
     /** @test */
     public function other_roles_are_locked_out(): void
     {
-        foreach (['admin', 'marketing', 'production'] as $role) {
+        foreach (['admin', 'marketing', 'production', 'accounting'] as $role) {
             $this->actingAs($this->user($role))
                 ->get(route('service.client.index'))
                 ->assertForbidden();
         }
+
+        // Sisi positifnya WAJIB ada di tes yang sama. EnforcePermission fail-closed:
+        // rute yang tak terpeta ditolak untuk SEMUA orang, jadi tanpa baris ini
+        // menghapus seluruh blok `service_client` dari config/permissions.php tetap
+        // membuat tes ini hijau — ia hanya membuktikan "tiga role ini ditolak",
+        // yang juga benar ketika semua orang ditolak.
+        $this->actingAs($this->user('manager'))
+            ->get(route('service.client.index'))
+            ->assertOk();
     }
 
     /** @test */
