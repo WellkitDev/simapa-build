@@ -15,7 +15,12 @@ class ServiceInvoiceFactory extends Factory
         $seq++;
 
         return [
-            'invoice_no'         => 'INV-JS-' . now()->format('Ym') . '-' . str_pad((string) $seq, 4, '0', STR_PAD_LEFT),
+            // Namespace nomor KHUSUS TES. Sengaja beda dari `INV-JS-<Ym>-` yang
+            // dialokasikan ServiceInvoiceNumber::next(): tanpa pemisahan ini, tes
+            // yang membuat invoice lewat factory DAN lewat store() akan tabrakan di
+            // unique index begitu kedua pencacahnya bertemu di angka yang sama.
+            // Tes yang memang menguji format nomor menimpanya sendiri (Task 4).
+            'invoice_no'         => 'INV-JS-TEST-' . str_pad((string) $seq, 4, '0', STR_PAD_LEFT),
             'service_client_id'  => null,
             'client_name'        => $this->faker->name(),
             'client_institution' => 'Universitas ' . $this->faker->city(),

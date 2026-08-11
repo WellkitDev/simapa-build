@@ -17,7 +17,14 @@ class ServiceInvoice extends Model
         'client_name', 'client_institution', 'client_email', 'client_phone', 'client_address',
         'issued_at', 'due_at',
         'work_status', 'work_started_at', 'work_finished_at',
-        'subtotal', 'discount', 'total', 'paid_total', 'remaining', 'payment_status',
+        // `subtotal`, `total`, `paid_total`, `remaining` SENGAJA tidak fillable:
+        // satu-satunya penulisnya adalah recalcTotals(), lewat forceFill() yang
+        // memang melewati $fillable. Membiarkannya terbuka berarti sebuah form
+        // (mis. layar koreksi) bisa mengirim paid_total dan membuatnya menyimpang
+        // dari SUM(payments.amount) sampai recalcTotals() berikutnya.
+        // `discount` ikut karena memang masukan pengguna; `payment_status` ikut
+        // karena diisi saat invoice dibuat.
+        'discount', 'payment_status',
         'note', 'internal_note',
         'pdf_drive_url', 'sent_at', 'sent_count',
         'cancel_reason', 'cancelled_by', 'cancelled_at',
@@ -109,11 +116,20 @@ class ServiceInvoice extends Model
         return $this->isOverpaid() ? abs((float) $this->remaining) : 0.0;
     }
 
+    /**
+     * Dua hal yang mudah salah di sini:
+     *  - `lt(today())`, BUKAN `isPast()`. `due_at` di-cast `date` sehingga jatuh di
+     *    tengah malam, dan `isPast()` menandai invoice telat sejak pukul 00:00 pada
+     *    hari jatuh temponya sendiri — padahal hari itu masih hak klien.
+     *  - ambang utangnya `remaining`, BUKAN `payment_status`. Invoice bertotal nol
+     *    (mis. pekerjaan garansi) tak pernah bisa mencapai 'lunas', jadi memakai
+     *    payment_status akan menandainya telat selamanya atas utang nol.
+     */
     public function isOverdue(): bool
     {
         return $this->due_at !== null
-            && $this->due_at->isPast()
-            && $this->payment_status !== 'lunas'
+            && $this->due_at->lt(today())
+            && (float) $this->remaining > 0
             && ! $this->isCancelled();
     }
 }
