@@ -661,6 +661,49 @@ class ServiceInvoiceModelTest extends TestCase
         $this->assertSame('Dibatalkan', ServiceInvoice::WORK_STATUS['batal']);
         $this->assertSame('Lunas', ServiceInvoice::PAYMENT_STATUS['lunas']);
     }
+
+    /** @test */
+    public function derived_money_columns_are_not_mass_assignable(): void
+    {
+        $inv = ServiceInvoice::factory()->create();
+
+        $inv->update([
+            'subtotal'   => 999999,
+            'total'      => 999999,
+            'paid_total' => 999999,
+            'remaining'  => 999999,
+        ]);
+
+        $inv->refresh();
+        $this->assertEquals(0, $inv->subtotal);
+        $this->assertEquals(0, $inv->total);
+        $this->assertEquals(0, $inv->paid_total);
+        $this->assertEquals(0, $inv->remaining);
+    }
+
+    /** @test */
+    public function overdue_starts_the_day_after_due_date_and_only_when_money_is_owed(): void
+    {
+        // remaining tidak fillable (lihat $fillable), jadi diisi lewat forceFill —
+        // yang sekaligus jalur yang dipakai recalcTotals() di Task 3.
+        $owed = ServiceInvoice::factory()->create(['due_at' => today()->toDateString()]);
+        $owed->forceFill(['remaining' => 500000])->save();
+
+        $this->assertFalse($owed->isOverdue(), 'Hari jatuh tempo masih hak klien, belum telat.');
+
+        $owed->update(['due_at' => today()->subDay()->toDateString()]);
+        $this->assertTrue($owed->fresh()->isOverdue());
+
+        $settled = ServiceInvoice::factory()->create(['due_at' => today()->subDays(30)->toDateString()]);
+        $this->assertFalse($settled->isOverdue(), 'Tanpa sisa tagihan tidak ada yang telat.');
+
+        $cancelled = ServiceInvoice::factory()->create([
+            'due_at'      => today()->subDays(30)->toDateString(),
+            'work_status' => 'batal',
+        ]);
+        $cancelled->forceFill(['remaining' => 500000])->save();
+        $this->assertFalse($cancelled->isOverdue(), 'Invoice batal tidak pernah telat.');
+    }
 }
 ```
 
@@ -693,7 +736,14 @@ class ServiceInvoice extends Model
         'client_name', 'client_institution', 'client_email', 'client_phone', 'client_address',
         'issued_at', 'due_at',
         'work_status', 'work_started_at', 'work_finished_at',
-        'subtotal', 'discount', 'total', 'paid_total', 'remaining', 'payment_status',
+        // `subtotal`, `total`, `paid_total`, `remaining` SENGAJA tidak fillable:
+        // satu-satunya penulisnya adalah recalcTotals(), lewat forceFill() yang
+        // memang melewati $fillable. Membiarkannya terbuka berarti sebuah form
+        // (mis. layar koreksi) bisa mengirim paid_total dan membuatnya menyimpang
+        // dari SUM(payments.amount) sampai recalcTotals() berikutnya.
+        // `discount` ikut karena memang masukan pengguna; `payment_status` ikut
+        // karena diisi saat invoice dibuat.
+        'discount', 'payment_status',
         'note', 'internal_note',
         'pdf_drive_url', 'sent_at', 'sent_count',
         'cancel_reason', 'cancelled_by', 'cancelled_at',
@@ -785,11 +835,20 @@ class ServiceInvoice extends Model
         return $this->isOverpaid() ? abs((float) $this->remaining) : 0.0;
     }
 
+    /**
+     * Dua hal yang mudah salah di sini:
+     *  - `lt(today())`, BUKAN `isPast()`. `due_at` di-cast `date` sehingga jatuh di
+     *    tengah malam, dan `isPast()` menandai invoice telat sejak pukul 00:00 pada
+     *    hari jatuh temponya sendiri — padahal hari itu masih hak klien.
+     *  - ambang utangnya `remaining`, BUKAN `payment_status`. Invoice bertotal nol
+     *    (mis. pekerjaan garansi) tak pernah bisa mencapai 'lunas', jadi memakai
+     *    payment_status akan menandainya telat selamanya atas utang nol.
+     */
     public function isOverdue(): bool
     {
         return $this->due_at !== null
-            && $this->due_at->isPast()
-            && $this->payment_status !== 'lunas'
+            && $this->due_at->lt(today())
+            && (float) $this->remaining > 0
             && ! $this->isCancelled();
     }
 }
@@ -942,7 +1001,12 @@ class ServiceInvoiceFactory extends Factory
         $seq++;
 
         return [
-            'invoice_no'         => 'INV-JS-' . now()->format('Ym') . '-' . str_pad((string) $seq, 4, '0', STR_PAD_LEFT),
+            // Namespace nomor KHUSUS TES. Sengaja beda dari `INV-JS-<Ym>-` yang
+            // dialokasikan ServiceInvoiceNumber::next(): tanpa pemisahan ini, tes
+            // yang membuat invoice lewat factory DAN lewat store() akan tabrakan di
+            // unique index begitu kedua pencacahnya bertemu di angka yang sama.
+            // Tes yang memang menguji format nomor menimpanya sendiri (Task 4).
+            'invoice_no'         => 'INV-JS-TEST-' . str_pad((string) $seq, 4, '0', STR_PAD_LEFT),
             'service_client_id'  => null,
             'client_name'        => $this->faker->name(),
             'client_institution' => 'Universitas ' . $this->faker->city(),
@@ -961,7 +1025,7 @@ class ServiceInvoiceFactory extends Factory
 - [ ] **Step 10: Jalankan tes, pastikan lulus**
 
 Run: `php artisan test --filter=ServiceInvoiceModelTest`
-Expected: PASS (3 tests)
+Expected: PASS (5 tests)
 
 - [ ] **Step 11: Commit**
 
@@ -1311,6 +1375,8 @@ Menutup T-WS-1..3. (T-WS-4 — batal hanya superadmin — butuh route, jadi ada 
 **Files:**
 - Modify: `app/Models/ServiceInvoice.php` (tambah satu metode)
 - Test: `tests/Feature/ServiceInvoiceWorkStatusTest.php`
+
+> **Pertimbangkan sebelum menulis:** codebase ini punya konvensi hidup bahwa "pindah status + tulis baris log" tinggal di Service, bukan di model — lihat `TitleProgressService`, `ChapterManuscriptService`, dan `CashPeriodService`. `applyWorkStatus()` di bawah melanggar konvensi itu. Alasan tetap ditaruh di model: cakupannya sempit (hanya baris invoice itu sendiri plus anak log-nya, tanpa orkestrasi lintas agregat), dan `ServiceInvoice` masih ~140 baris. **Kalau setelah Task 5 model itu melewati ~200 baris atau `applyWorkStatus()` mulai menyentuh agregat lain, pindahkan ke `app/Services/ServiceInvoiceWorkflow.php`** — Task 10 satu-satunya pemanggilnya, jadi ongkos pindahnya kecil.
 
 - [ ] **Step 1: Tulis tes yang gagal**
 
@@ -2863,8 +2929,11 @@ class ServiceInvoiceController extends Controller
         $invoices = ServiceInvoice::query()
             ->when($request->filled('work_status'),    fn ($q) => $q->where('work_status', $request->input('work_status')))
             ->when($request->filled('payment_status'), fn ($q) => $q->where('payment_status', $request->input('payment_status')))
-            ->when($request->filled('from'),           fn ($q) => $q->whereDate('issued_at', '>=', $request->input('from')))
-            ->when($request->filled('to'),             fn ($q) => $q->whereDate('issued_at', '<=', $request->input('to')))
+            // `where`, bukan `whereDate`: issued_at SUDAH bertipe DATE, jadi
+            // whereDate() cuma membungkusnya dengan date() dan membuat indeksnya
+            // tak terpakai tanpa memberi apa pun.
+            ->when($request->filled('from'),           fn ($q) => $q->where('issued_at', '>=', $request->input('from')))
+            ->when($request->filled('to'),             fn ($q) => $q->where('issued_at', '<=', $request->input('to')))
             ->latest('issued_at')
             ->latest('id')
             ->get();
@@ -5703,7 +5772,7 @@ git commit -m "layanan: kunci akses, snapshot, dan isolasi dari keuangan lewat t
 - [ ] **Step 1: Jalankan seluruh suite**
 
 Run: `php artisan test`
-Expected: PASS, nol kegagalan. Plan ini menambahkan 66 tes baru di 12 berkas (`tests/Feature/Service*.php`).
+Expected: PASS, nol kegagalan. Plan ini menambahkan 69 tes baru di 12 berkas (`tests/Feature/Service*.php`).
 
 Kalau ada tes **lama** yang merah, hentikan dan telusuri sebelum lanjut. Tersangka yang paling mungkin:
 - `PermissionMapCompletenessTest` — ada rute `service.*` yang belum dipetakan.
