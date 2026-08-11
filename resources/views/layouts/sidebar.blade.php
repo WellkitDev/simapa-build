@@ -86,6 +86,21 @@
                 @endcan
             @endcanany
 
+            {{-- ===================== LAYANAN / JASA ===================== --}}
+            {{-- Modul standalone: TIDAK bermuara ke kas, karena itu tidak digabung
+                 ke grup Pembayaran yang semua itemnya masuk keuangan. --}}
+            @canany(['service_invoice.view', 'service_catalog.view', 'service_client.view'])
+                <li class="nav-item nav-category">Layanan</li>
+                @can('service_catalog.view')
+                    <li class="nav-item {{ nav_active('service.catalog.*') }}">
+                        <a href="{{ route('service.catalog.index') }}" class="nav-link">
+                            <i class="link-icon" data-feather="list"></i>
+                            <span class="link-title">Katalog Layanan</span>
+                        </a>
+                    </li>
+                @endcan
+            @endcanany
+
             {{-- ===================== DIREKTORI ===================== --}}
             @canany(['title.view', 'journal.view', 'isbn.view', 'author.view', 'archive.view'])
                 <li class="nav-item nav-category">Direktori</li>

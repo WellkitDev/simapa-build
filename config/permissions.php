@@ -334,6 +334,14 @@ return [
             ],
         ],
 
+        'service_catalog' => [
+            'label'   => 'Katalog Layanan',
+            'actions' => [
+                'view'   => ['service.catalog.index'],
+                'manage' => ['service.catalog.store', 'service.catalog.update', 'service.catalog.destroy'],
+            ],
+        ],
+
         'permission' => [
             'label'   => 'Hak Akses',
             'actions' => ['manage' => ['permission.index', 'permission.update']],

@@ -338,6 +338,15 @@ Route::middleware(['auth', 'access'])->group(function () {
     // Slip Gaji — self-service (semua user login; akses own-data dicek di controller)
     Route::get('slip-gaji-saya', [\App\Http\Controllers\Pages\EmployeeSalarySlipController::class, 'me'])->name('salary.slip.me');
     Route::get('slip-gaji-saya/{id}/pdf', [\App\Http\Controllers\Pages\EmployeeSalarySlipController::class, 'pdf'])->name('salary.slip.me.pdf')->whereNumber('id');
+
+    /* ===================== LAYANAN / JASA (modul standalone) ===================== */
+    Route::prefix('layanan')->name('service.')->group(function () {
+        // Katalog
+        Route::get   ('katalog',      [\App\Http\Controllers\Pages\ServiceCatalogController::class, 'index'])  ->name('catalog.index');
+        Route::post  ('katalog',      [\App\Http\Controllers\Pages\ServiceCatalogController::class, 'store'])  ->name('catalog.store');
+        Route::put   ('katalog/{id}', [\App\Http\Controllers\Pages\ServiceCatalogController::class, 'update']) ->name('catalog.update')->whereNumber('id');
+        Route::delete('katalog/{id}', [\App\Http\Controllers\Pages\ServiceCatalogController::class, 'destroy'])->name('catalog.destroy')->whereNumber('id');
+    });
 });
 
 
