@@ -1926,8 +1926,10 @@ Rute pertama modul ini. **Permission wajib ikut di commit yang sama**, atau `Per
 - Create: `app/Http/Controllers/Pages/ServiceCatalogController.php`
 - Create: `database/seeders/ServiceCatalogSeeder.php`
 - Create: `resources/views/services/catalogs/index.blade.php`
-- Modify: `routes/web.php`, `config/permissions.php`, `database/seeders/AccessMatrixSeeder.php`, `resources/views/layouts/sidebar.blade.php`
+- Modify: `routes/web.php`, `config/permissions.php`, `resources/views/layouts/sidebar.blade.php`
 - Test: `tests/Feature/ServiceCatalogCrudTest.php`
+
+> `AccessMatrixSeeder.php` **tidak** disentuh di task ini: `manager` sudah memegang hibah `'*'`, dan role lain memakai daftar eksplisit sehingga tak kebagian apa pun. Seeder itu baru diubah di Task 9 & 10, saat `service_invoice.delete` dan `.cancel` perlu masuk `$superadminOnly`.
 
 - [ ] **Step 1: Tulis tes yang gagal**
 
@@ -2018,6 +2020,18 @@ class ServiceCatalogCrudTest extends TestCase
     {
         $this->seed(\Database\Seeders\ServiceCatalogSeeder::class);
 
+        // Jumlah dipatok eksplisit. Tanpa ini, seeder yang kehilangan 27 dari 30
+        // barisnya tetap lolos selama tiga baris yang kebetulan disebut di bawah
+        // masih ada — dan seluruh gunanya task ini adalah menyalin daftar harga
+        // klien dengan setia.
+        $this->assertSame(30, ServiceCatalog::count());
+
+        $perCategory = ServiceCatalog::get()->groupBy('category')->map->count()->all();
+        $this->assertSame([
+            'instalasi' => 5, 'perbaikan' => 7, 'upgrade' => 4, 'desain' => 4,
+            'hosting' => 4, 'maintenance' => 3, 'bundle' => 3,
+        ], $perCategory);
+
         $this->assertDatabaseHas('tb_service_catalogs', ['name' => 'Instalasi OJS Basic', 'price' => 500000.00]);
         $this->assertDatabaseHas('tb_service_catalogs', ['name' => 'Fix Error Sedang', 'price' => 500000.00, 'price_max' => 1000000.00]);
         $this->assertDatabaseHas('tb_service_catalogs', ['name' => 'Paket Enterprise', 'category' => 'bundle']);
@@ -2026,9 +2040,90 @@ class ServiceCatalogCrudTest extends TestCase
         $this->assertDatabaseMissing('tb_service_catalogs', ['category' => 'similarity']);
 
         // Idempoten: dijalankan dua kali tidak menggandakan baris.
-        $before = ServiceCatalog::count();
         $this->seed(\Database\Seeders\ServiceCatalogSeeder::class);
-        $this->assertSame($before, ServiceCatalog::count());
+        $this->assertSame(30, ServiceCatalog::count());
+    }
+
+    /** @test */
+    public function reseeding_does_not_resurrect_a_row_the_operator_deleted(): void
+    {
+        $this->seed(\Database\Seeders\ServiceCatalogSeeder::class);
+
+        ServiceCatalog::firstWhere('name', 'Setup Multi Jurnal')->delete();
+        $this->assertSame(29, ServiceCatalog::count());
+
+        // Lookup-nya memakai withTrashed, jadi baris yang sudah dihapus tetap
+        // dikenali dan tidak dibuat ulang sebagai duplikat.
+        $this->seed(\Database\Seeders\ServiceCatalogSeeder::class);
+
+        $this->assertSame(29, ServiceCatalog::count());
+        $this->assertSame(30, ServiceCatalog::withTrashed()->count());
+    }
+
+    /** @test */
+    public function reopening_and_saving_a_row_unchanged_keeps_its_price(): void
+    {
+        $manager = $this->user('manager');
+        $catalog = ServiceCatalog::factory()->create([
+            'name' => 'Perbaikan SMTP', 'price' => 350000, 'price_max' => 1000000,
+        ]);
+
+        // Ambil payload PERSIS seperti yang ditanam view ke tombol Edit, bukan
+        // yang diketik tangan — jebakannya justru ada di payload itu.
+        $html = $this->actingAs($manager)->get(route('service.catalog.index'))->getContent();
+        $this->assertSame(1, preg_match('/data-catalog="([^"]*)"/', $html, $m));
+        $payload = json_decode(html_entity_decode($m[1], ENT_QUOTES), true);
+
+        // Kalau ini "350000.00" dan bukan 350000, pembersih pemisah ribuan di
+        // controller akan membuang titiknya dan harganya jadi 35.000.000 hanya
+        // karena barisnya dibuka lalu disimpan tanpa diubah sama sekali.
+        $this->assertSame(350000, $payload['price']);
+        $this->assertSame(1000000, $payload['price_max']);
+
+        $this->actingAs($manager)->put(route('service.catalog.update', $catalog->id), [
+            'category'  => $payload['category'],
+            'name'      => $payload['name'],
+            'price'     => (string) $payload['price'],
+            'price_max' => (string) $payload['price_max'],
+            'is_active' => '1',
+        ])->assertRedirect(route('service.catalog.index'));
+
+        $catalog->refresh();
+        $this->assertEquals(350000, $catalog->price);
+        $this->assertEquals(1000000, $catalog->price_max);
+    }
+
+    /** @test */
+    public function a_rejected_save_is_shown_to_the_operator(): void
+    {
+        $manager = $this->user('manager');
+
+        $this->actingAs($manager)
+            ->from(route('service.catalog.index'))
+            ->post(route('service.catalog.store'), [
+                'category' => 'perbaikan', 'name' => 'Salah Kisaran',
+                'price' => '1000000', 'price_max' => '500000',
+            ])
+            ->assertRedirect(route('service.catalog.index'));
+
+        // Sesi punya galatnya belum cukup: layouts/master tidak merender $errors,
+        // jadi tanpa blok galat di view-nya operator tak melihat apa pun dan
+        // mengira aplikasinya macet.
+        $this->actingAs($manager)
+            ->get(route('service.catalog.index'))
+            ->assertOk()
+            ->assertSee('Data belum tersimpan.');
+    }
+
+    /** @test */
+    public function an_empty_is_active_value_does_not_explode(): void
+    {
+        $this->actingAs($this->user('manager'))->post(route('service.catalog.store'), [
+            'category' => 'perbaikan', 'name' => 'Checkbox Kosong',
+            'price' => '350000', 'is_active' => '',
+        ])->assertRedirect(route('service.catalog.index'));
+
+        $this->assertFalse(ServiceCatalog::firstWhere('name', 'Checkbox Kosong')->is_active);
     }
 }
 ```
@@ -2084,11 +2179,21 @@ class ServiceCatalogController extends Controller
     {
         ServiceCatalog::findOrFail($id)->delete();
 
+        // 'info', bukan 'warning': layouts/master hanya merender success/error/info,
+        // jadi pesan ber-key 'warning' tak pernah sampai ke layar sama sekali.
         return redirect()->route('service.catalog.index')
-            ->with('warning', 'Layanan dihapus dari katalog. Invoice lama tidak berubah.');
+            ->with('info', 'Layanan dihapus dari katalog. Invoice lama tidak berubah.');
     }
 
-    /** Buang pemisah ribuan sebelum validasi, lalu validasi. */
+    /**
+     * Buang pemisah ribuan sebelum validasi, lalu validasi.
+     *
+     * Harga di modul ini RUPIAH BULAT. Pembersih di bawah membuang titik, koma,
+     * dan spasi tanpa bisa membedakan pemisah ribuan dari titik desimal — jadi
+     * "1.500,50" akan jadi 150050. Itu diterima sadar: tarif jasa tak pernah bersen.
+     * Konsekuensinya form HARUS menerima angka bulat saja; lihat catatan di view
+     * soal `(int)` pada data-catalog, yang mencegah "350000.00" kembali ke sini.
+     */
     private function validated(Request $request): array
     {
         foreach (['price', 'price_max'] as $field) {
@@ -2098,6 +2203,10 @@ class ServiceCatalogController extends Controller
             }
         }
 
+        // `is_active` SENGAJA di luar daftar aturan. Kalau ia divalidasi sebagai
+        // `nullable|boolean`, nilai kosong lolos sebagai null lalu menabrak kolom
+        // NOT NULL dan berakhir 500. Di luar daftar, union `+` di bawah selalu
+        // yang mengisinya, dan checkbox yang tak dicentang jadi false.
         return $request->validate([
             'category'    => 'required|in:' . implode(',', array_keys(ServiceCatalog::CATEGORIES)),
             'name'        => 'required|string|max:190',
@@ -2105,7 +2214,6 @@ class ServiceCatalogController extends Controller
             'price_max'   => 'nullable|numeric|min:0|max:9999999999999.99|gte:price',
             'unit'        => 'nullable|in:' . implode(',', array_keys(ServiceCatalog::UNITS)),
             'description' => 'nullable|string',
-            'is_active'   => 'nullable|boolean',
             'position'    => 'nullable|integer|min:0',
         ]) + ['is_active' => $request->boolean('is_active')];
     }
@@ -2129,6 +2237,16 @@ use Illuminate\Database\Seeder;
 /**
  * Daftar harga jasa OJS yang berlaku. firstOrCreate berdasarkan category+name,
  * jadi aman dijalankan ulang dan TIDAK menimpa harga yang sudah disunting operator.
+ *
+ * `withTrashed()` pada pencariannya penting: tanpa itu, baris seed yang sengaja
+ * DIHAPUS operator tak terlihat oleh lookup, seeder membuatnya lagi, dan
+ * penghapusannya batal diam-diam sambil menumpuk tombstone tiap kali dijalankan.
+ *
+ * BATAS YANG HARUS DIKETAHUI: kuncinya adalah NAMA. Baris seed yang DIGANTI
+ * NAMANYA oleh operator tak akan dikenali lagi, jadi menjalankan ulang seeder
+ * melahirkan kembali baris lama di samping hasil suntingan itu. Kalau kelak
+ * penggantian nama jadi hal biasa, kuncinya harus pindah ke kolom `code` yang
+ * stabil — bukan menambal seeder-nya.
  *
  * Kategori 'similarity' (Turnitin & penurunan plagiasi) sengaja kosong: tarifnya
  * belum ditetapkan, diisi lewat CRUD katalog tanpa perlu deploy.
@@ -2190,7 +2308,7 @@ class ServiceCatalogSeeder extends Seeder
 
         foreach ($rows as $category => $items) {
             foreach ($items as $position => [$name, $price, $priceMax, $unit, $description]) {
-                ServiceCatalog::firstOrCreate(
+                ServiceCatalog::withTrashed()->firstOrCreate(
                     ['category' => $category, 'name' => $name],
                     [
                         'price'       => $price,
@@ -2288,8 +2406,23 @@ Di `resources/views/layouts/sidebar.blade.php`, sisipkan grup baru tepat setelah
                 <p class="text-muted small">
                     Harga di sini hanya acuan awal — saat membuat invoice, nominalnya tetap bisa ditimpa
                     sesuai kompleksitas pekerjaan. Mengubah harga di katalog <strong>tidak</strong>
-                    mengubah invoice yang sudah terbit.
+                    mengubah invoice yang sudah terbit. Isi angka bulat tanpa sen.
                 </p>
+
+                {{-- WAJIB: layouts/master hanya merender session success/error/info, BUKAN $errors.
+                     Tanpa blok ini setiap simpan yang ditolak validasi hanya memantul kembali ke
+                     daftar tanpa satu pun tanda — operator mengira aplikasinya yang macet lalu
+                     mengulang masukan yang sama. --}}
+                @if ($errors->any())
+                    <div class="alert alert-danger">
+                        <strong>Data belum tersimpan.</strong>
+                        <ul class="mb-0 mt-1">
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
 
                 <div class="table-responsive">
                     <table class="table table-centered datatable dt-responsive nowrap" style="width:100%;">
@@ -2310,7 +2443,9 @@ Di `resources/views/layouts/sidebar.blade.php`, sisipkan grup baru tepat setelah
                                             <br><small class="text-muted">{{ $c->description }}</small>
                                         @endif
                                     </td>
-                                    <td>{{ $c->priceLabel() }}</td>
+                                    {{-- data-order: tanpa ini DataTables mengurutkan teks "Rp 1.250.000"
+                                         secara leksikografis, yang menaruhnya sebelum "Rp 250.000". --}}
+                                    <td data-order="{{ (int) $c->price }}">{{ $c->priceLabel() }}</td>
                                     <td>{{ $units[$c->unit] ?? '-' }}</td>
                                     <td>
                                         <span class="badge bg-{{ $c->is_active ? 'success' : 'secondary' }}">
@@ -2319,12 +2454,31 @@ Di `resources/views/layouts/sidebar.blade.php`, sisipkan grup baru tepat setelah
                                     </td>
                                     <td>
                                         @can('service_catalog.manage')
+                                        {{-- JANGAN pakai $c->toJson(): cast decimal:2 memancarkan
+                                             "350000.00", dan begitu string itu masuk ke input teks,
+                                             pembersih pemisah ribuan di controller membuang titik
+                                             desimalnya — harganya jadi 35.000.000 hanya karena
+                                             dibuka lalu disimpan. Konvensi yang sama sudah dipakai
+                                             accounting/journal.blade.php dan salary/slips/form.blade.php. --}}
                                         <button class="btn btn-xs btn-outline-secondary"
                                                 data-bs-toggle="modal" data-bs-target="#catalogModal"
-                                                data-catalog="{{ $c->toJson() }}"
+                                                data-catalog="{{ json_encode([
+                                                    'id'          => $c->id,
+                                                    'category'    => $c->category,
+                                                    'name'        => $c->name,
+                                                    'price'       => (int) $c->price,
+                                                    'price_max'   => $c->price_max !== null ? (int) $c->price_max : null,
+                                                    'unit'        => $c->unit,
+                                                    'description' => $c->description,
+                                                    'is_active'   => $c->is_active,
+                                                    'position'    => (int) $c->position,
+                                                ]) }}"
                                                 onclick="fillCatalogForm(this)">Edit</button>
+                                        {{-- data-confirm, bukan onsubmit="return confirm(...)": ada
+                                             listener SweetAlert terdelegasi di layouts/master yang
+                                             dipakai seluruh aksi destruktif lain di aplikasi ini. --}}
                                         <form action="{{ route('service.catalog.destroy', $c->id) }}" method="POST" class="d-inline"
-                                              onsubmit="return confirm('Hapus layanan ini dari katalog?')">
+                                              data-confirm="Hapus layanan ini dari katalog? Invoice lama tidak berubah.">
                                             @csrf @method('DELETE')
                                             <button class="btn btn-xs btn-outline-danger">Hapus</button>
                                         </form>
@@ -2388,6 +2542,11 @@ Di `resources/views/layouts/sidebar.blade.php`, sisipkan grup baru tepat setelah
                         <label class="form-label">Keterangan</label>
                         <textarea name="description" id="catalogDescription" class="form-control" rows="2"></textarea>
                     </div>
+                    <div class="mb-2">
+                        <label class="form-label">Urutan Tampil</label>
+                        <input type="number" name="position" id="catalogPosition" class="form-control" min="0" value="0">
+                        <small class="text-muted">Menentukan urutan di dalam kategorinya. Kecil tampil lebih dulu.</small>
+                    </div>
                     <div class="form-check">
                         <input type="checkbox" name="is_active" id="catalogActive" class="form-check-input" value="1" checked>
                         <label class="form-check-label" for="catalogActive">Aktif</label>
@@ -2413,10 +2572,19 @@ Di `resources/views/layouts/sidebar.blade.php`, sisipkan grup baru tepat setelah
 
 @push('custom-scripts')
 <script>
+    // Rute update dibangun dari template bernama, bukan URL yang diketik tangan:
+    // kalau prefiks `layanan` kelak berpindah, tombol Edit ikut pindah sendiri
+    // alih-alih diam-diam menembak 404.
+    const CATALOG_UPDATE_URL = "{{ route('service.catalog.update', ['id' => '__ID__']) }}";
+
     $(function () {
         $(".datatable").DataTable({
             pageLength: 50,
             responsive: true,
+            // order: [] mempertahankan urutan dari server (kategori lalu position).
+            // Tanpa ini DataTables mengurutkan ulang berdasar label kategori secara
+            // alfabetis dan membuang pengurutan yang sudah disusun controller.
+            order: [],
             columnDefs: [{ orderable: false, targets: 5 }],
             language: { emptyTable: "Katalog masih kosong." }
         });
@@ -2426,17 +2594,23 @@ Di `resources/views/layouts/sidebar.blade.php`, sisipkan grup baru tepat setelah
         document.getElementById('catalogModalTitle').textContent = 'Tambah Layanan';
         document.getElementById('catalogForm').action = "{{ route('service.catalog.store') }}";
         document.getElementById('catalogMethod').value = 'POST';
+        // Kategori & satuan WAJIB ikut direset: kalau tidak, membuka Edit pada baris
+        // hosting lalu menekan "+ Tambah Layanan" menyisakan Kategori=Hosting dan
+        // Satuan=Tahun, dan layanan baru masuk ke kategori yang salah.
+        document.getElementById('catalogCategory').selectedIndex = 0;
+        document.getElementById('catalogUnit').value = '';
         document.getElementById('catalogName').value = '';
         document.getElementById('catalogPrice').value = '';
         document.getElementById('catalogPriceMax').value = '';
         document.getElementById('catalogDescription').value = '';
+        document.getElementById('catalogPosition').value = 0;
         document.getElementById('catalogActive').checked = true;
     }
 
     function fillCatalogForm(button) {
         const c = JSON.parse(button.dataset.catalog);
         document.getElementById('catalogModalTitle').textContent = 'Edit Layanan';
-        document.getElementById('catalogForm').action = "{{ url('layanan/katalog') }}/" + c.id;
+        document.getElementById('catalogForm').action = CATALOG_UPDATE_URL.replace('__ID__', c.id);
         document.getElementById('catalogMethod').value = 'PUT';
         document.getElementById('catalogCategory').value = c.category;
         document.getElementById('catalogName').value = c.name;
@@ -2444,6 +2618,7 @@ Di `resources/views/layouts/sidebar.blade.php`, sisipkan grup baru tepat setelah
         document.getElementById('catalogPriceMax').value = c.price_max ?? '';
         document.getElementById('catalogUnit').value = c.unit ?? '';
         document.getElementById('catalogDescription').value = c.description ?? '';
+        document.getElementById('catalogPosition').value = c.position ?? 0;
         document.getElementById('catalogActive').checked = !!c.is_active;
     }
 </script>
@@ -2453,7 +2628,7 @@ Di `resources/views/layouts/sidebar.blade.php`, sisipkan grup baru tepat setelah
 - [ ] **Step 9: Jalankan tes, pastikan lulus**
 
 Run: `php artisan test --filter=ServiceCatalogCrudTest`
-Expected: PASS (4 tests)
+Expected: PASS (8 tests)
 
 - [ ] **Step 10: Pastikan peta permission tetap lengkap**
 
