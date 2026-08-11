@@ -346,6 +346,13 @@ Route::middleware(['auth', 'access'])->group(function () {
         Route::post  ('katalog',      [\App\Http\Controllers\Pages\ServiceCatalogController::class, 'store'])  ->name('catalog.store');
         Route::put   ('katalog/{id}', [\App\Http\Controllers\Pages\ServiceCatalogController::class, 'update']) ->name('catalog.update')->whereNumber('id');
         Route::delete('katalog/{id}', [\App\Http\Controllers\Pages\ServiceCatalogController::class, 'destroy'])->name('catalog.destroy')->whereNumber('id');
+
+        // Klien jasa
+        Route::get   ('klien',      [\App\Http\Controllers\Pages\ServiceClientController::class, 'index'])  ->name('client.index');
+        Route::post  ('klien',      [\App\Http\Controllers\Pages\ServiceClientController::class, 'store'])  ->name('client.store');
+        Route::get   ('klien/{id}', [\App\Http\Controllers\Pages\ServiceClientController::class, 'show'])   ->name('client.show')->whereNumber('id');
+        Route::put   ('klien/{id}', [\App\Http\Controllers\Pages\ServiceClientController::class, 'update']) ->name('client.update')->whereNumber('id');
+        Route::delete('klien/{id}', [\App\Http\Controllers\Pages\ServiceClientController::class, 'destroy'])->name('client.destroy')->whereNumber('id');
     });
 });
 

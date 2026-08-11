@@ -342,6 +342,14 @@ return [
             ],
         ],
 
+        'service_client' => [
+            'label'   => 'Klien Jasa',
+            'actions' => [
+                'view'   => ['service.client.index', 'service.client.show'],
+                'manage' => ['service.client.store', 'service.client.update', 'service.client.destroy'],
+            ],
+        ],
+
         'permission' => [
             'label'   => 'Hak Akses',
             'actions' => ['manage' => ['permission.index', 'permission.update']],

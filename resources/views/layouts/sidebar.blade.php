@@ -99,6 +99,14 @@
                         </a>
                     </li>
                 @endcan
+                @can('service_client.view')
+                    <li class="nav-item {{ nav_active('service.client.*') }}">
+                        <a href="{{ route('service.client.index') }}" class="nav-link">
+                            <i class="link-icon" data-feather="users"></i>
+                            <span class="link-title">Klien Jasa</span>
+                        </a>
+                    </li>
+                @endcan
             @endcanany
 
             {{-- ===================== DIREKTORI ===================== --}}
