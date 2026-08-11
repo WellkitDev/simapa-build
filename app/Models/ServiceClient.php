@@ -19,7 +19,11 @@ class ServiceClient extends Model
 
     public function invoices()
     {
-        return $this->hasMany(ServiceInvoice::class)->latest('issued_at');
+        // Pemecah seri wajib: issued_at bertipe date (tanpa jam), jadi dua invoice
+        // di hari yang sama akan bertukar urutan antar-request tanpa `id`.
+        return $this->hasMany(ServiceInvoice::class)
+            ->orderByDesc('issued_at')
+            ->orderByDesc('id');
     }
 
     /** "Nama — Instansi" untuk dropdown; instansi kosong tidak menyisakan tanda pisah. */

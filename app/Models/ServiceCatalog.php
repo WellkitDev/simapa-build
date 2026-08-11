@@ -43,9 +43,14 @@ class ServiceCatalog extends Model
         return $query->where('is_active', true);
     }
 
-    public function categoryLabel(): string
+    /**
+     * Statis, karena kedua pemanggilnya (daftar katalog & optgroup form invoice)
+     * memegang KUNCI kategori hasil groupBy, bukan instance model. Fallback `?? $key`
+     * tinggal di satu tempat.
+     */
+    public static function categoryLabel(?string $key): string
     {
-        return self::CATEGORIES[$this->category] ?? $this->category;
+        return self::CATEGORIES[$key] ?? (string) $key;
     }
 
     /** "Rp 500.000 – Rp 1.000.000" bila berkisar, "Rp 750.000" bila tetap. */

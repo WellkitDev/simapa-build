@@ -30,6 +30,13 @@ class ServiceCatalogModelTest extends TestCase
     }
 
     /** @test */
+    public function category_label_maps_known_key_and_falls_back_for_unknown_key(): void
+    {
+        $this->assertSame('Layanan Perbaikan', ServiceCatalog::categoryLabel('perbaikan'));
+        $this->assertSame('tidak-dikenal', ServiceCatalog::categoryLabel('tidak-dikenal'));
+    }
+
+    /** @test */
     public function client_is_soft_deleted(): void
     {
         $client = ServiceClient::factory()->create();
