@@ -1137,14 +1137,55 @@ class ServiceInvoiceCalcTest extends TestCase
     }
 
     /** @test */
-    public function discount_larger_than_subtotal_clamps_total_at_zero(): void
+    public function exactly_paid_invoice_with_odd_cents_is_lunas_not_dp(): void
     {
-        $inv = ServiceInvoice::factory()->create(['discount' => 999999999]);
+        // Jebakan float sungguhan: (float) total menghasilkan ...9900000002
+        // sementara (float) paid menghasilkan ...9899999999, sehingga perbandingan
+        // mentah `paid >= total` gagal dan invoice yang sudah lunas tersangkut di
+        // 'dp' SELAMANYA — sementara `remaining` tersimpan 0.00 karena kolomnya
+        // decimal(15,2). Barisnya jadi menyangkal dirinya sendiri.
+        $inv = ServiceInvoice::factory()->create(['discount' => 636766.00]);
+        $inv->items()->create([
+            'name' => 'Hosting prorata', 'qty' => 1,
+            'unit_price' => 2548189.99, 'subtotal' => 2548189.99,
+        ]);
+        $inv->payments()->create([
+            'paid_at' => now()->toDateString(), 'type' => 'pelunasan', 'amount' => 1911423.99,
+        ]);
+        $inv->recalcTotals();
+        $inv->refresh();
+
+        $this->assertEquals(1911423.99, $inv->total);
+        $this->assertEquals(1911423.99, $inv->paid_total);
+        $this->assertEquals(0, $inv->remaining);
+        $this->assertSame('lunas', $inv->payment_status);
+        $this->assertFalse($inv->isOverpaid());
+    }
+
+    /** @test */
+    public function zero_total_invoice_stays_belum_until_money_arrives(): void
+    {
+        $inv = ServiceInvoice::factory()->create([
+            'discount' => 999999999,
+            'due_at'   => today()->subDays(10)->toDateString(),
+        ]);
         $inv->items()->create(['name' => 'X', 'qty' => 1, 'unit_price' => 100000, 'subtotal' => 100000]);
         $inv->recalcTotals();
         $inv->refresh();
 
         $this->assertEquals(0, $inv->total);
+        $this->assertEquals(0, $inv->remaining);
+        $this->assertSame('belum', $inv->payment_status);
+        $this->assertFalse($inv->isOverdue(), 'Utang nol tak pernah telat, walau jatuh temponya lewat.');
+
+        // Cabang sebaliknya: total nol tapi ada uang masuk = lebih bayar.
+        $inv->payments()->create(['paid_at' => now()->toDateString(), 'type' => 'dp', 'amount' => 50000]);
+        $inv->recalcTotals();
+        $inv->refresh();
+
+        $this->assertSame('lunas', $inv->payment_status);
+        $this->assertEquals(-50000, $inv->remaining);
+        $this->assertTrue($inv->isOverpaid());
     }
 }
 ```
@@ -1165,23 +1206,40 @@ Sisipkan tepat sebelum `isOverdue()` di `app/Models/ServiceInvoice.php`:
      * ini sengaja didenormalisasi supaya daftar bisa mengurutkan & memfilter di SQL.
      *
      * payment_status TIDAK PERNAH diketik manusia; selalu hasil hitungan di sini.
+     *
+     * Semua nilai dibulatkan ke 2 desimal SEBELUM dibandingkan. Tanpa itu, invoice
+     * yang dibayar tepat lunas bisa tersangkut di 'dp' selamanya: float tak bisa
+     * mewakili sebagian pecahan rupiah, sehingga `paid >= total` bernilai false
+     * padahal selisihnya 6e-8 — dan selisih itu tersimpan sebagai 0.00 di kolom
+     * decimal(15,2), membuat barisnya menyangkal dirinya sendiri (sisa nol, status DP).
+     *
+     * DUA HAL YANG PERLU DIINGAT PEMANGGIL:
+     *  - `save()` menulis SEMUA atribut yang kotor, bukan hanya lima kolom di bawah.
+     *    Jangan panggil metode ini sambil menggantung perubahan lain di memori
+     *    kecuali memang ingin ikut tersimpan.
+     *  - SUM di sini adalah consistent read TANPA kunci baris, jadi membungkusnya
+     *    dengan `DB::transaction` saja TIDAK menyerialkan dua pencatatan pembayaran
+     *    yang bersamaan — yang terakhir bisa menimpa dengan angka basi. Hitungannya
+     *    derivatif (bukan inkremental), jadi panggilan berikutnya memulihkannya.
+     *    Diterima sebagai risiko: alat internal dengan satu-dua operator.
      */
     public function recalcTotals(): void
     {
-        $subtotal = (float) $this->items()->sum('subtotal');
-        $total    = max($subtotal - (float) $this->discount, 0);
-        $paid     = (float) $this->payments()->sum('amount');
+        $subtotal  = round((float) $this->items()->sum('subtotal'), 2);
+        $total     = round(max($subtotal - (float) $this->discount, 0), 2);
+        $paid      = round((float) $this->payments()->sum('amount'), 2);
+        $remaining = round($total - $paid, 2);
 
         $status = 'belum';
         if ($paid > 0) {
-            $status = $paid >= $total ? 'lunas' : 'dp';
+            $status = $remaining <= 0 ? 'lunas' : 'dp';
         }
 
         $this->forceFill([
             'subtotal'       => $subtotal,
             'total'          => $total,
             'paid_total'     => $paid,
-            'remaining'      => $total - $paid,   // negatif = lebih bayar, sengaja dipertahankan
+            'remaining'      => $remaining,   // negatif = lebih bayar, sengaja dipertahankan
             'payment_status' => $status,
         ])->save();
     }
@@ -1191,7 +1249,7 @@ Sisipkan tepat sebelum `isOverdue()` di `app/Models/ServiceInvoice.php`:
 - [ ] **Step 4: Jalankan tes, pastikan lulus**
 
 Run: `php artisan test --filter=ServiceInvoiceCalcTest`
-Expected: PASS (5 tests)
+Expected: PASS (6 tests)
 
 - [ ] **Step 5: Commit**
 
@@ -4427,6 +4485,8 @@ class ServiceInvoicePaymentController extends Controller
 }
 ```
 
+> **Yang TIDAK dijamin `DB::transaction` di sini.** Transaksi memberi atomisitas (pembayaran + total + log jadi satu), **bukan** serialisasi. `SUM` di dalam `recalcTotals()` adalah consistent read tanpa kunci baris, jadi dua pencatatan pembayaran yang benar-benar bersamaan bisa saling menimpa: yang kedua membaca SUM sebelum yang pertama commit, lalu menulis angka basi. Hitungannya derivatif, jadi `recalcTotals()` berikutnya memulihkannya — tapi tak ada yang memicunya otomatis. Diterima sebagai risiko (alat internal, satu-dua operator); kalau kelak perlu ditutup, kuncinya `lockForUpdate()` pada baris invoice, bukan menambah transaksi.
+
 - [ ] **Step 4: Daftarkan rute**
 
 Tambahkan di grup `service.` di `routes/web.php`, setelah baris `invoice.cancel`:
@@ -5772,7 +5832,7 @@ git commit -m "layanan: kunci akses, snapshot, dan isolasi dari keuangan lewat t
 - [ ] **Step 1: Jalankan seluruh suite**
 
 Run: `php artisan test`
-Expected: PASS, nol kegagalan. Plan ini menambahkan 69 tes baru di 12 berkas (`tests/Feature/Service*.php`).
+Expected: PASS, nol kegagalan. Plan ini menambahkan sekitar 70 tes baru di 12 berkas (`tests/Feature/Service*.php`).
 
 Kalau ada tes **lama** yang merah, hentikan dan telusuri sebelum lanjut. Tersangka yang paling mungkin:
 - `PermissionMapCompletenessTest` — ada rute `service.*` yang belum dipetakan.

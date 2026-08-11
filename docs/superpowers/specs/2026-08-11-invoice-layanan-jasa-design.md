@@ -582,6 +582,8 @@ Tidak ada berkas modul keuangan, order, atau invoice yang disentuh.
 ## 13. Risiko & Utang yang Diterima
 
 1. **`recalcTotals()` harus disiplin dipanggil.** Konsekuensi denormalisasi. Ditambatkan dengan T-CALC-1..4; kalau nanti muncul jalur tulis baru, tesnya harus ikut bertambah.
+1b. **Dua pencatatan pembayaran yang benar-benar bersamaan bisa saling menimpa.** `SUM` di dalam `recalcTotals()` adalah consistent read tanpa kunci baris, jadi `DB::transaction` memberi atomisitas tetapi bukan serialisasi. Hitungannya derivatif sehingga panggilan berikutnya memulihkan, tapi tak ada yang memicunya otomatis. Diterima: alat internal dengan satu-dua operator. Penutupnya kelak `lockForUpdate()` pada baris invoice.
+1c. **Uang dihitung dengan float yang dibulatkan ke 2 desimal, bukan integer sen.** Pembulatan sebelum perbandingan sudah menutup kasus "lunas terbaca DP" (ditambatkan tes regresi bersen-pecahan). Kalau modul ini kelak menangani nilai jauh lebih besar atau mata uang lain, pindah ke integer sen adalah langkah berikutnya.
 2. **Tidak ada bukti transfer.** Pembayaran dicatat tanpa lampiran struk. Cukup untuk sekarang; kalau perlu, tambah kolom `proof_url` + `GoogleDriveService` menyusul — aditif.
 3. **Tidak ada pengingat jatuh tempo / perpanjangan.** Hosting & maintenance tahunan harus dipantau manual lewat filter jatuh tempo. Notifikasi otomatis = pekerjaan berikutnya, bukan sekarang.
 4. **`inv_book_mail.blade.php` yang lama tetap rusak** (`inv_no`). Sengaja dibiarkan di luar scope; dicatat agar tidak hilang.
