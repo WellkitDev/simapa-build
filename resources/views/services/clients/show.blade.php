@@ -36,13 +36,11 @@
                                 <td>Rp {{ number_format($inv->total, 0, ',', '.') }}</td>
                                 <td><span class="badge bg-secondary">{{ $inv->workStatusLabel() }}</span></td>
                                 <td><span class="badge bg-info">{{ $inv->paymentStatusLabel() }}</span></td>
-                                {{-- Tombol Detail sengaja BELUM ada di sini; ditambahkan di Task 8
-                                     bersama rute service.invoice.show. Membungkusnya dengan
-                                     @can('service_invoice.view') TIDAK aman: Gate::before di
-                                     AuthServiceProvider meloloskan superadmin untuk ability APA PUN,
-                                     termasuk permission yang belum terdaftar — jadi blok itu tetap
-                                     dievaluasi dan route() yang belum ada melempar 500. --}}
-                                <td></td>
+                                <td>
+                                    @can('service_invoice.view')
+                                        <a href="{{ route('service.invoice.show', $inv->id) }}" class="btn btn-xs btn-primary">Detail</a>
+                                    @endcan
+                                </td>
                             </tr>
                             @empty
                             <tr><td colspan="6" class="text-center text-muted">Belum ada invoice untuk klien ini.</td></tr>

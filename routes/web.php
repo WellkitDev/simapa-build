@@ -341,6 +341,12 @@ Route::middleware(['auth', 'access'])->group(function () {
 
     /* ===================== LAYANAN / JASA (modul standalone) ===================== */
     Route::prefix('layanan')->name('service.')->group(function () {
+        // Invoice layanan
+        Route::get ('invoice',        [\App\Http\Controllers\Pages\ServiceInvoiceController::class, 'index'])  ->name('invoice.index');
+        Route::get ('invoice/create', [\App\Http\Controllers\Pages\ServiceInvoiceController::class, 'create']) ->name('invoice.create');
+        Route::post('invoice',        [\App\Http\Controllers\Pages\ServiceInvoiceController::class, 'store'])  ->name('invoice.store');
+        Route::get ('invoice/{id}',   [\App\Http\Controllers\Pages\ServiceInvoiceController::class, 'show'])   ->name('invoice.show')->whereNumber('id');
+
         // Katalog
         Route::get   ('katalog',      [\App\Http\Controllers\Pages\ServiceCatalogController::class, 'index'])  ->name('catalog.index');
         Route::post  ('katalog',      [\App\Http\Controllers\Pages\ServiceCatalogController::class, 'store'])  ->name('catalog.store');

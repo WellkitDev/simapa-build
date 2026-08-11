@@ -334,6 +334,14 @@ return [
             ],
         ],
 
+        'service_invoice' => [
+            'label'   => 'Invoice Layanan',
+            'actions' => [
+                'view'   => ['service.invoice.index', 'service.invoice.show'],
+                'create' => ['service.invoice.create', 'service.invoice.store'],
+            ],
+        ],
+
         'service_catalog' => [
             'label'   => 'Katalog Layanan',
             'actions' => [

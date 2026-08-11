@@ -91,6 +91,14 @@
                  ke grup Pembayaran yang semua itemnya masuk keuangan. --}}
             @canany(['service_invoice.view', 'service_catalog.view', 'service_client.view'])
                 <li class="nav-item nav-category">Layanan</li>
+                @can('service_invoice.view')
+                    <li class="nav-item {{ nav_active('service.invoice.*') }}">
+                        <a href="{{ route('service.invoice.index') }}" class="nav-link">
+                            <i class="link-icon" data-feather="file-text"></i>
+                            <span class="link-title">Invoice Layanan</span>
+                        </a>
+                    </li>
+                @endcan
                 @can('service_catalog.view')
                     <li class="nav-item {{ nav_active('service.catalog.*') }}">
                         <a href="{{ route('service.catalog.index') }}" class="nav-link">
