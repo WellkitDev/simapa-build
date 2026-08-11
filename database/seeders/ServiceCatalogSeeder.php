@@ -9,6 +9,16 @@ use Illuminate\Database\Seeder;
  * Daftar harga jasa OJS yang berlaku. firstOrCreate berdasarkan category+name,
  * jadi aman dijalankan ulang dan TIDAK menimpa harga yang sudah disunting operator.
  *
+ * `withTrashed()` pada pencariannya penting: tanpa itu, baris seed yang sengaja
+ * DIHAPUS operator tak terlihat oleh lookup, seeder membuatnya lagi, dan
+ * penghapusannya batal diam-diam sambil menumpuk tombstone tiap kali dijalankan.
+ *
+ * BATAS YANG HARUS DIKETAHUI: kuncinya adalah NAMA. Baris seed yang DIGANTI
+ * NAMANYA oleh operator tak akan dikenali lagi, jadi menjalankan ulang seeder
+ * melahirkan kembali baris lama di samping hasil suntingan itu. Kalau kelak
+ * penggantian nama jadi hal biasa, kuncinya harus pindah ke kolom `code` yang
+ * stabil — bukan menambal seeder-nya.
+ *
  * Kategori 'similarity' (Turnitin & penurunan plagiasi) sengaja kosong: tarifnya
  * belum ditetapkan, diisi lewat CRUD katalog tanpa perlu deploy.
  */
@@ -69,7 +79,7 @@ class ServiceCatalogSeeder extends Seeder
 
         foreach ($rows as $category => $items) {
             foreach ($items as $position => [$name, $price, $priceMax, $unit, $description]) {
-                ServiceCatalog::firstOrCreate(
+                ServiceCatalog::withTrashed()->firstOrCreate(
                     ['category' => $category, 'name' => $name],
                     [
                         'price'       => $price,

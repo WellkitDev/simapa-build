@@ -39,11 +39,21 @@ class ServiceCatalogController extends Controller
     {
         ServiceCatalog::findOrFail($id)->delete();
 
+        // 'info', bukan 'warning': layouts/master hanya merender success/error/info,
+        // jadi pesan ber-key 'warning' tak pernah sampai ke layar sama sekali.
         return redirect()->route('service.catalog.index')
-            ->with('warning', 'Layanan dihapus dari katalog. Invoice lama tidak berubah.');
+            ->with('info', 'Layanan dihapus dari katalog. Invoice lama tidak berubah.');
     }
 
-    /** Buang pemisah ribuan sebelum validasi, lalu validasi. */
+    /**
+     * Buang pemisah ribuan sebelum validasi, lalu validasi.
+     *
+     * Harga di modul ini RUPIAH BULAT. Pembersih di bawah membuang titik, koma,
+     * dan spasi tanpa bisa membedakan pemisah ribuan dari titik desimal — jadi
+     * "1.500,50" akan jadi 150050. Itu diterima sadar: tarif jasa tak pernah bersen.
+     * Konsekuensinya form HARUS menerima angka bulat saja; lihat catatan di view
+     * soal `(int)` pada data-catalog, yang mencegah "350000.00" kembali ke sini.
+     */
     private function validated(Request $request): array
     {
         foreach (['price', 'price_max'] as $field) {
@@ -53,6 +63,10 @@ class ServiceCatalogController extends Controller
             }
         }
 
+        // `is_active` SENGAJA di luar daftar aturan. Kalau ia divalidasi sebagai
+        // `nullable|boolean`, nilai kosong lolos sebagai null lalu menabrak kolom
+        // NOT NULL dan berakhir 500. Di luar daftar, union `+` di bawah selalu
+        // yang mengisinya, dan checkbox yang tak dicentang jadi false.
         return $request->validate([
             'category'    => 'required|in:' . implode(',', array_keys(ServiceCatalog::CATEGORIES)),
             'name'        => 'required|string|max:190',
@@ -60,7 +74,6 @@ class ServiceCatalogController extends Controller
             'price_max'   => 'nullable|numeric|min:0|max:9999999999999.99|gte:price',
             'unit'        => 'nullable|in:' . implode(',', array_keys(ServiceCatalog::UNITS)),
             'description' => 'nullable|string',
-            'is_active'   => 'nullable|boolean',
             'position'    => 'nullable|integer|min:0',
         ]) + ['is_active' => $request->boolean('is_active')];
     }
