@@ -1825,6 +1825,17 @@ class ServiceInvoiceWorkflow
      * Pembatalan TIDAK lewat sini: 'batal' keadaan terminal yang butuh alasan.
      * Lihat cancel() (ditambahkan di Task 10).
      *
+     * DUA HAL YANG PERLU DIINGAT PEMANGGIL:
+     *  - `refresh()` di bawah MEMBUANG perubahan yang masih menggantung di memori
+     *    pada instance yang dioper. Ini kebalikan dari `ServiceInvoice::recalcTotals()`,
+     *    yang justru ikut menyimpan atribut kotor lain. Jangan mengoper invoice yang
+     *    baru diubah tapi belum disimpan ke sini.
+     *  - `refresh()` berada DI LUAR transaksi dan tanpa kunci baris, jadi ia menutup
+     *    kasus instance basi (dua operator memuat halaman lalu menyimpan bergantian),
+     *    bukan tulisan yang benar-benar serempak. Sisa celahnya diterima sadar —
+     *    alat internal, satu-dua operator, sama seperti catatan di recalcTotals().
+     *    Penutupnya kelak `lockForUpdate()` pada baris invoice di dalam transaksi.
+     *
      * @return bool true bila status benar-benar berpindah; false bila sama.
      */
     public function changeStatus(ServiceInvoice $invoice, string $to, ?string $note, ?int $userId): bool
@@ -1841,6 +1852,16 @@ class ServiceInvoiceWorkflow
                     . 'Pembatalan punya jalurnya sendiri lewat cancel().',
             ]);
         }
+
+        // Baca ulang dari basis data SEBELUM memutuskan apa pun. Instance yang dipegang
+        // pemanggil bisa basi (dua operator memuat baris yang sama sebelum salah satu
+        // menyimpan). Tanpa ini dua hal salah sekaligus: (1) $from di bawah bisa keliru,
+        // dan (2) Eloquent's update() cuma mengirim kolom yang "dirty" RELATIF KE
+        // SNAPSHOT ASLI MODEL INI, bukan relatif ke isi tabel saat ini — jadi kalau nilai
+        // baru yang kita tulis (mis. work_finished_at = null) KEBETULAN sama dengan nilai
+        // basi yang pertama kali dimuat model ini, kolom itu diam-diam tidak pernah masuk
+        // ke SQL UPDATE sama sekali, dan tanggal selesai tulisan penulis lain bertahan.
+        $invoice->refresh();
 
         $from = $invoice->work_status;
         if ($from === $to) {

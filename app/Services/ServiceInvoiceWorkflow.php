@@ -28,6 +28,17 @@ class ServiceInvoiceWorkflow
      * Pembatalan TIDAK lewat sini: 'batal' keadaan terminal yang butuh alasan.
      * Lihat cancel() (ditambahkan di Task 10).
      *
+     * DUA HAL YANG PERLU DIINGAT PEMANGGIL:
+     *  - `refresh()` di bawah MEMBUANG perubahan yang masih menggantung di memori
+     *    pada instance yang dioper. Ini kebalikan dari `ServiceInvoice::recalcTotals()`,
+     *    yang justru ikut menyimpan atribut kotor lain. Jangan mengoper invoice yang
+     *    baru diubah tapi belum disimpan ke sini.
+     *  - `refresh()` berada DI LUAR transaksi dan tanpa kunci baris, jadi ia menutup
+     *    kasus instance basi (dua operator memuat halaman lalu menyimpan bergantian),
+     *    bukan tulisan yang benar-benar serempak. Sisa celahnya diterima sadar —
+     *    alat internal, satu-dua operator, sama seperti catatan di recalcTotals().
+     *    Penutupnya kelak `lockForUpdate()` pada baris invoice di dalam transaksi.
+     *
      * @return bool true bila status benar-benar berpindah; false bila sama.
      */
     public function changeStatus(ServiceInvoice $invoice, string $to, ?string $note, ?int $userId): bool
