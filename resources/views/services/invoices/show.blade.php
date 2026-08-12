@@ -214,7 +214,7 @@
                     @can('service_invoice.cancel')
                         <hr>
                         <form method="POST" action="{{ route('service.invoice.cancel', $invoice->id) }}"
-                              onsubmit="return confirm('Batalkan invoice ini? Tindakan ini tidak bisa dibalik.')">
+                              data-confirm="Batalkan invoice ini? Tindakan ini tidak bisa dibalik.">
                             @csrf
                             <input type="text" name="cancel_reason" class="form-control form-control-sm mb-2"
                                    placeholder="Alasan pembatalan" required>

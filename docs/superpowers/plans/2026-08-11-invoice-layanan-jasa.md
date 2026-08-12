@@ -29,6 +29,8 @@ Baca sekali sebelum Task 1. Melanggar salah satu ini membuat suite merah dengan 
 11. **Layar apa pun yang punya form WAJIB punya blok `@if ($errors->any())` sendiri.** `layouts/master.blade.php:123-125` hanya merender `session('success')`, `session('error')`, dan `session('info')` — **tidak** `$errors`, dan **tidak** `session('warning')`. Tanpa blok itu setiap simpan yang ditolak validasi memantul tanpa satu pun tanda.
 12. **Jangan pernah mengirim nilai berkolom `decimal:2` ke input teks yang nilainya nanti dibersihkan pemisah ribuan.** Cast-nya memancarkan `"350000.00"`, pembersihnya membuang titik desimal, dan angkanya jadi 100×. Pakai `(int)` seperti `accounting/journal.blade.php:255` dan `salary/slips/form.blade.php:7`.
 13. **Jangan menaruh ekspresi berkurung dalam sebagai argumen direktif Blade.** Pencocok argumen direktif menghitung tanda kurung dengan regex naif; kombinasi `old(...)` + ternary + arrow function + array literal membuatnya salah hitung dan view-nya gagal dikompilasi dengan `ParseError: Unclosed '['`. Hitung dulu ke sebuah variabel di blok php, lalu oper variabel tunggal itu. **Blade yang tidak bisa dikompilasi tidak akan tertangkap tes yang hanya menegaskan redirect** — hanya tes yang benar-benar merender view-nya yang melihatnya.
+15. **Flash hanya boleh ber-key `success`, `error`, atau `info`.** `layouts/master.blade.php:123-125` tidak merender `warning` — pesannya hilang tanpa jejak dan operator tak tahu tindakannya berhasil. Cacat ini masuk ke rencana ini **tiga kali** sebelum akhirnya dibersihkan menyeluruh.
+16. **Form destruktif memakai `data-confirm`**, bukan `onsubmit="return confirm(...)"` — ada listener SweetAlert terdelegasi di `layouts/master.blade.php:113` yang dipakai seluruh aksi destruktif aplikasi ini.
 14. **Komentar Blade tidak boleh memuat token direktif blok php secara harfiah.** Blade memasangkan blok php mentah dengan regex sebelum komentar dibuang, jadi token itu di dalam komentar akan dikawinkan dengan penutup blok nyata di bawahnya dan merusak berkasnya.
 
 ---
@@ -4996,7 +4998,8 @@ Sisipkan setelah `destroy()` di `app/Http/Controllers/Pages/ServiceInvoiceContro
             return back()->with('error', 'Invoice ini sudah dibatalkan.');
         }
 
-        return back()->with('warning', 'Invoice dibatalkan.');
+        // 'info', bukan 'warning': layouts/master hanya merender success/error/info.
+        return back()->with('info', 'Invoice dibatalkan.');
     }
 ```
 
@@ -5072,7 +5075,7 @@ Di `resources/views/services/invoices/show.blade.php`, sisipkan blok berikut di 
                     @can('service_invoice.cancel')
                         <hr>
                         <form method="POST" action="{{ route('service.invoice.cancel', $invoice->id) }}"
-                              onsubmit="return confirm('Batalkan invoice ini? Tindakan ini tidak bisa dibalik.')">
+                              data-confirm="Batalkan invoice ini? Tindakan ini tidak bisa dibalik.">
                             @csrf
                             <input type="text" name="cancel_reason" class="form-control form-control-sm mb-2"
                                    placeholder="Alasan pembatalan" required>
@@ -5329,7 +5332,8 @@ class ServiceInvoicePaymentController extends Controller
             ]);
         });
 
-        return back()->with('warning', 'Pembayaran dihapus dan total dihitung ulang.');
+        // 'info', bukan 'warning': layouts/master hanya merender success/error/info.
+        return back()->with('info', 'Pembayaran dihapus dan total dihitung ulang.');
     }
 }
 ```
@@ -5388,7 +5392,7 @@ Di `resources/views/services/invoices/show.blade.php`, sisipkan di kolom kiri, t
                                 <td>
                                     @can('service_invoice.payment')
                                     <form action="{{ route('service.invoice.payment.destroy', [$invoice->id, $p->id]) }}"
-                                          method="POST" onsubmit="return confirm('Hapus pembayaran ini? Total akan dihitung ulang.')">
+                                          method="POST" data-confirm="Hapus pembayaran ini? Total akan dihitung ulang.">
                                         @csrf @method('DELETE')
                                         <button class="btn btn-xs btn-outline-danger">×</button>
                                     </form>
