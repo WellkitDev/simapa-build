@@ -351,6 +351,8 @@ Route::middleware(['auth', 'access'])->group(function () {
         Route::delete('invoice/{id}',      [\App\Http\Controllers\Pages\ServiceInvoiceController::class, 'destroy'])->name('invoice.destroy')->whereNumber('id');
         Route::post('invoice/{id}/status', [\App\Http\Controllers\Pages\ServiceInvoiceController::class, 'status'])->name('invoice.status')->whereNumber('id');
         Route::post('invoice/{id}/cancel', [\App\Http\Controllers\Pages\ServiceInvoiceController::class, 'cancel'])->name('invoice.cancel')->whereNumber('id');
+        Route::post  ('invoice/{id}/payment',              [\App\Http\Controllers\Pages\ServiceInvoicePaymentController::class, 'store'])  ->name('invoice.payment.store')->whereNumber('id');
+        Route::delete('invoice/{id}/payment/{paymentId}',  [\App\Http\Controllers\Pages\ServiceInvoicePaymentController::class, 'destroy'])->name('invoice.payment.destroy')->whereNumber('id')->whereNumber('paymentId');
 
         // Katalog
         Route::get   ('katalog',      [\App\Http\Controllers\Pages\ServiceCatalogController::class, 'index'])  ->name('catalog.index');

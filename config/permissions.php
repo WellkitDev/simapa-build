@@ -341,8 +341,9 @@ return [
                 'create' => ['service.invoice.create', 'service.invoice.store'],
                 'edit'   => ['service.invoice.edit', 'service.invoice.update'],
                 'delete' => ['service.invoice.destroy'],
-                'status' => ['service.invoice.status'],
-                'cancel' => ['service.invoice.cancel'],
+                'status'  => ['service.invoice.status'],
+                'cancel'  => ['service.invoice.cancel'],
+                'payment' => ['service.invoice.payment.store', 'service.invoice.payment.destroy'],
             ],
         ],
 

@@ -128,6 +128,52 @@
                 @endif
             </div>
         </div>
+
+        <div class="card mt-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-baseline mb-2">
+                    <h6 class="card-title mb-0">Riwayat Pembayaran</h6>
+                    @can('service_invoice.payment')
+                        @unless($invoice->isCancelled())
+                            <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#paymentModal">
+                                + Catat Pembayaran
+                            </button>
+                        @endunless
+                    @endcan
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr><th>Tanggal</th><th>Jenis</th><th>Metode</th><th>Referensi</th>
+                                <th class="text-end">Jumlah</th><th></th></tr>
+                        </thead>
+                        <tbody>
+                            @forelse($invoice->payments as $p)
+                            <tr>
+                                <td>{{ $p->paid_at?->format('d M Y') }}</td>
+                                <td>{{ $p->typeLabel() }}</td>
+                                <td>{{ $p->methodLabel() }}</td>
+                                <td><small>{{ $p->reference ?? '-' }}</small></td>
+                                <td class="text-end">Rp {{ number_format($p->amount, 0, ',', '.') }}</td>
+                                <td>
+                                    @can('service_invoice.payment')
+                                    <form action="{{ route('service.invoice.payment.destroy', [$invoice->id, $p->id]) }}"
+                                          method="POST" data-confirm="Hapus pembayaran ini? Total akan dihitung ulang.">
+                                        @csrf @method('DELETE')
+                                        <button class="btn btn-xs btn-outline-danger">×</button>
+                                    </form>
+                                    @endcan
+                                </td>
+                            </tr>
+                            @empty
+                            <tr><td colspan="6" class="text-center text-muted">Belum ada pembayaran.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="col-md-4">
@@ -201,4 +247,66 @@
         </div>
     </div>
 </div>
+
+@can('service_invoice.payment')
+<div class="modal fade" id="paymentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="POST" action="{{ route('service.invoice.payment.store', $invoice->id) }}">
+            @csrf
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Catat Pembayaran</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-2">
+                        <label class="form-label">Tanggal Bayar</label>
+                        <input type="date" name="paid_at" class="form-control" value="{{ now()->format('Y-m-d') }}" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Jenis</label>
+                        <select name="type" class="form-select" required>
+                            @foreach(\App\Models\ServiceInvoicePayment::TYPES as $key => $label)
+                                <option value="{{ $key }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        <small class="text-muted">Label untuk cetakan saja — status bayar dihitung dari nominalnya.</small>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Jumlah (Rp)</label>
+                        {{-- Aturan global 12: JANGAN echo $invoice->remaining (decimal:2, string
+                             "1500000.00") langsung ke input yang nilainya nanti dibersihkan
+                             pemisah ribuan oleh controller — titik desimalnya akan terbaca
+                             sebagai pemisah ribuan dan angkanya jadi 100x. (int) di sini
+                             membuang bagian desimalnya sebelum sampai ke value="". --}}
+                        <input type="text" name="amount" class="form-control" required
+                               value="{{ max((float) $invoice->remaining, 0) > 0 ? (int) $invoice->remaining : '' }}">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Metode</label>
+                        <select name="method" class="form-select" required>
+                            @foreach(\App\Models\ServiceInvoicePayment::METHODS as $key => $label)
+                                <option value="{{ $key }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Referensi</label>
+                        <input type="text" name="reference" class="form-control" maxlength="190"
+                               placeholder="No. transaksi / rekening pengirim">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Catatan</label>
+                        <textarea name="note" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary">Simpan</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+@endcan
 @endsection
