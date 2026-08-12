@@ -250,4 +250,107 @@ class ServiceInvoiceEditLockTest extends TestCase
         $this->assertEquals(300000, $inv->payments->first()->amount);
         $this->assertEquals(300000, $inv->paid_total);
     }
+
+    /** @test */
+    public function a_cancelled_invoice_is_locked(): void
+    {
+        // Syarat isCancelled() di isEditable() SEBELUMNYA tak diuji sama sekali:
+        // mencabutnya membuat sepuluh tes lain tetap hijau, sementara invoice yang
+        // sudah dibatalkan bisa diedit bebas oleh manager.
+        $inv = $this->invoice();
+        $inv->update(['work_status' => 'batal', 'cancel_reason' => 'klien mundur']);
+
+        $this->assertFalse($inv->fresh()->isEditable());
+
+        $this->actingAs($this->user('manager'))
+            ->get(route('service.invoice.edit', $inv->id))
+            ->assertRedirect(route('service.invoice.show', $inv->id));
+
+        $this->actingAs($this->user('manager'))
+            ->put(route('service.invoice.update', $inv->id), $this->payload())
+            ->assertRedirect(route('service.invoice.show', $inv->id));
+
+        $this->assertEquals(750000, $inv->fresh()->total);   // tidak berubah
+    }
+
+    /** @test */
+    public function update_persists_discount_dates_and_the_client_snapshot(): void
+    {
+        // Semua kolom di bawah SEBELUMNYA tak tersentuh assertion mana pun:
+        // memaku 'discount' => 0 di update() membuat sepuluh tes tetap hijau.
+        $inv = $this->invoice();
+
+        $this->actingAs($this->user('manager'))->put(route('service.invoice.update', $inv->id), $this->payload([
+            'client_name'        => 'Nama Terkoreksi',
+            'client_institution' => 'Universitas Batanghari',
+            'client_email'       => 'koreksi@unbari.ac.id',
+            'issued_at'          => '2026-08-20',
+            'due_at'             => '2026-09-03',
+            'discount'           => '100.000',
+            'note'               => 'catatan tercetak',
+            'internal_note'      => 'catatan internal',
+        ]))->assertRedirect(route('service.invoice.show', $inv->id));
+
+        $inv->refresh();
+        $this->assertEquals(100000, $inv->discount);
+        $this->assertEquals(900000, $inv->subtotal);
+        $this->assertEquals(800000, $inv->total);
+        $this->assertSame('2026-08-20', $inv->issued_at->toDateString());
+        $this->assertSame('2026-09-03', $inv->due_at->toDateString());
+        $this->assertSame('Nama Terkoreksi', $inv->client_name);
+        $this->assertSame('koreksi@unbari.ac.id', $inv->client_email);
+        $this->assertSame('catatan tercetak', $inv->note);
+        $this->assertSame('catatan internal', $inv->internal_note);
+    }
+
+    /** @test */
+    public function reopening_the_edit_form_and_saving_it_unchanged_keeps_the_totals(): void
+    {
+        // Aturan global 12. Kalau harga atau diskon sampai ke input uang sebagai
+        // string decimal:2 ("750000.00"), pembersih pemisah ribuan membuang titik
+        // desimalnya dan angkanya jadi 100x — persis bug yang menyerang layar
+        // katalog. Nilai yang dikirim di sini diambil dari HALAMAN YANG DIRENDER,
+        // bukan diketik tangan, karena jebakannya justru ada di payload itu.
+        $manager = $this->user('manager');
+        $inv     = $this->invoice();
+        $inv->update(['discount' => 50000]);
+        $inv->recalcTotals();
+
+        $html = $this->actingAs($manager)->get(route('service.invoice.edit', $inv->id))->getContent();
+
+        $this->assertSame(1, preg_match('/const existingItems = (\[.*?\]);/s', $html, $items));
+        $this->assertSame(1, preg_match('/name="discount"[^>]*value="([^"]*)"/', $html, $discount));
+
+        $rendered = json_decode($items[1], true);
+        $this->assertSame(750000, $rendered[0]['unit_price'], 'unit_price harus int, bukan "750000.00".');
+        $this->assertSame('50000', $discount[1], 'discount harus int, bukan "50000.00".');
+
+        $this->actingAs($manager)->put(route('service.invoice.update', $inv->id), [
+            'client_name' => $inv->client_name,
+            'issued_at'   => $inv->issued_at->toDateString(),
+            'discount'    => $discount[1],
+            'items'       => [[
+                'name'       => $rendered[0]['name'],
+                'qty'        => $rendered[0]['qty'],
+                'unit_price' => (string) $rendered[0]['unit_price'],
+            ]],
+        ])->assertRedirect(route('service.invoice.show', $inv->id));
+
+        $inv->refresh();
+        $this->assertEquals(750000, $inv->subtotal);
+        $this->assertEquals(700000, $inv->total);
+    }
+
+    /** @test */
+    public function deleting_an_invoice_tells_the_operator(): void
+    {
+        $inv = $this->invoice();
+
+        // Flash ber-key 'warning' tak pernah dirender layouts/master, jadi operator
+        // menghapus invoice lalu kembali ke daftar tanpa konfirmasi apa pun.
+        $this->actingAs($this->user('superadmin'))
+            ->delete(route('service.invoice.destroy', $inv->id))
+            ->assertRedirect(route('service.invoice.index'))
+            ->assertSessionHas('info');
+    }
 }

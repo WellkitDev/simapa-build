@@ -4689,7 +4689,11 @@ Sisipkan setelah `show()` di `app/Http/Controllers/Pages/ServiceInvoiceControlle
         // memakai withTrashed), jadi tidak ada nomor invoice yang didaur ulang.
         $invoice->delete();
 
-        return redirect()->route('service.invoice.index')->with('warning', 'Invoice ' . $no . ' dihapus.');
+        // 'info', bukan 'warning': layouts/master hanya merender success/error/info,
+        // jadi pesan ber-key 'warning' tak pernah sampai ke layar — operator menghapus
+        // invoice lalu kembali ke daftar tanpa satu pun konfirmasi. Jebakan yang sama
+        // sudah didokumentasikan di ServiceClientController::destroy().
+        return redirect()->route('service.invoice.index')->with('info', 'Invoice ' . $no . ' dihapus.');
     }
 ```
 
@@ -4751,12 +4755,20 @@ dengan:
 
 ```blade
                     <div class="d-flex gap-1">
+                        {{-- Syarat kedua bukan keamanan (controller sudah menjaganya), tapi
+                             afordans: tanpa itu manager melihat tombol Edit pada invoice
+                             terkunci, mengkliknya, dan selalu dipantulkan balik. superadmin
+                             tetap melihatnya karena memang boleh mengoreksi dengan alasan. --}}
                         @can('service_invoice.edit')
-                            <a href="{{ route('service.invoice.edit', $invoice->id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                            @if ($invoice->isEditable() || auth()->user()->hasRole('superadmin'))
+                                <a href="{{ route('service.invoice.edit', $invoice->id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                            @endif
                         @endcan
                         @can('service_invoice.delete')
+                            {{-- data-confirm: listener SweetAlert terdelegasi di layouts/master,
+                                 dipakai seluruh aksi destruktif lain di aplikasi ini. --}}
                             <form action="{{ route('service.invoice.destroy', $invoice->id) }}" method="POST"
-                                  onsubmit="return confirm('Hapus invoice ini? Nomornya tidak akan dipakai ulang.')">
+                                  data-confirm="Hapus invoice ini? Nomornya tidak akan dipakai ulang.">
                                 @csrf @method('DELETE')
                                 <button class="btn btn-sm btn-outline-danger">Hapus</button>
                             </form>
@@ -4768,7 +4780,13 @@ dengan:
 - [ ] **Step 9: Jalankan tes, pastikan lulus**
 
 Run: `php artisan test --filter=ServiceInvoiceEditLockTest`
-Expected: PASS (5 tests)
+Expected: PASS (14 tests)
+
+> **Tes di berkas ini melampaui lima blok di atas.** Sembilan tes tambahan lahir dari review dan falsifikasi, dan `tests/Feature/ServiceInvoiceEditLockTest.php` adalah sumber kebenarannya — jangan menyalin balik dari dokumen ini. Empat di antaranya menutup celah yang dibuktikan dengan merusak implementasi lalu menjalankan tes lama:
+> - `a_cancelled_invoice_is_locked` — syarat `isCancelled()` di `isEditable()` sebelumnya **tak diuji sama sekali**; mencabutnya membuat sepuluh tes tetap hijau sementara invoice batal bisa diedit bebas manager.
+> - `update_persists_discount_dates_and_the_client_snapshot` — memaku `'discount' => 0` di `update()` juga membuat sepuluh tes tetap hijau; `issued_at`, `due_at`, catatan, dan snapshot klien sama tak tersentuh assertion.
+> - `reopening_the_edit_form_and_saving_it_unchanged_keeps_the_totals` — putar-balik Aturan 12: nilai diambil dari halaman yang **dirender**, bukan diketik tangan, karena di payload itulah bug ×100 bersembunyi.
+> - `deleting_an_invoice_tells_the_operator` — mengikat flash `info`, sebab key `warning` tak pernah dirender layout.
 
 - [ ] **Step 10: Commit**
 

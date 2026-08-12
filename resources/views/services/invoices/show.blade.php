@@ -17,12 +17,20 @@
                         <span class="badge bg-{{ $payColors[$invoice->payment_status] ?? 'secondary' }}">{{ $invoice->paymentStatusLabel() }}</span>
                     </div>
                     <div class="d-flex gap-1">
+                        {{-- Syarat kedua bukan keamanan (controller sudah menjaganya), tapi
+                             afordans: tanpa itu manager melihat tombol Edit pada invoice
+                             terkunci, mengkliknya, dan selalu dipantulkan balik. superadmin
+                             tetap melihatnya karena memang boleh mengoreksi dengan alasan. --}}
                         @can('service_invoice.edit')
-                            <a href="{{ route('service.invoice.edit', $invoice->id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                            @if ($invoice->isEditable() || auth()->user()->hasRole('superadmin'))
+                                <a href="{{ route('service.invoice.edit', $invoice->id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                            @endif
                         @endcan
                         @can('service_invoice.delete')
+                            {{-- data-confirm: listener SweetAlert terdelegasi di layouts/master,
+                                 dipakai seluruh aksi destruktif lain di aplikasi ini. --}}
                             <form action="{{ route('service.invoice.destroy', $invoice->id) }}" method="POST"
-                                  onsubmit="return confirm('Hapus invoice ini? Nomornya tidak akan dipakai ulang.')">
+                                  data-confirm="Hapus invoice ini? Nomornya tidak akan dipakai ulang.">
                                 @csrf @method('DELETE')
                                 <button class="btn btn-sm btn-outline-danger">Hapus</button>
                             </form>

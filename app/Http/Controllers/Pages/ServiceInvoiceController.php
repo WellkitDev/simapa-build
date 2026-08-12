@@ -174,6 +174,10 @@ class ServiceInvoiceController extends Controller
         // memakai withTrashed), jadi tidak ada nomor invoice yang didaur ulang.
         $invoice->delete();
 
-        return redirect()->route('service.invoice.index')->with('warning', 'Invoice ' . $no . ' dihapus.');
+        // 'info', bukan 'warning': layouts/master hanya merender success/error/info,
+        // jadi pesan ber-key 'warning' tak pernah sampai ke layar — operator menghapus
+        // invoice lalu kembali ke daftar tanpa satu pun konfirmasi. Jebakan yang sama
+        // sudah didokumentasikan di ServiceClientController::destroy().
+        return redirect()->route('service.invoice.index')->with('info', 'Invoice ' . $no . ' dihapus.');
     }
 }
