@@ -66,6 +66,18 @@ class ServiceInvoiceWorkflow
         // ke SQL UPDATE sama sekali, dan tanggal selesai tulisan penulis lain bertahan.
         $invoice->refresh();
 
+        // 'batal' adalah keadaan TERMINAL. Tanpa penjaga ini, satu-satunya yang
+        // menahan pembukaan kembali invoice batal adalah pemeriksaan di controller —
+        // dan service ini adalah API bersama, bukan milik satu controller. Memanggilnya
+        // langsung akan memindahkan status keluar dari 'batal' sementara cancel_reason,
+        // cancelled_by, dan cancelled_at tetap terisi: barisnya jadi menyangkal diri
+        // sendiri. Alasan yang sama membuat $to divalidasi di sini, bukan hanya di rute.
+        if ($invoice->isCancelled()) {
+            throw ValidationException::withMessages([
+                'work_status' => 'Invoice yang dibatalkan tidak bisa diubah statusnya.',
+            ]);
+        }
+
         $from = $invoice->work_status;
         if ($from === $to) {
             return false;

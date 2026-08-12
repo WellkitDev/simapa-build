@@ -154,6 +154,26 @@ class ServiceInvoiceWorkStatusTest extends TestCase
     }
 
     /** @test */
+    public function a_cancelled_invoice_cannot_be_reopened_through_the_service(): void
+    {
+        $user = User::factory()->create();
+        $inv  = ServiceInvoice::factory()->create(['work_status' => 'batal', 'cancel_reason' => 'klien mundur']);
+
+        // Pemeriksaan di controller saja tidak cukup: service ini API bersama, dan
+        // memanggilnya langsung akan memindahkan status keluar dari 'batal' sementara
+        // cancel_reason/cancelled_by/cancelled_at tetap terisi — baris yang menyangkal
+        // dirinya sendiri, persis kelas cacat yang membuat CHANGEABLE ditambahkan.
+        $this->expectException(ValidationException::class);
+
+        try {
+            $this->workflow()->changeStatus($inv, 'proses', null, $user->id);
+        } finally {
+            $this->assertSame('batal', $inv->fresh()->work_status);
+            $this->assertCount(0, $inv->fresh()->logs);
+        }
+    }
+
+    /** @test */
     public function a_failed_log_write_rolls_the_status_back(): void
     {
         $inv = ServiceInvoice::factory()->create(['work_status' => 'belum']);
