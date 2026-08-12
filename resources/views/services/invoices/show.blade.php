@@ -44,8 +44,15 @@
                         @can('service_invoice.send')
                             <form action="{{ route('service.invoice.send', $invoice->id) }}" method="POST">
                                 @csrf
+                                {{-- @disabled + title berkutip. Versi sebelumnya merangkai
+                                     'disabled title=Klien belum punya email' sebagai satu string
+                                     tanpa kutip, jadi HTML memotong tooltip-nya di spasi pertama
+                                     ("Klien") dan menyisakan tiga atribut sampah. --}}
                                 <button class="btn btn-sm btn-outline-success"
-                                        {{ $invoice->client_email ? '' : 'disabled title=Klien belum punya email' }}>
+                                        @disabled(! $invoice->client_email)
+                                        title="{{ $invoice->client_email
+                                            ? 'Kirim invoice ke ' . $invoice->client_email
+                                            : 'Klien belum punya alamat email' }}">
                                     Kirim Email
                                 </button>
                             </form>
