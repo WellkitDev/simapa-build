@@ -104,4 +104,38 @@ class ServiceInvoiceWorkflow
 
         return true;
     }
+
+    /**
+     * Batalkan invoice. Keadaan terminal: hanya bisa dimasuki, wajib beralasan.
+     * Gerbang "siapa boleh" ada di permission rute (superadmin), bukan di sini.
+     *
+     * @return bool false bila invoice sudah dibatalkan sebelumnya.
+     */
+    public function cancel(ServiceInvoice $invoice, string $reason, ?int $userId): bool
+    {
+        if ($invoice->isCancelled()) {
+            return false;
+        }
+
+        $from = $invoice->work_status;
+
+        DB::transaction(function () use ($invoice, $reason, $userId, $from) {
+            $invoice->update([
+                'work_status'   => 'batal',
+                'cancel_reason' => $reason,
+                'cancelled_by'  => $userId,
+                'cancelled_at'  => now(),
+            ]);
+
+            $invoice->logs()->create([
+                'event'       => 'cancelled',
+                'from_status' => $from,
+                'to_status'   => 'batal',
+                'note'        => $reason,
+                'changed_by'  => $userId,
+            ]);
+        });
+
+        return true;
+    }
 }

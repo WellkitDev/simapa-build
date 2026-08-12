@@ -103,6 +103,7 @@ class AccessMatrixSeeder extends Seeder
         'permission.manage',
         // Invoice Layanan: hapus & batal hanya superadmin (spec §6.3).
         'service_invoice.delete',
+        'service_invoice.cancel',
         // CATATAN: user.view/create/edit/delete/restore TIDAK di sini walau kelihatan
         // "sensitif" — gate 'access-usermanagement' (AuthServiceProvider) adalah
         // superadmin|manager, jadi manager memang berhak dan permission ini justru harus

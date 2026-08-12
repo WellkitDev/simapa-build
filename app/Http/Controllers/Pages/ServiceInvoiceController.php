@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ServiceCatalog;
 use App\Models\ServiceClient;
 use App\Models\ServiceInvoice;
+use App\Services\ServiceInvoiceWorkflow;
 use App\Support\ServiceInvoiceForm;
 use App\Support\ServiceInvoiceNumber;
 use Carbon\Carbon;
@@ -179,5 +180,40 @@ class ServiceInvoiceController extends Controller
         // invoice lalu kembali ke daftar tanpa satu pun konfirmasi. Jebakan yang sama
         // sudah didokumentasikan di ServiceClientController::destroy().
         return redirect()->route('service.invoice.index')->with('info', 'Invoice ' . $no . ' dihapus.');
+    }
+
+    public function status(Request $request, int $id, ServiceInvoiceWorkflow $workflow)
+    {
+        $invoice = ServiceInvoice::findOrFail($id);
+
+        // 'batal' SENGAJA tidak ada di daftar ini: pembatalan butuh alasan dan
+        // pelaku superadmin, jalurnya cancel().
+        $data = $request->validate([
+            'work_status' => 'required|in:belum,proses,selesai',
+            'note'        => 'nullable|string',
+        ]);
+
+        if ($invoice->isCancelled()) {
+            return back()->with('error', 'Invoice yang dibatalkan tidak bisa diubah statusnya.');
+        }
+
+        $workflow->changeStatus($invoice, $data['work_status'], $data['note'] ?? null, Auth::id());
+
+        return back()->with('success', 'Status pengerjaan diperbarui.');
+    }
+
+    public function cancel(Request $request, int $id, ServiceInvoiceWorkflow $workflow)
+    {
+        $invoice = ServiceInvoice::findOrFail($id);
+        $data    = $request->validate(['cancel_reason' => 'required|string']);
+
+        if (! $workflow->cancel($invoice, $data['cancel_reason'], Auth::id())) {
+            return back()->with('error', 'Invoice ini sudah dibatalkan.');
+        }
+
+        // 'info', bukan 'warning': lihat catatan di destroy() di atas — key 'warning'
+        // tak pernah dirender layouts/master, operator akan membatalkan invoice tanpa
+        // satu pun konfirmasi.
+        return back()->with('info', 'Invoice dibatalkan.');
     }
 }

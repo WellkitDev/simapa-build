@@ -6,6 +6,21 @@
     $workColors = ['belum' => 'secondary', 'proses' => 'warning', 'selesai' => 'success', 'batal' => 'danger'];
     $payColors  = ['belum' => 'secondary', 'dp' => 'info', 'lunas' => 'success'];
 @endphp
+
+{{-- WAJIB: layouts/master hanya merender session success/error/info, BUKAN $errors.
+     Tanpa blok ini, kegagalan validasi pada form status/pembatalan di bawah memantul
+     ke halaman ini tanpa satu pun tanda terlihat. --}}
+@if ($errors->any())
+    <div class="alert alert-danger">
+        <strong>Gagal.</strong>
+        <ul class="mb-0 mt-1">
+            @foreach ($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+    </div>
+@endif
+
 <div class="row">
     <div class="col-md-8 grid-margin stretch-card">
         <div class="card">
@@ -115,7 +130,56 @@
         </div>
     </div>
 
-    <div class="col-md-4 grid-margin stretch-card">
+    <div class="col-md-4">
+        @can('service_invoice.status')
+        <div class="card mb-3">
+            <div class="card-body">
+                <h6 class="card-title">Status Pengerjaan</h6>
+
+                @if($invoice->isCancelled())
+                    <div class="alert alert-danger py-2 mb-0">
+                        Dibatalkan {{ $invoice->cancelled_at?->format('d/m/Y H:i') }}
+                        oleh {{ $invoice->canceller->name ?? '-' }}.<br>
+                        <small>{{ $invoice->cancel_reason }}</small>
+                    </div>
+                @else
+                    <form method="POST" action="{{ route('service.invoice.status', $invoice->id) }}">
+                        @csrf
+                        <div class="mb-2">
+                            <select name="work_status" class="form-select form-select-sm">
+                                @foreach(['belum', 'proses', 'selesai'] as $key)
+                                    <option value="{{ $key }}" {{ $invoice->work_status === $key ? 'selected' : '' }}>
+                                        {{ \App\Models\ServiceInvoice::WORK_STATUS[$key] }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="mb-2">
+                            <input type="text" name="note" class="form-control form-control-sm" placeholder="Catatan (opsional)">
+                        </div>
+                        <button class="btn btn-sm btn-primary w-100">Perbarui Status</button>
+                    </form>
+
+                    <ul class="list-unstyled small text-muted mt-2 mb-0">
+                        <li>Mulai: {{ $invoice->work_started_at?->format('d/m/Y H:i') ?? '—' }}</li>
+                        <li>Selesai: {{ $invoice->work_finished_at?->format('d/m/Y H:i') ?? '—' }}</li>
+                    </ul>
+
+                    @can('service_invoice.cancel')
+                        <hr>
+                        <form method="POST" action="{{ route('service.invoice.cancel', $invoice->id) }}"
+                              onsubmit="return confirm('Batalkan invoice ini? Tindakan ini tidak bisa dibalik.')">
+                            @csrf
+                            <input type="text" name="cancel_reason" class="form-control form-control-sm mb-2"
+                                   placeholder="Alasan pembatalan" required>
+                            <button class="btn btn-sm btn-outline-danger w-100">Batalkan Invoice</button>
+                        </form>
+                    @endcan
+                @endif
+            </div>
+        </div>
+        @endcan
+
         <div class="card">
             <div class="card-body">
                 <h6 class="card-title">Riwayat</h6>
