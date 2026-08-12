@@ -345,6 +345,7 @@ return [
                 'cancel'  => ['service.invoice.cancel'],
                 'payment' => ['service.invoice.payment.store', 'service.invoice.payment.destroy'],
                 'export' => ['service.invoice.pdf'],
+                'send'   => ['service.invoice.send'],
             ],
         ],
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Pages;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SendServiceInvoiceJob;
 use App\Models\ServiceCatalog;
 use App\Models\ServiceClient;
 use App\Models\ServiceInvoice;
@@ -225,5 +226,18 @@ class ServiceInvoiceController extends Controller
 
         return Pdf::loadView('services.invoices.invoice_pdf', ServiceInvoicePdfData::for($invoice))
             ->stream('Invoice_Layanan_' . $invoice->invoice_no . '.pdf');
+    }
+
+    public function send(int $id)
+    {
+        $invoice = ServiceInvoice::findOrFail($id);
+
+        if (! $invoice->client_email) {
+            return back()->with('error', 'Klien belum punya alamat email — lengkapi dulu lewat Edit.');
+        }
+
+        SendServiceInvoiceJob::dispatch($invoice->id);
+
+        return back()->with('success', 'Invoice sedang dikirim ke ' . $invoice->client_email . '.');
     }
 }

@@ -30,12 +30,26 @@
                         <h5 class="mb-1">{{ $invoice->invoice_no }}</h5>
                         <span class="badge bg-{{ $workColors[$invoice->work_status] ?? 'secondary' }}">{{ $invoice->workStatusLabel() }}</span>
                         <span class="badge bg-{{ $payColors[$invoice->payment_status] ?? 'secondary' }}">{{ $invoice->paymentStatusLabel() }}</span>
+                        @if($invoice->sent_at)
+                            <div><small class="text-muted">
+                                Terkirim {{ $invoice->sent_at->format('d/m/Y H:i') }} ({{ $invoice->sent_count }}×)
+                            </small></div>
+                        @endif
                     </div>
                     <div class="d-flex gap-1">
                         {{-- Syarat kedua bukan keamanan (controller sudah menjaganya), tapi
                              afordans: tanpa itu manager melihat tombol Edit pada invoice
                              terkunci, mengkliknya, dan selalu dipantulkan balik. superadmin
                              tetap melihatnya karena memang boleh mengoreksi dengan alasan. --}}
+                        @can('service_invoice.send')
+                            <form action="{{ route('service.invoice.send', $invoice->id) }}" method="POST">
+                                @csrf
+                                <button class="btn btn-sm btn-outline-success"
+                                        {{ $invoice->client_email ? '' : 'disabled title=Klien belum punya email' }}>
+                                    Kirim Email
+                                </button>
+                            </form>
+                        @endcan
                         @can('service_invoice.export')
                             <a href="{{ route('service.invoice.pdf', $invoice->id) }}" target="_blank"
                                class="btn btn-sm btn-outline-primary">Unduh PDF</a>
