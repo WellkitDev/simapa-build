@@ -357,6 +357,37 @@ return [
             ],
         ],
 
+        'service_invoice' => [
+            'label'   => 'Invoice Layanan',
+            'actions' => [
+                'view'   => ['service.invoice.index', 'service.invoice.show'],
+                'create' => ['service.invoice.create', 'service.invoice.store'],
+                'edit'   => ['service.invoice.edit', 'service.invoice.update'],
+                'delete' => ['service.invoice.destroy'],
+                'status'  => ['service.invoice.status'],
+                'cancel'  => ['service.invoice.cancel'],
+                'payment' => ['service.invoice.payment.store', 'service.invoice.payment.destroy'],
+                'export' => ['service.invoice.pdf'],
+                'send'   => ['service.invoice.send'],
+            ],
+        ],
+
+        'service_catalog' => [
+            'label'   => 'Katalog Layanan',
+            'actions' => [
+                'view'   => ['service.catalog.index'],
+                'manage' => ['service.catalog.store', 'service.catalog.update', 'service.catalog.destroy'],
+            ],
+        ],
+
+        'service_client' => [
+            'label'   => 'Klien Jasa',
+            'actions' => [
+                'view'   => ['service.client.index', 'service.client.show'],
+                'manage' => ['service.client.store', 'service.client.update', 'service.client.destroy'],
+            ],
+        ],
+
         'permission' => [
             'label'   => 'Hak Akses',
             'actions' => ['manage' => ['permission.index', 'permission.update']],

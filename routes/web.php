@@ -360,6 +360,37 @@ Route::middleware(['auth', 'access'])->group(function () {
     // Slip Gaji — self-service (semua user login; akses own-data dicek di controller)
     Route::get('slip-gaji-saya', [\App\Http\Controllers\Pages\EmployeeSalarySlipController::class, 'me'])->name('salary.slip.me');
     Route::get('slip-gaji-saya/{id}/pdf', [\App\Http\Controllers\Pages\EmployeeSalarySlipController::class, 'pdf'])->name('salary.slip.me.pdf')->whereNumber('id')->middleware('throttle:export');
+
+    /* ===================== LAYANAN / JASA (modul standalone) ===================== */
+    Route::prefix('layanan')->name('service.')->group(function () {
+        // Invoice layanan
+        Route::get ('invoice',        [\App\Http\Controllers\Pages\ServiceInvoiceController::class, 'index'])  ->name('invoice.index');
+        Route::get ('invoice/create', [\App\Http\Controllers\Pages\ServiceInvoiceController::class, 'create']) ->name('invoice.create');
+        Route::post('invoice',        [\App\Http\Controllers\Pages\ServiceInvoiceController::class, 'store'])  ->name('invoice.store');
+        Route::get ('invoice/{id}',   [\App\Http\Controllers\Pages\ServiceInvoiceController::class, 'show'])   ->name('invoice.show')->whereNumber('id');
+        Route::get   ('invoice/{id}/edit', [\App\Http\Controllers\Pages\ServiceInvoiceController::class, 'edit'])   ->name('invoice.edit')->whereNumber('id');
+        Route::put   ('invoice/{id}',      [\App\Http\Controllers\Pages\ServiceInvoiceController::class, 'update']) ->name('invoice.update')->whereNumber('id');
+        Route::delete('invoice/{id}',      [\App\Http\Controllers\Pages\ServiceInvoiceController::class, 'destroy'])->name('invoice.destroy')->whereNumber('id');
+        Route::post('invoice/{id}/status', [\App\Http\Controllers\Pages\ServiceInvoiceController::class, 'status'])->name('invoice.status')->whereNumber('id');
+        Route::post('invoice/{id}/cancel', [\App\Http\Controllers\Pages\ServiceInvoiceController::class, 'cancel'])->name('invoice.cancel')->whereNumber('id');
+        Route::post  ('invoice/{id}/payment',              [\App\Http\Controllers\Pages\ServiceInvoicePaymentController::class, 'store'])  ->name('invoice.payment.store')->whereNumber('id');
+        Route::delete('invoice/{id}/payment/{paymentId}',  [\App\Http\Controllers\Pages\ServiceInvoicePaymentController::class, 'destroy'])->name('invoice.payment.destroy')->whereNumber('id')->whereNumber('paymentId');
+        Route::get('invoice/{id}/pdf', [\App\Http\Controllers\Pages\ServiceInvoiceController::class, 'pdf'])->name('invoice.pdf')->whereNumber('id')->middleware('throttle:export');
+        Route::post('invoice/{id}/send', [\App\Http\Controllers\Pages\ServiceInvoiceController::class, 'send'])->name('invoice.send')->whereNumber('id');
+
+        // Katalog
+        Route::get   ('katalog',      [\App\Http\Controllers\Pages\ServiceCatalogController::class, 'index'])  ->name('catalog.index');
+        Route::post  ('katalog',      [\App\Http\Controllers\Pages\ServiceCatalogController::class, 'store'])  ->name('catalog.store');
+        Route::put   ('katalog/{id}', [\App\Http\Controllers\Pages\ServiceCatalogController::class, 'update']) ->name('catalog.update')->whereNumber('id');
+        Route::delete('katalog/{id}', [\App\Http\Controllers\Pages\ServiceCatalogController::class, 'destroy'])->name('catalog.destroy')->whereNumber('id');
+
+        // Klien jasa
+        Route::get   ('klien',      [\App\Http\Controllers\Pages\ServiceClientController::class, 'index'])  ->name('client.index');
+        Route::post  ('klien',      [\App\Http\Controllers\Pages\ServiceClientController::class, 'store'])  ->name('client.store');
+        Route::get   ('klien/{id}', [\App\Http\Controllers\Pages\ServiceClientController::class, 'show'])   ->name('client.show')->whereNumber('id');
+        Route::put   ('klien/{id}', [\App\Http\Controllers\Pages\ServiceClientController::class, 'update']) ->name('client.update')->whereNumber('id');
+        Route::delete('klien/{id}', [\App\Http\Controllers\Pages\ServiceClientController::class, 'destroy'])->name('client.destroy')->whereNumber('id');
+    });
 });
 
 

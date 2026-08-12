@@ -266,9 +266,11 @@ $no = $prefix . str_pad((string) (((int) $last) + 1), 4, '0', STR_PAD_LEFT);
 ```
 
 Tiga lapis pengaman:
-1. `lockForUpdate` di dalam transaksi → dua permintaan bersamaan berbaris, tidak balapan.
+1. `lockForUpdate` di dalam transaksi → dua permintaan bersamaan berbaris. **Dengan satu celah yang diketahui:** pada bulan yang masih kosong, `LIKE 'prefix%' FOR UPDATE` hanya mengambil *gap lock* yang kompatibel-bersama, jadi dua pemanggil sama-sama menghitung `0001` lalu saling mengunci saat INSERT dan salah satunya kena deadlock. Karena itu lapis 3 wajib ikut menangani `40001`/`1213`, bukan hanya duplikat.
 2. `withTrashed()` → nomor invoice yang dihapus **tidak** pernah didaur ulang.
-3. Unique index + retry maksimal 3× pada `QueryException` duplikat → jaring terakhir.
+3. Unique index + retry maksimal 3× pada `QueryException` yang **benar-benar** balapan. Dicocokkan lewat SQLSTATE + kode driver di `errorInfo` (pola yang sudah dipakai `EnforceIdempotency`), **bukan** teks pesan — Laravel menempelkan seluruh SQL ke pesan, sehingga mencari nama kolom di sana ikut cocok dengan duplikat kolom lain.
+
+Dua gerbang yang gagal keras, bukan menebak: sufiks non-angka di bawah prefiks yang sama, dan kuota `9999` per bulan. Keduanya membuat nomor yang sama diterbitkan dua kali kalau dibiarkan diam.
 
 > Sengaja berbeda dari `SalarySlipController::generateSlipNo()` yang memakai `count() + 1`: pola itu balapan, dan menghasilkan nomor duplikat begitu ada baris yang dihapus.
 
@@ -293,6 +295,8 @@ Semua aritmetika di server. JavaScript di form hanya **pratinjau**; nilai yang d
 **Lebih bayar tidak diblokir.** `remaining` negatif ditampilkan sebagai "Lebih bayar Rp X" di detail dan PDF. Memblokirnya terdengar rapi sampai klien mentransfer lebih karena biaya admin — lalu operator terpaksa memalsukan angka supaya form mau tersimpan. Validasi yang ada: `amount > 0`, dan `total > 0` saat invoice disimpan (minimal satu item).
 
 ### 5.3 Mesin status pengerjaan
+
+Tinggal di `App\Services\ServiceInvoiceWorkflow` (`changeStatus()` + `cancel()`), bukan sebagai metode model — mengikuti konvensi "ubah keadaan + tulis baris log" yang sudah dipakai `CashPeriodService` dan `TitleProgressService`. Model tetap sekadar rekaman, dan kedua jalur (pindah status & batal) memakai satu implementasi yang sama alih-alih ditulis dua kali.
 
 Transisi bebas antara `belum ⇄ proses ⇄ selesai`. `batal` adalah keadaan terminal yang hanya bisa dimasuki (dan hanya oleh superadmin).
 
@@ -559,6 +563,7 @@ app/Models/            ServiceClient, ServiceCatalog, ServiceInvoice,
 app/Http/Controllers/Pages/  ServiceInvoiceController, ServiceInvoicePaymentController,
                              ServiceCatalogController, ServiceClientController
 app/Support/ServiceInvoicePdfData.php
+app/Services/ServiceInvoiceWorkflow.php
 app/Mail/ServiceInvoiceMail.php
 app/Jobs/SendServiceInvoiceJob.php
 resources/views/services/     invoices/{index,create,edit,show}, invoice_pdf,
@@ -582,7 +587,10 @@ Tidak ada berkas modul keuangan, order, atau invoice yang disentuh.
 ## 13. Risiko & Utang yang Diterima
 
 1. **`recalcTotals()` harus disiplin dipanggil.** Konsekuensi denormalisasi. Ditambatkan dengan T-CALC-1..4; kalau nanti muncul jalur tulis baru, tesnya harus ikut bertambah.
+1b. **Dua pencatatan pembayaran yang benar-benar bersamaan bisa saling menimpa.** `SUM` di dalam `recalcTotals()` adalah consistent read tanpa kunci baris, jadi `DB::transaction` memberi atomisitas tetapi bukan serialisasi. Hitungannya derivatif sehingga panggilan berikutnya memulihkan, tapi tak ada yang memicunya otomatis. Diterima: alat internal dengan satu-dua operator. Penutupnya kelak `lockForUpdate()` pada baris invoice.
+1c. **Uang dihitung dengan float yang dibulatkan ke 2 desimal, bukan integer sen.** Pembulatan sebelum perbandingan sudah menutup kasus "lunas terbaca DP" (ditambatkan tes regresi bersen-pecahan). Kalau modul ini kelak menangani nilai jauh lebih besar atau mata uang lain, pindah ke integer sen adalah langkah berikutnya.
 2. **Tidak ada bukti transfer.** Pembayaran dicatat tanpa lampiran struk. Cukup untuk sekarang; kalau perlu, tambah kolom `proof_url` + `GoogleDriveService` menyusul — aditif.
+2b. **Klien tanpa email masih bisa terduplikasi.** `resolveClient()` memakai email sebagai kunci alami sebelum membuat baris master baru, jadi mengetik klien yang sama berulang kali tidak lagi memecah riwayat pekerjaannya. Tapi klien yang tidak punya email tak punya kunci — mengetiknya dua kali tetap melahirkan dua baris. Diterima: mayoritas klien jasa punya email karena itulah tujuan invoice-nya dikirim. Penutupnya kelak pencocokan nama+instansi, atau kolom `code` yang stabil.
 3. **Tidak ada pengingat jatuh tempo / perpanjangan.** Hosting & maintenance tahunan harus dipantau manual lewat filter jatuh tempo. Notifikasi otomatis = pekerjaan berikutnya, bukan sekarang.
 4. **`inv_book_mail.blade.php` yang lama tetap rusak** (`inv_no`). Sengaja dibiarkan di luar scope; dicatat agar tidak hilang.
 5. **Modul ini tidak masuk laporan apa pun.** Omzet jasa tidak akan terlihat di Dashboard maupun Rekap Kas. Ini yang diminta — tapi harus diingat saat membaca angka pendapatan.

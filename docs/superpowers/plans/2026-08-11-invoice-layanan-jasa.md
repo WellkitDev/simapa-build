@@ -24,6 +24,14 @@ Baca sekali sebelum Task 1. Melanggar salah satu ini membuat suite merah dengan 
 6. **Cast `decimal:2` mengembalikan string.** Di assertion pakai `assertEquals` (longgar), bukan `assertSame`.
 7. **Jangan menyentuh** `tb_orders`, `tb_payments`, `tb_invoices`, `tb_cash_*`, atau modul keuangan mana pun. Task 14 punya tes yang mengunci ini.
 8. **Commit tiap akhir task**, dengan `git add` jalur berkas eksplisit — jangan `git add -A`.
+9. **JANGAN menaruh `route()` ke rute yang belum ada di dalam `@can`/`@canany`.** `Gate::before` di `AuthServiceProvider` meloloskan superadmin untuk ability **apa pun**, termasuk permission yang belum terdaftar — jadi penjaga itu tidak menahan apa-apa baginya, `route()` di dalamnya tetap dievaluasi, dan halamannya 500. Terbukti di Task 7: `@can('service_invoice.view')` aman bagi manager (Spatie mengembalikan false) tapi meledak bagi superadmin. Tunggu sampai rutenya lahir di task-nya sendiri.
+10. **Tes akses selalu sertakan superadmin, bukan hanya manager.** Karena Gate::before, keduanya menempuh jalur kode yang berbeda; tes manager saja tidak akan pernah melihat jebakan di aturan 9.
+11. **Layar apa pun yang punya form WAJIB punya blok `@if ($errors->any())` sendiri.** `layouts/master.blade.php:123-125` hanya merender `session('success')`, `session('error')`, dan `session('info')` — **tidak** `$errors`, dan **tidak** `session('warning')`. Tanpa blok itu setiap simpan yang ditolak validasi memantul tanpa satu pun tanda.
+12. **Jangan pernah mengirim nilai berkolom `decimal:2` ke input teks yang nilainya nanti dibersihkan pemisah ribuan.** Cast-nya memancarkan `"350000.00"`, pembersihnya membuang titik desimal, dan angkanya jadi 100×. Pakai `(int)` seperti `accounting/journal.blade.php:255` dan `salary/slips/form.blade.php:7`.
+13. **Jangan menaruh ekspresi berkurung dalam sebagai argumen direktif Blade.** Pencocok argumen direktif menghitung tanda kurung dengan regex naif; kombinasi `old(...)` + ternary + arrow function + array literal membuatnya salah hitung dan view-nya gagal dikompilasi dengan `ParseError: Unclosed '['`. Hitung dulu ke sebuah variabel di blok php, lalu oper variabel tunggal itu. **Blade yang tidak bisa dikompilasi tidak akan tertangkap tes yang hanya menegaskan redirect** — hanya tes yang benar-benar merender view-nya yang melihatnya.
+15. **Flash hanya boleh ber-key `success`, `error`, atau `info`.** `layouts/master.blade.php:123-125` tidak merender `warning` — pesannya hilang tanpa jejak dan operator tak tahu tindakannya berhasil. Cacat ini masuk ke rencana ini **tiga kali** sebelum akhirnya dibersihkan menyeluruh.
+16. **Form destruktif memakai `data-confirm`**, bukan `onsubmit="return confirm(...)"` — ada listener SweetAlert terdelegasi di `layouts/master.blade.php:113` yang dipakai seluruh aksi destruktif aplikasi ini.
+14. **Komentar Blade tidak boleh memuat token direktif blok php secara harfiah.** Blade memasangkan blok php mentah dengan regex sebelum komentar dibuang, jadi token itu di dalam komentar akan dikawinkan dengan penutup blok nyata di bawahnya dan merusak berkasnya.
 
 ---
 
@@ -43,7 +51,7 @@ Baca sekali sebelum Task 1. Melanggar salah satu ini membuat suite merah dengan 
 ```
 ServiceClient.php          master klien; hasMany invoices
 ServiceCatalog.php         katalog + konstanta CATEGORIES
-ServiceInvoice.php         inti: relasi, konstanta, recalcTotals(), applyWorkStatus(), isEditable()
+ServiceInvoice.php         inti: relasi, konstanta, recalcTotals(), isEditable()
 ServiceInvoiceItem.php     baris item (snapshot)
 ServiceInvoicePayment.php  baris pembayaran + konstanta TYPES/METHODS
 ServiceInvoiceLog.php      jejak; tanpa perilaku
@@ -54,6 +62,11 @@ ServiceInvoiceLog.php      jejak; tanpa perilaku
 ServiceInvoiceNumber.php   penomoran anti-balapan + pembungkus retry
 ServiceInvoiceForm.php     aturan validasi, normalisasi angka, sync item, resolve klien
 ServiceInvoicePdfData.php  perakit data PDF — dipakai bersama route unduh & job email
+```
+
+**Service** (`app/Services/`) — pola "ubah keadaan + tulis baris log", mengikuti konvensi `CashPeriodService`/`TitleProgressService`:
+```
+ServiceInvoiceWorkflow.php  changeStatus() (Task 5) + cancel() (Task 10)
 ```
 
 **Controller** (`app/Http/Controllers/Pages/`):
@@ -247,7 +260,11 @@ class ServiceClient extends Model
 
     public function invoices()
     {
-        return $this->hasMany(ServiceInvoice::class)->latest('issued_at');
+        // Pemecah seri wajib: issued_at bertipe date (tanpa jam), jadi dua invoice
+        // di hari yang sama akan bertukar urutan antar-request tanpa `id`.
+        return $this->hasMany(ServiceInvoice::class)
+            ->orderByDesc('issued_at')
+            ->orderByDesc('id');
     }
 
     /** "Nama — Instansi" untuk dropdown; instansi kosong tidak menyisakan tanda pisah. */
@@ -308,9 +325,14 @@ class ServiceCatalog extends Model
         return $query->where('is_active', true);
     }
 
-    public function categoryLabel(): string
+    /**
+     * Statis, karena kedua pemanggilnya (daftar katalog & optgroup form invoice)
+     * memegang KUNCI kategori hasil groupBy, bukan instance model. Fallback `?? $key`
+     * tinggal di satu tempat.
+     */
+    public static function categoryLabel(?string $key): string
     {
-        return self::CATEGORIES[$this->category] ?? $this->category;
+        return self::CATEGORIES[$key] ?? (string) $key;
     }
 
     /** "Rp 500.000 – Rp 1.000.000" bila berkisar, "Rp 750.000" bila tetap. */
@@ -652,6 +674,49 @@ class ServiceInvoiceModelTest extends TestCase
         $this->assertSame('Dibatalkan', ServiceInvoice::WORK_STATUS['batal']);
         $this->assertSame('Lunas', ServiceInvoice::PAYMENT_STATUS['lunas']);
     }
+
+    /** @test */
+    public function derived_money_columns_are_not_mass_assignable(): void
+    {
+        $inv = ServiceInvoice::factory()->create();
+
+        $inv->update([
+            'subtotal'   => 999999,
+            'total'      => 999999,
+            'paid_total' => 999999,
+            'remaining'  => 999999,
+        ]);
+
+        $inv->refresh();
+        $this->assertEquals(0, $inv->subtotal);
+        $this->assertEquals(0, $inv->total);
+        $this->assertEquals(0, $inv->paid_total);
+        $this->assertEquals(0, $inv->remaining);
+    }
+
+    /** @test */
+    public function overdue_starts_the_day_after_due_date_and_only_when_money_is_owed(): void
+    {
+        // remaining tidak fillable (lihat $fillable), jadi diisi lewat forceFill —
+        // yang sekaligus jalur yang dipakai recalcTotals() di Task 3.
+        $owed = ServiceInvoice::factory()->create(['due_at' => today()->toDateString()]);
+        $owed->forceFill(['remaining' => 500000])->save();
+
+        $this->assertFalse($owed->isOverdue(), 'Hari jatuh tempo masih hak klien, belum telat.');
+
+        $owed->update(['due_at' => today()->subDay()->toDateString()]);
+        $this->assertTrue($owed->fresh()->isOverdue());
+
+        $settled = ServiceInvoice::factory()->create(['due_at' => today()->subDays(30)->toDateString()]);
+        $this->assertFalse($settled->isOverdue(), 'Tanpa sisa tagihan tidak ada yang telat.');
+
+        $cancelled = ServiceInvoice::factory()->create([
+            'due_at'      => today()->subDays(30)->toDateString(),
+            'work_status' => 'batal',
+        ]);
+        $cancelled->forceFill(['remaining' => 500000])->save();
+        $this->assertFalse($cancelled->isOverdue(), 'Invoice batal tidak pernah telat.');
+    }
 }
 ```
 
@@ -684,7 +749,14 @@ class ServiceInvoice extends Model
         'client_name', 'client_institution', 'client_email', 'client_phone', 'client_address',
         'issued_at', 'due_at',
         'work_status', 'work_started_at', 'work_finished_at',
-        'subtotal', 'discount', 'total', 'paid_total', 'remaining', 'payment_status',
+        // `subtotal`, `total`, `paid_total`, `remaining` SENGAJA tidak fillable:
+        // satu-satunya penulisnya adalah recalcTotals(), lewat forceFill() yang
+        // memang melewati $fillable. Membiarkannya terbuka berarti sebuah form
+        // (mis. layar koreksi) bisa mengirim paid_total dan membuatnya menyimpang
+        // dari SUM(payments.amount) sampai recalcTotals() berikutnya.
+        // `discount` ikut karena memang masukan pengguna; `payment_status` ikut
+        // karena diisi saat invoice dibuat.
+        'discount', 'payment_status',
         'note', 'internal_note',
         'pdf_drive_url', 'sent_at', 'sent_count',
         'cancel_reason', 'cancelled_by', 'cancelled_at',
@@ -776,11 +848,20 @@ class ServiceInvoice extends Model
         return $this->isOverpaid() ? abs((float) $this->remaining) : 0.0;
     }
 
+    /**
+     * Dua hal yang mudah salah di sini:
+     *  - `lt(today())`, BUKAN `isPast()`. `due_at` di-cast `date` sehingga jatuh di
+     *    tengah malam, dan `isPast()` menandai invoice telat sejak pukul 00:00 pada
+     *    hari jatuh temponya sendiri — padahal hari itu masih hak klien.
+     *  - ambang utangnya `remaining`, BUKAN `payment_status`. Invoice bertotal nol
+     *    (mis. pekerjaan garansi) tak pernah bisa mencapai 'lunas', jadi memakai
+     *    payment_status akan menandainya telat selamanya atas utang nol.
+     */
     public function isOverdue(): bool
     {
         return $this->due_at !== null
-            && $this->due_at->isPast()
-            && $this->payment_status !== 'lunas'
+            && $this->due_at->lt(today())
+            && (float) $this->remaining > 0
             && ! $this->isCancelled();
     }
 }
@@ -933,7 +1014,12 @@ class ServiceInvoiceFactory extends Factory
         $seq++;
 
         return [
-            'invoice_no'         => 'INV-JS-' . now()->format('Ym') . '-' . str_pad((string) $seq, 4, '0', STR_PAD_LEFT),
+            // Namespace nomor KHUSUS TES. Sengaja beda dari `INV-JS-<Ym>-` yang
+            // dialokasikan ServiceInvoiceNumber::next(): tanpa pemisahan ini, tes
+            // yang membuat invoice lewat factory DAN lewat store() akan tabrakan di
+            // unique index begitu kedua pencacahnya bertemu di angka yang sama.
+            // Tes yang memang menguji format nomor menimpanya sendiri (Task 4).
+            'invoice_no'         => 'INV-JS-TEST-' . str_pad((string) $seq, 4, '0', STR_PAD_LEFT),
             'service_client_id'  => null,
             'client_name'        => $this->faker->name(),
             'client_institution' => 'Universitas ' . $this->faker->city(),
@@ -952,7 +1038,7 @@ class ServiceInvoiceFactory extends Factory
 - [ ] **Step 10: Jalankan tes, pastikan lulus**
 
 Run: `php artisan test --filter=ServiceInvoiceModelTest`
-Expected: PASS (3 tests)
+Expected: PASS (5 tests)
 
 - [ ] **Step 11: Commit**
 
@@ -1064,14 +1150,55 @@ class ServiceInvoiceCalcTest extends TestCase
     }
 
     /** @test */
-    public function discount_larger_than_subtotal_clamps_total_at_zero(): void
+    public function exactly_paid_invoice_with_odd_cents_is_lunas_not_dp(): void
     {
-        $inv = ServiceInvoice::factory()->create(['discount' => 999999999]);
+        // Jebakan float sungguhan: (float) total menghasilkan ...9900000002
+        // sementara (float) paid menghasilkan ...9899999999, sehingga perbandingan
+        // mentah `paid >= total` gagal dan invoice yang sudah lunas tersangkut di
+        // 'dp' SELAMANYA — sementara `remaining` tersimpan 0.00 karena kolomnya
+        // decimal(15,2). Barisnya jadi menyangkal dirinya sendiri.
+        $inv = ServiceInvoice::factory()->create(['discount' => 636766.00]);
+        $inv->items()->create([
+            'name' => 'Hosting prorata', 'qty' => 1,
+            'unit_price' => 2548189.99, 'subtotal' => 2548189.99,
+        ]);
+        $inv->payments()->create([
+            'paid_at' => now()->toDateString(), 'type' => 'pelunasan', 'amount' => 1911423.99,
+        ]);
+        $inv->recalcTotals();
+        $inv->refresh();
+
+        $this->assertEquals(1911423.99, $inv->total);
+        $this->assertEquals(1911423.99, $inv->paid_total);
+        $this->assertEquals(0, $inv->remaining);
+        $this->assertSame('lunas', $inv->payment_status);
+        $this->assertFalse($inv->isOverpaid());
+    }
+
+    /** @test */
+    public function zero_total_invoice_stays_belum_until_money_arrives(): void
+    {
+        $inv = ServiceInvoice::factory()->create([
+            'discount' => 999999999,
+            'due_at'   => today()->subDays(10)->toDateString(),
+        ]);
         $inv->items()->create(['name' => 'X', 'qty' => 1, 'unit_price' => 100000, 'subtotal' => 100000]);
         $inv->recalcTotals();
         $inv->refresh();
 
         $this->assertEquals(0, $inv->total);
+        $this->assertEquals(0, $inv->remaining);
+        $this->assertSame('belum', $inv->payment_status);
+        $this->assertFalse($inv->isOverdue(), 'Utang nol tak pernah telat, walau jatuh temponya lewat.');
+
+        // Cabang sebaliknya: total nol tapi ada uang masuk = lebih bayar.
+        $inv->payments()->create(['paid_at' => now()->toDateString(), 'type' => 'dp', 'amount' => 50000]);
+        $inv->recalcTotals();
+        $inv->refresh();
+
+        $this->assertSame('lunas', $inv->payment_status);
+        $this->assertEquals(-50000, $inv->remaining);
+        $this->assertTrue($inv->isOverpaid());
     }
 }
 ```
@@ -1092,23 +1219,40 @@ Sisipkan tepat sebelum `isOverdue()` di `app/Models/ServiceInvoice.php`:
      * ini sengaja didenormalisasi supaya daftar bisa mengurutkan & memfilter di SQL.
      *
      * payment_status TIDAK PERNAH diketik manusia; selalu hasil hitungan di sini.
+     *
+     * Semua nilai dibulatkan ke 2 desimal SEBELUM dibandingkan. Tanpa itu, invoice
+     * yang dibayar tepat lunas bisa tersangkut di 'dp' selamanya: float tak bisa
+     * mewakili sebagian pecahan rupiah, sehingga `paid >= total` bernilai false
+     * padahal selisihnya 6e-8 — dan selisih itu tersimpan sebagai 0.00 di kolom
+     * decimal(15,2), membuat barisnya menyangkal dirinya sendiri (sisa nol, status DP).
+     *
+     * DUA HAL YANG PERLU DIINGAT PEMANGGIL:
+     *  - `save()` menulis SEMUA atribut yang kotor, bukan hanya lima kolom di bawah.
+     *    Jangan panggil metode ini sambil menggantung perubahan lain di memori
+     *    kecuali memang ingin ikut tersimpan.
+     *  - SUM di sini adalah consistent read TANPA kunci baris, jadi membungkusnya
+     *    dengan `DB::transaction` saja TIDAK menyerialkan dua pencatatan pembayaran
+     *    yang bersamaan — yang terakhir bisa menimpa dengan angka basi. Hitungannya
+     *    derivatif (bukan inkremental), jadi panggilan berikutnya memulihkannya.
+     *    Diterima sebagai risiko: alat internal dengan satu-dua operator.
      */
     public function recalcTotals(): void
     {
-        $subtotal = (float) $this->items()->sum('subtotal');
-        $total    = max($subtotal - (float) $this->discount, 0);
-        $paid     = (float) $this->payments()->sum('amount');
+        $subtotal  = round((float) $this->items()->sum('subtotal'), 2);
+        $total     = round(max($subtotal - (float) $this->discount, 0), 2);
+        $paid      = round((float) $this->payments()->sum('amount'), 2);
+        $remaining = round($total - $paid, 2);
 
         $status = 'belum';
         if ($paid > 0) {
-            $status = $paid >= $total ? 'lunas' : 'dp';
+            $status = $remaining <= 0 ? 'lunas' : 'dp';
         }
 
         $this->forceFill([
             'subtotal'       => $subtotal,
             'total'          => $total,
             'paid_total'     => $paid,
-            'remaining'      => $total - $paid,   // negatif = lebih bayar, sengaja dipertahankan
+            'remaining'      => $remaining,   // negatif = lebih bayar, sengaja dipertahankan
             'payment_status' => $status,
         ])->save();
     }
@@ -1118,7 +1262,7 @@ Sisipkan tepat sebelum `isOverdue()` di `app/Models/ServiceInvoice.php`:
 - [ ] **Step 4: Jalankan tes, pastikan lulus**
 
 Run: `php artisan test --filter=ServiceInvoiceCalcTest`
-Expected: PASS (5 tests)
+Expected: PASS (6 tests)
 
 - [ ] **Step 5: Commit**
 
@@ -1148,7 +1292,9 @@ namespace Tests\Feature;
 
 use App\Models\ServiceInvoice;
 use App\Support\ServiceInvoiceNumber;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class ServiceInvoiceNumberTest extends TestCase
@@ -1192,27 +1338,129 @@ class ServiceInvoiceNumberTest extends TestCase
     }
 
     /** @test */
-    public function retrying_does_not_repeat_non_duplicate_errors(): void
+    public function malformed_last_number_fails_loudly_instead_of_colliding(): void
     {
-        $calls = 0;
+        $aug = \Carbon\Carbon::parse('2026-08-11');
+        ServiceInvoice::factory()->create([
+            'invoice_no' => 'INV-JS-202608-REV', 'issued_at' => $aug->toDateString(),
+        ]);
 
-        // expectException() TIDAK dipakai di sini: baris setelah pemanggilan yang
-        // melempar tidak akan pernah jalan, sehingga assertion jumlah panggilannya
-        // jadi mati diam-diam. try/catch membuat keduanya benar-benar diperiksa.
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessageMatches('/tidak berformat angka/');
+
+        ServiceInvoiceNumber::next($aug);
+    }
+
+    /** @test */
+    public function running_out_of_numbers_in_a_month_fails_legibly(): void
+    {
+        $aug = \Carbon\Carbon::parse('2026-08-11');
+        ServiceInvoice::factory()->create([
+            'invoice_no' => 'INV-JS-202608-9999', 'issued_at' => $aug->toDateString(),
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessageMatches('/habis/');
+
+        ServiceInvoiceNumber::next($aug);
+    }
+
+    /** @test */
+    public function retrying_recovers_from_a_real_duplicate_number(): void
+    {
+        ServiceInvoice::factory()->create(['invoice_no' => 'INV-JS-202608-0001']);
+
+        $attempts = 0;
+
+        $result = ServiceInvoiceNumber::retrying(function () use (&$attempts) {
+            $attempts++;
+            // Percobaan pertama sengaja memakai nomor yang sudah terpakai, jadi
+            // duplikatnya datang dari unique index sungguhan — bukan pengecualian
+            // yang dirakit tangan.
+            $no = $attempts === 1 ? 'INV-JS-202608-0001' : 'INV-JS-202608-0002';
+
+            return ServiceInvoice::factory()->create(['invoice_no' => $no]);
+        });
+
+        $this->assertSame(2, $attempts, 'Duplikat harus diulang sekali lalu berhasil.');
+        $this->assertSame('INV-JS-202608-0002', $result->invoice_no);
+    }
+
+    /** @test */
+    public function retrying_gives_up_after_the_configured_attempts(): void
+    {
+        ServiceInvoice::factory()->create(['invoice_no' => 'INV-JS-202608-0001']);
+
+        $attempts = 0;
+
         try {
-            ServiceInvoiceNumber::retrying(function () use (&$calls) {
-                $calls++;
-                throw new \RuntimeException('bukan galat duplikat');
+            ServiceInvoiceNumber::retrying(function () use (&$attempts) {
+                $attempts++;
+
+                return ServiceInvoice::factory()->create(['invoice_no' => 'INV-JS-202608-0001']);
             });
-            $this->fail('Galat non-duplikat seharusnya dilempar apa adanya.');
-        } catch (\RuntimeException $e) {
-            $this->assertSame('bukan galat duplikat', $e->getMessage());
+            $this->fail('Tabrakan yang tak kunjung reda harus akhirnya dilempar.');
+        } catch (QueryException $e) {
+            $this->assertSame('23000', (string) $e->errorInfo[0]);
         }
 
-        $this->assertSame(1, $calls);
+        $this->assertSame(3, $attempts);
+    }
+
+    /** @test */
+    public function retrying_does_not_repeat_unrelated_database_errors(): void
+    {
+        $attempts = 0;
+
+        try {
+            ServiceInvoiceNumber::retrying(function () use (&$attempts) {
+                $attempts++;
+
+                DB::table('tabel_yang_tidak_ada')->insert(['x' => 1]);
+            });
+            $this->fail('Galat non-balapan harus dilempar apa adanya.');
+        } catch (QueryException $e) {
+            $this->assertStringContainsString('tabel_yang_tidak_ada', $e->getMessage());
+        }
+
+        $this->assertSame(1, $attempts, 'Galat non-balapan tidak boleh diulang.');
+    }
+
+    /** @test */
+    public function deadlock_is_treated_as_a_race_and_retried(): void
+    {
+        // Deadlock TIDAK bisa dipicu dari satu koneksi tes, jadi pengecualiannya
+        // dirakit dengan bentuk errorInfo yang sama persis seperti yang dilempar
+        // MySQL. Ini satu-satunya tes di berkas ini yang memakai galat rakitan —
+        // dan memang harus, karena jalur inilah yang membuat invoice PERTAMA tiap
+        // bulan tidak berakhir 500.
+        $attempts = 0;
+
+        $result = ServiceInvoiceNumber::retrying(function () use (&$attempts) {
+            $attempts++;
+
+            if ($attempts === 1) {
+                $pdoException = new \PDOException('SQLSTATE[40001]: Serialization failure: 1213 Deadlock found when trying to get lock');
+                $pdoException->errorInfo = ['40001', 1213, 'Deadlock found when trying to get lock'];
+
+                throw new QueryException(
+                    'mysql',
+                    'insert into `tb_service_invoices` (`invoice_no`) values (?)',
+                    ['INV-JS-202608-0001'],
+                    $pdoException
+                );
+            }
+
+            return 'berhasil';
+        });
+
+        $this->assertSame(2, $attempts, 'Deadlock adalah balapan murni dan harus diulang.');
+        $this->assertSame('berhasil', $result);
     }
 }
 ```
+
+> **Sebelum menulis tes deadlock:** periksa tanda tangan konstruktor `QueryException` di `vendor/laravel/framework/src/Illuminate/Database/QueryException.php`. Laravel 10 memakai `($connectionName, $sql, array $bindings, Throwable $previous)`; Laravel 9 tanpa `$connectionName`. Sesuaikan dan laporkan yang Anda temukan.
 
 - [ ] **Step 2: Jalankan tes, pastikan gagal**
 
@@ -1254,14 +1502,40 @@ class ServiceInvoiceNumber
             ->lockForUpdate()
             ->max('invoice_no');
 
-        $seq = $last ? ((int) substr($last, strlen($prefix))) + 1 : 1;
+        $suffix = $last !== null ? substr($last, strlen($prefix)) : null;
+
+        // Gagal keras, jangan menebak. Sufiks non-angka (data hasil sunting tangan
+        // atau importer) membuat (int) menghasilkan 0, `next()` mengembalikan 0001
+        // yang sudah terpakai, dan bulan itu macet permanen dengan galat SQL
+        // yang tak menjelaskan apa pun.
+        if ($suffix !== null && ! ctype_digit($suffix)) {
+            throw new \RuntimeException(
+                "Nomor invoice layanan terakhir tidak berformat angka: {$last}. "
+                . 'Perbaiki datanya sebelum menerbitkan invoice baru.'
+            );
+        }
+
+        $seq = $suffix !== null ? ((int) $suffix) + 1 : 1;
+
+        // Di 10000 sufiksnya jadi 5 digit dan urutan leksikografis MAX() putus —
+        // '1' < '9' membuat baris 5 digit terabaikan dan nomor yang sama diterbitkan
+        // berulang. Tak terjangkau pada volume jasa, tapi harus berbunyi jelas.
+        if ($seq > 9999) {
+            throw new \RuntimeException(
+                'Kuota nomor invoice layanan bulan ' . $issuedAt->format('F Y') . ' habis (9999). '
+                . 'Lebarkan format penomoran sebelum menerbitkan invoice baru.'
+            );
+        }
 
         return $prefix . str_pad((string) $seq, 4, '0', STR_PAD_LEFT);
     }
 
     /**
-     * Jalankan $fn, ulangi hanya bila gagal karena tabrakan invoice_no. Galat lain
+     * Jalankan $fn, ulangi hanya bila gagal karena balapan alokasi nomor. Galat lain
      * dilempar apa adanya — mengulang galat sembarangan menyembunyikan bug.
+     *
+     * Jeda acak kecil antar-percobaan supaya dua pemanggil yang bertabrakan tidak
+     * langsung bertabrakan lagi di percobaan berikutnya.
      */
     public static function retrying(callable $fn, int $tries = 3)
     {
@@ -1269,14 +1543,43 @@ class ServiceInvoiceNumber
             try {
                 return $fn();
             } catch (QueryException $e) {
-                $duplicate = str_contains($e->getMessage(), 'invoice_no')
-                    && (str_contains($e->getMessage(), 'Duplicate') || str_contains($e->getMessage(), 'UNIQUE'));
-
-                if (! $duplicate || $attempt >= $tries) {
+                if (! self::isRaceCollision($e) || $attempt >= $tries) {
                     throw $e;
                 }
+
+                usleep(random_int(10_000, 50_000));
             }
         }
+    }
+
+    /**
+     * Dicocokkan lewat SQLSTATE + kode driver di `errorInfo`, BUKAN teks pesan:
+     * Laravel menempelkan seluruh SQL ke pesan, sehingga mencari 'invoice_no' di
+     * sana ikut cocok dengan duplikat kolom lain hanya karena nama kolomnya muncul
+     * di daftar INSERT. Presedennya sudah ada di `EnforceIdempotency`.
+     *
+     * Deadlock & lock-wait ikut dianggap balapan karena justru DIPICU oleh
+     * lockForUpdate() di next(): pada bulan yang masih kosong, `LIKE 'prefix%'
+     * FOR UPDATE` hanya mengambil gap lock yang kompatibel-bersama, jadi dua
+     * transaksi sama-sama menghitung 0001 lalu saling mengunci saat INSERT.
+     * Tanpa memasukkan 40001/1213 ke sini, invoice PERTAMA tiap bulan bisa
+     * berakhir 500 — tepat di kasus yang retry ini dibuat untuk menanganinya.
+     */
+    private static function isRaceCollision(QueryException $e): bool
+    {
+        $sqlState   = (string) ($e->errorInfo[0] ?? '');
+        $driverCode = (int) ($e->errorInfo[1] ?? 0);
+        $detail     = (string) ($e->errorInfo[2] ?? '');
+
+        if ($sqlState === '40001' || in_array($driverCode, [1213, 1205], true)) {
+            return true;
+        }
+
+        // errorInfo[2] hanya memuat nama indeks yang bentrok, tanpa SQL-nya —
+        // jadi ini benar-benar menyaring unique index invoice_no.
+        return $sqlState === '23000'
+            && $driverCode === 1062
+            && str_contains($detail, 'invoice_no');
     }
 }
 ```
@@ -1284,7 +1587,7 @@ class ServiceInvoiceNumber
 - [ ] **Step 4: Jalankan tes, pastikan lulus**
 
 Run: `php artisan test --filter=ServiceInvoiceNumberTest`
-Expected: PASS (4 tests)
+Expected: PASS (8 tests)
 
 - [ ] **Step 5: Commit**
 
@@ -1300,8 +1603,10 @@ git commit -m "layanan: penomoran invoice anti-balapan + pembungkus retry"
 Menutup T-WS-1..3. (T-WS-4 — batal hanya superadmin — butuh route, jadi ada di Task 11.)
 
 **Files:**
-- Modify: `app/Models/ServiceInvoice.php` (tambah satu metode)
+- Create: `app/Services/ServiceInvoiceWorkflow.php`
 - Test: `tests/Feature/ServiceInvoiceWorkStatusTest.php`
+
+> **Kenapa Service, bukan metode di model.** Rancangan awal menaruh ini sebagai `ServiceInvoice::applyWorkStatus()`. Diubah setelah review Task 4, atas tiga alasan: (1) codebase ini punya konvensi hidup bahwa "ubah keadaan + tulis baris log" tinggal di Service — `CashPeriodService::lock()/unlock()` dan `TitleProgressService::log()` persis pola itu; (2) `ServiceInvoice` sudah 179 baris, dan metode ini akan melewatkannya ~200; (3) yang menentukan — Task 10 punya `cancel()` dengan bentuk yang sama persis (ubah status, tulis log, bungkus transaksi), jadi tanpa Service pola itu ditulis dua kali di dua tempat berbeda. Task 10 menambahkan `cancel()` ke kelas yang sama. Model tetap sekadar rekaman.
 
 - [ ] **Step 1: Tulis tes yang gagal**
 
@@ -1314,12 +1619,20 @@ namespace Tests\Feature;
 
 use App\Models\ServiceInvoice;
 use App\Models\User;
+use App\Services\ServiceInvoiceWorkflow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class ServiceInvoiceWorkStatusTest extends TestCase
 {
     use RefreshDatabase;
+
+    private function workflow(): ServiceInvoiceWorkflow
+    {
+        return app(ServiceInvoiceWorkflow::class);
+    }
 
     /** @test */
     public function moving_to_proses_stamps_started_at_once_only(): void
@@ -1327,17 +1640,83 @@ class ServiceInvoiceWorkStatusTest extends TestCase
         $user = User::factory()->create();
         $inv  = ServiceInvoice::factory()->create(['work_status' => 'belum']);
 
-        $inv->applyWorkStatus('proses', 'mulai instalasi', $user->id);
+        // Waktu WAJIB dikendalikan di sini. Kolom `work_started_at` bertipe timestamp
+        // tanpa pecahan detik, dan ketiga panggilan di bawah selesai dalam milidetik —
+        // tanpa travelTo(), tes ini tetap lulus walau stempelnya ditimpa setiap kali,
+        // karena kedua nilai kebetulan jatuh di detik yang sama.
+        $this->travelTo(Carbon::parse('2026-08-11 09:00:00'));
+        $this->workflow()->changeStatus($inv, 'proses', 'mulai instalasi', $user->id);
         $inv->refresh();
-        $firstStamp = $inv->work_started_at;
-        $this->assertNotNull($firstStamp);
+        $this->assertSame('2026-08-11 09:00:00', $inv->work_started_at->toDateTimeString());
 
         // Bolak-balik: kembali ke Proses TIDAK boleh menimpa stempel awal.
-        $inv->applyWorkStatus('selesai', null, $user->id);
-        $inv->applyWorkStatus('proses', 'revisi klien', $user->id);
+        $this->travelTo(Carbon::parse('2026-08-12 14:30:00'));
+        $this->workflow()->changeStatus($inv, 'selesai', null, $user->id);
+
+        $this->travelTo(Carbon::parse('2026-08-13 08:15:00'));
+        $this->workflow()->changeStatus($inv, 'proses', 'revisi klien', $user->id);
         $inv->refresh();
 
-        $this->assertEquals($firstStamp->toDateTimeString(), $inv->work_started_at->toDateTimeString());
+        $this->assertSame(
+            '2026-08-11 09:00:00',
+            $inv->work_started_at->toDateTimeString(),
+            'Stempel mulai hanya dipasang sekali, tidak ditimpa saat kembali ke Proses.'
+        );
+    }
+
+    /** @test */
+    public function leaving_selesai_in_any_direction_clears_the_finish_date(): void
+    {
+        $user = User::factory()->create();
+        $inv  = ServiceInvoice::factory()->create(['work_status' => 'belum']);
+
+        $this->workflow()->changeStatus($inv, 'selesai', null, $user->id);
+        $this->workflow()->changeStatus($inv, 'belum', 'salah tandai', $user->id);
+        $inv->refresh();
+
+        $this->assertSame('belum', $inv->work_status);
+        $this->assertNull($inv->work_finished_at);
+    }
+
+    /** @test */
+    public function a_stale_instance_cannot_strand_a_finish_date_on_an_unfinished_row(): void
+    {
+        $user = User::factory()->create();
+        $inv  = ServiceInvoice::factory()->create(['work_status' => 'belum']);
+
+        // Dua operator memuat invoice yang sama sebelum salah satunya menyimpan.
+        // Instance kedua memegang $from yang basi ('belum'), jadi logika yang
+        // berkunci pada asal akan melewatkan pembersihan tanggal selesai.
+        $a = ServiceInvoice::find($inv->id);
+        $b = ServiceInvoice::find($inv->id);
+
+        $this->workflow()->changeStatus($a, 'selesai', null, $user->id);
+        $this->workflow()->changeStatus($b, 'proses', null, $user->id);
+
+        $fresh = ServiceInvoice::find($inv->id);
+        $this->assertSame('proses', $fresh->work_status);
+        $this->assertNull($fresh->work_finished_at, 'Baris Proses tak boleh menyimpan tanggal selesai.');
+    }
+
+    /** @test */
+    public function unknown_and_terminal_statuses_are_refused(): void
+    {
+        $user = User::factory()->create();
+
+        foreach (['batal', 'Selesai', 'done', ''] as $bogus) {
+            $inv = ServiceInvoice::factory()->create(['work_status' => 'proses']);
+
+            try {
+                $this->workflow()->changeStatus($inv, $bogus, null, $user->id);
+                $this->fail("Status '{$bogus}' seharusnya ditolak.");
+            } catch (ValidationException $e) {
+                // sesuai harapan
+            }
+
+            $inv->refresh();
+            $this->assertSame('proses', $inv->work_status, "Status '{$bogus}' tak boleh tersimpan.");
+            $this->assertCount(0, $inv->logs);
+        }
     }
 
     /** @test */
@@ -1346,12 +1725,12 @@ class ServiceInvoiceWorkStatusTest extends TestCase
         $user = User::factory()->create();
         $inv  = ServiceInvoice::factory()->create(['work_status' => 'proses']);
 
-        $inv->applyWorkStatus('selesai', null, $user->id);
+        $this->workflow()->changeStatus($inv, 'selesai', null, $user->id);
         $inv->refresh();
         $this->assertNotNull($inv->work_finished_at);
 
         // Tanggal selesai tidak boleh berbohong setelah pekerjaan dibuka lagi.
-        $inv->applyWorkStatus('proses', 'klien minta revisi tema', $user->id);
+        $this->workflow()->changeStatus($inv, 'proses', 'klien minta revisi tema', $user->id);
         $inv->refresh();
         $this->assertNull($inv->work_finished_at);
     }
@@ -1362,8 +1741,8 @@ class ServiceInvoiceWorkStatusTest extends TestCase
         $user = User::factory()->create();
         $inv  = ServiceInvoice::factory()->create(['work_status' => 'belum']);
 
-        $inv->applyWorkStatus('proses', 'mulai', $user->id);
-        $inv->applyWorkStatus('selesai', 'beres', $user->id);
+        $this->workflow()->changeStatus($inv, 'proses', 'mulai', $user->id);
+        $this->workflow()->changeStatus($inv, 'selesai', 'beres', $user->id);
         $inv->refresh();
 
         $this->assertCount(2, $inv->logs);
@@ -1382,74 +1761,167 @@ class ServiceInvoiceWorkStatusTest extends TestCase
         $user = User::factory()->create();
         $inv  = ServiceInvoice::factory()->create(['work_status' => 'proses']);
 
-        $inv->applyWorkStatus('proses', 'tidak berubah', $user->id);
+        $moved = $this->workflow()->changeStatus($inv, 'proses', 'tidak berubah', $user->id);
         $inv->refresh();
 
+        $this->assertFalse($moved);
         $this->assertCount(0, $inv->logs);
+    }
+
+    /** @test */
+    public function a_failed_log_write_rolls_the_status_back(): void
+    {
+        $inv = ServiceInvoice::factory()->create(['work_status' => 'belum']);
+
+        // `changed_by` punya foreign key ke users, jadi id yang tidak ada membuat
+        // INSERT log gagal SETELAH baris invoice diperbarui. Keduanya harus jatuh
+        // bersama — tak boleh ada perpindahan status yang tidak punya jejak.
+        try {
+            $this->workflow()->changeStatus($inv, 'proses', null, 999999);
+            $this->fail('INSERT log dengan changed_by tak dikenal seharusnya gagal.');
+        } catch (\Illuminate\Database\QueryException $e) {
+            // yang diuji adalah keadaan sesudahnya, bukan pesannya
+        }
+
+        // Dibaca ulang dari basis data: instance di memori sudah terlanjur dimutasi
+        // oleh update() walau transaksinya dibatalkan.
+        $this->assertSame('belum', ServiceInvoice::find($inv->id)->work_status);
+        $this->assertSame(0, $inv->logs()->count());
     }
 }
 ```
 
+> Tes terakhir memaksa kegagalan di tengah transaksi untuk membuktikan `DB::transaction` di dalam `changeStatus()` benar-benar mengikat perpindahan status dengan penulisan lognya.
+
 - [ ] **Step 2: Jalankan tes, pastikan gagal**
 
 Run: `php artisan test --filter=ServiceInvoiceWorkStatusTest`
-Expected: FAIL — `Call to undefined method App\Models\ServiceInvoice::applyWorkStatus()`
+Expected: FAIL — `Class "App\Services\ServiceInvoiceWorkflow" not found`
 
-- [ ] **Step 3: Tambahkan `applyWorkStatus()` ke `ServiceInvoice`**
+- [ ] **Step 3: Tulis `ServiceInvoiceWorkflow`**
 
-Sisipkan tepat setelah `recalcTotals()` di `app/Models/ServiceInvoice.php`:
+`app/Services/ServiceInvoiceWorkflow.php`:
 
 ```php
+<?php
+
+namespace App\Services;
+
+use App\Models\ServiceInvoice;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+
+/**
+ * Perpindahan status pengerjaan invoice layanan, beserta jejaknya.
+ *
+ * Ditaruh di Service mengikuti konvensi yang sudah hidup di codebase ini untuk
+ * pola "ubah keadaan + tulis baris log": CashPeriodService::lock()/unlock() dan
+ * TitleProgressService::log(). Model tetap sekadar rekaman.
+ *
+ * Gerbang "siapa boleh" TIDAK ada di sini — itu urusan permission di rute.
+ */
+class ServiceInvoiceWorkflow
+{
+    /** Status yang boleh dimasuki lewat changeStatus(). 'batal' sengaja di luar. */
+    public const CHANGEABLE = ['belum', 'proses', 'selesai'];
+
     /**
      * Pindahkan status pengerjaan dan catat jejaknya. Transisi bebas antara
      * belum/proses/selesai — pekerjaan jasa rutin kembali ke Proses karena revisi
      * klien, dan memaksa satu arah cuma membuat operator berbohong.
      *
-     * Pembatalan TIDAK lewat sini: 'batal' butuh alasan + pelaku superadmin,
-     * ditangani ServiceInvoiceController::cancel().
+     * Pembatalan TIDAK lewat sini: 'batal' keadaan terminal yang butuh alasan.
+     * Lihat cancel() (ditambahkan di Task 10).
+     *
+     * DUA HAL YANG PERLU DIINGAT PEMANGGIL:
+     *  - `refresh()` di bawah MEMBUANG perubahan yang masih menggantung di memori
+     *    pada instance yang dioper. Ini kebalikan dari `ServiceInvoice::recalcTotals()`,
+     *    yang justru ikut menyimpan atribut kotor lain. Jangan mengoper invoice yang
+     *    baru diubah tapi belum disimpan ke sini.
+     *  - `refresh()` berada DI LUAR transaksi dan tanpa kunci baris, jadi ia menutup
+     *    kasus instance basi (dua operator memuat halaman lalu menyimpan bergantian),
+     *    bukan tulisan yang benar-benar serempak. Sisa celahnya diterima sadar —
+     *    alat internal, satu-dua operator, sama seperti catatan di recalcTotals().
+     *    Penutupnya kelak `lockForUpdate()` pada baris invoice di dalam transaksi.
+     *
+     * @return bool true bila status benar-benar berpindah; false bila sama.
      */
-    public function applyWorkStatus(string $to, ?string $note, ?int $userId): void
+    public function changeStatus(ServiceInvoice $invoice, string $to, ?string $note, ?int $userId): bool
     {
-        $from = $this->work_status;
+        // Divalidasi DI SINI, bukan hanya di aturan `in:` milik controller. Kolomnya
+        // varchar biasa, jadi basis data bukan jaring pengaman: 'Selesai' berkapital
+        // akan tersimpan apa adanya dan lolos dari setiap filter, sedangkan 'batal'
+        // lewat jalur ini menghasilkan invoice batal tanpa alasan/pelaku yang tak
+        // bisa digerakkan lagi dari mana pun. Kedua service sejenis di codebase ini
+        // (TitleProgressService, ChapterManuscriptService) juga memvalidasi di dalam.
+        if (! in_array($to, self::CHANGEABLE, true)) {
+            throw ValidationException::withMessages([
+                'work_status' => "Status pengerjaan '{$to}' tidak dikenal. "
+                    . 'Pembatalan punya jalurnya sendiri lewat cancel().',
+            ]);
+        }
+
+        // Baca ulang dari basis data SEBELUM memutuskan apa pun. Instance yang dipegang
+        // pemanggil bisa basi (dua operator memuat baris yang sama sebelum salah satu
+        // menyimpan). Tanpa ini dua hal salah sekaligus: (1) $from di bawah bisa keliru,
+        // dan (2) Eloquent's update() cuma mengirim kolom yang "dirty" RELATIF KE
+        // SNAPSHOT ASLI MODEL INI, bukan relatif ke isi tabel saat ini — jadi kalau nilai
+        // baru yang kita tulis (mis. work_finished_at = null) KEBETULAN sama dengan nilai
+        // basi yang pertama kali dimuat model ini, kolom itu diam-diam tidak pernah masuk
+        // ke SQL UPDATE sama sekali, dan tanggal selesai tulisan penulis lain bertahan.
+        $invoice->refresh();
+
+        $from = $invoice->work_status;
         if ($from === $to) {
-            return;
+            return false;
         }
 
         $attrs = ['work_status' => $to];
 
-        if ($to === 'proses' && $this->work_started_at === null) {
+        if ($to === 'proses' && $invoice->work_started_at === null) {
             $attrs['work_started_at'] = now();
         }
+
+        // Berkunci pada TUJUAN, bukan asal. `elseif ($from === 'selesai')` tampak
+        // setara, tapi $from bisa basi: kalau dua orang memuat invoice yang sama
+        // lalu yang satu menandai Selesai dan yang lain memindahkannya ke Proses,
+        // $from si kedua masih 'belum' sehingga tanggal selesai milik yang pertama
+        // ikut tertinggal di baris berstatus Proses. Tak ada yang memperbaikinya.
         if ($to === 'selesai') {
             $attrs['work_finished_at'] = now();
-        } elseif ($from === 'selesai') {
-            // Keluar dari Selesai: kosongkan supaya tanggal selesai tidak berbohong.
+        } else {
             $attrs['work_finished_at'] = null;
         }
 
-        $this->update($attrs);
+        // Perpindahan status dan jejaknya harus jatuh bersama: status yang berpindah
+        // tanpa baris log adalah riwayat yang berbohong.
+        DB::transaction(function () use ($invoice, $attrs, $from, $to, $note, $userId) {
+            $invoice->update($attrs);
 
-        $this->logs()->create([
-            'event'       => 'status_changed',
-            'from_status' => $from,
-            'to_status'   => $to,
-            'note'        => $note,
-            'changed_by'  => $userId,
-        ]);
+            $invoice->logs()->create([
+                'event'       => 'status_changed',
+                'from_status' => $from,
+                'to_status'   => $to,
+                'note'        => $note,
+                'changed_by'  => $userId,
+            ]);
+        });
+
+        return true;
     }
-
+}
 ```
 
 - [ ] **Step 4: Jalankan tes, pastikan lulus**
 
 Run: `php artisan test --filter=ServiceInvoiceWorkStatusTest`
-Expected: PASS (4 tests)
+Expected: PASS (8 tests)
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add app/Models/ServiceInvoice.php tests/Feature/ServiceInvoiceWorkStatusTest.php
-git commit -m "layanan: mesin status pengerjaan + jejak transisi"
+git add app/Services/ServiceInvoiceWorkflow.php tests/Feature/ServiceInvoiceWorkStatusTest.php
+git commit -m "layanan: ServiceInvoiceWorkflow — perpindahan status + jejaknya"
 ```
 
 ---
@@ -1462,8 +1934,10 @@ Rute pertama modul ini. **Permission wajib ikut di commit yang sama**, atau `Per
 - Create: `app/Http/Controllers/Pages/ServiceCatalogController.php`
 - Create: `database/seeders/ServiceCatalogSeeder.php`
 - Create: `resources/views/services/catalogs/index.blade.php`
-- Modify: `routes/web.php`, `config/permissions.php`, `database/seeders/AccessMatrixSeeder.php`, `resources/views/layouts/sidebar.blade.php`
+- Modify: `routes/web.php`, `config/permissions.php`, `resources/views/layouts/sidebar.blade.php`
 - Test: `tests/Feature/ServiceCatalogCrudTest.php`
+
+> `AccessMatrixSeeder.php` **tidak** disentuh di task ini: `manager` sudah memegang hibah `'*'`, dan role lain memakai daftar eksplisit sehingga tak kebagian apa pun. Seeder itu baru diubah di Task 9 & 10, saat `service_invoice.delete` dan `.cancel` perlu masuk `$superadminOnly`.
 
 - [ ] **Step 1: Tulis tes yang gagal**
 
@@ -1554,6 +2028,18 @@ class ServiceCatalogCrudTest extends TestCase
     {
         $this->seed(\Database\Seeders\ServiceCatalogSeeder::class);
 
+        // Jumlah dipatok eksplisit. Tanpa ini, seeder yang kehilangan 27 dari 30
+        // barisnya tetap lolos selama tiga baris yang kebetulan disebut di bawah
+        // masih ada — dan seluruh gunanya task ini adalah menyalin daftar harga
+        // klien dengan setia.
+        $this->assertSame(30, ServiceCatalog::count());
+
+        $perCategory = ServiceCatalog::get()->groupBy('category')->map->count()->all();
+        $this->assertSame([
+            'instalasi' => 5, 'perbaikan' => 7, 'upgrade' => 4, 'desain' => 4,
+            'hosting' => 4, 'maintenance' => 3, 'bundle' => 3,
+        ], $perCategory);
+
         $this->assertDatabaseHas('tb_service_catalogs', ['name' => 'Instalasi OJS Basic', 'price' => 500000.00]);
         $this->assertDatabaseHas('tb_service_catalogs', ['name' => 'Fix Error Sedang', 'price' => 500000.00, 'price_max' => 1000000.00]);
         $this->assertDatabaseHas('tb_service_catalogs', ['name' => 'Paket Enterprise', 'category' => 'bundle']);
@@ -1562,9 +2048,90 @@ class ServiceCatalogCrudTest extends TestCase
         $this->assertDatabaseMissing('tb_service_catalogs', ['category' => 'similarity']);
 
         // Idempoten: dijalankan dua kali tidak menggandakan baris.
-        $before = ServiceCatalog::count();
         $this->seed(\Database\Seeders\ServiceCatalogSeeder::class);
-        $this->assertSame($before, ServiceCatalog::count());
+        $this->assertSame(30, ServiceCatalog::count());
+    }
+
+    /** @test */
+    public function reseeding_does_not_resurrect_a_row_the_operator_deleted(): void
+    {
+        $this->seed(\Database\Seeders\ServiceCatalogSeeder::class);
+
+        ServiceCatalog::firstWhere('name', 'Setup Multi Jurnal')->delete();
+        $this->assertSame(29, ServiceCatalog::count());
+
+        // Lookup-nya memakai withTrashed, jadi baris yang sudah dihapus tetap
+        // dikenali dan tidak dibuat ulang sebagai duplikat.
+        $this->seed(\Database\Seeders\ServiceCatalogSeeder::class);
+
+        $this->assertSame(29, ServiceCatalog::count());
+        $this->assertSame(30, ServiceCatalog::withTrashed()->count());
+    }
+
+    /** @test */
+    public function reopening_and_saving_a_row_unchanged_keeps_its_price(): void
+    {
+        $manager = $this->user('manager');
+        $catalog = ServiceCatalog::factory()->create([
+            'name' => 'Perbaikan SMTP', 'price' => 350000, 'price_max' => 1000000,
+        ]);
+
+        // Ambil payload PERSIS seperti yang ditanam view ke tombol Edit, bukan
+        // yang diketik tangan — jebakannya justru ada di payload itu.
+        $html = $this->actingAs($manager)->get(route('service.catalog.index'))->getContent();
+        $this->assertSame(1, preg_match('/data-catalog="([^"]*)"/', $html, $m));
+        $payload = json_decode(html_entity_decode($m[1], ENT_QUOTES), true);
+
+        // Kalau ini "350000.00" dan bukan 350000, pembersih pemisah ribuan di
+        // controller akan membuang titiknya dan harganya jadi 35.000.000 hanya
+        // karena barisnya dibuka lalu disimpan tanpa diubah sama sekali.
+        $this->assertSame(350000, $payload['price']);
+        $this->assertSame(1000000, $payload['price_max']);
+
+        $this->actingAs($manager)->put(route('service.catalog.update', $catalog->id), [
+            'category'  => $payload['category'],
+            'name'      => $payload['name'],
+            'price'     => (string) $payload['price'],
+            'price_max' => (string) $payload['price_max'],
+            'is_active' => '1',
+        ])->assertRedirect(route('service.catalog.index'));
+
+        $catalog->refresh();
+        $this->assertEquals(350000, $catalog->price);
+        $this->assertEquals(1000000, $catalog->price_max);
+    }
+
+    /** @test */
+    public function a_rejected_save_is_shown_to_the_operator(): void
+    {
+        $manager = $this->user('manager');
+
+        $this->actingAs($manager)
+            ->from(route('service.catalog.index'))
+            ->post(route('service.catalog.store'), [
+                'category' => 'perbaikan', 'name' => 'Salah Kisaran',
+                'price' => '1000000', 'price_max' => '500000',
+            ])
+            ->assertRedirect(route('service.catalog.index'));
+
+        // Sesi punya galatnya belum cukup: layouts/master tidak merender $errors,
+        // jadi tanpa blok galat di view-nya operator tak melihat apa pun dan
+        // mengira aplikasinya macet.
+        $this->actingAs($manager)
+            ->get(route('service.catalog.index'))
+            ->assertOk()
+            ->assertSee('Data belum tersimpan.');
+    }
+
+    /** @test */
+    public function an_empty_is_active_value_does_not_explode(): void
+    {
+        $this->actingAs($this->user('manager'))->post(route('service.catalog.store'), [
+            'category' => 'perbaikan', 'name' => 'Checkbox Kosong',
+            'price' => '350000', 'is_active' => '',
+        ])->assertRedirect(route('service.catalog.index'));
+
+        $this->assertFalse(ServiceCatalog::firstWhere('name', 'Checkbox Kosong')->is_active);
     }
 }
 ```
@@ -1620,11 +2187,21 @@ class ServiceCatalogController extends Controller
     {
         ServiceCatalog::findOrFail($id)->delete();
 
+        // 'info', bukan 'warning': layouts/master hanya merender success/error/info,
+        // jadi pesan ber-key 'warning' tak pernah sampai ke layar sama sekali.
         return redirect()->route('service.catalog.index')
-            ->with('warning', 'Layanan dihapus dari katalog. Invoice lama tidak berubah.');
+            ->with('info', 'Layanan dihapus dari katalog. Invoice lama tidak berubah.');
     }
 
-    /** Buang pemisah ribuan sebelum validasi, lalu validasi. */
+    /**
+     * Buang pemisah ribuan sebelum validasi, lalu validasi.
+     *
+     * Harga di modul ini RUPIAH BULAT. Pembersih di bawah membuang titik, koma,
+     * dan spasi tanpa bisa membedakan pemisah ribuan dari titik desimal — jadi
+     * "1.500,50" akan jadi 150050. Itu diterima sadar: tarif jasa tak pernah bersen.
+     * Konsekuensinya form HARUS menerima angka bulat saja; lihat catatan di view
+     * soal `(int)` pada data-catalog, yang mencegah "350000.00" kembali ke sini.
+     */
     private function validated(Request $request): array
     {
         foreach (['price', 'price_max'] as $field) {
@@ -1634,6 +2211,10 @@ class ServiceCatalogController extends Controller
             }
         }
 
+        // `is_active` SENGAJA di luar daftar aturan. Kalau ia divalidasi sebagai
+        // `nullable|boolean`, nilai kosong lolos sebagai null lalu menabrak kolom
+        // NOT NULL dan berakhir 500. Di luar daftar, union `+` di bawah selalu
+        // yang mengisinya, dan checkbox yang tak dicentang jadi false.
         return $request->validate([
             'category'    => 'required|in:' . implode(',', array_keys(ServiceCatalog::CATEGORIES)),
             'name'        => 'required|string|max:190',
@@ -1641,7 +2222,6 @@ class ServiceCatalogController extends Controller
             'price_max'   => 'nullable|numeric|min:0|max:9999999999999.99|gte:price',
             'unit'        => 'nullable|in:' . implode(',', array_keys(ServiceCatalog::UNITS)),
             'description' => 'nullable|string',
-            'is_active'   => 'nullable|boolean',
             'position'    => 'nullable|integer|min:0',
         ]) + ['is_active' => $request->boolean('is_active')];
     }
@@ -1665,6 +2245,16 @@ use Illuminate\Database\Seeder;
 /**
  * Daftar harga jasa OJS yang berlaku. firstOrCreate berdasarkan category+name,
  * jadi aman dijalankan ulang dan TIDAK menimpa harga yang sudah disunting operator.
+ *
+ * `withTrashed()` pada pencariannya penting: tanpa itu, baris seed yang sengaja
+ * DIHAPUS operator tak terlihat oleh lookup, seeder membuatnya lagi, dan
+ * penghapusannya batal diam-diam sambil menumpuk tombstone tiap kali dijalankan.
+ *
+ * BATAS YANG HARUS DIKETAHUI: kuncinya adalah NAMA. Baris seed yang DIGANTI
+ * NAMANYA oleh operator tak akan dikenali lagi, jadi menjalankan ulang seeder
+ * melahirkan kembali baris lama di samping hasil suntingan itu. Kalau kelak
+ * penggantian nama jadi hal biasa, kuncinya harus pindah ke kolom `code` yang
+ * stabil — bukan menambal seeder-nya.
  *
  * Kategori 'similarity' (Turnitin & penurunan plagiasi) sengaja kosong: tarifnya
  * belum ditetapkan, diisi lewat CRUD katalog tanpa perlu deploy.
@@ -1726,7 +2316,7 @@ class ServiceCatalogSeeder extends Seeder
 
         foreach ($rows as $category => $items) {
             foreach ($items as $position => [$name, $price, $priceMax, $unit, $description]) {
-                ServiceCatalog::firstOrCreate(
+                ServiceCatalog::withTrashed()->firstOrCreate(
                     ['category' => $category, 'name' => $name],
                     [
                         'price'       => $price,
@@ -1824,8 +2414,23 @@ Di `resources/views/layouts/sidebar.blade.php`, sisipkan grup baru tepat setelah
                 <p class="text-muted small">
                     Harga di sini hanya acuan awal — saat membuat invoice, nominalnya tetap bisa ditimpa
                     sesuai kompleksitas pekerjaan. Mengubah harga di katalog <strong>tidak</strong>
-                    mengubah invoice yang sudah terbit.
+                    mengubah invoice yang sudah terbit. Isi angka bulat tanpa sen.
                 </p>
+
+                {{-- WAJIB: layouts/master hanya merender session success/error/info, BUKAN $errors.
+                     Tanpa blok ini setiap simpan yang ditolak validasi hanya memantul kembali ke
+                     daftar tanpa satu pun tanda — operator mengira aplikasinya yang macet lalu
+                     mengulang masukan yang sama. --}}
+                @if ($errors->any())
+                    <div class="alert alert-danger">
+                        <strong>Data belum tersimpan.</strong>
+                        <ul class="mb-0 mt-1">
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
 
                 <div class="table-responsive">
                     <table class="table table-centered datatable dt-responsive nowrap" style="width:100%;">
@@ -1839,14 +2444,16 @@ Di `resources/views/layouts/sidebar.blade.php`, sisipkan grup baru tepat setelah
                             @foreach($catalogs as $category => $rows)
                                 @foreach($rows as $c)
                                 <tr>
-                                    <td><span class="badge bg-secondary">{{ $categories[$category] ?? $category }}</span></td>
+                                    <td><span class="badge bg-secondary">{{ \App\Models\ServiceCatalog::categoryLabel($category) }}</span></td>
                                     <td>
                                         {{ $c->name }}
                                         @if($c->description)
                                             <br><small class="text-muted">{{ $c->description }}</small>
                                         @endif
                                     </td>
-                                    <td>{{ $c->priceLabel() }}</td>
+                                    {{-- data-order: tanpa ini DataTables mengurutkan teks "Rp 1.250.000"
+                                         secara leksikografis, yang menaruhnya sebelum "Rp 250.000". --}}
+                                    <td data-order="{{ (int) $c->price }}">{{ $c->priceLabel() }}</td>
                                     <td>{{ $units[$c->unit] ?? '-' }}</td>
                                     <td>
                                         <span class="badge bg-{{ $c->is_active ? 'success' : 'secondary' }}">
@@ -1855,12 +2462,31 @@ Di `resources/views/layouts/sidebar.blade.php`, sisipkan grup baru tepat setelah
                                     </td>
                                     <td>
                                         @can('service_catalog.manage')
+                                        {{-- JANGAN pakai $c->toJson(): cast decimal:2 memancarkan
+                                             "350000.00", dan begitu string itu masuk ke input teks,
+                                             pembersih pemisah ribuan di controller membuang titik
+                                             desimalnya — harganya jadi 35.000.000 hanya karena
+                                             dibuka lalu disimpan. Konvensi yang sama sudah dipakai
+                                             accounting/journal.blade.php dan salary/slips/form.blade.php. --}}
                                         <button class="btn btn-xs btn-outline-secondary"
                                                 data-bs-toggle="modal" data-bs-target="#catalogModal"
-                                                data-catalog="{{ $c->toJson() }}"
+                                                data-catalog="{{ json_encode([
+                                                    'id'          => $c->id,
+                                                    'category'    => $c->category,
+                                                    'name'        => $c->name,
+                                                    'price'       => (int) $c->price,
+                                                    'price_max'   => $c->price_max !== null ? (int) $c->price_max : null,
+                                                    'unit'        => $c->unit,
+                                                    'description' => $c->description,
+                                                    'is_active'   => $c->is_active,
+                                                    'position'    => (int) $c->position,
+                                                ]) }}"
                                                 onclick="fillCatalogForm(this)">Edit</button>
+                                        {{-- data-confirm, bukan onsubmit="return confirm(...)": ada
+                                             listener SweetAlert terdelegasi di layouts/master yang
+                                             dipakai seluruh aksi destruktif lain di aplikasi ini. --}}
                                         <form action="{{ route('service.catalog.destroy', $c->id) }}" method="POST" class="d-inline"
-                                              onsubmit="return confirm('Hapus layanan ini dari katalog?')">
+                                              data-confirm="Hapus layanan ini dari katalog? Invoice lama tidak berubah.">
                                             @csrf @method('DELETE')
                                             <button class="btn btn-xs btn-outline-danger">Hapus</button>
                                         </form>
@@ -1924,6 +2550,11 @@ Di `resources/views/layouts/sidebar.blade.php`, sisipkan grup baru tepat setelah
                         <label class="form-label">Keterangan</label>
                         <textarea name="description" id="catalogDescription" class="form-control" rows="2"></textarea>
                     </div>
+                    <div class="mb-2">
+                        <label class="form-label">Urutan Tampil</label>
+                        <input type="number" name="position" id="catalogPosition" class="form-control" min="0" value="0">
+                        <small class="text-muted">Menentukan urutan di dalam kategorinya. Kecil tampil lebih dulu.</small>
+                    </div>
                     <div class="form-check">
                         <input type="checkbox" name="is_active" id="catalogActive" class="form-check-input" value="1" checked>
                         <label class="form-check-label" for="catalogActive">Aktif</label>
@@ -1949,10 +2580,19 @@ Di `resources/views/layouts/sidebar.blade.php`, sisipkan grup baru tepat setelah
 
 @push('custom-scripts')
 <script>
+    // Rute update dibangun dari template bernama, bukan URL yang diketik tangan:
+    // kalau prefiks `layanan` kelak berpindah, tombol Edit ikut pindah sendiri
+    // alih-alih diam-diam menembak 404.
+    const CATALOG_UPDATE_URL = "{{ route('service.catalog.update', ['id' => '__ID__']) }}";
+
     $(function () {
         $(".datatable").DataTable({
             pageLength: 50,
             responsive: true,
+            // order: [] mempertahankan urutan dari server (kategori lalu position).
+            // Tanpa ini DataTables mengurutkan ulang berdasar label kategori secara
+            // alfabetis dan membuang pengurutan yang sudah disusun controller.
+            order: [],
             columnDefs: [{ orderable: false, targets: 5 }],
             language: { emptyTable: "Katalog masih kosong." }
         });
@@ -1962,17 +2602,23 @@ Di `resources/views/layouts/sidebar.blade.php`, sisipkan grup baru tepat setelah
         document.getElementById('catalogModalTitle').textContent = 'Tambah Layanan';
         document.getElementById('catalogForm').action = "{{ route('service.catalog.store') }}";
         document.getElementById('catalogMethod').value = 'POST';
+        // Kategori & satuan WAJIB ikut direset: kalau tidak, membuka Edit pada baris
+        // hosting lalu menekan "+ Tambah Layanan" menyisakan Kategori=Hosting dan
+        // Satuan=Tahun, dan layanan baru masuk ke kategori yang salah.
+        document.getElementById('catalogCategory').selectedIndex = 0;
+        document.getElementById('catalogUnit').value = '';
         document.getElementById('catalogName').value = '';
         document.getElementById('catalogPrice').value = '';
         document.getElementById('catalogPriceMax').value = '';
         document.getElementById('catalogDescription').value = '';
+        document.getElementById('catalogPosition').value = 0;
         document.getElementById('catalogActive').checked = true;
     }
 
     function fillCatalogForm(button) {
         const c = JSON.parse(button.dataset.catalog);
         document.getElementById('catalogModalTitle').textContent = 'Edit Layanan';
-        document.getElementById('catalogForm').action = "{{ url('layanan/katalog') }}/" + c.id;
+        document.getElementById('catalogForm').action = CATALOG_UPDATE_URL.replace('__ID__', c.id);
         document.getElementById('catalogMethod').value = 'PUT';
         document.getElementById('catalogCategory').value = c.category;
         document.getElementById('catalogName').value = c.name;
@@ -1980,6 +2626,7 @@ Di `resources/views/layouts/sidebar.blade.php`, sisipkan grup baru tepat setelah
         document.getElementById('catalogPriceMax').value = c.price_max ?? '';
         document.getElementById('catalogUnit').value = c.unit ?? '';
         document.getElementById('catalogDescription').value = c.description ?? '';
+        document.getElementById('catalogPosition').value = c.position ?? 0;
         document.getElementById('catalogActive').checked = !!c.is_active;
     }
 </script>
@@ -1989,7 +2636,7 @@ Di `resources/views/layouts/sidebar.blade.php`, sisipkan grup baru tepat setelah
 - [ ] **Step 9: Jalankan tes, pastikan lulus**
 
 Run: `php artisan test --filter=ServiceCatalogCrudTest`
-Expected: PASS (4 tests)
+Expected: PASS (8 tests)
 
 - [ ] **Step 10: Pastikan peta permission tetap lengkap**
 
@@ -2112,6 +2759,22 @@ class ServiceClientCrudTest extends TestCase
     }
 
     /** @test */
+    public function superadmin_can_open_a_client_detail_page(): void
+    {
+        $client = ServiceClient::factory()->create();
+        ServiceInvoice::factory()->create(['service_client_id' => $client->id]);
+
+        // BUKAN pengulangan tes manager. Gate::before (AuthServiceProvider) meloloskan
+        // superadmin untuk ability APA PUN, termasuk permission yang belum terdaftar —
+        // jadi blok @can yang benar-benar aman bagi manager tetap DIEVALUASI bagi
+        // superadmin, dan setiap route() yang belum ada di dalamnya meledak jadi 500.
+        // Tes ini yang menahan pola itu supaya tidak masuk lagi.
+        $this->actingAs($this->user('superadmin'))
+            ->get(route('service.client.show', $client->id))
+            ->assertOk();
+    }
+
+    /** @test */
     public function other_roles_are_locked_out(): void
     {
         foreach (['admin', 'marketing', 'production'] as $role) {
@@ -2119,6 +2782,24 @@ class ServiceClientCrudTest extends TestCase
                 ->get(route('service.client.index'))
                 ->assertForbidden();
         }
+    }
+
+    /** @test */
+    public function a_rejected_save_is_shown_to_the_operator(): void
+    {
+        $manager = $this->user('manager');
+
+        $this->actingAs($manager)
+            ->from(route('service.client.index'))
+            ->post(route('service.client.store'), ['name' => 'Tanpa Email Valid', 'email' => 'bukan-email'])
+            ->assertRedirect(route('service.client.index'));
+
+        // Galat yang cuma sampai ke sesi tidak berguna: layouts/master tidak
+        // merender $errors, jadi view-nya harus menampilkannya sendiri.
+        $this->actingAs($manager)
+            ->get(route('service.client.index'))
+            ->assertOk()
+            ->assertSee('Data belum tersimpan.');
     }
 }
 ```
@@ -2199,8 +2880,9 @@ class ServiceClientController extends Controller
             $client->delete();
         });
 
+        // 'info', bukan 'warning': layouts/master hanya merender success/error/info.
         return redirect()->route('service.client.index')
-            ->with('warning', 'Klien dihapus. Invoice lamanya tetap utuh.');
+            ->with('info', 'Klien dihapus. Invoice lamanya tetap utuh.');
     }
 
     private function rules(Request $request): array
@@ -2285,6 +2967,20 @@ Di `resources/views/layouts/sidebar.blade.php`, di dalam grup **Layanan**, tepat
                     @endcan
                 </div>
 
+                {{-- WAJIB: layouts/master hanya merender session success/error/info, BUKAN $errors.
+                     Tanpa blok ini, email yang salah format memantul kembali ke daftar tanpa satu
+                     pun tanda dan operator mengira aplikasinya macet. --}}
+                @if ($errors->any())
+                    <div class="alert alert-danger">
+                        <strong>Data belum tersimpan.</strong>
+                        <ul class="mb-0 mt-1">
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
                 <div class="table-responsive">
                     <table class="table table-centered datatable dt-responsive nowrap" style="width:100%;">
                         <thead>
@@ -2300,11 +2996,23 @@ Di `resources/views/layouts/sidebar.blade.php`, di dalam grup **Layanan**, tepat
                                 <td><span class="badge bg-info">{{ $c->invoices_count }}</span></td>
                                 <td>
                                     @can('service_client.manage')
+                                    {{-- Payload dirakit eksplisit, bukan $c->toJson(): hanya kolom
+                                         yang memang dipakai form yang perlu sampai ke browser. --}}
                                     <button class="btn btn-xs btn-outline-secondary"
                                             data-bs-toggle="modal" data-bs-target="#clientModal"
-                                            data-client="{{ $c->toJson() }}" onclick="fillClientForm(this)">Edit</button>
+                                            data-client="{{ json_encode([
+                                                'id'          => $c->id,
+                                                'name'        => $c->name,
+                                                'institution' => $c->institution,
+                                                'email'       => $c->email,
+                                                'phone'       => $c->phone,
+                                                'address'     => $c->address,
+                                                'note'        => $c->note,
+                                            ]) }}" onclick="fillClientForm(this)">Edit</button>
+                                    {{-- data-confirm: listener SweetAlert terdelegasi di layouts/master,
+                                         dipakai seluruh aksi destruktif lain di aplikasi ini. --}}
                                     <form action="{{ route('service.client.destroy', $c->id) }}" method="POST" class="d-inline"
-                                          onsubmit="return confirm('Hapus klien ini? Invoice lamanya tetap utuh.')">
+                                          data-confirm="Hapus klien ini? Invoice lamanya tetap utuh.">
                                         @csrf @method('DELETE')
                                         <button class="btn btn-xs btn-outline-danger">Hapus</button>
                                     </form>
@@ -2377,6 +3085,10 @@ Di `resources/views/layouts/sidebar.blade.php`, di dalam grup **Layanan**, tepat
 
 @push('custom-scripts')
 <script>
+    // Rute update dari template bernama, bukan URL yang diketik tangan: kalau
+    // prefiks `layanan` kelak berpindah, tombol Edit ikut pindah sendiri.
+    const CLIENT_UPDATE_URL = "{{ route('service.client.update', ['id' => '__ID__']) }}";
+
     $(function () {
         $(".datatable").DataTable({
             pageLength: 25, responsive: true,
@@ -2396,7 +3108,7 @@ Di `resources/views/layouts/sidebar.blade.php`, di dalam grup **Layanan**, tepat
     function fillClientForm(button) {
         const c = JSON.parse(button.dataset.client);
         document.getElementById('clientModalTitle').textContent = 'Edit Klien';
-        document.getElementById('clientForm').action = "{{ url('layanan/klien') }}/" + c.id;
+        document.getElementById('clientForm').action = CLIENT_UPDATE_URL.replace('__ID__', c.id);
         document.getElementById('clientMethod').value = 'PUT';
         document.getElementById('clientName').value = c.name;
         document.getElementById('clientInstitution').value = c.institution ?? '';
@@ -2452,11 +3164,13 @@ Di `resources/views/layouts/sidebar.blade.php`, di dalam grup **Layanan**, tepat
                                 <td>Rp {{ number_format($inv->total, 0, ',', '.') }}</td>
                                 <td><span class="badge bg-secondary">{{ $inv->workStatusLabel() }}</span></td>
                                 <td><span class="badge bg-info">{{ $inv->paymentStatusLabel() }}</span></td>
-                                <td>
-                                    @can('service_invoice.view')
-                                        <a href="{{ route('service.invoice.show', $inv->id) }}" class="btn btn-xs btn-primary">Detail</a>
-                                    @endcan
-                                </td>
+                                {{-- Tombol Detail sengaja BELUM ada di sini; ditambahkan di Task 8
+                                     bersama rute service.invoice.show. Membungkusnya dengan
+                                     @can('service_invoice.view') TIDAK aman: Gate::before di
+                                     AuthServiceProvider meloloskan superadmin untuk ability APA PUN,
+                                     termasuk permission yang belum terdaftar — jadi blok itu tetap
+                                     dievaluasi dan route() yang belum ada melempar 500. --}}
+                                <td></td>
                             </tr>
                             @empty
                             <tr><td colspan="6" class="text-center text-muted">Belum ada invoice untuk klien ini.</td></tr>
@@ -2471,12 +3185,12 @@ Di `resources/views/layouts/sidebar.blade.php`, di dalam grup **Layanan**, tepat
 @endsection
 ```
 
-> View ini memanggil `route('service.invoice.show', ...)`, yang baru terdaftar di Task 8. Aman dijalankan sekarang karena dibungkus `@can('service_invoice.view')` — permission itu juga belum ada di Task 7, jadi blok-nya tidak pernah dievaluasi dan tes Task 7 tetap hijau.
+> **Koreksi terhadap draf sebelumnya.** Draf awal menaruh tombol Detail di sini, dibungkus `@can('service_invoice.view')`, dengan alasan "permission-nya belum ada jadi blok-nya tak pernah dievaluasi". **Itu salah**, dan sudah terbukti 500 di lingkungan nyata: alasan itu hanya berlaku untuk manager. `Gate::before` meloloskan superadmin untuk ability apa pun, jadi baginya blok itu tetap dijalankan dan `route()` yang belum ada melempar `RouteNotFoundException`. Tombolnya pindah ke Task 8. Lihat aturan global 9 & 10.
 
 - [ ] **Step 9: Jalankan tes, pastikan lulus**
 
 Run: `php artisan test --filter=ServiceClientCrudTest`
-Expected: PASS (4 tests)
+Expected: PASS (8 tests)
 
 - [ ] **Step 10: Commit**
 
@@ -2504,6 +3218,7 @@ Menutup T-CLIENT-1.
 - Create: `resources/views/services/invoices/form.blade.php`
 - Create: `resources/views/services/invoices/show.blade.php`
 - Modify: `routes/web.php`, `config/permissions.php`, `resources/views/layouts/sidebar.blade.php`
+- Modify: `resources/views/services/clients/show.blade.php` (tombol Detail yang ditunda dari Task 7)
 - Test: `tests/Feature/ServiceInvoiceStoreTest.php`
 
 - [ ] **Step 1: Tulis tes yang gagal**
@@ -2593,6 +3308,34 @@ class ServiceInvoiceStoreTest extends TestCase
     }
 
     /** @test */
+    public function the_same_client_is_matched_by_email_not_by_name(): void
+    {
+        $manager = $this->user('manager');
+
+        // Email sama, nama beda → satu baris master (email yang jadi kuncinya).
+        $this->actingAs($manager)->post(route('service.invoice.store'), $this->payload());
+        $this->actingAs($manager)->post(route('service.invoice.store'), $this->payload(['client_name' => 'Nama Lain']));
+        $this->assertSame(1, ServiceClient::count());
+
+        // Nama sama, email beda → dua baris. Kalau pencocokannya jatuh ke nama,
+        // assertion inilah yang merah.
+        $this->actingAs($manager)->post(route('service.invoice.store'), $this->payload(['client_email' => 'lain@unbari.ac.id']));
+        $this->assertSame(2, ServiceClient::count());
+    }
+
+    /** @test */
+    public function discount_is_persisted_and_subtracted_from_the_total(): void
+    {
+        $this->actingAs($this->user('manager'))
+            ->post(route('service.invoice.store'), $this->payload(['discount' => '150.000']));
+
+        $inv = ServiceInvoice::first();
+        $this->assertEquals(150000, $inv->discount);
+        $this->assertEquals(1650000, $inv->subtotal);
+        $this->assertEquals(1500000, $inv->total);
+    }
+
+    /** @test */
     public function picking_an_existing_client_does_not_duplicate_the_master_row(): void
     {
         $client = ServiceClient::factory()->create(['name' => 'Klien Lama']);
@@ -2659,13 +3402,73 @@ class ServiceInvoiceStoreTest extends TestCase
     }
 
     /** @test */
-    public function index_and_create_render_for_manager(): void
+    public function every_screen_renders_for_manager_and_superadmin(): void
     {
-        ServiceInvoice::factory()->create();
+        $inv = ServiceInvoice::factory()->create();
+        $inv->items()->create(['name' => 'Instalasi OJS', 'qty' => 1, 'unit_price' => 750000, 'subtotal' => 750000]);
+        $inv->payments()->create(['paid_at' => now()->toDateString(), 'type' => 'dp', 'amount' => 250000]);
+        $inv->logs()->create(['event' => 'created']);
+        $inv->recalcTotals();
 
-        $manager = $this->user('manager');
-        $this->actingAs($manager)->get(route('service.invoice.index'))->assertOk();
-        $this->actingAs($manager)->get(route('service.invoice.create'))->assertOk();
+        // Blade yang gagal DIKOMPILASI hanya terlihat kalau view-nya benar-benar
+        // dirender — tes store() cuma menegaskan redirect dan tak pernah mengikutinya.
+        // Superadmin ikut diuji karena Gate::before membuatnya menempuh jalur berbeda
+        // dari manager (aturan global 10).
+        foreach (['manager', 'superadmin'] as $role) {
+            $user = $this->user($role);
+
+            $this->actingAs($user)->get(route('service.invoice.index'))->assertOk();
+            $this->actingAs($user)->get(route('service.invoice.create'))->assertOk();
+            $this->actingAs($user)->get(route('service.invoice.show', $inv->id))
+                ->assertOk()
+                ->assertSee($inv->invoice_no);
+        }
+    }
+
+    /** @test */
+    public function a_bounced_form_keeps_the_items_the_operator_typed(): void
+    {
+        // Kunci berlubang meniru operator yang menghapus baris di tengah.
+        $items = [
+            1 => ['name' => 'Instalasi OJS', 'qty' => 1, 'unit_price' => '750000'],
+            2 => ['name' => 'Maintenance',   'qty' => 3, 'unit_price' => '300000'],
+        ];
+
+        $this->actingAs($this->user('manager'))
+            ->from(route('service.invoice.create'))
+            ->post(route('service.invoice.store'), $this->payload(['items' => $items, 'discount' => '99000000']))
+            ->assertSessionHasErrors('discount');
+
+        $content = $this->actingAs($this->user('manager'))
+            ->get(route('service.invoice.create'))
+            ->assertOk()
+            ->assertSee('Instalasi OJS')
+            ->assertSee('Maintenance')
+            ->getContent();
+
+        // assertSee() di atas TIDAK CUKUP untuk membuktikan baris itemnya benar-benar
+        // muncul di form: nama layanan selalu ada di HTML mentah lewat JSON yang
+        // ditanam @json() di dalam <script>, baik itu dikodekan sebagai array MAUPUN
+        // objek JS — PHPUnit tak pernah mengeksekusi JavaScript, jadi ia tak bisa
+        // melihat bahwa existingItems.length bernilai undefined pada objek dan
+        // cabang else (satu addRow() kosong) itulah yang berjalan di browser
+        // sungguhan. Yang BISA dibuktikan lewat HTML mentah adalah BENTUK datanya:
+        // kalau existingItems tercetak sebagai objek ({"1":...,"2":...}, kunci
+        // berlubang dari items[1]/items[2]) alih-alih larik ([...]), maka baris
+        // yang sudah diketik operator lenyap di layar walau teksnya tetap ada di
+        // HTML yang tak pernah dijalankan mesin JS manapun di sini.
+        preg_match('/const existingItems = (.+);\s*$/m', $content, $m);
+        $this->assertNotEmpty($m, 'existingItems tidak ditemukan di HTML.');
+
+        $decoded = json_decode($m[1], true);
+        $this->assertTrue(
+            array_is_list($decoded),
+            'existingItems harus larik JS ([...]), bukan objek ({...}) — kunci berlubang '
+            . 'membuat json_encode memancarkan objek dan existingItems.length jadi undefined.'
+        );
+        $this->assertCount(2, $decoded);
+        $this->assertSame('Instalasi OJS', $decoded[0]['name'] ?? null);
+        $this->assertSame('Maintenance', $decoded[1]['name'] ?? null);
     }
 }
 ```
@@ -2716,7 +3519,7 @@ class ServiceInvoiceForm
             'items.*.service_catalog_id' => 'nullable|exists:tb_service_catalogs,id',
             'items.*.name'               => 'required|string|max:190',
             'items.*.description'        => 'nullable|string',
-            'items.*.qty'                => 'required|numeric|min:0.01|max:999999',
+            'items.*.qty'                => 'required|numeric|min:0.01|max:999999|decimal:0,2',
             'items.*.unit_price'         => 'required|numeric|min:0|max:9999999999999.99',
         ];
     }
@@ -2732,7 +3535,15 @@ class ServiceInvoiceForm
      */
     public static function normalize(Request $request): void
     {
-        if ($request->filled('discount')) {
+        // is_scalar(): kalau operatornya (atau penyerang) mengirim discount[]=1,
+        // JANGAN disentuh di sini. discount pakai aturan `nullable`, dan string
+        // kosong dianggap Laravel "tidak diisi" untuk nullable — jadi kalau larik
+        // itu ditimpa jadi '' di sini, `numeric` tak pernah dievaluasi, baris lolos
+        // ke database dengan discount='', dan MySQL menolaknya di lapisan SQL
+        // (SQLSTATE 22007) alih-alih galat validasi yang rapi. Membiarkannya
+        // sebagai larik apa adanya membuat `numeric` (is_numeric(array) === false)
+        // yang menolaknya dengan semestinya.
+        if ($request->filled('discount') && is_scalar($request->input('discount'))) {
             $request->merge(['discount' => self::digits($request->input('discount'))]);
         }
 
@@ -2742,7 +3553,7 @@ class ServiceInvoiceForm
         }
 
         foreach ($items as $i => $row) {
-            if (isset($row['unit_price'])) {
+            if (isset($row['unit_price']) && is_scalar($row['unit_price'])) {
                 $items[$i]['unit_price'] = self::digits($row['unit_price']);
             }
         }
@@ -2751,6 +3562,15 @@ class ServiceInvoiceForm
 
     private static function digits($value): string
     {
+        // Jaring pengaman: normalize() di atas sudah menyaring nilai non-skalar
+        // sebelum sampai sini, tapi kalau suatu saat dipanggil langsung dengan
+        // larik, jangan 500 lewat "Array to string conversion" — kembalikan
+        // string kosong dan biarkan pemanggilnya (bukan digits() sendiri) yang
+        // memutuskan apakah itu berarti "tolak" atau "biarkan apa adanya".
+        if (! is_scalar($value)) {
+            return '';
+        }
+
         return preg_replace('/[.,\s]/', '', (string) $value);
     }
 
@@ -2778,6 +3598,24 @@ class ServiceInvoiceForm
     {
         if (! empty($data['service_client_id'])) {
             return ServiceClient::findOrFail($data['service_client_id']);
+        }
+
+        // Email dipakai sebagai kunci alami SEBELUM membuat baris baru. Tanpa ini,
+        // operator yang mengetik klien yang sama di empat invoice (alih-alih
+        // memilihnya dari daftar) melahirkan empat baris master — dan pertanyaan
+        // "pekerjaan apa saja untuk Universitas X", satu-satunya tugas nyata
+        // service_client_id menurut spec §2.2, cuma terjawab seperempatnya.
+        //
+        // Sisa risikonya: klien TANPA email masih bisa terduplikasi. Diterima
+        // sadar; penutupnya kelak pencocokan nama+instansi atau kolom `code`.
+        $email = trim((string) ($data['client_email'] ?? ''));
+
+        if ($email !== '') {
+            $existing = ServiceClient::whereRaw('LOWER(email) = ?', [mb_strtolower($email)])->first();
+
+            if ($existing) {
+                return $existing;
+            }
         }
 
         return ServiceClient::create([
@@ -2851,11 +3689,24 @@ class ServiceInvoiceController extends Controller
 {
     public function index(Request $request)
     {
+        // Tanpa ini, filter yang salah ketik (mis. to=bukan-tanggal) diam-diam
+        // menghasilkan nol baris lewat where() yang tak pernah cocok — operator
+        // mengira invoice-nya hilang, bukan mengira filternya salah format.
+        $request->validate([
+            'work_status'    => 'nullable|in:belum,proses,selesai,batal',
+            'payment_status' => 'nullable|in:belum,dp,lunas',
+            'from'           => 'nullable|date',
+            'to'             => 'nullable|date',
+        ]);
+
         $invoices = ServiceInvoice::query()
             ->when($request->filled('work_status'),    fn ($q) => $q->where('work_status', $request->input('work_status')))
             ->when($request->filled('payment_status'), fn ($q) => $q->where('payment_status', $request->input('payment_status')))
-            ->when($request->filled('from'),           fn ($q) => $q->whereDate('issued_at', '>=', $request->input('from')))
-            ->when($request->filled('to'),             fn ($q) => $q->whereDate('issued_at', '<=', $request->input('to')))
+            // `where`, bukan `whereDate`: issued_at SUDAH bertipe DATE, jadi
+            // whereDate() cuma membungkusnya dengan date() dan membuat indeksnya
+            // tak terpakai tanpa memberi apa pun.
+            ->when($request->filled('from'), fn ($q) => $q->where('issued_at', '>=', $request->input('from')))
+            ->when($request->filled('to'),   fn ($q) => $q->where('issued_at', '<=', $request->input('to')))
             ->latest('issued_at')
             ->latest('id')
             ->get();
@@ -2965,6 +3816,26 @@ Di `resources/views/layouts/sidebar.blade.php`, di dalam grup **Layanan**, tepat
                     </li>
                 @endcan
 ```
+
+- [ ] **Step 7b: Pasang tombol Detail yang ditunda dari Task 7**
+
+Sekarang `service.invoice.show` sudah ada, jadi tautan dari halaman klien aman dipasang. Di `resources/views/services/clients/show.blade.php`, ganti sel kosong beserta komentarnya:
+
+```blade
+                                <td></td>
+```
+
+dengan:
+
+```blade
+                                <td>
+                                    @can('service_invoice.view')
+                                        <a href="{{ route('service.invoice.show', $inv->id) }}" class="btn btn-xs btn-primary">Detail</a>
+                                    @endcan
+                                </td>
+```
+
+Tes `superadmin_can_open_a_client_detail_page` di `ServiceClientCrudTest` yang menjaga langkah ini: ia harus tetap hijau setelah tautannya dipasang. Kalau merah, rutenya belum benar-benar terdaftar.
 
 - [ ] **Step 8: Tulis view daftar invoice**
 
@@ -3102,6 +3973,20 @@ Di `resources/views/layouts/sidebar.blade.php`, di dalam grup **Layanan**, tepat
     @csrf
     @if($mode === 'edit') @method('PUT') @endif
 
+    {{-- WAJIB: layouts/master hanya merender session success/error/info, BUKAN $errors.
+         Tanpa blok ini, kegagalan validasi pada baris item (yang dirender lewat JS,
+         bukan @error per-baris) memantul ke form ini tanpa satu pun tanda terlihat. --}}
+    @if ($errors->any())
+        <div class="alert alert-danger">
+            <strong>Data belum tersimpan.</strong>
+            <ul class="mb-0 mt-1">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     <div class="row">
         <div class="col-md-5 grid-margin stretch-card">
             <div class="card">
@@ -3113,8 +3998,18 @@ Di `resources/views/layouts/sidebar.blade.php`, di dalam grup **Layanan**, tepat
                         <select id="clientPicker" class="form-select" onchange="applyClient()">
                             <option value="">— Klien baru (isi manual di bawah) —</option>
                             @foreach($clients as $c)
+                                {{-- Payload dirakit eksplisit, bukan $c->toJson(): applyClient() hanya
+                                     memakai enam kolom ini — toJson() ikut mengirim note/created_by/
+                                     timestamps internal klien ke browser tanpa alasan. --}}
                                 <option value="{{ $c->id }}"
-                                    data-client="{{ $c->toJson() }}"
+                                    data-client="{{ json_encode([
+                                        'id'          => $c->id,
+                                        'name'        => $c->name,
+                                        'institution' => $c->institution,
+                                        'email'       => $c->email,
+                                        'phone'       => $c->phone,
+                                        'address'     => $c->address,
+                                    ]) }}"
                                     {{ old('service_client_id', $invoice->service_client_id ?? '') == $c->id ? 'selected' : '' }}>
                                     {{ $c->displayName() }}
                                 </option>
@@ -3191,7 +4086,7 @@ Di `resources/views/layouts/sidebar.blade.php`, di dalam grup **Layanan**, tepat
                         <select id="catalogPicker" class="form-select" onchange="addFromCatalog()">
                             <option value="">— Pilih layanan —</option>
                             @foreach($catalogs->groupBy('category') as $category => $rows)
-                                <optgroup label="{{ \App\Models\ServiceCatalog::CATEGORIES[$category] ?? $category }}">
+                                <optgroup label="{{ \App\Models\ServiceCatalog::categoryLabel($category) }}">
                                     @foreach($rows as $cat)
                                         <option value="{{ $cat->id }}"
                                                 data-name="{{ $cat->name }}"
@@ -3253,16 +4148,40 @@ Di `resources/views/layouts/sidebar.blade.php`, di dalam grup **Layanan**, tepat
     // di server dari qty & unit_price mentah (ServiceInvoiceForm::syncItems).
     let rowIndex = 0;
 
-    const existingItems = @json(
-        old('items', isset($invoice)
+    {{--
+        Perakitan dipindah ke blok PHP terpisah (bukan langsung di dalam pemanggilan
+        json(...) di JS di bawah) karena kombinasi old(...) + ternary isset(...) +
+        closure fn ($i) => [...] membuat pemroses arahan Blade (penghitung tanda
+        kurung berbasis token) berhenti pada ')' yang salah dan memotong array di
+        tengah — terverifikasi lewat compileString() di luar app: hasil kompilasinya
+        terpotong jadi "json_encode($invoice->items->map(fn ($i) => ['service_catalog_id'
+        => ..., 'name' => ...)" (tanda kurung siku dan sisa key tak pernah ikut), yang
+        meledak jadi ParseError saat view dicompile. Memanggilnya atas satu variabel
+        tunggal tidak kena masalah ini.
+
+        CATATAN UNTUK PENYUNTING SELANJUTNYA: komentar Blade ini SENGAJA menghindari
+        menulis kata "at-php" atau "at-json" apa adanya. Blade mencari pasangan blok
+        php mentah dengan regex naif SEBELUM komentar dibuang, jadi kata itu di sini
+        akan dikawinkan dengan penutup blok php nyata di bawah dan meledak lagi persis
+        seperti bug yang baru saja diperbaiki.
+    --}}
+    @php
+        // array_values WAJIB: removeRow() tidak menomori ulang, jadi menghapus baris
+        // di tengah menyisakan kunci berlubang ([1,2]) dan json_encode memancarkannya
+        // sebagai OBJEK, bukan larik. `existingItems.length` jadi undefined, cabang
+        // else berjalan, dan seluruh baris yang sudah diketik operator lenyap saat
+        // form memantul karena galat validasi.
+        $existingItemsForJs = array_values((array) old('items', isset($invoice)
             ? $invoice->items->map(fn ($i) => [
                 'service_catalog_id' => $i->service_catalog_id,
                 'name'               => $i->name,
+                'description'        => $i->description,
                 'qty'                => (float) $i->qty,
                 'unit_price'         => (int) $i->unit_price,
-              ])->values()
-            : [])
-    );
+              ])->values()->all()
+            : []));
+    @endphp
+    const existingItems = @json($existingItemsForJs);
 
     function rupiah(n) {
         return 'Rp ' + (Math.round(n) || 0).toLocaleString('id-ID');
@@ -3274,21 +4193,42 @@ Di `resources/views/layouts/sidebar.blade.php`, di dalam grup **Layanan**, tepat
 
     function addRow(item = {}) {
         const i = rowIndex++;
-        const html = `
-            <tr id="row-${i}">
-                <td>
-                    <input type="hidden" name="items[${i}][service_catalog_id]" value="${item.service_catalog_id ?? ''}">
-                    <input type="text" name="items[${i}][name]" class="form-control form-control-sm"
-                           value="${item.name ?? ''}" required maxlength="190">
-                </td>
-                <td><input type="number" step="0.01" min="0.01" name="items[${i}][qty]"
-                           class="form-control form-control-sm qty" value="${item.qty ?? 1}" required oninput="recalc()"></td>
-                <td><input type="text" name="items[${i}][unit_price]"
-                           class="form-control form-control-sm price" value="${item.unit_price ?? 0}" required oninput="recalc()"></td>
-                <td class="subtotal text-end">Rp 0</td>
-                <td><button type="button" class="btn btn-xs btn-outline-danger" onclick="removeRow(${i})">×</button></td>
-            </tr>`;
-        document.getElementById('itemRows').insertAdjacentHTML('beforeend', html);
+
+        // Dibangun lewat DOM, BUKAN insertAdjacentHTML dengan interpolasi. Nilai yang
+        // masuk ke sini berasal dari old() dan — sejak Task 9 — dari basis data, jadi
+        // menyisipkannya sebagai HTML membuat nama layanan bisa membobol atribut
+        // value="" dan mengeksekusi skrip di browser operator lain. `.value =` menugaskan
+        // properti string dan tidak pernah mengurai markup.
+        const field = (attrs) => Object.assign(document.createElement('input'), attrs);
+
+        const catalogId = field({ type: 'hidden', name: `items[${i}][service_catalog_id]`, value: item.service_catalog_id ?? '' });
+        const description = field({ type: 'hidden', name: `items[${i}][description]`, value: item.description ?? '' });
+        const name = field({ type: 'text', name: `items[${i}][name]`, className: 'form-control form-control-sm', value: item.name ?? '', required: true, maxLength: 190 });
+
+        const qty = field({ type: 'number', step: '0.01', min: '0.01', name: `items[${i}][qty]`, className: 'form-control form-control-sm qty', value: item.qty ?? 1, required: true });
+        const price = field({ type: 'text', name: `items[${i}][unit_price]`, className: 'form-control form-control-sm price', value: item.unit_price ?? 0, required: true });
+        qty.addEventListener('input', recalc);
+        price.addEventListener('input', recalc);
+
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'btn btn-xs btn-outline-danger';
+        remove.textContent = '×';
+        remove.addEventListener('click', () => removeRow(i));
+
+        const cells = [document.createElement('td'), document.createElement('td'), document.createElement('td'), document.createElement('td'), document.createElement('td')];
+        cells[0].append(catalogId, description, name);
+        cells[1].append(qty);
+        cells[2].append(price);
+        cells[3].className = 'subtotal text-end';
+        cells[3].textContent = 'Rp 0';
+        cells[4].append(remove);
+
+        const tr = document.createElement('tr');
+        tr.id = 'row-' + i;
+        tr.append(...cells);
+
+        document.getElementById('itemRows').append(tr);
         recalc();
     }
 
@@ -3475,7 +4415,7 @@ Di `resources/views/layouts/sidebar.blade.php`, di dalam grup **Layanan**, tepat
 - [ ] **Step 11: Jalankan tes, pastikan lulus**
 
 Run: `php artisan test --filter=ServiceInvoiceStoreTest`
-Expected: PASS (8 tests)
+Expected: PASS (11 tests)
 
 - [ ] **Step 12: Commit**
 
@@ -3751,7 +4691,11 @@ Sisipkan setelah `show()` di `app/Http/Controllers/Pages/ServiceInvoiceControlle
         // memakai withTrashed), jadi tidak ada nomor invoice yang didaur ulang.
         $invoice->delete();
 
-        return redirect()->route('service.invoice.index')->with('warning', 'Invoice ' . $no . ' dihapus.');
+        // 'info', bukan 'warning': layouts/master hanya merender success/error/info,
+        // jadi pesan ber-key 'warning' tak pernah sampai ke layar — operator menghapus
+        // invoice lalu kembali ke daftar tanpa satu pun konfirmasi. Jebakan yang sama
+        // sudah didokumentasikan di ServiceClientController::destroy().
+        return redirect()->route('service.invoice.index')->with('info', 'Invoice ' . $no . ' dihapus.');
     }
 ```
 
@@ -3813,12 +4757,20 @@ dengan:
 
 ```blade
                     <div class="d-flex gap-1">
+                        {{-- Syarat kedua bukan keamanan (controller sudah menjaganya), tapi
+                             afordans: tanpa itu manager melihat tombol Edit pada invoice
+                             terkunci, mengkliknya, dan selalu dipantulkan balik. superadmin
+                             tetap melihatnya karena memang boleh mengoreksi dengan alasan. --}}
                         @can('service_invoice.edit')
-                            <a href="{{ route('service.invoice.edit', $invoice->id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                            @if ($invoice->isEditable() || auth()->user()->hasRole('superadmin'))
+                                <a href="{{ route('service.invoice.edit', $invoice->id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                            @endif
                         @endcan
                         @can('service_invoice.delete')
+                            {{-- data-confirm: listener SweetAlert terdelegasi di layouts/master,
+                                 dipakai seluruh aksi destruktif lain di aplikasi ini. --}}
                             <form action="{{ route('service.invoice.destroy', $invoice->id) }}" method="POST"
-                                  onsubmit="return confirm('Hapus invoice ini? Nomornya tidak akan dipakai ulang.')">
+                                  data-confirm="Hapus invoice ini? Nomornya tidak akan dipakai ulang.">
                                 @csrf @method('DELETE')
                                 <button class="btn btn-sm btn-outline-danger">Hapus</button>
                             </form>
@@ -3830,7 +4782,13 @@ dengan:
 - [ ] **Step 9: Jalankan tes, pastikan lulus**
 
 Run: `php artisan test --filter=ServiceInvoiceEditLockTest`
-Expected: PASS (5 tests)
+Expected: PASS (14 tests)
+
+> **Tes di berkas ini melampaui lima blok di atas.** Sembilan tes tambahan lahir dari review dan falsifikasi, dan `tests/Feature/ServiceInvoiceEditLockTest.php` adalah sumber kebenarannya — jangan menyalin balik dari dokumen ini. Empat di antaranya menutup celah yang dibuktikan dengan merusak implementasi lalu menjalankan tes lama:
+> - `a_cancelled_invoice_is_locked` — syarat `isCancelled()` di `isEditable()` sebelumnya **tak diuji sama sekali**; mencabutnya membuat sepuluh tes tetap hijau sementara invoice batal bisa diedit bebas manager.
+> - `update_persists_discount_dates_and_the_client_snapshot` — memaku `'discount' => 0` di `update()` juga membuat sepuluh tes tetap hijau; `issued_at`, `due_at`, catatan, dan snapshot klien sama tak tersentuh assertion.
+> - `reopening_the_edit_form_and_saving_it_unchanged_keeps_the_totals` — putar-balik Aturan 12: nilai diambil dari halaman yang **dirender**, bukan diketik tangan, karena di payload itulah bug ×100 bersembunyi.
+> - `deleting_an_invoice_tells_the_operator` — mengikat flash `info`, sebab key `warning` tak pernah dirender layout.
 
 - [ ] **Step 10: Commit**
 
@@ -3851,6 +4809,7 @@ git commit -m "layanan: ubah & hapus invoice dengan kunci edit setelah terbayar/
 Menutup T-WS-4.
 
 **Files:**
+- Modify: `app/Services/ServiceInvoiceWorkflow.php` (tambah `cancel`)
 - Modify: `app/Http/Controllers/Pages/ServiceInvoiceController.php` (tambah `status`, `cancel`)
 - Modify: `resources/views/services/invoices/show.blade.php` (panel status)
 - Modify: `routes/web.php`, `config/permissions.php`, `database/seeders/AccessMatrixSeeder.php`
@@ -3965,12 +4924,52 @@ class ServiceInvoiceStatusRouteTest extends TestCase
 Run: `php artisan test --filter=ServiceInvoiceStatusRouteTest`
 Expected: FAIL — `Route [service.invoice.status] not defined.`
 
-- [ ] **Step 3: Tambahkan `status` & `cancel` ke controller**
+- [ ] **Step 3a: Tambahkan `cancel()` ke `ServiceInvoiceWorkflow`**
 
-Sisipkan setelah `destroy()` di `app/Http/Controllers/Pages/ServiceInvoiceController.php`:
+Sisipkan setelah `changeStatus()` di `app/Services/ServiceInvoiceWorkflow.php`:
 
 ```php
-    public function status(Request $request, int $id)
+    /**
+     * Batalkan invoice. Keadaan terminal: hanya bisa dimasuki, wajib beralasan.
+     * Gerbang "siapa boleh" ada di permission rute (superadmin), bukan di sini.
+     *
+     * @return bool false bila invoice sudah dibatalkan sebelumnya.
+     */
+    public function cancel(ServiceInvoice $invoice, string $reason, ?int $userId): bool
+    {
+        if ($invoice->isCancelled()) {
+            return false;
+        }
+
+        $from = $invoice->work_status;
+
+        DB::transaction(function () use ($invoice, $reason, $userId, $from) {
+            $invoice->update([
+                'work_status'   => 'batal',
+                'cancel_reason' => $reason,
+                'cancelled_by'  => $userId,
+                'cancelled_at'  => now(),
+            ]);
+
+            $invoice->logs()->create([
+                'event'       => 'cancelled',
+                'from_status' => $from,
+                'to_status'   => 'batal',
+                'note'        => $reason,
+                'changed_by'  => $userId,
+            ]);
+        });
+
+        return true;
+    }
+```
+
+- [ ] **Step 3b: Tambahkan `status` & `cancel` ke controller**
+
+Sisipkan setelah `destroy()` di `app/Http/Controllers/Pages/ServiceInvoiceController.php`. Controller-nya tipis: memvalidasi, menyerahkan ke workflow, lalu menerjemahkan hasilnya jadi pesan.
+
+```php
+    public function status(Request $request, int $id, ServiceInvoiceWorkflow $workflow)
     {
         $invoice = ServiceInvoice::findOrFail($id);
 
@@ -3985,41 +4984,29 @@ Sisipkan setelah `destroy()` di `app/Http/Controllers/Pages/ServiceInvoiceContro
             return back()->with('error', 'Invoice yang dibatalkan tidak bisa diubah statusnya.');
         }
 
-        $invoice->applyWorkStatus($data['work_status'], $data['note'] ?? null, Auth::id());
+        $workflow->changeStatus($invoice, $data['work_status'], $data['note'] ?? null, Auth::id());
 
         return back()->with('success', 'Status pengerjaan diperbarui.');
     }
 
-    public function cancel(Request $request, int $id)
+    public function cancel(Request $request, int $id, ServiceInvoiceWorkflow $workflow)
     {
         $invoice = ServiceInvoice::findOrFail($id);
         $data    = $request->validate(['cancel_reason' => 'required|string']);
 
-        if ($invoice->isCancelled()) {
+        if (! $workflow->cancel($invoice, $data['cancel_reason'], Auth::id())) {
             return back()->with('error', 'Invoice ini sudah dibatalkan.');
         }
 
-        $from = $invoice->work_status;
-
-        DB::transaction(function () use ($invoice, $data, $from) {
-            $invoice->update([
-                'work_status'   => 'batal',
-                'cancel_reason' => $data['cancel_reason'],
-                'cancelled_by'  => Auth::id(),
-                'cancelled_at'  => now(),
-            ]);
-
-            $invoice->logs()->create([
-                'event'       => 'cancelled',
-                'from_status' => $from,
-                'to_status'   => 'batal',
-                'note'        => $data['cancel_reason'],
-                'changed_by'  => Auth::id(),
-            ]);
-        });
-
-        return back()->with('warning', 'Invoice dibatalkan.');
+        // 'info', bukan 'warning': layouts/master hanya merender success/error/info.
+        return back()->with('info', 'Invoice dibatalkan.');
     }
+```
+
+Tambahkan `use` di bagian atas controller:
+
+```php
+use App\Services\ServiceInvoiceWorkflow;
 ```
 
 - [ ] **Step 4: Daftarkan rute**
@@ -4088,7 +5075,7 @@ Di `resources/views/services/invoices/show.blade.php`, sisipkan blok berikut di 
                     @can('service_invoice.cancel')
                         <hr>
                         <form method="POST" action="{{ route('service.invoice.cancel', $invoice->id) }}"
-                              onsubmit="return confirm('Batalkan invoice ini? Tindakan ini tidak bisa dibalik.')">
+                              data-confirm="Batalkan invoice ini? Tindakan ini tidak bisa dibalik.">
                             @csrf
                             <input type="text" name="cancel_reason" class="form-control form-control-sm mb-2"
                                    placeholder="Alasan pembatalan" required>
@@ -4112,7 +5099,8 @@ Expected: PASS (4 tests)
 - [ ] **Step 8: Commit**
 
 ```bash
-git add app/Http/Controllers/Pages/ServiceInvoiceController.php \
+git add app/Services/ServiceInvoiceWorkflow.php \
+        app/Http/Controllers/Pages/ServiceInvoiceController.php \
         resources/views/services/invoices/show.blade.php \
         routes/web.php config/permissions.php database/seeders/AccessMatrixSeeder.php \
         tests/Feature/ServiceInvoiceStatusRouteTest.php
@@ -4344,10 +5332,13 @@ class ServiceInvoicePaymentController extends Controller
             ]);
         });
 
-        return back()->with('warning', 'Pembayaran dihapus dan total dihitung ulang.');
+        // 'info', bukan 'warning': layouts/master hanya merender success/error/info.
+        return back()->with('info', 'Pembayaran dihapus dan total dihitung ulang.');
     }
 }
 ```
+
+> **Yang TIDAK dijamin `DB::transaction` di sini.** Transaksi memberi atomisitas (pembayaran + total + log jadi satu), **bukan** serialisasi. `SUM` di dalam `recalcTotals()` adalah consistent read tanpa kunci baris, jadi dua pencatatan pembayaran yang benar-benar bersamaan bisa saling menimpa: yang kedua membaca SUM sebelum yang pertama commit, lalu menulis angka basi. Hitungannya derivatif, jadi `recalcTotals()` berikutnya memulihkannya — tapi tak ada yang memicunya otomatis. Diterima sebagai risiko (alat internal, satu-dua operator); kalau kelak perlu ditutup, kuncinya `lockForUpdate()` pada baris invoice, bukan menambah transaksi.
 
 - [ ] **Step 4: Daftarkan rute**
 
@@ -4401,7 +5392,7 @@ Di `resources/views/services/invoices/show.blade.php`, sisipkan di kolom kiri, t
                                 <td>
                                     @can('service_invoice.payment')
                                     <form action="{{ route('service.invoice.payment.destroy', [$invoice->id, $p->id]) }}"
-                                          method="POST" onsubmit="return confirm('Hapus pembayaran ini? Total akan dihitung ulang.')">
+                                          method="POST" data-confirm="Hapus pembayaran ini? Total akan dihitung ulang.">
                                         @csrf @method('DELETE')
                                         <button class="btn btn-xs btn-outline-danger">×</button>
                                     </form>
@@ -5356,8 +6347,15 @@ Di `resources/views/services/invoices/show.blade.php`, di dalam `<div class="d-f
                         @can('service_invoice.send')
                             <form action="{{ route('service.invoice.send', $invoice->id) }}" method="POST">
                                 @csrf
+                                {{-- @disabled + title berkutip. Versi sebelumnya merangkai
+                                     'disabled title=Klien belum punya email' sebagai satu string
+                                     tanpa kutip, jadi HTML memotong tooltip-nya di spasi pertama
+                                     ("Klien") dan menyisakan tiga atribut sampah. --}}
                                 <button class="btn btn-sm btn-outline-success"
-                                        {{ $invoice->client_email ? '' : 'disabled title=Klien belum punya email' }}>
+                                        @disabled(! $invoice->client_email)
+                                        title="{{ $invoice->client_email
+                                            ? 'Kirim invoice ke ' . $invoice->client_email
+                                            : 'Klien belum punya alamat email' }}">
                                     Kirim Email
                                 </button>
                             </form>
@@ -5694,7 +6692,7 @@ git commit -m "layanan: kunci akses, snapshot, dan isolasi dari keuangan lewat t
 - [ ] **Step 1: Jalankan seluruh suite**
 
 Run: `php artisan test`
-Expected: PASS, nol kegagalan. Plan ini menambahkan 66 tes baru di 12 berkas (`tests/Feature/Service*.php`).
+Expected: PASS, nol kegagalan. Plan ini menambahkan sekitar 70 tes baru di 12 berkas (`tests/Feature/Service*.php`).
 
 Kalau ada tes **lama** yang merah, hentikan dan telusuri sebelum lanjut. Tersangka yang paling mungkin:
 - `PermissionMapCompletenessTest` — ada rute `service.*` yang belum dipetakan.
@@ -5756,7 +6754,7 @@ Kalau tidak ada perubahan, lewati langkah ini.
 | §4 model & relasi | Task 1, 2 |
 | §5.1 penomoran | Task 4 |
 | §5.2 recalcTotals | Task 3 |
-| §5.3 mesin status kerja | Task 5, 10 |
+| §5.3 mesin status kerja | Task 5 (`ServiceInvoiceWorkflow::changeStatus`), Task 10 (`::cancel`) |
 | §5.4 kunci edit | Task 9 |
 | §5.5 alur kirim email | Task 13 |
 | §5.6 aturan kecil (diskon nominal, label bayar, klien baru, soft delete, hapus katalog) | Task 6, 7, 8, 9, 11 |

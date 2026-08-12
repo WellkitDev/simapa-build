@@ -112,6 +112,9 @@ class AccessMatrixSeeder extends Seeder
         // Koreksi tahap naskah (mundur/lompat, termasuk membuka tahap final) — keputusan
         // bisnis Penugasan Naskah #6/#7: hanya superadmin, wajib catatan, selalu tercatat.
         'naskah.correct',
+        // Invoice Layanan: hapus & batal hanya superadmin (spec §6.3).
+        'service_invoice.delete',
+        'service_invoice.cancel',
         // CATATAN: user.view/create/edit/delete/restore TIDAK di sini walau kelihatan
         // "sensitif" — gate 'access-usermanagement' (AuthServiceProvider) adalah
         // superadmin|manager, jadi manager memang berhak dan permission ini justru harus
