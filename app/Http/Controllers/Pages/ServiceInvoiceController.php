@@ -9,6 +9,8 @@ use App\Models\ServiceInvoice;
 use App\Services\ServiceInvoiceWorkflow;
 use App\Support\ServiceInvoiceForm;
 use App\Support\ServiceInvoiceNumber;
+use App\Support\ServiceInvoicePdfData;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -215,5 +217,13 @@ class ServiceInvoiceController extends Controller
         // tak pernah dirender layouts/master, operator akan membatalkan invoice tanpa
         // satu pun konfirmasi.
         return back()->with('info', 'Invoice dibatalkan.');
+    }
+
+    public function pdf(int $id)
+    {
+        $invoice = ServiceInvoice::findOrFail($id);
+
+        return Pdf::loadView('services.invoices.invoice_pdf', ServiceInvoicePdfData::for($invoice))
+            ->stream('Invoice_Layanan_' . $invoice->invoice_no . '.pdf');
     }
 }

@@ -36,6 +36,10 @@
                              afordans: tanpa itu manager melihat tombol Edit pada invoice
                              terkunci, mengkliknya, dan selalu dipantulkan balik. superadmin
                              tetap melihatnya karena memang boleh mengoreksi dengan alasan. --}}
+                        @can('service_invoice.export')
+                            <a href="{{ route('service.invoice.pdf', $invoice->id) }}" target="_blank"
+                               class="btn btn-sm btn-outline-primary">Unduh PDF</a>
+                        @endcan
                         @can('service_invoice.edit')
                             @if ($invoice->isEditable() || auth()->user()->hasRole('superadmin'))
                                 <a href="{{ route('service.invoice.edit', $invoice->id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>

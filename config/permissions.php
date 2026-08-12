@@ -344,6 +344,7 @@ return [
                 'status'  => ['service.invoice.status'],
                 'cancel'  => ['service.invoice.cancel'],
                 'payment' => ['service.invoice.payment.store', 'service.invoice.payment.destroy'],
+                'export' => ['service.invoice.pdf'],
             ],
         ],
 

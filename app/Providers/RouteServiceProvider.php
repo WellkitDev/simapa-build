@@ -28,6 +28,18 @@ class RouteServiceProvider extends ServiceProvider
             return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
         });
 
+        // Ekspor PDF/CSV membangkitkan dokumen lewat dompdf: berat CPU. Tanpa limiter
+        // bernama terdaftar, `throttle:export` di route jatuh ke jalur maxAttempts
+        // dinamis (Illuminate\Routing\Middleware\ThrottleRequests::resolveMaxAttempts),
+        // yang membaca properti "export" dari user (selalu null → (int) 0) dan diam-diam
+        // memblokir SETIAP request kedua dari user yang sama, bukan yang kesebelas.
+        // Sudah didaftarkan di commit 4a2b7d06 (keamanan) pada branch lain yang belum
+        // digabung ke branch ini; disalin ke sini supaya throttle:export benar-benar
+        // 10/menit seperti yang dimaksud, bukan 1/menit.
+        RateLimiter::for('export', function (Request $request) {
+            return Limit::perMinute(10)->by($request->user()?->id ?: $request->ip());
+        });
+
         $this->routes(function () {
             Route::middleware('api')
                 ->prefix('api')
