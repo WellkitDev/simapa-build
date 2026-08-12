@@ -24,9 +24,11 @@ class ServiceInvoicePaymentController extends Controller
         }
 
         // Buang pemisah ribuan; minus dipertahankan supaya min:1 tetap menolaknya.
-        // is_scalar(): nilai array (mis. amount[]=1) tidak boleh sampai ke preg_replace,
-        // yang meledak dengan TypeError kalau diberi array — persis jebakan yang sudah
-        // ditambal di ServiceInvoiceForm::normalize() (Task 8).
+        // is_scalar(): nilai array (mis. amount[]=1) tidak boleh sampai ke (string) $amount.
+        // Larik yang di-cast ke string memicu warning "Array to string conversion", yang
+        // oleh error handler Laravel diubah jadi ErrorException — 500 sungguhan, bukan
+        // galat validasi. Dibuktikan dengan mematikan guard ini sementara. Persis jebakan
+        // yang sudah ditambal di ServiceInvoiceForm::normalize() (Task 8).
         $amount = $request->input('amount');
         $request->merge(['amount' => is_scalar($amount) ? preg_replace('/[.,\s]/', '', (string) $amount) : $amount]);
 
