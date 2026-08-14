@@ -57,6 +57,38 @@ class PermissionPageTest extends TestCase
         $this->assertFalse($production->hasPermissionTo('naskah.claim'));
     }
 
+    /**
+     * DILAPORKAN DI SERVER (2026-08-11): 500 saat memberi akses Penugasan Naskah ke admin
+     * maupun production. Sebabnya permission `naskah.*` sudah ada di config (ikut rilis
+     * kode) tapi belum ada barisnya di DB karena AccessMatrixSeeder belum dijalankan —
+     * `syncPermissions()` melempar PermissionDoesNotExist.
+     *
+     * Halaman Hak Akses harus mandiri: config adalah sumber kebenaran, jadi permission
+     * yang lolos validasi boleh dibuatkan barisnya sendiri. Tanpa ini, setiap rilis yang
+     * menambah permission akan 500 sampai seseorang ingat menjalankan seeder.
+     *
+     * @test
+     */
+    public function memberi_permission_baru_tidak_error_walau_barisnya_belum_ada(): void
+    {
+        // Bentuk keadaan server: barisnya belum pernah dibuat.
+        \Spatie\Permission\Models\Permission::whereIn('name', ['naskah.view', 'naskah.assign'])->delete();
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+
+        $this->actingAs($this->user('superadmin'))
+            ->put(route('permission.update'), [
+                'role' => 'admin',
+                'permissions' => ['naskah.view', 'naskah.assign'],
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+        $admin = Role::findByName('admin');
+        $this->assertTrue($admin->hasPermissionTo('naskah.view'));
+        $this->assertTrue($admin->hasPermissionTo('naskah.assign'));
+    }
+
     /** @test */
     public function role_superadmin_tidak_bisa_diubah(): void
     {

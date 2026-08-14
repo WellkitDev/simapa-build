@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Support\PermissionMap;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -45,11 +46,40 @@ class PermissionController extends Controller
         abort_if(in_array($data['role'], self::LOCKED, true), 403,
             'Hak akses superadmin tidak dapat diubah.');
 
-        Role::findByName($data['role'])->syncPermissions($data['permissions'] ?? []);
+        $permissions = $data['permissions'] ?? [];
+
+        /*
+         | Pastikan barisnya ada sebelum disinkron.
+         |
+         | config/permissions.php adalah sumber kebenaran, sedangkan baris di tabel
+         | permissions cuma turunannya — dan turunan itu baru lahir saat AccessMatrixSeeder
+         | dijalankan. Setiap rilis yang menambah permission karena itu membuat halaman ini
+         | 500 (`PermissionDoesNotExist`) sampai ada yang ingat menjalankan seeder di server;
+         | persis yang terjadi saat modul Penugasan Naskah dirilis. Nama yang sampai di sini
+         | sudah lolos `Rule::in(PermissionMap::allPermissions())`, jadi membuatkan barisnya
+         | aman: tak ada nama di luar peta yang bisa menyelinap.
+         */
+        $this->ensurePermissionsExist($permissions);
+
+        Role::findByName($data['role'])->syncPermissions($permissions);
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
         return redirect()
             ->route('permission.index', ['role' => $data['role']])
             ->with('success', 'Hak akses diperbarui.');
+    }
+
+    /** Buat baris permission yang belum ada (guard 'web', sama dengan AccessMatrixSeeder). */
+    private function ensurePermissionsExist(array $names): void
+    {
+        if ($names === []) {
+            return;
+        }
+
+        $ada = Permission::whereIn('name', $names)->where('guard_name', 'web')->pluck('name')->all();
+
+        foreach (array_diff($names, $ada) as $name) {
+            Permission::create(['name' => $name, 'guard_name' => 'web']);
+        }
     }
 }
