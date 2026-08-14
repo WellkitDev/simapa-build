@@ -55,12 +55,38 @@ langkah() {
     fi
 }
 
+# Jumlah migrasi yang belum dijalankan. Kosong (bukan 0) berarti perintahnya
+# sendiri gagal — mis. DB tak bisa dihubungi.
+hitung_tertunda() {
+    "$PHP" artisan migrate:status 2>/dev/null | grep -c 'Pending' || true
+}
+
 catat "================================================================"
 catat "=== MULAI DEPLOY ==="
 catat "PHP: $($PHP -v 2>/dev/null | head -n1)"
 
+# Migrasi diperiksa hasilnya, bukan sekadar dipercaya kode keluarnya: dihitung
+# berapa yang tertunda sebelum dan sesudah. Kalau setelah migrate masih ada yang
+# tertunda, itu kegagalan senyap yang harus dihentikan di sini — bukan dibiarkan
+# sampai halaman 500 karena kolomnya belum ada.
+TERTUNDA_AWAL="$(hitung_tertunda)"
+if [ -z "$TERTUNDA_AWAL" ]; then
+    catat "!!! Tidak bisa membaca status migrasi — periksa koneksi database di .env"
+    catat "=== DEPLOY GAGAL ==="
+    exit 1
+fi
+catat "Migrasi tertunda sebelum deploy: $TERTUNDA_AWAL"
+
 langkah "Migrasi database" \
     "$PHP" artisan migrate --force
+
+TERTUNDA_AKHIR="$(hitung_tertunda)"
+if [ "$TERTUNDA_AKHIR" != "0" ]; then
+    catat "!!! Masih ada $TERTUNDA_AKHIR migrasi tertunda setelah migrate — periksa $LOG"
+    catat "=== DEPLOY GAGAL ==="
+    exit 1
+fi
+catat "    Terverifikasi: 0 migrasi tertunda (dari $TERTUNDA_AWAL sebelum deploy)"
 
 # PERINGATAN: seeder ini memakai syncPermissions per role, jadi ia MENGEMBALIKAN
 # hak akses tiap role ke matriks bawaan. Kalau Anda sudah menyesuaikan hak akses
