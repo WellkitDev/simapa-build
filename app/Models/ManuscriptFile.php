@@ -23,6 +23,8 @@ class ManuscriptFile extends Model
         'cover'           => 'Cover',
         'loa'             => 'LoA (Letter of Acceptance)',
         'final'           => 'Naskah Final',
+        'ebook'           => 'E-book',
+        'sertifikat_isbn' => 'Sertifikat ISBN',
     ];
 
     /**
@@ -33,6 +35,13 @@ class ManuscriptFile extends Model
     public const SLOTS_ARTIKEL = ['masuk', 'hasil_editing', 'loa', 'final'];
 
     public const SLOTS_BUKU = ['masuk', 'hasil_editing', 'hasil_layout', 'hasil_proofread', 'cover', 'final'];
+
+    /**
+     * Slot milik registrasi ISBN, bukan tahap naskah. Sengaja TIDAK masuk SLOTS_BUKU
+     * maupun SLOTS_ARTIKEL supaya tidak muncul di kartu berkas Detail Naskah — tempatnya
+     * di formulir Kelola ISBN dan Direktori ISBN.
+     */
+    public const SLOTS_ISBN = ['ebook', 'sertifikat_isbn'];
 
     /** @return array<string,string> slot => label, sesuai jenis naskah. */
     public static function slotsFor(bool $buku): array

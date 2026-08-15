@@ -10,7 +10,7 @@ class BookIsbn extends Model
 
     protected $fillable = [
         'title_id', 'status', 'no_pendaftaran', 'no_isbn', 'no_buku_cetak',
-        'penerbit', 'tgl_daftar', 'tgl_isbn', 'tgl_terbit', 'catatan', 'created_by',
+        'penerbit', 'tgl_daftar', 'tgl_isbn', 'tgl_terbit', 'catatan', 'link_terbit', 'created_by',
     ];
 
     protected $casts = [
@@ -28,6 +28,22 @@ class BookIsbn extends Model
     public function statusLabel(): string
     {
         return self::STATUSES[$this->status] ?? $this->status;
+    }
+
+    /**
+     * Berkas ISBN versi terbaru untuk satu slot (`ebook` | `sertifikat_isbn`).
+     *
+     * Satu query per panggilan — pakai ini di halaman detail saja. Direktori ISBN
+     * memuat berkas seluruh baris dalam SATU query di controller; jangan panggil
+     * method ini di dalam perulangan.
+     */
+    public function berkas(string $slot): ?ManuscriptFile
+    {
+        return ManuscriptFile::where('title_id', $this->title_id)
+            ->whereNull('title_chapter_id')
+            ->where('slot', $slot)
+            ->orderByDesc('version')
+            ->first();
     }
 
     public function title()
