@@ -114,4 +114,22 @@ class NaskahBabMandiriTest extends TestCase
         $this->assertSame('editing', $this->bab($book, 1)->nextStage());
         $this->assertSame('pembuatan', $this->bab($book, 2)->nextStage(), 'Bab dibuatkan tidak boleh ikut melompat.');
     }
+
+    /** @test */
+    public function unggah_naskah_author_memajukan_bab_mandiri_ke_editing(): void
+    {
+        $book = $this->buku([1 => ['mandiri', 'menunggu'], 2 => ['dibuatkan', 'menunggu']]);
+        $cp   = $this->bab($book, 1);
+
+        // Admin bukan pelaksana bab ini — dan memang tak akan pernah ada pelaksananya.
+        $this->actingAs($this->user('admin', 'buku'))
+            ->post(route('naskah.bab.file', $cp->id), [
+                'slot' => 'masuk',
+                'file' => UploadedFile::fake()->create('bab1.pdf', 100, 'application/pdf'),
+            ])->assertRedirect();
+
+        $this->assertSame('editing', $cp->fresh()->status);
+        $this->assertSame('menunggu', $this->bab($book, 2)->fresh()->status,
+            'Bab dibuatkan tetap butuh pelaksana; tidak boleh ikut maju.');
+    }
 }

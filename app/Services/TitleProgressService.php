@@ -127,10 +127,26 @@ class TitleProgressService
         return $next;
     }
 
-    /** Upload naskah bab oleh pelaksananya pada tahap Pembuatan → bab maju ke Editing. */
+    /**
+     * Bab maju otomatis saat naskahnya masuk. Dua pemicu:
+     *  - tahap `pembuatan` + diunggah pelaksananya → `editing` (bukti kerja selesai);
+     *  - tahap `menunggu` + bab bernaskah mandiri → `editing`, pengunggah siapa pun,
+     *    karena naskahnya datang dari author dan bab itu tak akan pernah punya
+     *    pelaksana. Sejalan dengan cabang `menunggu_proses` di tingkat judul.
+     */
     public function autoAdvanceChapterOnUpload(ChapterProgress $chapter, User $uploader, string $slot): bool
     {
-        if ($slot !== 'masuk' || $chapter->status !== 'pembuatan') {
+        if ($slot !== 'masuk') {
+            return false;
+        }
+
+        if ($chapter->status === 'menunggu' && $chapter->naskahDariAuthor()) {
+            $this->applyChapterStatus($chapter, 'editing', $uploader, null, 'auto_advance_upload');
+
+            return true;
+        }
+
+        if ($chapter->status !== 'pembuatan') {
             return false;
         }
 
