@@ -9,6 +9,7 @@ use App\Models\Title;
 use App\Services\ManuscriptFileService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 
 class BookIsbnController extends Controller
 {
@@ -47,22 +48,33 @@ class BookIsbnController extends Controller
 
     private function validated(Request $request): array
     {
+        // Status Cetak/Terbit = buku sudah terbit dan datanya dipakai marketing untuk
+        // melayani klien, jadi seluruh kolom wajib kecuali Catatan. Status lain tetap
+        // memakai aturan lama: masing-masing hanya mewajibkan nomornya sendiri.
+        $cetak = $request->input('status') === 'cetak';
+
         $data = $request->validate(array_merge([
             'status'         => 'required|in:pendaftaran,ber_isbn,cetak',
-            // Tiap status mewajibkan nomor yang sesuai (pendaftaran→no_pendaftaran, ber_isbn→no_isbn, cetak→no_buku_cetak).
-            'no_pendaftaran' => 'nullable|required_if:status,pendaftaran|string|max:100',
-            'no_isbn'        => 'nullable|required_if:status,ber_isbn|string|max:100',
-            'no_buku_cetak'  => 'nullable|required_if:status,cetak|string|max:100',
-            'penerbit'       => 'nullable|string|max:150',
-            'tgl_daftar'     => 'nullable|date',
-            'tgl_isbn'       => 'nullable|date',
-            'tgl_terbit'     => 'nullable|date',
-            'link_terbit'    => 'nullable|url|max:500',
+            'no_pendaftaran' => $cetak ? 'required|string|max:100' : 'nullable|required_if:status,pendaftaran|string|max:100',
+            'no_isbn'        => $cetak ? 'required|string|max:100' : 'nullable|required_if:status,ber_isbn|string|max:100',
+            'no_buku_cetak'  => $cetak ? 'required|string|max:100' : 'nullable|string|max:100',
+            'penerbit'       => $cetak ? 'required|string|max:150' : 'nullable|string|max:150',
+            'tgl_daftar'     => $cetak ? 'required|date' : 'nullable|date',
+            'tgl_isbn'       => $cetak ? 'required|date' : 'nullable|date',
+            'tgl_terbit'     => $cetak ? 'required|date' : 'nullable|date',
+            'link_terbit'    => $cetak ? 'required|url|max:500' : 'nullable|url|max:500',
             'catatan'        => 'nullable|string',
         ], self::BERKAS_RULES), [
             'no_pendaftaran.required_if' => 'No. Pendaftaran wajib diisi untuk status Pendaftaran.',
             'no_isbn.required_if'        => 'No. ISBN wajib diisi untuk status Ber-ISBN.',
-            'no_buku_cetak.required_if'  => 'No. Buku Cetak wajib diisi untuk status Cetak/Terbit.',
+            'no_pendaftaran.required'    => 'No. Pendaftaran wajib diisi untuk status Cetak/Terbit.',
+            'no_isbn.required'           => 'No. ISBN wajib diisi untuk status Cetak/Terbit.',
+            'no_buku_cetak.required'     => 'No. Buku Cetak wajib diisi untuk status Cetak/Terbit.',
+            'penerbit.required'          => 'Penerbit wajib diisi untuk status Cetak/Terbit.',
+            'tgl_daftar.required'        => 'Tgl Daftar wajib diisi untuk status Cetak/Terbit.',
+            'tgl_isbn.required'          => 'Tgl ISBN wajib diisi untuk status Cetak/Terbit.',
+            'tgl_terbit.required'        => 'Tgl Terbit wajib diisi untuk status Cetak/Terbit.',
+            'link_terbit.required'       => 'Link terbit wajib diisi untuk status Cetak/Terbit.',
             'link_terbit.url'            => 'Link terbit harus berupa alamat web lengkap (diawali https://).',
         ]);
 
@@ -79,6 +91,31 @@ class BookIsbnController extends Controller
         return $data;
     }
 
+    /**
+     * Berkas wajib saat Cetak/Terbit, TAPI yang sudah pernah diunggah dihitung terisi —
+     * menyimpan ulang tak boleh memaksa memilih berkas yang sama sekali lagi.
+     */
+    private function assertBerkasLengkap(Request $request, ?BookIsbn $isbn): void
+    {
+        if ($request->input('status') !== 'cetak') {
+            return;
+        }
+
+        $nama  = ['ebook' => 'E-book', 'sertifikat_isbn' => 'Sertifikat ISBN'];
+        $galat = [];
+
+        foreach ($nama as $slot => $label) {
+            if ($request->hasFile($slot) || ($isbn && $isbn->berkas($slot))) {
+                continue;
+            }
+            $galat[$slot] = "{$label} wajib diunggah untuk status Cetak/Terbit.";
+        }
+
+        if ($galat !== []) {
+            throw ValidationException::withMessages($galat);
+        }
+    }
+
     public function store(Request $request)
     {
         $title = Title::findOrFail($request->input('title_id'));
@@ -87,6 +124,7 @@ class BookIsbnController extends Controller
             return back()->with('error', 'Buku sudah punya registrasi ISBN.');
         }
         $data = $this->validated($request);
+        $this->assertBerkasLengkap($request, null);
         $data['title_id']   = $title->id;
         $data['created_by'] = Auth::id();
         $isbn = BookIsbn::create($data);
@@ -99,7 +137,9 @@ class BookIsbnController extends Controller
     public function update(Request $request, int $id)
     {
         $isbn = BookIsbn::findOrFail($id);
-        $isbn->update($this->validated($request));
+        $data = $this->validated($request);
+        $this->assertBerkasLengkap($request, $isbn);
+        $isbn->update($data);
         $this->simpanBerkas($request, $isbn);
         $this->syncManuscript($isbn);
 

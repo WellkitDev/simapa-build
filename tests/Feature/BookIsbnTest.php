@@ -11,6 +11,7 @@ use App\Models\TitleProgress;
 use App\Models\BookIsbn;
 use App\Services\GoogleDriveService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Spatie\Permission\Models\Role;
 
 class BookIsbnTest extends TestCase
@@ -20,7 +21,9 @@ class BookIsbnTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->mock(GoogleDriveService::class);
+        $this->mock(GoogleDriveService::class, function ($m) {
+            $m->shouldReceive('uploadFile')->andReturn(['id' => 'drive-isbn', 'url' => 'https://drive/isbn']);
+        });
         foreach (['marketing', 'manager', 'superadmin', 'production', 'admin'] as $r) {
             Role::create(['name' => $r, 'guard_name' => 'web']);
         }
@@ -41,6 +44,29 @@ class BookIsbnTest extends TestCase
         $detail = OrderDetail::create(['order_id' => $order->id, 'title_id' => $book->id, 'type' => 'bk_mandiri', 'title' => $book->title, 'slug' => 'b-' . uniqid(), 'chapters' => 1, 'cost_amount' => 0, 'naskah_type' => 'mandiri', 'publication_type' => 'regular']);
         TitleProgress::create(['order_detail_id' => $detail->id, 'status' => $stage, 'assigned_role' => 'production', 'started_at' => now()]);
         return $book;
+    }
+
+    /**
+     * Payload lengkap untuk status Cetak/Terbit. Sejak seluruh kolom diwajibkan di
+     * status itu, submission ala kadarnya tidak lagi mewakili "penyimpanan yang sah" —
+     * yang diuji tetap sama, hanya masukannya yang menyusul aturan baru.
+     */
+    private function payloadCetak(Title $book): array
+    {
+        return [
+            'title_id'        => $book->id,
+            'status'          => 'cetak',
+            'no_pendaftaran'  => 'REG-001',
+            'no_isbn'         => '978-602-1234-56-7',
+            'no_buku_cetak'   => 'BK-001',
+            'penerbit'        => 'Avidpedia Press',
+            'tgl_daftar'      => '2026-01-10',
+            'tgl_isbn'        => '2026-02-10',
+            'tgl_terbit'      => '2026-03-10',
+            'link_terbit'     => 'https://avidpedia.com/buku-terbit',
+            'ebook'           => UploadedFile::fake()->create('ebook.pdf', 20, 'application/pdf'),
+            'sertifikat_isbn' => UploadedFile::fake()->create('sertifikat.pdf', 20, 'application/pdf'),
+        ];
     }
 
     /** @test */
@@ -164,11 +190,11 @@ class BookIsbnTest extends TestCase
     }
 
     /** @test */
-    public function store_succeeds_when_required_number_present(): void
+    public function store_succeeds_when_cetak_payload_complete(): void
     {
         $book = $this->bookAtStage('isbn');
         $this->actingAs($this->user('production'))->from(route('title.show', $book->id))
-            ->post(route('isbn.store'), ['title_id' => $book->id, 'status' => 'cetak', 'no_buku_cetak' => 'BK-001'])
+            ->post(route('isbn.store'), $this->payloadCetak($book))
             ->assertRedirect(route('title.show', $book->id))
             ->assertSessionHasNoErrors();
         $this->assertSame('cetak', BookIsbn::where('title_id', $book->id)->first()->status);
@@ -193,7 +219,7 @@ class BookIsbnTest extends TestCase
     {
         $book = $this->bookAtStage('isbn');
         $this->actingAs($this->user('production'))
-            ->post(route('isbn.store'), ['title_id' => $book->id, 'status' => 'cetak', 'no_buku_cetak' => 'BK-1']);
+            ->post(route('isbn.store'), $this->payloadCetak($book));
         $this->assertSame('terbit', $this->manuscriptStatus($book));
     }
 
