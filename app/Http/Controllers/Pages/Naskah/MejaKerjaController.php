@@ -80,8 +80,9 @@ class MejaKerjaController extends Controller
 
     /**
      * Antrian belum ditugaskan — model campuran: admin boleh assign, produksi boleh
-     * ambil sendiri. Bab yang author-nya belum dipetakan sengaja TIDAK muncul di sini,
-     * karena memang belum boleh didistribusikan.
+     * ambil sendiri. Dua jenis bab sengaja TIDAK muncul di sini karena keduanya memang
+     * tak boleh didistribusikan: bab yang author-nya belum dipetakan, dan bab bernaskah
+     * mandiri (naskahnya dikirim authornya, jadi tak butuh pelaksana).
      */
     private function antrian(): Collection
     {
@@ -92,11 +93,18 @@ class MejaKerjaController extends Controller
             ->get()
             ->map(fn (TitleProgress $p) => ['jenis' => 'judul', 'model' => $p]);
 
-        $bab = ChapterProgress::with(['chapter.title.orderDetails.order', 'chapter.authors'])
+        // orderDetails ikut dimuat karena naskahDariAuthor() menelusuri bab → judul →
+        // order pemesan bab. Tanpa eager load ini, tiap bab di antrian = query baru.
+        $bab = ChapterProgress::with([
+                'chapter.title.orderDetails.order',
+                'chapter.title.orderDetails',
+                'chapter.authors',
+            ])
             ->whereNull('pelaksana_user_id')
             ->whereIn('status', ['menunggu', 'pembuatan'])
             ->get()
             ->filter(fn (ChapterProgress $c) => $c->chapter?->authors->isNotEmpty())
+            ->filter(fn (ChapterProgress $c) => ! $c->naskahDariAuthor())
             ->map(fn (ChapterProgress $c) => ['jenis' => 'bab', 'model' => $c]);
 
         return $judul->merge($bab)->values();

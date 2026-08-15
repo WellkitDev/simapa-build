@@ -161,4 +161,22 @@ class NaskahBabMandiriTest extends TestCase
         $this->actingAs($admin)->post(route('naskah.selesaikan', $detail->id))->assertRedirect();
         $this->assertSame('layout', $detail->titleProgress->fresh()->status);
     }
+
+    /**
+     * Antrian Meja Kerja menawarkan pekerjaan yang bisa DIAMBIL. Bab bernaskah mandiri
+     * selalu ditolak AssignmentService::assertChapterButuhPelaksana(), jadi menampilkannya
+     * hanya membuat produksi mengklik lalu menerima pesan merah.
+     *
+     * @test
+     */
+    public function antrian_produksi_tidak_menawarkan_bab_mandiri(): void
+    {
+        $book = $this->buku([1 => ['mandiri', 'menunggu'], 2 => ['dibuatkan', 'menunggu']]);
+
+        $isi = $this->actingAs($this->user('production'))
+            ->get(route('naskah.workdesk'))->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('Bab 1', $isi, 'Bab mandiri tak boleh ditawarkan.');
+        $this->assertStringContainsString('Bab 2', $isi, 'Bab dibuatkan tetap harus muncul.');
+    }
 }
