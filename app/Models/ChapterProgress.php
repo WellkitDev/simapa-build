@@ -67,6 +67,14 @@ class ChapterProgress extends Model
 
     public function nextStage(): ?string
     {
+        // Bab bernaskah mandiri melewati tahap Pembuatan: naskahnya sudah dikirim
+        // authornya, jadi tak ada yang perlu "dibuat" dan tak akan pernah ada
+        // pelaksana. Aturan ini menyalin cabang 'menunggu_proses' pada
+        // TitleProgressService::autoAdvanceOnUpload() di tingkat judul.
+        if ($this->status === 'menunggu' && $this->naskahDariAuthor()) {
+            return 'editing';
+        }
+
         $idx = array_search($this->status, self::CHAPTER_STAGES, true);
         if ($idx === false || ! isset(self::CHAPTER_STAGES[$idx + 1])) {
             return null;
