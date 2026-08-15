@@ -132,4 +132,33 @@ class NaskahBabMandiriTest extends TestCase
         $this->assertSame('menunggu', $this->bab($book, 2)->fresh()->status,
             'Bab dibuatkan tetap butuh pelaksana; tidak boleh ikut maju.');
     }
+
+    /** @test */
+    public function baris_bab_mandiri_menawarkan_unggahan_dan_tombol_maju(): void
+    {
+        $book = $this->buku([1 => ['mandiri', 'editing'], 2 => ['dibuatkan', 'menunggu']], bukuStatus: 'editing');
+
+        $isi = $this->actingAs($this->user('admin', 'buku'))
+            ->get(route('naskah.show', $this->detailBab($book, 1)->id))
+            ->assertOk()->getContent();
+
+        $this->assertStringContainsString('Naskah dari Author', $isi);
+        $this->assertStringContainsString('Selesaikan Bab', $isi);
+    }
+
+    /** @test */
+    public function bab_mandiri_selesai_membuka_gerbang_layout(): void
+    {
+        $book   = $this->buku([1 => ['mandiri', 'editing'], 2 => ['dibuatkan', 'selesai']], bukuStatus: 'editing');
+        $admin  = $this->user('admin', 'buku');
+        $cp     = $this->bab($book, 1);
+        $detail = $this->detailBab($book, 1);
+
+        $this->actingAs($admin)->post(route('naskah.bab.selesaikan', $cp->id))->assertRedirect();
+        $this->assertSame('selesai', $cp->fresh()->status);
+
+        // Semua bab selesai → gerbang assertLayoutUnlocked() terbuka.
+        $this->actingAs($admin)->post(route('naskah.selesaikan', $detail->id))->assertRedirect();
+        $this->assertSame('layout', $detail->titleProgress->fresh()->status);
+    }
 }

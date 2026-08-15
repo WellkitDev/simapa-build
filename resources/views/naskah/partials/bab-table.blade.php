@@ -117,6 +117,9 @@
                         // Asal naskah bab ini, dari order yang memesannya (kolom
                         // order_details.chapters = nomor bab pada buku kolaborasi).
                         $sumber    = $cp?->sumberNaskah();
+                        // Tahap tujuan tombol maju — dihitung sekali supaya labelnya
+                        // jujur (bab mandiri di 'menunggu' menuju Editing, bukan Selesai).
+                        $majuKe    = $cp?->nextStage();
                     @endphp
                     <tr class="{{ ! $adaAuthor ? 'table-warning' : '' }}">
                         <td class="text-muted fw-bold">{{ $b->urutan }}</td>
@@ -169,21 +172,33 @@
                                 @else
                                     <span class="text-muted small">Menunggu pemetaan author</span>
                                 @endif
-                            @elseif ($sumber === 'mandiri' && $cp->status !== 'selesai' && $izin['upload'])
-                                {{-- Bab bernaskah mandiri: naskahnya datang dari author,
-                                     jadi yang dibutuhkan unggahan — bukan pelaksana.
-                                     Menawarkan distribusi di sini akan membuat tim menulis
-                                     ulang naskah yang sebenarnya sudah ada. --}}
-                                <form method="POST" action="{{ route('naskah.bab.file', $cp->id) }}"
-                                      enctype="multipart/form-data" class="d-flex gap-1">
-                                    @csrf
-                                    <input type="hidden" name="slot" value="masuk">
-                                    <input type="file" name="file" class="form-control form-control-sm"
-                                           accept=".pdf,.doc,.docx,.zip" required>
-                                    <button class="btn btn-sm btn-primary text-nowrap">⬆ Naskah dari Author</button>
-                                </form>
-                            @elseif ($sumber === 'mandiri')
-                                <span class="text-muted small">Menunggu naskah dari author</span>
+                            @elseif ($sumber === 'mandiri' && $cp->status !== 'selesai')
+                                {{-- Bab bernaskah mandiri: naskahnya datang dari author, jadi
+                                     yang dibutuhkan unggahan — bukan pelaksana. Unggahan dan
+                                     tombol maju TIDAK saling meniadakan: rantai @elseif yang
+                                     lama menelan tombol maju, sehingga bab mandiri tak punya
+                                     jalan ke Selesai sama sekali. --}}
+                                @if ($izin['upload'])
+                                    <form method="POST" action="{{ route('naskah.bab.file', $cp->id) }}"
+                                          enctype="multipart/form-data" class="d-flex gap-1">
+                                        @csrf
+                                        <input type="hidden" name="slot" value="masuk">
+                                        <input type="file" name="file" class="form-control form-control-sm"
+                                               accept=".pdf,.doc,.docx,.zip" required>
+                                        <button class="btn btn-sm btn-primary text-nowrap">⬆ Naskah dari Author</button>
+                                    </form>
+                                @endif
+                                @if ($izin['advance'] && $majuKe)
+                                    <form method="POST" action="{{ route('naskah.bab.selesaikan', $cp->id) }}" class="mt-1">
+                                        @csrf
+                                        <button class="btn btn-sm {{ $majuKe === 'selesai' ? 'btn-primary' : 'btn-outline-primary' }} text-nowrap">
+                                            {{ $majuKe === 'selesai' ? '✓ Selesaikan Bab' : '→ Naskah sudah ada, mulai Editing' }}
+                                        </button>
+                                    </form>
+                                @endif
+                                @if (! $izin['upload'] && ! $izin['advance'])
+                                    <span class="text-muted small">Menunggu naskah dari author</span>
+                                @endif
                             @elseif ($cp->status === 'menunggu' && $izin['assign'])
                                 <form method="POST" action="{{ route('naskah.bab.distribusi', $cp->id) }}" class="d-flex gap-1">
                                     @csrf
