@@ -1528,4 +1528,49 @@ git commit -m "plan: catat penyimpangan implementasi berkas ISBN"
 
 ## Catatan penyimpangan
 
-*(diisi selama implementasi bila ada langkah yang berbeda dari rencana)*
+Selesai 16 Agustus 2026 di branch `feat/isbn-berkas-dan-bab-mandiri`. Suite penuh:
+**1057 lolos, 1 dilewati, nol gagal**. Commit berurutan: `433e256` (T1) · `d9cb5e4` (T2) ·
+`e62e04e` (T3) · `b19dfc2` (T4) · `6e3986e` (T5) · `82be1ce` (T6) · `18de883` (T7) ·
+`56284b4` (T8). Belum di-push, belum di-merge.
+
+**1. Dua test lama ikut disunting (Task 8).** Tidak diantisipasi rencana.
+`BookIsbnTest::store_succeeds_when_required_number_present` dan
+`::cetak_advances_manuscript_to_terbit` menyimpan registrasi Cetak/Terbit hanya dengan
+`no_buku_cetak` — persis aturan yang diganti Revisi C, jadi keduanya merah begitu aturan
+baru berlaku. **Assertion-nya tidak disentuh** ("penyimpanan sah berhasil", "Cetak/Terbit
+memajukan manuskrip ke terbit" — keduanya masih benar); yang disusulkan hanya payload-nya
+agar lengkap, lewat helper `payloadCetak()`. Yang pertama ikut diganti namanya jadi
+`store_succeeds_when_cetak_payload_complete` karena nama lamanya menyebut aturan yang sudah
+tak ada. Mock `GoogleDriveService` di berkas itu dinaikkan dari mock kosong jadi
+mengembalikan array, karena payload lengkap kini mengunggah berkas.
+
+**2. `mimes:epub` ternyata BUKAN masalah** — risiko di §9 spec tidak terbukti. Unggahan
+`.epub` ber-mime `application/epub+zip` lolos aturan `mimes:pdf,epub,zip` (komponen Mime
+Symfony memetakan mime itu ke ekstensi `epub`). `BERKAS_RULES` dibiarkan apa adanya.
+**Tapi ini belum menyelesaikan pertanyaannya:** yang terbukti hanya bahwa aturan
+server menerima berkas yang *melaporkan* mime tersebut. Sebagian peramban/OS mengirim
+`application/octet-stream` atau `application/zip` untuk `.epub` karena wadahnya memang zip.
+Itu perilaku klien, di luar jangkauan test sisi server. **Perlu dicoba di peramban sungguhan
+dengan berkas `.epub` asli sebelum dianggap beres.**
+
+**3. Basis data uji sempat rusak, bukan kode.** Suite ISBN sempat gagal 10 lalu 14 test
+dengan `SQLSTATE[HY000] 1412 Table definition has changed` — kegagalannya berpindah-pindah
+antar run, tanda balapan akses, bukan bug. Dipulihkan dengan
+`php artisan migrate:fresh --env=testing --force`, setelah itu 31 lolos. **Jangan jalankan
+dua proses `php artisan test` bersamaan** — keduanya memakai `avidpedi_simapa_test` yang
+sama dan saling merusak status migrasi.
+
+**4. Pekerjaan tak terkait ikut di-commit lebih dulu** atas keputusan owner: `060a5e8`
+"tombol Ajukan dinonaktifkan dengan alasannya" (`Title::submitBlockReason()` +
+`titles/show.blade.php` + `TitleSubmitButtonTest`) sudah ada di working tree sebelum
+pekerjaan ini dimulai dan berada di berkas yang sama dengan formulir ISBN. Di-commit
+tersendiri supaya riwayat ISBN tetap murni. Enam test-nya hijau saat di-commit.
+
+**Verifikasi di data dev** (`avidpedi_simapa`, setelah `php artisan migrate`):
+kolom `tb_book_isbns.link_terbit varchar(500) NULL` ada; judul 34 bab 1 & 2 (bernaskah
+mandiri) kini `next=editing` — sebelumnya buntu; bab 3–10 tetap `next=pembuatan`, tak ada
+regresi; antrian produksi turun dari 64 jadi 39 tawaran.
+
+**Belum dikerjakan:** pemeriksaan lewat peramban. Tak seorang pun pernah membuka formulir
+Kelola yang baru, mengunggah berkas sungguhan ke Google Drive, atau menekan tombol maju bab
+mandiri di layar. Semua bukti di atas berasal dari test dan query, bukan dari mata.
