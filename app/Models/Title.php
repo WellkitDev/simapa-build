@@ -123,6 +123,38 @@ class Title extends Model
     }
 
     /**
+     * Alasan judul TIDAK boleh diajukan, atau null bila boleh.
+     *
+     * Cerminan deleteBlockReason(), dipakai untuk MENONAKTIFKAN tombol Ajukan alih-alih
+     * menyembunyikannya, supaya user tahu kenapa. Tanpa penjaga ini halaman detail masih
+     * menampilkan Ajukan untuk judul disetujui (isEditable() sengaja memuat 'disetujui'),
+     * lalu TitleService::submit() diam-diam tidak mengubah apa pun tapi tetap dijawab
+     * "Judul diajukan." — pesan sukses palsu.
+     */
+    public function submitBlockReason(): ?string
+    {
+        if ($this->status === 'menunggu') {
+            return 'Sudah diajukan, menunggu persetujuan';
+        }
+
+        if ($this->isApproved()) {
+            return 'Sudah disetujui';
+        }
+
+        $orders = $this->orders_count ?? $this->orderDetails()->count();
+        if ($orders > 0) {
+            return 'Sudah dipakai ' . $orders . ' order';
+        }
+
+        return null;
+    }
+
+    public function isSubmittable(): bool
+    {
+        return $this->submitBlockReason() === null;
+    }
+
+    /**
      * Judul disetujui SENGAJA ikut editable: hampir semua judul lahir dari order dan
      * langsung berstatus 'disetujui' (TitleService::resolveForOrder), jadi aturan lama
      * mengunci setiap salah ketik selamanya. Status TIDAK turun ke 'menunggu' setelah

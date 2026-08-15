@@ -95,8 +95,21 @@
             @can('title.edit')
             <a href="{{ route('title.edit', $title->id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
             @endcan
+        @endif
+        @if($canManage)
             @can('title.submit')
-            <form action="{{ route('title.submit', $title->id) }}" method="POST" class="m-0">@csrf<button class="btn btn-sm btn-info">Ajukan</button></form>
+                @php $ajukanTerkunci = $title->submitBlockReason(); @endphp
+                @if($ajukanTerkunci)
+                    {{-- Tombol SENGAJA tidak disembunyikan, hanya dinonaktifkan: user perlu tahu
+                         KENAPA judul ini tak bisa diajukan lagi. Judulnya dipasang di <span>
+                         pembungkus, bukan di tombol — tombol disabled tidak memunculkan
+                         tooltip bawaan peramban. --}}
+                    <span class="d-inline-block" title="{{ $ajukanTerkunci }} — tidak bisa diajukan lagi">
+                        <button type="button" class="btn btn-sm btn-info" disabled>Ajukan</button>
+                    </span>
+                @else
+                    <form action="{{ route('title.submit', $title->id) }}" method="POST" class="m-0">@csrf<button class="btn btn-sm btn-info">Ajukan</button></form>
+                @endif
             @endcan
         @endif
         @if($isApprover && $title->status === 'menunggu')
