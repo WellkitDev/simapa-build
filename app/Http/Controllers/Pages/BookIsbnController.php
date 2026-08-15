@@ -29,8 +29,18 @@ class BookIsbnController extends Controller
             ->filter->isbnEligible()
             ->values();
 
+        // Berkas seluruh baris diambil dalam SATU query, lalu dipetakan per judul+slot.
+        // orderBy('version') menaik membuat keyBy() menyisakan versi tertinggi.
+        $berkas = ManuscriptFile::whereIn('title_id', $books->pluck('id'))
+            ->whereNull('title_chapter_id')
+            ->whereIn('slot', ManuscriptFile::SLOTS_ISBN)
+            ->orderBy('version')
+            ->get()
+            ->keyBy(fn (ManuscriptFile $f) => $f->title_id . ':' . $f->slot);
+
         return view('isbn.index', [
             'books'     => $books,
+            'berkas'    => $berkas,
             'canManage' => Auth::user()->hasAnyRole(['superadmin', 'manager', 'admin', 'production']),
         ]);
     }

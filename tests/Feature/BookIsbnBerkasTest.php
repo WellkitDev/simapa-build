@@ -172,4 +172,40 @@ class BookIsbnBerkasTest extends TestCase
         $this->assertSame('v2.pdf', $isbn->berkas('ebook')?->original_name);
         $this->assertSame(2, ManuscriptFile::where('title_id', $book->id)->where('slot', 'ebook')->count());
     }
+
+    /** @test */
+    public function marketing_bisa_mengunduh_dari_direktori_tanpa_tombol_kelola(): void
+    {
+        $book = $this->buku();
+        BookIsbn::create([
+            'title_id' => $book->id, 'status' => 'cetak', 'no_isbn' => '978-602-1',
+            'link_terbit' => 'https://avidpedia.com/terbit-1',
+        ]);
+        ManuscriptFile::create([
+            'title_id' => $book->id, 'title_chapter_id' => null, 'slot' => 'ebook',
+            'version' => 1, 'original_name' => 'ebook.pdf',
+            'drive_url' => 'https://drive/ebook-1', 'uploaded_by' => $this->user('admin')->id,
+        ]);
+
+        $isi = $this->actingAs($this->user('marketing'))
+            ->get(route('isbn.index'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('https://drive/ebook-1', $isi);
+        $this->assertStringContainsString('https://avidpedia.com/terbit-1', $isi);
+        $this->assertStringContainsString('978-602-1', $isi);
+        // Diperiksa lewat tautannya, bukan kata "Kelola" — kata itu bisa muncul di
+        // menu samping dan membuat assertion lolos/gagal karena alasan yang salah.
+        $this->assertStringNotContainsString(route('title.show', $book->id), $isi,
+            'Marketing tak berhak mengubah registrasi.');
+    }
+
+    /** @test */
+    public function pengelola_tetap_melihat_tombol_kelola(): void
+    {
+        $book = $this->buku();
+        BookIsbn::create(['title_id' => $book->id, 'status' => 'ber_isbn', 'no_isbn' => '978-9']);
+
+        $this->actingAs($this->user('admin'))
+            ->get(route('isbn.index'))->assertOk()->assertSee('Kelola');
+    }
 }
