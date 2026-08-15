@@ -104,4 +104,72 @@ class BookIsbnBerkasTest extends TestCase
         $this->assertNull($isbn->berkas('sertifikat_isbn'));
         $this->assertSame('https://avidpedia.com/buku-1', $isbn->fresh()->link_terbit);
     }
+
+    /** @test */
+    public function unggahan_tersimpan_sebagai_berkas_isbn(): void
+    {
+        $book = $this->buku();
+
+        $this->actingAs($this->user('admin'))
+            ->post(route('isbn.store'), [
+                'title_id'        => $book->id,
+                'status'          => 'ber_isbn',
+                'no_isbn'         => '978-602-1234-56-7',
+                'link_terbit'     => 'https://avidpedia.com/buku-uji',
+                'ebook'           => UploadedFile::fake()->create('buku.pdf', 200, 'application/pdf'),
+                'sertifikat_isbn' => UploadedFile::fake()->create('sertifikat.pdf', 50, 'application/pdf'),
+            ])->assertRedirect();
+
+        $isbn = BookIsbn::where('title_id', $book->id)->firstOrFail();
+        $this->assertSame('buku.pdf', $isbn->berkas('ebook')?->original_name);
+        $this->assertSame('sertifikat.pdf', $isbn->berkas('sertifikat_isbn')?->original_name);
+        $this->assertSame('https://avidpedia.com/buku-uji', $isbn->link_terbit);
+    }
+
+    /**
+     * Berkas ISBN bukan slot `masuk`, jadi tak boleh memicu maju tahap. Diuji lewat
+     * service langsung, BUKAN lewat controller: menyimpan registrasi ISBN memang
+     * memajukan tahap naskah lewat syncManuscript(), dan itu perilaku lama yang
+     * tidak sedang diubah — mencampur keduanya akan menguji hal yang salah.
+     *
+     * @test
+     */
+    public function berkas_isbn_tidak_menggerakkan_tahap_naskah(): void
+    {
+        $book   = $this->buku('editing');
+        $detail = $book->orderDetails()->first();
+
+        app(\App\Services\ManuscriptFileService::class)->upload(
+            $book,
+            null,
+            'ebook',
+            UploadedFile::fake()->create('ebook.pdf', 10, 'application/pdf'),
+            $this->user('admin')
+        );
+
+        $this->assertSame('editing', $detail->titleProgress->fresh()->status);
+    }
+
+    /** @test */
+    public function unggah_ulang_menaikkan_versi_bukan_menimpa(): void
+    {
+        $book = $this->buku();
+        $admin = $this->user('admin');
+
+        $this->actingAs($admin)->post(route('isbn.store'), [
+            'title_id' => $book->id, 'status' => 'ber_isbn', 'no_isbn' => '978-1',
+            'ebook' => UploadedFile::fake()->create('v1.pdf', 10, 'application/pdf'),
+        ])->assertRedirect();
+
+        $isbn = BookIsbn::where('title_id', $book->id)->firstOrFail();
+
+        $this->actingAs($admin)->put(route('isbn.update', $isbn->id), [
+            'status' => 'ber_isbn', 'no_isbn' => '978-1',
+            'ebook' => UploadedFile::fake()->create('v2.pdf', 10, 'application/pdf'),
+        ])->assertRedirect();
+
+        $this->assertSame(2, $isbn->berkas('ebook')?->version);
+        $this->assertSame('v2.pdf', $isbn->berkas('ebook')?->original_name);
+        $this->assertSame(2, ManuscriptFile::where('title_id', $book->id)->where('slot', 'ebook')->count());
+    }
 }

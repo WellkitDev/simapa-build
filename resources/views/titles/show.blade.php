@@ -293,12 +293,19 @@
             <dt class="col-sm-4 text-muted small">Tgl ISBN</dt><dd class="col-sm-8">{{ optional($isbn?->tgl_isbn)->format('d M Y') ?? '—' }}</dd>
             <dt class="col-sm-4 text-muted small">Tgl Terbit</dt><dd class="col-sm-8">{{ optional($isbn?->tgl_terbit)->format('d M Y') ?? '—' }}</dd>
             <dt class="col-sm-4 text-muted small">Catatan</dt><dd class="col-sm-8">{{ $isbn?->catatan ?: '—' }}</dd>
+            <dt class="col-sm-4 text-muted small">Link Terbit</dt><dd class="col-sm-8">@if($isbn?->link_terbit)<a href="{{ $isbn->link_terbit }}" target="_blank" rel="noopener">{{ $isbn->link_terbit }}</a>@else—@endif</dd>
         </dl>
 
         @if($canManageIsbn)
             @can($isbn ? 'isbn.edit' : 'isbn.create')
-            <div class="collapse" id="isbnForm">
-                <form method="POST" action="{{ $isbn ? route('isbn.update', $isbn->id) : route('isbn.store') }}">
+            <div class="collapse {{ $errors->any() ? 'show' : '' }}" id="isbnForm">
+                @php
+                    $ebook      = $isbn?->berkas('ebook');
+                    $sertifikat = $isbn?->berkas('sertifikat_isbn');
+                    $statusKini = old('status', optional($isbn)->status);
+                @endphp
+                <form method="POST" enctype="multipart/form-data"
+                      action="{{ $isbn ? route('isbn.update', $isbn->id) : route('isbn.store') }}">
                     @csrf
                     @if($isbn) @method('PUT') @else <input type="hidden" name="title_id" value="{{ $title->id }}"> @endif
                     <div class="row g-2">
@@ -306,19 +313,51 @@
                             <label class="form-label small mb-1">Status</label>
                             <select name="status" id="isbnStatus" class="form-select form-select-sm">
                                 @foreach(\App\Models\BookIsbn::STATUSES as $val => $lbl)
-                                    <option value="{{ $val }}" {{ optional($isbn)->status === $val ? 'selected' : '' }}>{{ $lbl }}</option>
+                                    <option value="{{ $val }}" {{ $statusKini === $val ? 'selected' : '' }}>{{ $lbl }}</option>
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-md-4"><label class="form-label small mb-1">No. Pendaftaran <span class="text-danger d-none" data-isbn-req="pendaftaran">*</span></label><input name="no_pendaftaran" id="isbnNoPendaftaran" value="{{ optional($isbn)->no_pendaftaran }}" class="form-control form-control-sm"></div>
-                        <div class="col-md-4"><label class="form-label small mb-1">No. ISBN <span class="text-danger d-none" data-isbn-req="ber_isbn">*</span></label><input name="no_isbn" id="isbnNoIsbn" value="{{ optional($isbn)->no_isbn }}" class="form-control form-control-sm"></div>
-                        <div class="col-md-4"><label class="form-label small mb-1">No. Buku Cetak <span class="text-danger d-none" data-isbn-req="cetak">*</span></label><input name="no_buku_cetak" id="isbnNoCetak" value="{{ optional($isbn)->no_buku_cetak }}" class="form-control form-control-sm"></div>
-                        <div class="col-md-4"><label class="form-label small mb-1">Penerbit</label><input name="penerbit" value="{{ optional($isbn)->penerbit }}" class="form-control form-control-sm"></div>
-                        <div class="col-md-4"><label class="form-label small mb-1">Tgl Daftar</label><input type="text" name="tgl_daftar" value="{{ optional(optional($isbn)->tgl_daftar)->format('Y-m-d') }}" class="form-control form-control-sm flatpickr-date" placeholder="YYYY-MM-DD"></div>
-                        <div class="col-md-4"><label class="form-label small mb-1">Tgl ISBN</label><input type="text" name="tgl_isbn" value="{{ optional(optional($isbn)->tgl_isbn)->format('Y-m-d') }}" class="form-control form-control-sm flatpickr-date" placeholder="YYYY-MM-DD"></div>
-                        <div class="col-md-4"><label class="form-label small mb-1">Tgl Terbit</label><input type="text" name="tgl_terbit" value="{{ optional(optional($isbn)->tgl_terbit)->format('Y-m-d') }}" class="form-control form-control-sm flatpickr-date" placeholder="YYYY-MM-DD"></div>
-                        <div class="col-12"><label class="form-label small mb-1">Catatan</label><textarea name="catatan" rows="2" class="form-control form-control-sm">{{ optional($isbn)->catatan }}</textarea></div>
+                        <div class="col-md-4"><label class="form-label small mb-1">No. Pendaftaran <span class="text-danger d-none" data-isbn-req="pendaftaran">*</span></label><input name="no_pendaftaran" id="isbnNoPendaftaran" value="{{ old('no_pendaftaran', optional($isbn)->no_pendaftaran) }}" class="form-control form-control-sm"></div>
+                        <div class="col-md-4"><label class="form-label small mb-1">No. ISBN <span class="text-danger d-none" data-isbn-req="ber_isbn">*</span></label><input name="no_isbn" id="isbnNoIsbn" value="{{ old('no_isbn', optional($isbn)->no_isbn) }}" class="form-control form-control-sm"></div>
+                        <div class="col-md-4"><label class="form-label small mb-1">No. Buku Cetak <span class="text-danger d-none" data-isbn-req="cetak">*</span></label><input name="no_buku_cetak" id="isbnNoCetak" value="{{ old('no_buku_cetak', optional($isbn)->no_buku_cetak) }}" class="form-control form-control-sm"></div>
+                        <div class="col-md-4"><label class="form-label small mb-1">Penerbit <span class="text-danger d-none" data-isbn-cetak>*</span></label><input name="penerbit" value="{{ old('penerbit', optional($isbn)->penerbit) }}" class="form-control form-control-sm"></div>
+                        <div class="col-md-4"><label class="form-label small mb-1">Tgl Daftar <span class="text-danger d-none" data-isbn-cetak>*</span></label><input type="text" name="tgl_daftar" value="{{ old('tgl_daftar', optional(optional($isbn)->tgl_daftar)->format('Y-m-d')) }}" class="form-control form-control-sm flatpickr-date" placeholder="YYYY-MM-DD"></div>
+                        <div class="col-md-4"><label class="form-label small mb-1">Tgl ISBN <span class="text-danger d-none" data-isbn-cetak>*</span></label><input type="text" name="tgl_isbn" value="{{ old('tgl_isbn', optional(optional($isbn)->tgl_isbn)->format('Y-m-d')) }}" class="form-control form-control-sm flatpickr-date" placeholder="YYYY-MM-DD"></div>
+                        <div class="col-md-4"><label class="form-label small mb-1">Tgl Terbit <span class="text-danger d-none" data-isbn-cetak>*</span></label><input type="text" name="tgl_terbit" value="{{ old('tgl_terbit', optional(optional($isbn)->tgl_terbit)->format('Y-m-d')) }}" class="form-control form-control-sm flatpickr-date" placeholder="YYYY-MM-DD"></div>
+                        <div class="col-12"><label class="form-label small mb-1">Catatan</label><textarea name="catatan" rows="2" class="form-control form-control-sm">{{ old('catatan', optional($isbn)->catatan) }}</textarea></div>
                     </div>
+
+                    {{-- Berkas & publikasi: baru bermakna setelah nomor ISBN keluar, jadi
+                         blok ini disembunyikan selama status masih Pendaftaran. --}}
+                    <div class="border-top mt-3 pt-3 {{ in_array($statusKini, ['ber_isbn', 'cetak'], true) ? '' : 'd-none' }}" id="isbnBerkas">
+                        <div class="fw-bold small mb-2">Berkas &amp; Publikasi</div>
+                        <div class="row g-2">
+                            <div class="col-md-4">
+                                <label class="form-label small mb-1">E-book <span class="text-danger d-none" data-isbn-cetak>*</span></label>
+                                <input type="file" name="ebook" class="form-control form-control-sm" accept=".pdf,.epub,.zip">
+                                @if($ebook)
+                                    <div class="form-text"><a href="{{ $ebook->drive_url }}" target="_blank" rel="noopener">{{ $ebook->original_name }}</a> · v{{ $ebook->version }} · {{ $ebook->uploader?->name ?? '—' }}</div>
+                                @else
+                                    <div class="form-text">Belum ada berkas.</div>
+                                @endif
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small mb-1">Sertifikat ISBN <span class="text-danger d-none" data-isbn-cetak>*</span></label>
+                                <input type="file" name="sertifikat_isbn" class="form-control form-control-sm" accept=".pdf,.jpg,.jpeg,.png">
+                                @if($sertifikat)
+                                    <div class="form-text"><a href="{{ $sertifikat->drive_url }}" target="_blank" rel="noopener">{{ $sertifikat->original_name }}</a> · v{{ $sertifikat->version }} · {{ $sertifikat->uploader?->name ?? '—' }}</div>
+                                @else
+                                    <div class="form-text">Belum ada berkas.</div>
+                                @endif
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small mb-1">Link Terbit di web avidpedia <span class="text-danger d-none" data-isbn-cetak>*</span></label>
+                                <input type="url" name="link_terbit" value="{{ old('link_terbit', optional($isbn)->link_terbit) }}" class="form-control form-control-sm" placeholder="https://avidpedia.com/...">
+                            </div>
+                        </div>
+                        <div class="form-text mt-2">Mengunggah ulang menambah versi baru — berkas lama tetap tersimpan.</div>
+                    </div>
+
                     <button type="submit" class="btn btn-sm btn-primary mt-2">Simpan Registrasi ISBN</button>
                 </form>
             </div>
@@ -548,6 +587,7 @@ $(function () {
     var isbnStatus = document.getElementById('isbnStatus');
     if (isbnStatus) {
         var isbnFields = { pendaftaran: 'isbnNoPendaftaran', ber_isbn: 'isbnNoIsbn', cetak: 'isbnNoCetak' };
+        var isbnBerkas = document.getElementById('isbnBerkas');
         var applyIsbnRequired = function () {
             Object.keys(isbnFields).forEach(function (st) {
                 var el = document.getElementById(isbnFields[st]);
@@ -558,6 +598,14 @@ $(function () {
             if (target) target.required = true;
             var star = document.querySelector('[data-isbn-req="' + isbnStatus.value + '"]');
             if (star) star.classList.remove('d-none');
+
+            // Berkas & link baru bermakna sejak Ber-ISBN; wajibnya baru di Cetak/Terbit.
+            if (isbnBerkas) {
+                isbnBerkas.classList.toggle('d-none', ['ber_isbn', 'cetak'].indexOf(isbnStatus.value) === -1);
+            }
+            document.querySelectorAll('[data-isbn-cetak]').forEach(function (s) {
+                s.classList.toggle('d-none', isbnStatus.value !== 'cetak');
+            });
         };
         isbnStatus.addEventListener('change', applyIsbnRequired);
         applyIsbnRequired();
