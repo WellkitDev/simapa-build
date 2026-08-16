@@ -32,6 +32,18 @@ class Kernel extends ConsoleKernel
             ->dailyAt('07:00')
             ->withoutOverlapping()
             ->appendOutputTo(storage_path('logs/naskah-overdue.log'));
+
+        // Produksi berjalan di cPanel yang tak mengizinkan proses permanen, jadi
+        // antrian digerakkan cron yang sama dengan scheduler. --stop-when-empty
+        // membuatnya mati begitu antrian habis (bukan daemon), --max-time menjamin
+        // ia berhenti sebelum menit berikutnya memanggil lagi.
+        //
+        // Tanpa baris ini seluruh job ShouldQueue — email invoice, refund, slip gaji,
+        // invoice layanan — masuk tabel `jobs` lalu diam selamanya tanpa pesan galat.
+        $schedule->command('queue:work --stop-when-empty --max-time=50 --tries=3')
+            ->everyMinute()
+            ->withoutOverlapping()
+            ->appendOutputTo(storage_path('logs/queue-work.log'));
     }
 
     /**
