@@ -53,7 +53,11 @@ class QueueScheduleTest extends TestCase
         $this->assertSame(1, DB::table('jobs')->count());
         $this->assertNull(Cache::get('bukti-antrian'));
 
-        Artisan::call('queue:work', ['--stop-when-empty' => true, '--quiet' => true]);
+        // JANGAN tambahkan --quiet: opsi itu menyetel verbosity QUIET pada objek output
+        // konsol yang dipakai bersama seluruh suite, dan setelan itu menular ke test
+        // berikutnya — sempat membuat StripCodePrefixCommandTest gagal karena
+        // expectsOutputToContain() tak lagi melihat keluaran apa pun.
+        Artisan::call('queue:work', ['--stop-when-empty' => true]);
 
         $this->assertSame(0, DB::table('jobs')->count(), 'Job harus habis dikerjakan.');
         $this->assertSame('jalan', Cache::get('bukti-antrian'));
