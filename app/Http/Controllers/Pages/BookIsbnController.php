@@ -118,10 +118,13 @@ class BookIsbnController extends Controller
         }
         $data = $this->validated($request);
         $this->assertBerkasLengkap($request, null);
+        // Berkas naik DULU: unggahan yang gagal tak boleh meninggalkan registrasi
+        // Cetak/Terbit tanpa berkas — keadaan yang dilarang assertBerkasLengkap().
+        $this->simpanBerkas($request, $title);
+
         $data['title_id']   = $title->id;
         $data['created_by'] = Auth::id();
         $isbn = BookIsbn::create($data);
-        $this->simpanBerkas($request, $isbn);
         $this->syncManuscript($isbn);
 
         return redirect()->route('title.show', $title->id)->with('success', 'Registrasi ISBN disimpan.');
@@ -129,11 +132,14 @@ class BookIsbnController extends Controller
 
     public function update(Request $request, int $id)
     {
-        $isbn = BookIsbn::findOrFail($id);
-        $data = $this->validated($request);
+        $isbn  = BookIsbn::findOrFail($id);
+        $title = $isbn->title()->first();
+        $data  = $this->validated($request);
         $this->assertBerkasLengkap($request, $isbn);
+        if ($title) {
+            $this->simpanBerkas($request, $title);
+        }
         $isbn->update($data);
-        $this->simpanBerkas($request, $isbn);
         $this->syncManuscript($isbn);
 
         return redirect()->route('title.show', $isbn->title_id)->with('success', 'Registrasi ISBN diperbarui.');
@@ -155,14 +161,14 @@ class BookIsbnController extends Controller
     /**
      * Simpan berkas ISBN yang ikut terkirim bersama formulir. Slot yang tidak diisi
      * dibiarkan apa adanya — versi lama tetap berlaku, tidak terhapus.
+     *
+     * Menerima Title, bukan BookIsbn, supaya bisa dijalankan SEBELUM record ditulis.
+     * Sengaja tanpa transaksi DB: menahan transaksi terbuka selama panggilan jaringan
+     * lambat justru menahan kunci tabel. Baris ManuscriptFile yatim yang mungkin
+     * tertinggal tak berbahaya — berkas memang berversi dan menumpuk secara alami.
      */
-    private function simpanBerkas(Request $request, BookIsbn $isbn): void
+    private function simpanBerkas(Request $request, Title $title): void
     {
-        $title = $isbn->title()->first();
-        if (! $title) {
-            return;
-        }
-
         $svc = app(ManuscriptFileService::class);
         foreach (ManuscriptFile::slotsIsbn() as $slot) {
             if ($request->hasFile($slot)) {

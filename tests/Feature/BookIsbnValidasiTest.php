@@ -211,4 +211,26 @@ class BookIsbnValidasiTest extends TestCase
         $isbn = \App\Models\BookIsbn::where('title_id', $book->id)->firstOrFail();
         $this->assertSame('hki.pdf', $isbn->berkas('sertifikat_hki')?->original_name);
     }
+
+    /**
+     * Unggahan yang gagal tak boleh meninggalkan registrasi Cetak/Terbit tanpa berkas —
+     * keadaan yang justru dilarang aturan kelengkapan yang baru saja dipasang.
+     *
+     * @test
+     */
+    public function unggahan_gagal_tidak_meninggalkan_registrasi_tanpa_berkas(): void
+    {
+        // Drive menolak: uploadFile() mengembalikan null, service melempar.
+        $this->mock(\App\Services\GoogleDriveService::class, function ($m) {
+            $m->shouldReceive('uploadFile')->andReturn(null);
+        });
+
+        $book = $this->buku();
+
+        $this->actingAs($this->admin())
+            ->post(route('isbn.store'), $this->lengkap($book))
+            ->assertSessionHasErrors();
+
+        $this->assertDatabaseMissing('tb_book_isbns', ['title_id' => $book->id]);
+    }
 }
