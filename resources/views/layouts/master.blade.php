@@ -115,7 +115,14 @@
             Swal.fire({
                 title: 'Konfirmasi', text: form.getAttribute('data-confirm'), icon: 'warning',
                 showCancelButton: true, confirmButtonText: 'Ya', cancelButtonText: 'Batal', confirmButtonColor: '#d33'
-            }).then(function (res) { if (res.isConfirmed) { form.dataset.confirmed = '1'; form.submit(); } });
+            }).then(function (res) {
+                if (!res.isConfirmed) return;
+                form.dataset.confirmed = '1';
+                // form.submit() melewati event submit, jadi penguncian tombol unggah
+                // harus dipanggil sendiri di jalur ini.
+                if (window.kunciTombolUnggah) window.kunciTombolUnggah(form);
+                form.submit();
+            });
         }, true);
         window.swalError = function (msg) { Swal.fire({ icon: 'error', title: 'Gagal', text: msg }); };
         window.swalSuccess = function (msg) { Swal.fire({ icon: 'success', title: 'Berhasil', text: msg, timer: 2000, showConfirmButton: false }); };
@@ -146,6 +153,35 @@
         @if(session('error')) window.swalError(@json(session('error'))); @endif
         @if(session('info')) window.swalInfo(@json(session('info'))); @endif
         @if($errors->any()) window.swalValidation(@json($errors->all())); @endif
+    })();
+    </script>
+
+    <script>
+    /*
+     | Umpan balik unggahan. Berkas naik ke Google Drive di dalam request — berkas 20 MB
+     | berarti halaman menggantung beberapa detik tanpa tanda apa pun. Yang terjadi lalu:
+     | orang mengira tombolnya tak tertekan, menekannya lagi, dan berkas yang sama
+     | terunggah berganda.
+     |
+     | Satu penangan terdelegasi menutup keduanya untuk SELURUH form unggah di aplikasi —
+     | ISBN, naskah, bab, pembayaran, laporan harian, profil — bukan cuma yang kebetulan
+     | diingat saat menulis fitur baru. Sengaja di luar blok SweetAlert supaya tetap
+     | berjalan meski pustaka itu gagal dimuat.
+     */
+    (function () {
+        window.kunciTombolUnggah = function (form) {
+            if (!form || form.enctype !== 'multipart/form-data') return;
+            var tombol = form.querySelector('button[type="submit"], button:not([type])');
+            if (!tombol || tombol.dataset.mengunggah) return;
+            tombol.dataset.mengunggah = '1';
+            tombol.dataset.teksAsli = tombol.innerHTML;
+            tombol.disabled = true;
+            tombol.innerHTML = 'Mengunggah…';
+        };
+
+        document.addEventListener('submit', function (e) {
+            window.kunciTombolUnggah(e.target);
+        }, true);
     })();
     </script>
 </body>

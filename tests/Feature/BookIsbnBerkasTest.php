@@ -246,4 +246,35 @@ class BookIsbnBerkasTest extends TestCase
             $this->assertStringContainsString($url, $isi);
         }
     }
+
+    /**
+     * Formulir ISBN dulu memakai $errors->any(), jadi ia ikut menganga setiap kali form
+     * LAIN di halaman Detail Judul gagal validasi — misalnya Cek Kelengkapan Dokumen.
+     *
+     * @test
+     */
+    public function formulir_isbn_tidak_terbuka_karena_galat_form_lain(): void
+    {
+        $book = $this->buku();
+        BookIsbn::create(['title_id' => $book->id, 'status' => 'ber_isbn', 'no_isbn' => '978-3']);
+
+        $isi = $this->actingAs($this->user('admin'))
+            ->withSession(['errors' => new \Illuminate\Support\MessageBag(['catatan_dokumen' => 'wajib'])])
+            ->get(route('title.show', $book->id))->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('class="collapse show" id="isbnForm"', $isi);
+    }
+
+    /** @test */
+    public function formulir_isbn_terbuka_untuk_galatnya_sendiri(): void
+    {
+        $book = $this->buku();
+        BookIsbn::create(['title_id' => $book->id, 'status' => 'ber_isbn', 'no_isbn' => '978-4']);
+
+        $isi = $this->actingAs($this->user('admin'))
+            ->withSession(['errors' => new \Illuminate\Support\MessageBag(['barcode_isbn' => 'wajib'])])
+            ->get(route('title.show', $book->id))->assertOk()->getContent();
+
+        $this->assertStringContainsString('class="collapse show" id="isbnForm"', $isi);
+    }
 }

@@ -298,10 +298,20 @@
 
         @if($canManageIsbn)
             @can($isbn ? 'isbn.edit' : 'isbn.create')
-            <div class="collapse {{ $errors->any() ? 'show' : '' }}" id="isbnForm">
+            @php
+                $berkasIsbn = \App\Models\ManuscriptFile::BERKAS_ISBN;
+                // Hanya galat milik formulir INI yang boleh membukanya. Sebelumnya
+                // $errors->any() bereaksi pada galat apa pun di halaman — form Cek
+                // Kelengkapan Dokumen gagal, formulir ISBN ikut menganga.
+                $kolomIsbn = array_merge(
+                    ['status', 'no_pendaftaran', 'no_isbn', 'no_buku_cetak', 'penerbit',
+                     'tgl_daftar', 'tgl_isbn', 'tgl_terbit', 'link_terbit', 'catatan'],
+                    array_keys($berkasIsbn)
+                );
+            @endphp
+            <div class="collapse {{ $errors->hasAny($kolomIsbn) ? 'show' : '' }}" id="isbnForm">
                 @php
                     $statusKini = old('status', optional($isbn)->status);
-                    $berkasIsbn = \App\Models\ManuscriptFile::BERKAS_ISBN;
                 @endphp
                 <form method="POST" enctype="multipart/form-data"
                       action="{{ $isbn ? route('isbn.update', $isbn->id) : route('isbn.store') }}">
