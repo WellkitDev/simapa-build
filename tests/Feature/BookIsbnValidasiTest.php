@@ -77,6 +77,7 @@ class BookIsbnValidasiTest extends TestCase
             'link_terbit'     => 'https://avidpedia.com/buku-terbit',
             'ebook'           => UploadedFile::fake()->create('ebook.pdf', 20, 'application/pdf'),
             'sertifikat_isbn' => UploadedFile::fake()->create('sertifikat.pdf', 20, 'application/pdf'),
+            'barcode_isbn'    => UploadedFile::fake()->create('barcode.png', 5, 'image/png'),
         ];
 
         foreach ($tanpa as $k) {
@@ -129,6 +130,7 @@ class BookIsbnValidasiTest extends TestCase
             'title_id' => $book->id, 'status' => 'ber_isbn', 'no_isbn' => '978-602-1234-56-7',
             'ebook' => UploadedFile::fake()->create('ebook.pdf', 20, 'application/pdf'),
             'sertifikat_isbn' => UploadedFile::fake()->create('sertifikat.pdf', 20, 'application/pdf'),
+            'barcode_isbn' => UploadedFile::fake()->create('barcode.png', 5, 'image/png'),
         ])->assertRedirect();
 
         $isbn = BookIsbn::where('title_id', $book->id)->firstOrFail();
@@ -169,5 +171,44 @@ class BookIsbnValidasiTest extends TestCase
             ])->assertSessionHasNoErrors();
 
         $this->assertDatabaseHas('tb_book_isbns', ['title_id' => $book->id, 'status' => 'ber_isbn']);
+    }
+
+    /** @test */
+    public function status_cetak_menolak_bila_barcode_belum_ada(): void
+    {
+        $book = $this->buku();
+
+        $this->actingAs($this->admin())
+            ->post(route('isbn.store'), $this->lengkap($book, ['barcode_isbn']))
+            ->assertSessionHasErrors('barcode_isbn');
+
+        $this->assertDatabaseMissing('tb_book_isbns', ['title_id' => $book->id]);
+    }
+
+    /** @test */
+    public function sertifikat_hki_tidak_pernah_menghalangi(): void
+    {
+        $book = $this->buku();
+
+        // lengkap() memang tak pernah menyertakan HKI — ia opsional selamanya.
+        $this->actingAs($this->admin())
+            ->post(route('isbn.store'), $this->lengkap($book))
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('tb_book_isbns', ['title_id' => $book->id, 'status' => 'cetak']);
+    }
+
+    /** @test */
+    public function sertifikat_hki_tersimpan_bila_diunggah(): void
+    {
+        $book = $this->buku();
+
+        $this->actingAs($this->admin())->post(route('isbn.store'), array_merge(
+            $this->lengkap($book),
+            ['sertifikat_hki' => UploadedFile::fake()->create('hki.pdf', 15, 'application/pdf')]
+        ))->assertSessionHasNoErrors();
+
+        $isbn = \App\Models\BookIsbn::where('title_id', $book->id)->firstOrFail();
+        $this->assertSame('hki.pdf', $isbn->berkas('sertifikat_hki')?->original_name);
     }
 }

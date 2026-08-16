@@ -13,15 +13,6 @@ use Illuminate\Validation\ValidationException;
 
 class BookIsbnController extends Controller
 {
-    /**
-     * Aturan berkas ISBN. Kunci array = nama field form = slot ManuscriptFile,
-     * supaya tak ada pemetaan nama yang perlu dijaga di dua tempat.
-     */
-    private const BERKAS_RULES = [
-        'ebook'           => 'nullable|file|mimes:pdf,epub,zip|max:20480',
-        'sertifikat_isbn' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:20480',
-    ];
-
     public function index()
     {
         $books = Title::where('jenis', 'buku')
@@ -64,7 +55,7 @@ class BookIsbnController extends Controller
             'tgl_terbit'     => $cetak ? 'required|date' : 'nullable|date',
             'link_terbit'    => $cetak ? 'required|url|max:500' : 'nullable|url|max:500',
             'catatan'        => 'nullable|string',
-        ], self::BERKAS_RULES), [
+        ], ManuscriptFile::rulesIsbn()), [
             'no_pendaftaran.required_if' => 'No. Pendaftaran wajib diisi untuk status Pendaftaran.',
             'no_isbn.required_if'        => 'No. ISBN wajib diisi untuk status Ber-ISBN.',
             'no_pendaftaran.required'    => 'No. Pendaftaran wajib diisi untuk status Cetak/Terbit.',
@@ -80,7 +71,7 @@ class BookIsbnController extends Controller
 
         // Berkas ditangani terpisah lewat ManuscriptFileService — jangan sampai ikut
         // masuk ke BookIsbn::create()/update() sebagai kolom.
-        foreach (array_keys(self::BERKAS_RULES) as $slot) {
+        foreach (ManuscriptFile::slotsIsbn() as $slot) {
             unset($data[$slot]);
         }
 
@@ -93,7 +84,8 @@ class BookIsbnController extends Controller
 
     /**
      * Berkas wajib saat Cetak/Terbit, TAPI yang sudah pernah diunggah dihitung terisi —
-     * menyimpan ulang tak boleh memaksa memilih berkas yang sama sekali lagi.
+     * menyimpan ulang tak boleh memaksa memilih berkas yang sama sekali lagi. Slot mana
+     * yang wajib dibaca dari ManuscriptFile::BERKAS_ISBN, bukan didaftar ulang di sini.
      */
     private function assertBerkasLengkap(Request $request, ?BookIsbn $isbn): void
     {
@@ -101,14 +93,15 @@ class BookIsbnController extends Controller
             return;
         }
 
-        $nama  = ['ebook' => 'E-book', 'sertifikat_isbn' => 'Sertifikat ISBN'];
         $galat = [];
-
-        foreach ($nama as $slot => $label) {
+        foreach (ManuscriptFile::BERKAS_ISBN as $slot => $berkas) {
+            if (! $berkas['wajibCetak']) {
+                continue;
+            }
             if ($request->hasFile($slot) || ($isbn && $isbn->berkas($slot))) {
                 continue;
             }
-            $galat[$slot] = "{$label} wajib diunggah untuk status Cetak/Terbit.";
+            $galat[$slot] = $berkas['label'] . ' wajib diunggah untuk status Cetak/Terbit.';
         }
 
         if ($galat !== []) {
@@ -171,7 +164,7 @@ class BookIsbnController extends Controller
         }
 
         $svc = app(ManuscriptFileService::class);
-        foreach (array_keys(self::BERKAS_RULES) as $slot) {
+        foreach (ManuscriptFile::slotsIsbn() as $slot) {
             if ($request->hasFile($slot)) {
                 $svc->upload($title, null, $slot, $request->file($slot), Auth::user());
             }
