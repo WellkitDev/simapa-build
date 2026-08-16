@@ -15,19 +15,23 @@
     <p class="text-muted small mb-3">Buku yang manuskripnya telah mencapai tahap ISBN. E-book dan sertifikat bisa diunduh langsung dari baris masing-masing.</p>
     <div class="table-responsive">
         <table class="table table-hover datatable dt-responsive nowrap" style="width:100%">
-            <thead><tr><th>Kode</th><th>Judul</th><th>No. ISBN</th><th>E-book</th><th>Sertifikat</th><th>Link Terbit</th><th>Status</th><th>Penerbit</th><th>Tgl ISBN</th><th>Aksi</th></tr></thead>
+            <thead><tr>
+                <th>Kode</th><th>Judul</th><th>No. ISBN</th>
+                @foreach(\App\Models\ManuscriptFile::BERKAS_ISBN as $b)
+                    <th>{{ $b['label'] }}</th>
+                @endforeach
+                <th>Link Terbit</th><th>Status</th><th>Penerbit</th><th>Tgl ISBN</th><th>Aksi</th>
+            </tr></thead>
             <tbody>
                 @foreach($books as $b)
-                    @php
-                        $ebook      = $berkas[$b->id . ':ebook'] ?? null;
-                        $sertifikat = $berkas[$b->id . ':sertifikat_isbn'] ?? null;
-                    @endphp
                     <tr>
                         <td>{{ $b->code ?? '—' }}</td>
                         <td class="dt-judul">{{ $b->title }}</td>
                         <td>{{ $b->bookIsbn?->no_isbn ?: '—' }}</td>
-                        <td>@if($ebook && $ebook->drive_url)<a href="{{ $ebook->drive_url }}" target="_blank" rel="noopener">Unduh</a>@else—@endif</td>
-                        <td>@if($sertifikat && $sertifikat->drive_url)<a href="{{ $sertifikat->drive_url }}" target="_blank" rel="noopener">Unduh</a>@else—@endif</td>
+                        @foreach(array_keys(\App\Models\ManuscriptFile::BERKAS_ISBN) as $slot)
+                            @php $f = $berkas[$b->id . ':' . $slot] ?? null; @endphp
+                            <td>@if($f && $f->drive_url)<a href="{{ $f->drive_url }}" target="_blank" rel="noopener">Unduh</a>@else—@endif</td>
+                        @endforeach
                         <td>@if($b->bookIsbn?->link_terbit)<a href="{{ $b->bookIsbn->link_terbit }}" target="_blank" rel="noopener">Buka</a>@else—@endif</td>
                         <td>@if($b->bookIsbn)<span class="badge bg-info">{{ $b->bookIsbn->statusLabel() }}</span>@else<span class="badge bg-light text-dark border">Belum didaftarkan</span>@endif</td>
                         <td>{{ $b->bookIsbn?->penerbit ?: '—' }}</td>

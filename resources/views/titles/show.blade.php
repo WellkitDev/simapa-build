@@ -300,9 +300,8 @@
             @can($isbn ? 'isbn.edit' : 'isbn.create')
             <div class="collapse {{ $errors->any() ? 'show' : '' }}" id="isbnForm">
                 @php
-                    $ebook      = $isbn?->berkas('ebook');
-                    $sertifikat = $isbn?->berkas('sertifikat_isbn');
                     $statusKini = old('status', optional($isbn)->status);
+                    $berkasIsbn = \App\Models\ManuscriptFile::BERKAS_ISBN;
                 @endphp
                 <form method="POST" enctype="multipart/form-data"
                       action="{{ $isbn ? route('isbn.update', $isbn->id) : route('isbn.store') }}">
@@ -332,24 +331,25 @@
                     <div class="border-top mt-3 pt-3 {{ in_array($statusKini, ['ber_isbn', 'cetak'], true) ? '' : 'd-none' }}" id="isbnBerkas">
                         <div class="fw-bold small mb-2">Berkas &amp; Publikasi</div>
                         <div class="row g-2">
-                            <div class="col-md-4">
-                                <label class="form-label small mb-1">E-book <span class="text-danger d-none" data-isbn-cetak>*</span></label>
-                                <input type="file" name="ebook" class="form-control form-control-sm" accept=".pdf,.epub,.zip">
-                                @if($ebook)
-                                    <div class="form-text"><a href="{{ $ebook->drive_url }}" target="_blank" rel="noopener">{{ $ebook->original_name }}</a> · v{{ $ebook->version }} · {{ $ebook->uploader?->name ?? '—' }}</div>
-                                @else
-                                    <div class="form-text">Belum ada berkas.</div>
-                                @endif
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label small mb-1">Sertifikat ISBN <span class="text-danger d-none" data-isbn-cetak>*</span></label>
-                                <input type="file" name="sertifikat_isbn" class="form-control form-control-sm" accept=".pdf,.jpg,.jpeg,.png">
-                                @if($sertifikat)
-                                    <div class="form-text"><a href="{{ $sertifikat->drive_url }}" target="_blank" rel="noopener">{{ $sertifikat->original_name }}</a> · v{{ $sertifikat->version }} · {{ $sertifikat->uploader?->name ?? '—' }}</div>
-                                @else
-                                    <div class="form-text">Belum ada berkas.</div>
-                                @endif
-                            </div>
+                            @foreach($berkasIsbn as $slot => $b)
+                                @php $tersimpan = $isbn?->berkas($slot); @endphp
+                                <div class="col-md-4">
+                                    <label class="form-label small mb-1">
+                                        {{ $b['label'] }}
+                                        @if($b['wajibCetak'])
+                                            <span class="text-danger d-none" data-isbn-cetak>*</span>
+                                        @else
+                                            <span class="text-muted">(opsional)</span>
+                                        @endif
+                                    </label>
+                                    <input type="file" name="{{ $slot }}" class="form-control form-control-sm" accept="{{ $b['accept'] }}">
+                                    @if($tersimpan)
+                                        <div class="form-text"><a href="{{ $tersimpan->drive_url }}" target="_blank" rel="noopener">{{ $tersimpan->original_name }}</a> · v{{ $tersimpan->version }} · {{ $tersimpan->uploader?->name ?? '—' }}</div>
+                                    @else
+                                        <div class="form-text">Belum ada berkas.</div>
+                                    @endif
+                                </div>
+                            @endforeach
                             <div class="col-md-4">
                                 <label class="form-label small mb-1">Link Terbit di web avidpedia <span class="text-danger d-none" data-isbn-cetak>*</span></label>
                                 <input type="url" name="link_terbit" value="{{ old('link_terbit', optional($isbn)->link_terbit) }}" class="form-control form-control-sm" placeholder="https://avidpedia.com/...">

@@ -220,4 +220,30 @@ class BookIsbnBerkasTest extends TestCase
         $this->actingAs($this->user('admin'))
             ->get(route('isbn.index'))->assertOk()->assertSee('Kelola');
     }
+
+    /** @test */
+    public function direktori_menampilkan_keempat_kolom_berkas(): void
+    {
+        $book = $this->buku();
+        \App\Models\BookIsbn::create([
+            'title_id' => $book->id, 'status' => 'cetak', 'no_isbn' => '978-602-2',
+        ]);
+        foreach (['ebook' => 'e', 'sertifikat_isbn' => 's', 'barcode_isbn' => 'b', 'sertifikat_hki' => 'h'] as $slot => $tanda) {
+            ManuscriptFile::create([
+                'title_id' => $book->id, 'title_chapter_id' => null, 'slot' => $slot,
+                'version' => 1, 'original_name' => $slot . '.pdf',
+                'drive_url' => 'https://drive/' . $tanda, 'uploaded_by' => $this->user('admin')->id,
+            ]);
+        }
+
+        $isi = $this->actingAs($this->user('marketing'))
+            ->get(route('isbn.index'))->assertOk()->getContent();
+
+        foreach (['E-book', 'Sertifikat ISBN', 'Barcode ISBN', 'Sertifikat HKI'] as $label) {
+            $this->assertStringContainsString($label, $isi);
+        }
+        foreach (['https://drive/e', 'https://drive/s', 'https://drive/b', 'https://drive/h'] as $url) {
+            $this->assertStringContainsString($url, $isi);
+        }
+    }
 }
