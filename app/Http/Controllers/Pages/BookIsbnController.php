@@ -34,7 +34,7 @@ class BookIsbnController extends Controller
         // orderBy('version') menaik membuat keyBy() menyisakan versi tertinggi.
         $berkas = ManuscriptFile::whereIn('title_id', $books->pluck('id'))
             ->whereNull('title_chapter_id')
-            ->whereIn('slot', ManuscriptFile::SLOTS_ISBN)
+            ->whereIn('slot', ManuscriptFile::slotsIsbn())
             ->orderBy('version')
             ->get()
             ->keyBy(fn (ManuscriptFile $f) => $f->title_id . ':' . $f->slot);

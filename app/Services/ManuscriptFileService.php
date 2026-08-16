@@ -17,7 +17,7 @@ class ManuscriptFileService
 
     public function upload(Title $title, ?TitleChapter $chapter, string $slot, UploadedFile $file, User $actor): ManuscriptFile
     {
-        if (! array_key_exists($slot, ManuscriptFile::SLOTS)) {
+        if (! in_array($slot, ManuscriptFile::slotSah(), true)) {
             throw ValidationException::withMessages(['slot' => 'Slot naskah tidak valid.']);
         }
 

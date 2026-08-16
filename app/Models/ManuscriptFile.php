@@ -23,8 +23,6 @@ class ManuscriptFile extends Model
         'cover'           => 'Cover',
         'loa'             => 'LoA (Letter of Acceptance)',
         'final'           => 'Naskah Final',
-        'ebook'           => 'E-book',
-        'sertifikat_isbn' => 'Sertifikat ISBN',
     ];
 
     /**
@@ -37,11 +35,57 @@ class ManuscriptFile extends Model
     public const SLOTS_BUKU = ['masuk', 'hasil_editing', 'hasil_layout', 'hasil_proofread', 'cover', 'final'];
 
     /**
-     * Slot milik registrasi ISBN, bukan tahap naskah. Sengaja TIDAK masuk SLOTS_BUKU
-     * maupun SLOTS_ARTIKEL supaya tidak muncul di kartu berkas Detail Naskah — tempatnya
-     * di formulir Kelola ISBN dan Direktori ISBN.
+     * Berkas milik registrasi ISBN — bukan tahap naskah. Satu sumber tunggal: label,
+     * aturan mime, atribut accept untuk input file, dan wajib-atau-tidak saat status
+     * Cetak/Terbit. Formulir Kelola, Direktori ISBN, dan validasi controller sama-sama
+     * membaca dari sini, jadi menambah slot kelima kelak cukup satu baris di satu tempat.
+     *
+     * Sengaja TERPISAH dari SLOTS supaya tak pernah bocor ke kartu berkas Detail Naskah.
      */
-    public const SLOTS_ISBN = ['ebook', 'sertifikat_isbn'];
+    public const BERKAS_ISBN = [
+        'ebook' => [
+            'label' => 'E-book', 'mimes' => 'pdf,epub,zip',
+            'accept' => '.pdf,.epub,.zip', 'wajibCetak' => true,
+        ],
+        'sertifikat_isbn' => [
+            'label' => 'Sertifikat ISBN', 'mimes' => 'pdf,jpg,jpeg,png',
+            'accept' => '.pdf,.jpg,.jpeg,.png', 'wajibCetak' => true,
+        ],
+        'barcode_isbn' => [
+            'label' => 'Barcode ISBN', 'mimes' => 'pdf,jpg,jpeg,png',
+            'accept' => '.pdf,.jpg,.jpeg,.png', 'wajibCetak' => true,
+        ],
+        'sertifikat_hki' => [
+            'label' => 'Sertifikat HKI', 'mimes' => 'pdf,jpg,jpeg,png',
+            'accept' => '.pdf,.jpg,.jpeg,.png', 'wajibCetak' => false,
+        ],
+    ];
+
+    /** Batas ukuran unggahan (KB) — seragam untuk seluruh berkas ISBN. */
+    public const BATAS_KB = 20480;
+
+    /** @return array<int,string> nama slot berkas ISBN, urut sesuai BERKAS_ISBN. */
+    public static function slotsIsbn(): array
+    {
+        return array_keys(self::BERKAS_ISBN);
+    }
+
+    /** Seluruh slot yang sah disimpan: tahap naskah + berkas ISBN. */
+    public static function slotSah(): array
+    {
+        return array_merge(array_keys(self::SLOTS), self::slotsIsbn());
+    }
+
+    /** @return array<string,string> aturan validasi unggahan per slot ISBN. */
+    public static function rulesIsbn(): array
+    {
+        $out = [];
+        foreach (self::BERKAS_ISBN as $slot => $b) {
+            $out[$slot] = 'nullable|file|mimes:' . $b['mimes'] . '|max:' . self::BATAS_KB;
+        }
+
+        return $out;
+    }
 
     /** @return array<string,string> slot => label, sesuai jenis naskah. */
     public static function slotsFor(bool $buku): array
@@ -60,5 +104,10 @@ class ManuscriptFile extends Model
     public function chapter() { return $this->belongsTo(TitleChapter::class, 'title_chapter_id'); }
     public function uploader() { return $this->belongsTo(User::class, 'uploaded_by'); }
 
-    public function slotLabel(): string { return self::SLOTS[$this->slot] ?? $this->slot; }
+    public function slotLabel(): string
+    {
+        return self::SLOTS[$this->slot]
+            ?? self::BERKAS_ISBN[$this->slot]['label']
+            ?? $this->slot;
+    }
 }

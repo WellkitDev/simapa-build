@@ -68,19 +68,31 @@ class BookIsbnBerkasTest extends TestCase
     }
 
     /** @test */
-    public function slot_isbn_terdaftar_tapi_tidak_bocor_ke_berkas_naskah(): void
+    public function empat_berkas_isbn_terdaftar_tapi_tidak_bocor_ke_berkas_naskah(): void
     {
         $this->assertSame(
-            ['ebook', 'sertifikat_isbn'],
-            ManuscriptFile::SLOTS_ISBN
+            ['ebook', 'sertifikat_isbn', 'barcode_isbn', 'sertifikat_hki'],
+            ManuscriptFile::slotsIsbn()
         );
-        $this->assertArrayHasKey('ebook', ManuscriptFile::SLOTS);
-        $this->assertArrayHasKey('sertifikat_isbn', ManuscriptFile::SLOTS);
 
-        // Kartu berkas Detail Naskah hanya menampilkan slotsFor(); slot ISBN tak boleh ikut.
-        $this->assertArrayNotHasKey('ebook', ManuscriptFile::slotsFor(true));
-        $this->assertArrayNotHasKey('sertifikat_isbn', ManuscriptFile::slotsFor(true));
-        $this->assertArrayNotHasKey('ebook', ManuscriptFile::slotsFor(false));
+        // Slot ISBN hidup di BERKAS_ISBN, BUKAN di SLOTS — SLOTS khusus tahap naskah.
+        foreach (ManuscriptFile::slotsIsbn() as $slot) {
+            $this->assertArrayNotHasKey($slot, ManuscriptFile::SLOTS, "{$slot} tak boleh jadi slot tahap naskah");
+            $this->assertArrayNotHasKey($slot, ManuscriptFile::slotsFor(true));
+            $this->assertArrayNotHasKey($slot, ManuscriptFile::slotsFor(false));
+        }
+
+        // Labelnya tetap bisa dibaca lewat slotLabel().
+        $f = new ManuscriptFile(['slot' => 'barcode_isbn']);
+        $this->assertSame('Barcode ISBN', $f->slotLabel());
+    }
+
+    /** @test */
+    public function hanya_barcode_yang_wajib_dari_dua_berkas_baru(): void
+    {
+        $this->assertTrue(ManuscriptFile::BERKAS_ISBN['barcode_isbn']['wajibCetak']);
+        $this->assertFalse(ManuscriptFile::BERKAS_ISBN['sertifikat_hki']['wajibCetak'],
+            'Sertifikat HKI opsional — jangan diam-diam jadi wajib.');
     }
 
     /** @test */
