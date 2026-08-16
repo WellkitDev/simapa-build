@@ -1049,4 +1049,58 @@ Isi bagian di bawah, lalu commit.
 
 ## Catatan penyimpangan
 
-*(diisi selama implementasi bila ada langkah yang berbeda dari rencana)*
+Selesai 16 Agustus 2026 di branch `feat/isbn-berkas-dan-bab-mandiri`. Suite penuh:
+**1071 lolos, 1 dilewati, nol gagal**. Commit: `22e64c2` (T1) · `e170b15` (T2) ·
+`6e69816` (T3) · `85ba0ff` (T4) · `170b4ce` (T5) · `9b27f05` (T6) · `48a4ce9` (T7) ·
+`59dac55` (perbaikan susulan). Belum di-push, belum di-merge.
+
+**1. Hasil terukur Task 4 — ini angka intinya.** Resolusi controller sesudah perbaikan:
+
+| Controller | Sebelum | Sesudah |
+|---|---|---|
+| OrderBookController | 263 ms | **1 ms** |
+| PaymentBookController | 210 ms | **0 ms** |
+| ProfileController | 223 ms | **0 ms** |
+| ManagementUserController | 233 ms | **0 ms** |
+| JournalSubmissionController | 216 ms | **0 ms** |
+| DailyReportController | 221 ms | **0 ms** |
+
+Sekitar 1,37 detik waktu mati hilang dari keenam halaman itu.
+
+**2. Test antrian sempat merusak test lain — ditemukan hanya karena suite dijalankan
+penuh.** `Artisan::call('queue:work', ['--quiet' => true])` menyetel verbosity QUIET pada
+objek output konsol yang dipakai bersama seluruh suite, dan setelan itu bertahan ke test
+berikutnya. `StripCodePrefixCommandTest` (dua test, sama sekali tak berkaitan) jadi gagal
+di suite penuh tapi hijau saat difilter sendiri — `expectsOutputToContain()` tak lagi
+melihat keluaran apa pun. Diperbaiki dengan membuang `--quiet` (`59dac55`), dan alasannya
+ditulis sebagai komentar di test supaya tak dipasang lagi oleh orang berikutnya.
+**Pelajaran: menjalankan suite terfilter saja akan meloloskan kelas bug ini.**
+
+**3. Bukti antrian di dev lewat tinker gagal — artefak, bukan masalah.** `dispatch(closure)`
+dari tinker menghasilkan `Error: Call to a member function bindTo() on null`, karena
+`serializable-closure` tak bisa membangun ulang closure yang lahir dari kode `eval`. Yang
+penting tetap terbukti: job masuk tabel `jobs`, worker mengambilnya, antrian terkuras
+sampai nol. Bukti sesungguhnya ada di `QueueScheduleTest::job_yang_diantrikan_benar_benar_dieksekusi`,
+yang dispatch dari berkas nyata dan memeriksa efek sampingnya — hijau. Baris `failed_jobs`
+sisa uji coba sudah dibersihkan (`queue:flush`).
+
+**4. Test collapse ditulis sesudah perbaikan, lalu dibuktikan terbalik.** Untuk Revisi E
+saya sempat menulis test setelah kodenya diperbaiki, jadi belum pernah melihatnya merah —
+itu tak membuktikan apa-apa. Kondisi lama (`$errors->any()`) dikembalikan sementara untuk
+memastikan test-nya benar-benar gagal, baru perbaikannya dipasang lagi.
+
+**5. `.env` dev dibereskan manual** (berkas ini tak masuk git): baris `QUEUE_CONNECTION=sync`
+yang mati di baris 21 dihapus, menyisakan satu-satunya `=database`. Nilai efektifnya tidak
+berubah — yang hilang cuma jebakannya. Diverifikasi `grep -c` = 1 dan
+`config('queue.default')` = `database`.
+
+**6. Utang yang sengaja tidak dibayar:** `GoogleDriveService::uploadFile()` masih memakai
+`file_get_contents()` dan `uploadType: 'multipart'`, jadi berkas 20 MB tetap masuk memori
+PHP seluruhnya dan seluruh transfer terjadi di dalam request. Unggahan juga tetap sinkron,
+bukan job. Keduanya keputusan sadar (spec §10), bukan kelalaian.
+
+**BELUM DIKERJAKAN — perlu Anda:** pemeriksaan lewat peramban (tak seorang pun membuka
+formulir baru atau mengunggah berkas sungguhan), dan **konfirmasi bahwa cron
+`* * * * * php artisan schedule:run` benar-benar terpasang di cPanel produksi**. Tanpa cron
+itu Revisi C tak berefek: email tetap tertahan, dan `naskah:check-overdue` yang dijadwalkan
+sejak modul naskah juga tak pernah berjalan sejak awal.
