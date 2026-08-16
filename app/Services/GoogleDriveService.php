@@ -10,39 +10,49 @@ use Google\Service\Drive\DriveFile;
 
 class GoogleDriveService
 {
-    protected $client;
-    protected $service;
-    /*
-    * create a new class instance
-    */
+    private ?GoogleClient $client = null;
+    private ?GoogleDrive $service = null;
+
+    /**
+     * Constructor SENGAJA kosong. Service ini disuntik ke constructor enam controller,
+     * dan Laravel membangun dependensi controller pada setiap request — jadi kerja
+     * apa pun di sini dibayar oleh halaman yang tak pernah menyentuh berkas.
+     * Otentikasi terjadi saat client()/service() pertama kali dipanggil.
+     */
     public function __construct()
     {
-        //
-        $this->client = new GoogleClient();
+    }
 
-        // PERBAIKI INI: Hapus 'disks' yang double!
-        $this->client->setClientId(config('filesystems.disks.google.clientId'));
-        $this->client->setClientSecret(config('filesystems.disks.google.clientSecret'));
+    private function client(): GoogleClient
+    {
+        if ($this->client !== null) {
+            return $this->client;
+        }
 
-        $this->client->setAccessType('offline');
-        $this->client->setApprovalPrompt('force'); // penting untuk refresh token
+        $client = new GoogleClient();
+        $client->setClientId(config('filesystems.disks.google.clientId'));
+        $client->setClientSecret(config('filesystems.disks.google.clientSecret'));
+        $client->setAccessType('offline');
+        $client->setApprovalPrompt('force'); // penting untuk refresh token
 
         $refreshToken = config('filesystems.disks.google.refreshToken');
-
-        if (!$refreshToken) {
+        if (! $refreshToken) {
             throw new \Exception('Refresh token is missing in config.');
         }
 
-        // Coba refresh token
-        $token = $this->client->fetchAccessTokenWithRefreshToken($refreshToken);
-
+        $token = $client->fetchAccessTokenWithRefreshToken($refreshToken);
         if (isset($token['error'])) {
             throw new \Exception('Failed to fetch access token: ' . ($token['error_description'] ?? $token['error']));
         }
 
-        $this->client->setAccessToken($token);
+        $client->setAccessToken($token);
 
-        $this->service = new GoogleDrive($this->client);
+        return $this->client = $client;
+    }
+
+    private function service(): GoogleDrive
+    {
+        return $this->service ??= new GoogleDrive($this->client());
     }
 
     /*
@@ -50,11 +60,11 @@ class GoogleDriveService
     */
     public function getAccessToken()
     {
-        $this->client->getAccessToken();
+        $this->client()->getAccessToken();
 
-        if($this->client->isAccessTokenExpired())
+        if($this->client()->isAccessTokenExpired())
         {
-           $token = $this->client->fetchAccessTokenWithRefreshToken(config('filesystems.disks.disks.google.refreshToken'));
+           $token = $this->client()->fetchAccessTokenWithRefreshToken(config('filesystems.disks.disks.google.refreshToken'));
         }
 
         return $token['access_token'];
@@ -73,7 +83,7 @@ class GoogleDriveService
         ]);
 
         // Set permission dengan option tambahan
-        $this->service->permissions->create($driveFileId, $permission, [
+        $this->service()->permissions->create($driveFileId, $permission, [
             'fields' => 'id',
             'sendNotificationEmail' => false, // Nggak kirim email notif
             'useDomainAdminAccess' => false,
@@ -110,7 +120,7 @@ class GoogleDriveService
                 ? file_get_contents($file)
                 : file_get_contents($file->getRealPath());
 
-            $createdFile = $this->service->files->create($fileMetadata, [
+            $createdFile = $this->service()->files->create($fileMetadata, [
                 'data' => $content,
                 'mimeType' => is_string($file) ? mime_content_type($file) : $file->getMimeType(),
                 'uploadType' => 'multipart',
@@ -150,7 +160,7 @@ class GoogleDriveService
                 $query .= " and '{$folderId}' in parents";
             }
 
-            $files = $this->service->files->listFiles([
+            $files = $this->service()->files->listFiles([
                 'q' => $query,
                 'fields' => 'files(id, name, webViewLink)',
             ]);
@@ -191,21 +201,21 @@ class GoogleDriveService
     {
         try {
             // 1. Refresh token otomatis (karena service sudah punya client)
-            if ($this->client->isAccessTokenExpired()) {
-                $newToken = $this->client->fetchAccessTokenWithRefreshToken(
+            if ($this->client()->isAccessTokenExpired()) {
+                $newToken = $this->client()->fetchAccessTokenWithRefreshToken(
                     config('filesystems.disks.google.refreshToken')
                 );
-                $this->client->setAccessToken($newToken);
+                $this->client()->setAccessToken($newToken);
             }
 
             // 2. Ambil file sebagai stream
-            $response = $this->service->files->get($fileId, [
+            $response = $this->service()->files->get($fileId, [
                 'alt' => 'media',
                 'supportsAllDrives' => true,
             ]);
 
             // 3. Ambil metadata
-            $file = $this->service->files->get($fileId, [
+            $file = $this->service()->files->get($fileId, [
                 'fields' => 'mimeType, name',
                 'supportsAllDrives' => true,
             ]);
@@ -252,7 +262,7 @@ class GoogleDriveService
         }
 
         try {
-            $this->service->files->delete($fileId);
+            $this->service()->files->delete($fileId);
             Log::info("File deleted from Google Drive: {$fileId}");
             return true;
         } catch (\Google\Service\Exception $e) {
@@ -303,7 +313,7 @@ class GoogleDriveService
         }
 
         try {
-            $results = $this->service->files->listFiles([
+            $results = $this->service()->files->listFiles([
                 'q' => $query,
                 'fields' => 'files(id)',
                 'spaces' => 'drive',
@@ -331,7 +341,7 @@ class GoogleDriveService
             $fileMetadata->setParents([$parentId]);
         }
 
-        $folder = $this->service->files->create($fileMetadata, [
+        $folder = $this->service()->files->create($fileMetadata, [
             'fields' => 'id'
         ]);
 

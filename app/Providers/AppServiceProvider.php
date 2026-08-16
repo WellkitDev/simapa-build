@@ -12,7 +12,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Satu instance per request: otentikasi Drive dibayar paling banyak sekali,
+        // dan halaman yang tak menyentuh berkas tidak membayarnya sama sekali.
+        $this->app->singleton(\App\Services\GoogleDriveService::class);
     }
 
     /**
