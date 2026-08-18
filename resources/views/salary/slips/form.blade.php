@@ -50,10 +50,14 @@
             </div>
         </div>
         @error('earnings')<div class="text-danger small">{{ $message }}</div>@enderror
-        <table class="table table-sm mt-2" id="earnings-table">
-            <thead><tr><th>Komponen</th><th style="width:190px">Nominal (Rp)</th><th style="width:40px"></th></tr></thead>
-            <tbody></tbody>
-        </table>
+        {{-- Dua kolom terakhir berlebar tetap (190px + 40px), jadi di layar ponsel
+             tabelnya melewati tepi kartu. Pembungkus ini yang menggeser, bukan halaman. --}}
+        <div class="table-responsive">
+            <table class="table table-sm mt-2" id="earnings-table">
+                <thead><tr><th>Komponen</th><th style="width:190px">Nominal (Rp)</th><th style="width:40px"></th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
 
         <div class="d-flex justify-content-between align-items-center mt-3">
             <h6 class="mb-0">Rincian Potongan</h6>
@@ -62,10 +66,14 @@
                 <button type="button" class="btn btn-xs btn-outline-primary" onclick="fillPreset('deductions')">Preset</button>
             </div>
         </div>
-        <table class="table table-sm mt-2" id="deductions-table">
-            <thead><tr><th>Komponen</th><th style="width:190px">Nominal (Rp)</th><th style="width:40px"></th></tr></thead>
-            <tbody></tbody>
-        </table>
+        {{-- Dua kolom terakhir berlebar tetap (190px + 40px), jadi di layar ponsel
+             tabelnya melewati tepi kartu. Pembungkus ini yang menggeser, bukan halaman. --}}
+        <div class="table-responsive">
+            <table class="table table-sm mt-2" id="deductions-table">
+                <thead><tr><th>Komponen</th><th style="width:190px">Nominal (Rp)</th><th style="width:40px"></th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
 
         <div class="row mt-2">
             <div class="col-md-5 ms-auto">
