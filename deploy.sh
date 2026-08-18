@@ -6,7 +6,7 @@
 #
 # Pakai (dari cPanel → Cron Jobs, atau terminal):
 #
-#   /home/avidpedi/simapav2.avidpedia.com/deploy.sh
+#   /home/avidpedi/simapa.avidpedia.com/deploy.sh
 #
 # Semua keluaran dicatat ke storage/logs/deploy.log SEKALIGUS dicetak ke stdout,
 # sehingga cPanel juga mengirimkannya lewat email cron. Berhenti di langkah
