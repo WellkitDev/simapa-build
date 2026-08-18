@@ -180,8 +180,32 @@
         };
 
         document.addEventListener('submit', function (e) {
-            window.kunciTombolUnggah(e.target);
+            var form = e.target;
+
+            // Form berkonfirmasi dikunci di jalur SweetAlert-nya sendiri, SESUDAH
+            // orangnya menekan "Ya". Mengunci di sini juga akan mematikan tombolnya
+            // untuk selamanya begitu ia menekan "Batal": submit-nya memang dibatalkan
+            // (preventDefault), tapi halaman tidak dimuat ulang, jadi tak ada yang
+            // pernah memulihkan tombolnya.
+            if (form && form.matches && form.matches('[data-confirm]')
+                && form.dataset.confirmed !== '1') {
+                return;
+            }
+
+            window.kunciTombolUnggah(form);
         }, true);
+
+        // Tombol terkunci ikut tersimpan saat halaman masuk bfcache. Menekan Back
+        // mengembalikan DOM apa adanya — tombolnya muncul kembali dalam keadaan mati
+        // bertuliskan "Mengunggah…" padahal tak ada unggahan yang berjalan.
+        window.addEventListener('pageshow', function (e) {
+            if (! e.persisted) return;
+            document.querySelectorAll('button[data-mengunggah]').forEach(function (t) {
+                t.disabled = false;
+                if (t.dataset.teksAsli) t.innerHTML = t.dataset.teksAsli;
+                delete t.dataset.mengunggah;
+            });
+        });
     })();
     </script>
 </body>
