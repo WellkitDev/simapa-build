@@ -1,0 +1,2646 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SiMAPA v2 — Alur Kerja & Panduan Operasional Tim</title>
+<style>
+/* ============================================================
+   SiMAPA v2 — Deck Presentasi Alur Kerja
+   Standalone: tanpa dependensi eksternal sama sekali.
+   ============================================================ */
+:root{
+  --bg:#f5f3ee; --surface:#ffffff; --surface2:#faf8f4;
+  --ink:#15181d; --ink2:#39404b; --muted:#6b7480; --line:#e2ddd3; --line2:#efebe3;
+  --brand:#1f4e79; --brand-soft:#e8f0f8; --accent:#b5731d; --accent-soft:#fbf1e2;
+  --ok:#1f7a4d; --ok-soft:#e4f4ec;
+  --warn:#a8620a; --warn-soft:#fdf0dd;
+  --dang:#b3352f; --dang-soft:#fbe9e8;
+  --info:#1f5fbf; --info-soft:#e7effc;
+  --purp:#6b3fa0; --purp-soft:#f1eafb;
+  --teal:#0f6d70; --teal-soft:#e2f2f2;
+  --shadow:0 1px 2px rgba(20,24,30,.06),0 8px 28px rgba(20,24,30,.08);
+  --radius:14px;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0e1116; --surface:#161a21; --surface2:#1b2028;
+    --ink:#e8ecf2; --ink2:#c3ccd8; --muted:#8b95a4; --line:#28303a; --line2:#20262f;
+    --brand:#7fb1e3; --brand-soft:#152634; --accent:#e0a355; --accent-soft:#2c2214;
+    --ok:#5cc98d; --ok-soft:#12291d;
+    --warn:#e8a94a; --warn-soft:#2c2314;
+    --dang:#f08a84; --dang-soft:#2e1817;
+    --info:#74a9f5; --info-soft:#141f31;
+    --purp:#b294e8; --purp-soft:#221a30;
+    --teal:#5cc4c6; --teal-soft:#122827;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 34px rgba(0,0,0,.45);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0e1116; --surface:#161a21; --surface2:#1b2028;
+  --ink:#e8ecf2; --ink2:#c3ccd8; --muted:#8b95a4; --line:#28303a; --line2:#20262f;
+  --brand:#7fb1e3; --brand-soft:#152634; --accent:#e0a355; --accent-soft:#2c2214;
+  --ok:#5cc98d; --ok-soft:#12291d;
+  --warn:#e8a94a; --warn-soft:#2c2314;
+  --dang:#f08a84; --dang-soft:#2e1817;
+  --info:#74a9f5; --info-soft:#141f31;
+  --purp:#b294e8; --purp-soft:#221a30;
+  --teal:#5cc4c6; --teal-soft:#122827;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 34px rgba(0,0,0,.45);
+}
+:root[data-theme="light"]{
+  --bg:#f5f3ee; --surface:#ffffff; --surface2:#faf8f4;
+  --ink:#15181d; --ink2:#39404b; --muted:#6b7480; --line:#e2ddd3; --line2:#efebe3;
+  --brand:#1f4e79; --brand-soft:#e8f0f8; --accent:#b5731d; --accent-soft:#fbf1e2;
+  --ok:#1f7a4d; --ok-soft:#e4f4ec;
+  --warn:#a8620a; --warn-soft:#fdf0dd;
+  --dang:#b3352f; --dang-soft:#fbe9e8;
+  --info:#1f5fbf; --info-soft:#e7effc;
+  --purp:#6b3fa0; --purp-soft:#f1eafb;
+  --teal:#0f6d70; --teal-soft:#e2f2f2;
+  --shadow:0 1px 2px rgba(20,24,30,.06),0 8px 28px rgba(20,24,30,.08);
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:var(--sans); font-size:16px; line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{font-family:var(--serif); font-weight:600; line-height:1.2; margin:0}
+p{margin:0}
+a{color:var(--brand)}
+
+/* ---------- Chrome ---------- */
+.topbar{
+  position:fixed; inset:0 0 auto 0; height:52px; z-index:40;
+  display:flex; align-items:center; gap:12px; padding:0 clamp(12px,2.5vw,26px);
+  background:color-mix(in srgb,var(--surface) 88%,transparent);
+  backdrop-filter:blur(10px); border-bottom:1px solid var(--line);
+}
+.brand{font-family:var(--serif); font-size:17px; font-weight:700; letter-spacing:.01em; white-space:nowrap}
+.brand span{color:var(--accent)}
+.brand small{display:block; font-family:var(--sans); font-size:10px; font-weight:600;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--muted); margin-top:-3px}
+.topbar .spacer{flex:1}
+.phase-tag{
+  font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  max-width:min(46vw,520px);
+}
+.btn{
+  appearance:none; border:1px solid var(--line); background:var(--surface); color:var(--ink2);
+  font:inherit; font-size:13px; font-weight:600; padding:6px 12px; border-radius:9px;
+  cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;
+}
+.btn:hover{border-color:var(--brand); color:var(--brand)}
+.btn:focus-visible{outline:2px solid var(--brand); outline-offset:2px}
+.btn.icon{padding:6px 9px}
+.btn.primary{background:var(--brand); border-color:var(--brand); color:#fff}
+.btn.primary:hover{filter:brightness(1.08); color:#fff}
+.btn[disabled]{opacity:.35; cursor:default}
+.btn[disabled]:hover{border-color:var(--line); color:var(--ink2)}
+
+.progress{position:fixed; top:52px; left:0; right:0; height:3px; z-index:41; background:var(--line2)}
+.progress i{display:block; height:100%; width:0;
+  background:linear-gradient(90deg,var(--brand),var(--accent)); transition:width .3s ease}
+
+.botbar{
+  position:fixed; inset:auto 0 0 0; height:56px; z-index:40;
+  display:flex; align-items:center; gap:10px; padding:0 clamp(12px,2.5vw,26px);
+  background:color-mix(in srgb,var(--surface) 88%,transparent);
+  backdrop-filter:blur(10px); border-top:1px solid var(--line);
+}
+.counter{font-family:var(--mono); font-size:12px; color:var(--muted); white-space:nowrap}
+.counter b{color:var(--ink); font-size:14px}
+.dots{flex:1; display:flex; gap:4px; align-items:center; overflow:hidden; justify-content:center}
+.dots i{width:6px; height:6px; border-radius:99px; background:var(--line); flex:none; cursor:pointer; transition:.2s}
+.dots i.on{background:var(--accent); width:20px}
+.dots i.seen{background:var(--muted)}
+.hintkeys{font-size:11px; color:var(--muted); white-space:nowrap}
+.hintkeys kbd{font-family:var(--mono); font-size:10px; border:1px solid var(--line);
+  border-bottom-width:2px; border-radius:4px; padding:1px 4px; background:var(--surface2); color:var(--ink2)}
+
+/* ---------- Deck ---------- */
+.deck{position:absolute; inset:55px 0 56px 0; overflow:hidden}
+.slide{
+  position:absolute; inset:0; overflow-y:auto; overflow-x:hidden;
+  padding:clamp(20px,3.6vh,40px) clamp(16px,4vw,64px) clamp(28px,4vh,48px);
+  display:none; scrollbar-width:thin;
+}
+.slide.active{display:block; animation:in .32s ease both}
+@keyframes in{from{opacity:0; transform:translateY(10px)} to{opacity:1; transform:none}}
+.wrap{max-width:1120px; margin:0 auto}
+.wrap.wide{max-width:1320px}
+
+.kicker{
+  display:inline-flex; align-items:center; gap:7px; font-size:11px; font-weight:700;
+  letter-spacing:.13em; text-transform:uppercase; color:var(--accent);
+  background:var(--accent-soft); border-radius:99px; padding:5px 12px; margin-bottom:14px;
+}
+.slide h2{font-size:clamp(25px,3.4vw,40px); letter-spacing:-.01em; margin-bottom:10px}
+.slide h3{font-size:clamp(17px,1.7vw,20px); margin:0 0 8px}
+.lead{font-size:clamp(15px,1.35vw,17.5px); color:var(--ink2); max-width:74ch; margin-bottom:24px}
+.rule{height:1px; background:var(--line); margin:22px 0; border:0}
+
+/* ---------- Primitives ---------- */
+.grid{display:grid; gap:14px}
+.g2{grid-template-columns:repeat(2,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g6{grid-template-columns:repeat(6,1fr)}
+@media(max-width:900px){.g3,.g4,.g6{grid-template-columns:repeat(2,1fr)} .g2{grid-template-columns:1fr}}
+@media(max-width:560px){.g2,.g3,.g4,.g6{grid-template-columns:1fr}}
+
+.card{
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
+  padding:16px 18px; box-shadow:var(--shadow);
+}
+.card.flat{box-shadow:none; background:var(--surface2)}
+.card h3{display:flex; align-items:center; gap:8px}
+.card p{color:var(--ink2); font-size:14.5px}
+.card .num{
+  font-family:var(--mono); font-size:11px; font-weight:700; color:var(--surface);
+  background:var(--brand); width:22px; height:22px; border-radius:6px; flex:none;
+  display:inline-grid; place-items:center;
+}
+.card.tint-b{border-left:4px solid var(--brand)}
+.card.tint-a{border-left:4px solid var(--accent)}
+.card.tint-g{border-left:4px solid var(--ok)}
+.card.tint-r{border-left:4px solid var(--dang)}
+.card.tint-p{border-left:4px solid var(--purp)}
+.card.tint-t{border-left:4px solid var(--teal)}
+
+.badge{
+  display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:700;
+  padding:3px 9px; border-radius:99px; white-space:nowrap; letter-spacing:.01em;
+}
+.b-brand{background:var(--brand-soft); color:var(--brand)}
+.b-acc{background:var(--accent-soft); color:var(--accent)}
+.b-ok{background:var(--ok-soft); color:var(--ok)}
+.b-warn{background:var(--warn-soft); color:var(--warn)}
+.b-dang{background:var(--dang-soft); color:var(--dang)}
+.b-info{background:var(--info-soft); color:var(--info)}
+.b-purp{background:var(--purp-soft); color:var(--purp)}
+.b-teal{background:var(--teal-soft); color:var(--teal)}
+.b-mute{background:var(--line2); color:var(--muted)}
+
+.code{font-family:var(--mono); font-size:.87em; background:var(--surface2);
+  border:1px solid var(--line); border-radius:5px; padding:1px 5px; color:var(--ink2)}
+
+ul.list,ol.list{margin:0; padding-left:18px; color:var(--ink2); font-size:14.5px}
+ul.list li,ol.list li{margin:5px 0}
+ul.clean{list-style:none; margin:0; padding:0}
+ul.clean li{display:flex; gap:9px; align-items:flex-start; margin:8px 0; font-size:14.5px; color:var(--ink2)}
+ul.clean li::before{content:"▸"; color:var(--accent); font-weight:700; flex:none; line-height:1.5}
+ul.check li::before{content:"✓"; color:var(--ok)}
+ul.cross li::before{content:"✕"; color:var(--dang)}
+
+table{width:100%; border-collapse:collapse; font-size:13.5px}
+.tbl-scroll{overflow-x:auto; border:1px solid var(--line); border-radius:var(--radius); background:var(--surface)}
+th,td{padding:9px 12px; text-align:left; border-bottom:1px solid var(--line2); vertical-align:top}
+thead th{background:var(--surface2); font-size:11.5px; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--muted); font-weight:700; position:sticky; top:0; white-space:nowrap}
+tbody tr:last-child td{border-bottom:0}
+td.c,th.c{text-align:center}
+.yes{color:var(--ok); font-weight:700}
+.no{color:var(--line); font-weight:700}
+
+.note{
+  border-radius:var(--radius); padding:13px 16px; font-size:14px; color:var(--ink2);
+  border:1px solid var(--line); background:var(--surface2); display:flex; gap:11px; align-items:flex-start;
+}
+.note b{color:var(--ink)}
+.note::before{content:"i"; font-family:var(--serif); font-weight:700; font-size:13px;
+  width:20px; height:20px; border-radius:99px; flex:none; display:grid; place-items:center;
+  background:var(--info); color:#fff; margin-top:1px}
+.note.warn{background:var(--warn-soft); border-color:color-mix(in srgb,var(--warn) 30%,transparent)}
+.note.warn::before{content:"!"; background:var(--warn)}
+.note.dang{background:var(--dang-soft); border-color:color-mix(in srgb,var(--dang) 30%,transparent)}
+.note.dang::before{content:"!"; background:var(--dang)}
+.note.ok{background:var(--ok-soft); border-color:color-mix(in srgb,var(--ok) 30%,transparent)}
+.note.ok::before{content:"✓"; background:var(--ok)}
+
+/* ---------- Flow / pipeline ---------- */
+.flow{display:flex; align-items:stretch; gap:0; flex-wrap:wrap}
+.flow .step{
+  flex:1 1 120px; min-width:112px; background:var(--surface); border:1px solid var(--line);
+  border-radius:11px; padding:11px 12px; position:relative; box-shadow:var(--shadow);
+}
+.flow .arrow{display:grid; place-items:center; width:26px; flex:none; color:var(--muted); font-size:16px}
+.flow .step .st-n{font-family:var(--mono); font-size:10px; color:var(--muted); font-weight:700}
+.flow .step .st-t{font-weight:700; font-size:14px; margin-top:2px}
+.flow .step .st-d{font-size:12px; color:var(--muted); margin-top:3px; line-height:1.4}
+@media(max-width:760px){.flow{flex-direction:column} .flow .arrow{width:auto; height:20px; transform:rotate(90deg)}}
+
+/* rail = deretan tahap */
+.rail{display:flex; flex-wrap:wrap; gap:7px; align-items:stretch}
+.rail .rs{
+  flex:1 1 108px; min-width:100px; border:1px solid var(--line); border-radius:10px;
+  padding:9px 10px; background:var(--surface); text-align:center; position:relative;
+}
+.rail .rs .rn{font-family:var(--mono); font-size:9.5px; color:var(--muted); font-weight:700}
+.rail .rs .rt{font-weight:700; font-size:13px; margin:2px 0 5px; line-height:1.25}
+.rail .rs .rh{font-size:10px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+  border-radius:99px; padding:2px 7px; display:inline-block}
+.rail.book .rs{border-top:3px solid var(--teal)}
+.rail.art .rs{border-top:3px solid var(--purp)}
+.rs.final{background:var(--ok-soft); border-color:color-mix(in srgb,var(--ok) 40%,transparent)}
+
+/* state machine */
+.states{display:flex; flex-wrap:wrap; gap:8px; align-items:center}
+.state{border:1px solid var(--line); border-radius:9px; padding:7px 12px; background:var(--surface);
+  font-weight:700; font-size:13.5px; display:inline-flex; gap:7px; align-items:center}
+.state .who{font-weight:600; font-size:11px; color:var(--muted)}
+.to{color:var(--muted); font-size:15px}
+
+/* role chip */
+.rolechip{display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700;
+  padding:3px 10px; border-radius:99px}
+.r-mkt{background:var(--accent-soft); color:var(--accent)}
+.r-prod{background:var(--teal-soft); color:var(--teal)}
+.r-adm{background:var(--info-soft); color:var(--info)}
+.r-acc{background:var(--ok-soft); color:var(--ok)}
+.r-mgr{background:var(--purp-soft); color:var(--purp)}
+.r-sa{background:var(--dang-soft); color:var(--dang)}
+
+/* key-value strip */
+.kv{display:grid; grid-template-columns:auto 1fr; gap:7px 14px; font-size:14px; color:var(--ink2)}
+.kv dt{font-weight:700; color:var(--ink); white-space:nowrap}
+.kv dd{margin:0}
+
+/* stat */
+.stat{text-align:center; padding:14px 10px}
+.stat .v{font-family:var(--serif); font-size:clamp(26px,3.4vw,38px); font-weight:700; color:var(--brand); line-height:1}
+.stat .l{font-size:12px; color:var(--muted); margin-top:5px; font-weight:600; letter-spacing:.03em}
+
+/* cover */
+.cover{min-height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center;
+  text-align:center; gap:8px; padding:20px 0}
+.cover .mark{font-family:var(--serif); font-size:clamp(46px,8vw,86px); font-weight:700; letter-spacing:-.02em}
+.cover .mark span{color:var(--accent)}
+.cover .sub{font-size:clamp(15px,1.7vw,19px); color:var(--ink2); max-width:60ch}
+.cover .meta{display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:18px}
+
+/* section divider */
+.divider{min-height:100%; display:flex; flex-direction:column; justify-content:center; gap:14px}
+.divider .ph{font-family:var(--mono); font-size:13px; font-weight:700; letter-spacing:.24em;
+  text-transform:uppercase; color:var(--accent)}
+.divider h2{font-size:clamp(32px,5.6vw,60px); max-width:20ch}
+.divider .dsub{font-size:clamp(15px,1.6vw,18px); color:var(--ink2); max-width:66ch}
+.divider .dbar{height:5px; width:88px; background:linear-gradient(90deg,var(--brand),var(--accent)); border-radius:99px}
+
+/* TOC overlay */
+.toc{
+  position:fixed; inset:0; z-index:60; background:color-mix(in srgb,var(--bg) 96%,transparent);
+  backdrop-filter:blur(8px); display:none; overflow-y:auto; padding:26px clamp(16px,4vw,54px) 40px;
+}
+.toc.open{display:block}
+.toc-head{display:flex; align-items:center; gap:12px; margin-bottom:20px; max-width:1180px; margin-inline:auto}
+.toc-head h2{font-size:24px; flex:1}
+.toc-grid{max-width:1180px; margin:0 auto; display:grid; gap:9px;
+  grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+.toc-item{
+  display:flex; gap:10px; align-items:baseline; text-align:left; width:100%;
+  background:var(--surface); border:1px solid var(--line); border-radius:10px;
+  padding:10px 12px; cursor:pointer; font:inherit; color:var(--ink); font-size:13.5px;
+}
+.toc-item:hover{border-color:var(--brand)}
+.toc-item.on{border-color:var(--accent); background:var(--accent-soft)}
+.toc-item .tn{font-family:var(--mono); font-size:11px; color:var(--muted); font-weight:700; flex:none; min-width:22px}
+.toc-item.sec{background:var(--brand-soft); border-color:transparent; font-weight:700; color:var(--brand)}
+
+/* print */
+@media print{
+  .topbar,.botbar,.progress,.toc{display:none!important}
+  .deck{position:static; inset:auto; overflow:visible}
+  .slide{position:static; display:block!important; page-break-after:always; animation:none;
+    min-height:auto; padding:0 0 28px; border-bottom:1px solid #ccc; margin-bottom:28px}
+  body{background:#fff}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">Si<span>MAPA</span> v2<small>Alur Kerja Tim</small></div>
+  <div class="spacer"></div>
+  <div class="phase-tag" id="phaseTag"></div>
+  <div class="spacer"></div>
+  <button class="btn icon" id="themeBtn" title="Ganti tema (T)" aria-label="Ganti tema">◐</button>
+  <button class="btn" id="tocBtn" title="Daftar isi (D)">☰ Daftar Isi</button>
+</header>
+<div class="progress"><i id="bar"></i></div>
+
+<main class="deck" id="deck">
+<!-- ==================== 1. SAMPUL ==================== -->
+<section class="slide" data-title="Sampul" data-phase="" data-kind="section">
+  <div class="wrap cover">
+    <div class="badge b-acc">Sistem Manajemen Penerbitan</div>
+    <div class="mark">Si<span>MAPA</span> v2</div>
+    <p class="sub">Panduan alur kerja untuk tim: siapa mengerjakan apa, di halaman mana,
+      dan apa yang terjadi otomatis di belakang layar — dari calon klien sampai naskah terbit dan terarsip.</p>
+    <div class="meta">
+      <span class="badge b-mute">7 Fase Kerja</span>
+      <span class="badge b-mute">6 Peran</span>
+      <span class="badge b-mute">Buku &amp; Jurnal</span>
+      <span class="badge b-mute">Keuangan Terintegrasi</span>
+    </div>
+    <div class="note" style="margin-top:26px; max-width:560px; text-align:left">
+      <div>Gunakan tombol <b>← →</b> atau <b>Lanjut</b> untuk berpindah slide.
+      Tekan <b>D</b> untuk melompat lewat daftar isi, <b>T</b> untuk mengganti tema terang/gelap.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 2. APA ITU SIMAPA ==================== -->
+<section class="slide" data-title="Apa itu SiMAPA" data-phase="Gambaran Umum">
+  <div class="wrap">
+    <div class="kicker">Gambaran Umum</div>
+    <h2>Satu sistem, satu sumber kebenaran</h2>
+    <p class="lead">SiMAPA menggantikan catatan yang tersebar di spreadsheet, chat, dan ingatan orang.
+      Semua yang berkaitan dengan satu pesanan penerbitan hidup di satu tempat dan saling terhubung.</p>
+
+    <div class="grid g4">
+      <div class="card tint-a">
+        <h3>Uang</h3>
+        <p>Tagihan → pembayaran → invoice → jurnal kas. Angka pemasukan tidak diketik dua kali;
+          kas terisi otomatis dari pembayaran yang tercatat.</p>
+      </div>
+      <div class="card tint-t">
+        <h3>Naskah</h3>
+        <p>Setiap judul berjalan di rel tahap yang jelas. Tidak ada naskah yang "hilang di tengah jalan"
+          karena posisi terakhirnya selalu terlihat di papan.</p>
+      </div>
+      <div class="card tint-b">
+        <h3>Bukti</h3>
+        <p>Perpindahan tahap, perubahan status invoice, koreksi data — semua tercatat
+          <b>siapa</b>, <b>kapan</b>, dan <b>catatannya apa</b>.</p>
+      </div>
+      <div class="card tint-r">
+        <h3>Batas</h3>
+        <p>Menu yang muncul di layar Anda = yang memang jadi tanggung jawab Anda.
+          Yang bukan hak Anda tidak sekadar disembunyikan, tapi ditolak sistem.</p>
+      </div>
+    </div>
+
+    <hr class="rule">
+    <div class="note">
+      <div><b>Prinsip yang dipegang sistem:</b> data dimasukkan sekali di tempat asalnya, lalu dipakai ulang
+        di semua laporan. Kalau Anda merasa harus mengetik ulang angka yang sudah ada di layar lain,
+        kemungkinan besar ada jalur yang belum Anda pakai.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 3. EMPAT LINI PRODUK ==================== -->
+<section class="slide" data-title="Empat lini produk" data-phase="Gambaran Umum">
+  <div class="wrap">
+    <div class="kicker">Gambaran Umum</div>
+    <h2>Empat lini produk, dua rel produksi</h2>
+    <p class="lead">Tipe layanan yang Anda pilih saat membuat order menentukan banyak hal setelahnya:
+      rel tahap produksi, kategori kas, sampai artefak apa yang wajib dikumpulkan saat pengarsipan.</p>
+
+    <div class="grid g2">
+      <div class="card tint-t">
+        <h3>Rel Buku <span class="badge b-teal">7 tahap</span></h3>
+        <div class="grid g2" style="margin-top:12px">
+          <div class="card flat">
+            <b>Buku Mandiri</b>
+            <p style="margin-top:4px">Satu klien, satu buku utuh. <span class="code">bk_mandiri</span></p>
+          </div>
+          <div class="card flat">
+            <b>Buku Kolaborasi</b>
+            <p style="margin-top:4px">Banyak penulis, dibagi per bab. <span class="code">bk_kolab</span></p>
+          </div>
+        </div>
+        <p style="margin-top:12px"><b>Ciri khas:</b> punya jumlah bab, butuh ISBN,
+          dan bisa dilacak <b>per bab</b> kalau kolaborasi.</p>
+      </div>
+      <div class="card tint-p">
+        <h3>Rel Artikel / Jurnal <span class="badge b-purp">7 tahap</span></h3>
+        <div class="grid g2" style="margin-top:12px">
+          <div class="card flat">
+            <b>Jurnal Mandiri</b>
+            <p style="margin-top:4px">Satu penulis, satu artikel. <span class="code">at_mandiri</span></p>
+          </div>
+          <div class="card flat">
+            <b>Jurnal Kolaborasi</b>
+            <p style="margin-top:4px">Beberapa penulis dalam satu artikel. <span class="code">at_kolab</span></p>
+          </div>
+        </div>
+        <p style="margin-top:12px"><b>Ciri khas:</b> punya target indeksasi (SINTA/Scopus/DOAJ…),
+          butuh LoA, dan berakhir di <i>publish</i>.</p>
+      </div>
+    </div>
+
+    <div class="note warn" style="margin-top:16px">
+      <div><b>Salah pilih tipe = salah rel.</b> Order buku yang terlanjur dibuat sebagai jurnal akan
+        menampilkan tahap <i>templating/LoA</i> yang tidak relevan. Periksa tipe sebelum menyimpan order.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 4. PETA BESAR ==================== -->
+<section class="slide" data-title="Peta besar: 7 fase" data-phase="Gambaran Umum">
+  <div class="wrap wide">
+    <div class="kicker">Gambaran Umum</div>
+    <h2>Peta besar: perjalanan satu pekerjaan</h2>
+    <p class="lead">Inilah rangka seluruh presentasi ini. Setiap fase akan dibahas satu per satu,
+      lengkap dengan pemiliknya dan apa yang otomatis terjadi.</p>
+
+    <div class="flow" style="margin-bottom:18px">
+      <div class="step"><div class="st-n">FASE 1</div><div class="st-t">Prospek</div>
+        <div class="st-d">Tagihan diajukan &amp; disetujui</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="st-n">FASE 2</div><div class="st-t">Order</div>
+        <div class="st-d">Pesanan resmi terbentuk</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="st-n">FASE 3</div><div class="st-t">Pembayaran</div>
+        <div class="st-d">DP, pelunasan, invoice</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="st-n">FASE 4</div><div class="st-t">Judul &amp; Dokumen</div>
+        <div class="st-d">Judul disetujui, berkas lengkap</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="st-n">FASE 5</div><div class="st-t">Produksi</div>
+        <div class="st-d">Naskah berjalan di papan</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="st-n">FASE 6</div><div class="st-t">Arsip</div>
+        <div class="st-d">Terbit &amp; artefak final</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="st-n">FASE 7</div><div class="st-t">Keuangan</div>
+        <div class="st-d">Kas, rekap, profit, gaji</div></div>
+    </div>
+
+    <div class="grid g3">
+      <div class="card flat">
+        <h3 style="font-size:16px">Berurutan, tapi tidak kaku</h3>
+        <p>Fase 3 (pembayaran) dan Fase 5 (produksi) berjalan <b>paralel</b>. Naskah bisa mulai dikerjakan
+          setelah DP, sementara pelunasan menyusul.</p>
+      </div>
+      <div class="card flat">
+        <h3 style="font-size:16px">Dua gerbang penting</h3>
+        <p>Judul baru bisa diarsipkan kalau <b>lunas</b> DAN <b>naskah sudah final</b>.
+          Keduanya harus terpenuhi — tidak bisa salah satu.</p>
+      </div>
+      <div class="card flat">
+        <h3 style="font-size:16px">Fase 7 menyerap semua</h3>
+        <p>Keuangan tidak menunggu di ujung. Setiap pembayaran yang tercatat langsung
+          muncul sebagai entri di Jurnal Kas.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 5. ENAM PERAN ==================== -->
+<section class="slide" data-title="Enam peran & tanggung jawab" data-phase="Peran & Akses">
+  <div class="wrap wide">
+    <div class="kicker">Peran &amp; Akses</div>
+    <h2>Enam peran, enam sudut pandang</h2>
+    <p class="lead">Setiap orang punya satu atau lebih peran. Peran menentukan dashboard yang Anda lihat
+      saat masuk, menu di sidebar, dan tombol yang aktif.</p>
+
+    <div class="grid g3">
+      <div class="card tint-a">
+        <h3><span class="rolechip r-mkt">Marketing</span></h3>
+        <p><b>Membawa pekerjaan masuk.</b></p>
+        <ul class="clean">
+          <li>Ajukan Tagihan untuk calon klien</li>
+          <li>Buat Order buku / jurnal</li>
+          <li>Setor bukti pembayaran DP &amp; pelunasan</li>
+          <li>Pantau Target Saya &amp; komisi</li>
+        </ul>
+        <p style="margin-top:8px"><span class="badge b-mute">Hanya melihat order miliknya sendiri</span></p>
+      </div>
+
+      <div class="card tint-t">
+        <h3><span class="rolechip r-prod">Production</span></h3>
+        <p><b>Mengerjakan naskah.</b></p>
+        <ul class="clean">
+          <li>Meja Kerja Saya (papan manuskrip)</li>
+          <li>Majukan tahap naskah &amp; per bab</li>
+          <li>Kelola Direktori ISBN</li>
+          <li>Isi artefak arsip &amp; ajukan</li>
+        </ul>
+        <p style="margin-top:8px"><span class="badge b-mute">Tidak melihat angka uang</span></p>
+      </div>
+
+      <div class="card tint-b">
+        <h3><span class="rolechip r-adm">Admin</span></h3>
+        <p><b>Merapikan data induk.</b></p>
+        <ul class="clean">
+          <li>Direktori Judul, Jurnal, ISBN, Author</li>
+          <li>Cek kelengkapan dokumen per judul</li>
+          <li>Kelola Pengumuman</li>
+          <li>Lengkapi info publikasi judul</li>
+        </ul>
+        <p style="margin-top:8px"><span class="badge b-mute">Tidak menyentuh order &amp; kas</span></p>
+      </div>
+
+      <div class="card tint-g">
+        <h3><span class="rolechip r-acc">Accounting</span></h3>
+        <p><b>Menjaga pembukuan.</b></p>
+        <ul class="clean">
+          <li>Jurnal Kas, kategori &amp; akun</li>
+          <li>Rekap, Distribusi Profit, Asumsi</li>
+          <li>Anggaran &amp; Target, Analisa Profit</li>
+          <li>Slip Gaji karyawan</li>
+        </ul>
+        <p style="margin-top:8px"><span class="badge b-mute">Tidak menyetujui pembayaran</span></p>
+      </div>
+
+      <div class="card tint-p">
+        <h3><span class="rolechip r-mgr">Manager</span></h3>
+        <p><b>Mengawasi operasional.</b></p>
+        <ul class="clean">
+          <li>Setujui / tolak pembayaran &amp; tagihan</li>
+          <li>Tandai naskah "perlu ditinjau"</li>
+          <li>Target Marketing tim &amp; komisi</li>
+          <li>Pemantauan Tugas &amp; Laporan</li>
+        </ul>
+        <p style="margin-top:8px"><span class="badge b-dang">Sengaja tanpa akses Keuangan &amp; Slip Gaji</span></p>
+      </div>
+
+      <div class="card tint-r">
+        <h3><span class="rolechip r-sa">Superadmin</span></h3>
+        <p><b>Wewenang penuh &amp; keputusan akhir.</b></p>
+        <ul class="clean">
+          <li>Refund order</li>
+          <li>Kunci / buka periode kas</li>
+          <li>Kelola Hak Akses &amp; User</li>
+          <li>Tahap akhir naskah: cetak, terbit, LoA, publish</li>
+        </ul>
+        <p style="margin-top:8px"><span class="badge b-mute">Melewati semua pemeriksaan izin</span></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 6. PRINSIP HAK AKSES ==================== -->
+<section class="slide" data-title="Cara kerja hak akses" data-phase="Peran & Akses">
+  <div class="wrap">
+    <div class="kicker">Peran &amp; Akses</div>
+    <h2>Cara kerja hak akses</h2>
+    <p class="lead">Akses tidak lagi ditentukan oleh "peran apa Anda", melainkan oleh
+      <b>daftar izin</b> yang dimiliki peran itu. Ini membuat aturan bisa diubah tanpa menyentuh kode.</p>
+
+    <div class="flow" style="margin-bottom:20px">
+      <div class="step"><div class="st-n">1</div><div class="st-t">Anda klik menu</div>
+        <div class="st-d">Misal: Jurnal Kas</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="st-n">2</div><div class="st-t">Sistem cek izin</div>
+        <div class="st-d">Butuh <span class="code">accounting.journal.view</span></div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="st-n">3</div><div class="st-t">Peran Anda punya?</div>
+        <div class="st-d">Dicek ke daftar izin peran</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="st-n">4a</div><div class="st-t">Ya → halaman terbuka</div>
+        <div class="st-d">Menu juga tampil di sidebar</div></div>
+      <div class="arrow">/</div>
+      <div class="step"><div class="st-n">4b</div><div class="st-t">Tidak → ditolak</div>
+        <div class="st-d">Halaman 403, menu disembunyikan</div></div>
+    </div>
+
+    <div class="grid g2">
+      <div class="card">
+        <h3>Tiga hal yang perlu Anda tahu</h3>
+        <ul class="clean">
+          <li><b>Menu = cermin izin.</b> Kalau menu tidak muncul di sidebar Anda, halamannya memang
+            tidak akan bisa dibuka walau alamatnya diketik manual.</li>
+          <li><b>Tertutup secara bawaan.</b> Fitur baru tidak otomatis terbuka untuk semua orang —
+            harus didaftarkan izinnya lebih dulu.</li>
+          <li><b>Superadmin melewati semuanya.</b> Ia tidak diberi daftar izin, tapi lolos di gerbang paling awal.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Kalau Anda merasa "harusnya bisa"</h3>
+        <p>Jangan cari jalan memutar. Alurnya:</p>
+        <ol class="list">
+          <li>Catat <b>nama menu</b> dan <b>aksi</b> yang Anda butuhkan.</li>
+          <li>Minta superadmin membuka halaman <b>Hak Akses</b>.</li>
+          <li>Izin dicentang untuk peran Anda, lalu disimpan.</li>
+          <li>Keluar-masuk kembali (logout–login) agar izin baru terbaca.</li>
+        </ol>
+        <div class="note warn" style="margin-top:12px">
+          <div>Halaman <b>Hak Akses</b> dan pemeriksa di belakang layar membaca daftar yang sama,
+          jadi apa yang tercentang di layar itulah yang benar-benar berlaku.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 7. MATRIKS AKSES ==================== -->
+<section class="slide" data-title="Matriks akses ringkas" data-phase="Peran & Akses">
+  <div class="wrap wide">
+    <div class="kicker">Peran &amp; Akses</div>
+    <h2>Matriks akses ringkas</h2>
+    <p class="lead">Gambaran cepat siapa boleh apa. Superadmin dihilangkan dari tabel karena
+      jawabannya selalu "boleh".</p>
+
+    <div class="tbl-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Modul / Aksi</th>
+            <th class="c">Marketing</th>
+            <th class="c">Production</th>
+            <th class="c">Admin</th>
+            <th class="c">Accounting</th>
+            <th class="c">Manager</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Tagihan — ajukan &amp; kelola</td><td class="c yes">✓</td><td class="c no">✕</td><td class="c no">✕</td><td class="c no">✕</td><td class="c yes">✓</td></tr>
+          <tr><td>Tagihan — setujui / tolak</td><td class="c no">✕</td><td class="c no">✕</td><td class="c no">✕</td><td class="c no">✕</td><td class="c yes">✓</td></tr>
+          <tr><td>Order — buat &amp; ubah</td><td class="c yes">✓</td><td class="c no">✕</td><td class="c no">✕</td><td class="c no">✕</td><td class="c yes">✓</td></tr>
+          <tr><td>Order — refund</td><td class="c no">✕</td><td class="c no">✕</td><td class="c no">✕</td><td class="c no">✕</td><td class="c no">✕</td></tr>
+          <tr><td>Pembayaran — setor bukti</td><td class="c yes">✓</td><td class="c no">✕</td><td class="c no">✕</td><td class="c no">✕</td><td class="c yes">✓</td></tr>
+          <tr><td>Pembayaran — setujui / tolak</td><td class="c no">✕</td><td class="c no">✕</td><td class="c no">✕</td><td class="c no">✕</td><td class="c yes">✓</td></tr>
+          <tr><td>Invoice — ubah &amp; ganti status</td><td class="c no">✕</td><td class="c no">✕</td><td class="c no">✕</td><td class="c no">✕</td><td class="c yes">✓</td></tr>
+          <tr><td>Laporan Keuangan (pemasukan/piutang)</td><td class="c yes">✓</td><td class="c no">✕</td><td class="c no">✕</td><td class="c no">✕</td><td class="c yes">✓</td></tr>
+          <tr><td>Direktori Judul — lihat</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+          <tr><td>Direktori Judul — buat &amp; ubah</td><td class="c no">✕</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">✕</td><td class="c yes">✓</td></tr>
+          <tr><td>Judul — cek kelengkapan dokumen</td><td class="c no">✕</td><td class="c no">✕</td><td class="c yes">✓</td><td class="c no">✕</td><td class="c no">✕</td></tr>
+          <tr><td>Papan Manuskrip — buka papan</td><td class="c no">✕</td><td class="c yes">✓</td><td class="c no">✕</td><td class="c no">✕</td><td class="c yes">✓</td></tr>
+          <tr><td>Naskah — pindah tahap</td><td class="c no">✕</td><td class="c yes">✓</td><td class="c no">✕</td><td class="c no">✕</td><td class="c yes">✓</td></tr>
+          <tr><td>Naskah — tandai "perlu ditinjau"</td><td class="c no">✕</td><td class="c no">✕</td><td class="c no">✕</td><td class="c no">✕</td><td class="c yes">✓</td></tr>
+          <tr><td>Direktori ISBN — kelola</td><td class="c no">✕</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">✕</td><td class="c yes">✓</td></tr>
+          <tr><td>Arsip Judul — isi artefak &amp; ajukan</td><td class="c no">✕</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">✕</td><td class="c yes">✓</td></tr>
+          <tr><td>Arsip Judul — setujui</td><td class="c no">✕</td><td class="c no">✕</td><td class="c no">✕</td><td class="c no">✕</td><td class="c yes">✓</td></tr>
+          <tr><td>Keuangan (Jurnal Kas, Rekap, Profit…)</td><td class="c no">✕</td><td class="c no">✕</td><td class="c no">✕</td><td class="c yes">✓</td><td class="c no">✕</td></tr>
+          <tr><td>Kunci / buka periode kas</td><td class="c no">✕</td><td class="c no">✕</td><td class="c no">✕</td><td class="c no">✕</td><td class="c no">✕</td></tr>
+          <tr><td>Slip Gaji — kelola &amp; kirim</td><td class="c no">✕</td><td class="c no">✕</td><td class="c no">✕</td><td class="c yes">✓</td><td class="c no">✕</td></tr>
+          <tr><td>Target Marketing — tetapkan tim</td><td class="c no">✕</td><td class="c no">✕</td><td class="c no">✕</td><td class="c no">✕</td><td class="c yes">✓</td></tr>
+          <tr><td>Manajemen User</td><td class="c no">✕</td><td class="c no">✕</td><td class="c no">✕</td><td class="c no">✕</td><td class="c yes">✓</td></tr>
+          <tr><td>Gudang Data, Tugas, Laporan Harian</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note dang" style="margin-top:14px">
+      <div><b>Empat aksi hanya milik superadmin:</b> refund order · kunci/buka periode kas ·
+        template checklist dokumen · hapus riwayat papan manuskrip. Manager sekalipun tidak bisa.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 8. DASHBOARD PER PERAN ==================== -->
+<section class="slide" data-title="Dashboard per peran" data-phase="Peran & Akses">
+  <div class="wrap wide">
+    <div class="kicker">Peran &amp; Akses</div>
+    <h2>Yang Anda lihat begitu masuk</h2>
+    <p class="lead">Dashboard tidak sama untuk semua orang. Sistem memilih satu tampilan berdasarkan peran Anda,
+      dengan urutan prioritas — peran pertama yang cocok yang menang.</p>
+
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th style="width:120px">Urutan</th><th>Peran</th><th>Dashboard yang muncul</th><th>Isi utamanya</th></tr></thead>
+        <tbody>
+          <tr><td><span class="badge b-dang">1</span></td><td><span class="rolechip r-sa">Superadmin</span></td>
+            <td><b>Perusahaan + Kas</b></td>
+            <td>Penjualan seluruh tim, produksi global, perbandingan antar-marketing, ringkasan kas tahun berjalan</td></tr>
+          <tr><td><span class="badge b-purp">2</span></td><td><span class="rolechip r-mgr">Manager</span></td>
+            <td><b>Perusahaan</b></td>
+            <td>Sama seperti superadmin, <b>tanpa</b> blok kas</td></tr>
+          <tr><td><span class="badge b-ok">3</span></td><td><span class="rolechip r-acc">Accounting</span></td>
+            <td><b>Keuangan</b></td>
+            <td>Rekap kas bulanan, akumulasi tahun berjalan, pemeriksaan celah pengeluaran</td></tr>
+          <tr><td><span class="badge b-info">4</span></td><td><span class="rolechip r-adm">Admin</span></td>
+            <td><b>Administrasi</b></td>
+            <td>Judul yang perlu dilengkapi, statistik tahap naskah seluruh perusahaan</td></tr>
+          <tr><td><span class="badge b-acc">5</span></td><td><span class="rolechip r-mkt">Marketing</span></td>
+            <td><b>Penjualan</b></td>
+            <td>Capaian pribadi terhadap target, order &amp; piutang miliknya</td></tr>
+          <tr><td><span class="badge b-teal">6</span></td><td><span class="rolechip r-prod">Production</span></td>
+            <td><b>Produksi</b></td>
+            <td>Naskah yang ditugaskan ke Anda, performa penyelesaian, sebaran tahap</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note" style="margin-top:14px">
+      <div><b>Punya dua peran sekaligus?</b> Yang tampil adalah dashboard peran dengan urutan paling atas.
+        Contoh: seseorang dengan peran <i>manager</i> dan <i>marketing</i> akan mendapat dashboard Perusahaan,
+        bukan Penjualan — tapi menu Target Saya tetap ada di sidebar.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== FASE 1 — DIVIDER ==================== -->
+<section class="slide" data-title="FASE 1 — Prospek & Tagihan" data-phase="Fase 1 · Prospek" data-kind="section">
+  <div class="wrap divider">
+    <div class="ph">Fase 1</div>
+    <h2>Prospek &amp; Tagihan</h2>
+    <div class="dbar"></div>
+    <p class="dsub">Sebelum ada pesanan resmi, ada calon klien. Tagihan adalah cara menawarkan harga
+      secara resmi — dan cara manajemen memastikan tidak ada harga yang keluar tanpa persetujuan.</p>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px">
+      <span class="rolechip r-mkt">Marketing mengajukan</span>
+      <span class="rolechip r-mgr">Manager menyetujui</span>
+      <span class="rolechip r-sa">Superadmin menyetujui</span>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 10. TAGIHAN — LANGKAH ==================== -->
+<section class="slide" data-title="Membuat & mengajukan Tagihan" data-phase="Fase 1 · Prospek">
+  <div class="wrap wide">
+    <div class="kicker">Fase 1 · Menu: Pembayaran → Tagihan</div>
+    <h2>Membuat dan mengajukan tagihan</h2>
+    <p class="lead">Tagihan berdiri sendiri — belum terikat order apa pun. Isinya adalah penawaran harga
+      untuk calon klien, lengkap dengan identitas klien dan tenggat bayar.</p>
+
+    <div class="grid g2">
+      <div class="card">
+        <h3>Langkah pengisian</h3>
+        <ol class="list">
+          <li>Buka <b>Tagihan → Buat Tagihan</b>.</li>
+          <li>Isi <b>data klien</b>: nama, email, telepon, instansi.</li>
+          <li>Isi <b>judul</b> pekerjaan dan <b>tipe layanan</b> (Buku/Jurnal, Mandiri/Kolaborasi).</li>
+          <li>Isi <b>nama penulis</b>, deskripsi pekerjaan, dan <b>nominal</b>.</li>
+          <li>Tetapkan <b>tanggal jatuh tempo</b> dan catatan bila perlu.</li>
+          <li>Simpan → status menjadi <span class="badge b-warn">Diajukan</span>.</li>
+        </ol>
+        <div class="note ok" style="margin-top:12px">
+          <div>Nomor tagihan dibuat otomatis oleh sistem. Anda tidak perlu memikirkan penomoran.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Apa yang terjadi setelah disimpan</h3>
+        <ul class="clean">
+          <li><b>Superadmin langsung diberi notifikasi</b> bahwa ada tagihan menunggu persetujuan.</li>
+          <li>Tagihan <b>belum bisa di-PDF</b> dan belum bisa dikirim ke klien.</li>
+          <li>Anda masih bisa <b>mengubahnya</b> selama statusnya masih Diajukan.</li>
+        </ul>
+        <hr class="rule">
+        <h3>Kapan tagihan boleh diubah</h3>
+        <div class="grid g2">
+          <div class="card flat">
+            <p><span class="badge b-ok">Bisa diubah</span></p>
+            <ul class="clean check" style="margin-top:6px">
+              <li>Status <b>Diajukan</b></li>
+              <li>Status <b>Ditolak</b> — perbaiki lalu ajukan ulang</li>
+            </ul>
+          </div>
+          <div class="card flat">
+            <p><span class="badge b-dang">Terkunci</span></p>
+            <ul class="clean cross" style="margin-top:6px">
+              <li>Sudah <b>Disetujui</b></li>
+              <li>Sudah menjadi <b>Order</b></li>
+              <li>Sudah <b>Dibatalkan</b></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 11. TAGIHAN — SIKLUS ==================== -->
+<section class="slide" data-title="Siklus hidup Tagihan" data-phase="Fase 1 · Prospek">
+  <div class="wrap wide">
+    <div class="kicker">Fase 1 · Siklus Status</div>
+    <h2>Siklus hidup tagihan</h2>
+    <p class="lead">Lima status. Perpindahannya selalu dicatat lengkap dengan siapa pelakunya —
+      dan penolakan wajib disertai alasan.</p>
+
+    <div class="states" style="margin-bottom:8px">
+      <div class="state"><span class="badge b-warn">Diajukan</span><span class="who">oleh Marketing</span></div>
+      <span class="to">→</span>
+      <div class="state"><span class="badge b-ok">Disetujui</span><span class="who">oleh Manager / Superadmin</span></div>
+      <span class="to">→</span>
+      <div class="state"><span class="badge b-info">Jadi Order</span><span class="who">saat dikonversi</span></div>
+    </div>
+    <div class="states" style="margin-bottom:20px">
+      <span class="to" style="padding-left:8px">↘</span>
+      <div class="state"><span class="badge b-dang">Ditolak</span><span class="who">wajib pakai alasan</span></div>
+      <span class="to">↺</span>
+      <span style="font-size:13px; color:var(--muted)">bisa diperbaiki &amp; diajukan ulang</span>
+      <span style="width:24px"></span>
+      <div class="state"><span class="badge b-mute">Dibatalkan</span><span class="who">tidak dilanjutkan</span></div>
+    </div>
+
+    <div class="grid g3">
+      <div class="card tint-g">
+        <h3>Setelah Disetujui</h3>
+        <ul class="clean">
+          <li>Tombol <b>Unduh PDF</b> aktif — inilah dokumen yang dikirim ke klien</li>
+          <li>Tombol <b>Buat Order</b> aktif</li>
+          <li>Pembuat tagihan mendapat notifikasi</li>
+        </ul>
+      </div>
+      <div class="card tint-r">
+        <h3>Kalau Ditolak</h3>
+        <ul class="clean">
+          <li>Alasan penolakan <b>wajib diisi</b> oleh penyetuju</li>
+          <li>Pembuat mendapat notifikasi berisi alasannya</li>
+          <li>Tagihan kembali bisa diedit, lalu diajukan lagi</li>
+        </ul>
+      </div>
+      <div class="card tint-b">
+        <h3>Konversi ke Order</h3>
+        <ul class="clean">
+          <li>Klik <b>Buat Order</b> pada tagihan yang disetujui</li>
+          <li>Form order terbuka dengan data klien &amp; nominal <b>sudah terisi</b></li>
+          <li>Setelah order tersimpan, status tagihan menjadi <b>Jadi Order</b> dan tertaut ke kode order</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="note" style="margin-top:16px">
+      <div><b>Tagihan tidak wajib.</b> Order bisa dibuat langsung tanpa melewati tagihan.
+        Tagihan dipakai ketika klien perlu penawaran resmi lebih dulu, atau ketika kebijakan
+        mengharuskan harga disetujui atasan sebelum ditawarkan.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== FASE 2 — DIVIDER ==================== -->
+<section class="slide" data-title="FASE 2 — Order" data-phase="Fase 2 · Order" data-kind="section">
+  <div class="wrap divider">
+    <div class="ph">Fase 2</div>
+    <h2>Order: pesanan resmi</h2>
+    <div class="dbar"></div>
+    <p class="dsub">Begitu order tersimpan, pekerjaan resmi ada di sistem: ada kode order, ada judul,
+      ada tagihan biaya, dan naskahnya otomatis masuk antrean produksi.</p>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px">
+      <span class="rolechip r-mkt">Marketing</span>
+      <span class="rolechip r-mgr">Manager</span>
+      <span class="rolechip r-sa">Superadmin</span>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 13. BUAT ORDER ==================== -->
+<section class="slide" data-title="Membuat Order" data-phase="Fase 2 · Order">
+  <div class="wrap wide">
+    <div class="kicker">Fase 2 · Menu: Order → Buat Order</div>
+    <h2>Dua jalur pembuatan order</h2>
+    <p class="lead">Menu <b>Buat Order</b> punya dua sub-menu: <b>Buku</b> dan <b>Jurnal</b>.
+      Pilihlah sesuai produk, karena inilah yang menentukan rel produksi naskahnya nanti.</p>
+
+    <div class="grid g2">
+      <div class="card tint-t">
+        <h3>Order Buku</h3>
+        <dl class="kv">
+          <dt>Tipe</dt><dd>Buku Mandiri / Buku Kolaborasi</dd>
+          <dt>Judul</dt><dd>Pilih judul yang sudah ada, atau ketik judul baru</dd>
+          <dt>Bidang ilmu</dt><dd>Pilih dari daftar atau ketik baru</dd>
+          <dt>Jumlah bab</dt><dd>Menentukan pelacakan per bab</dd>
+          <dt>Naskah</dt><dd>Dibuatkan / Mandiri (dikirim klien)</dd>
+          <dt>Publikasi</dt><dd>Regular / Fastrack</dd>
+          <dt>Biaya</dt><dd>Nominal yang disepakati</dd>
+          <dt>Kontak</dt><dd>Telepon &amp; email klien (wajib)</dd>
+          <dt>Penulis</dt><dd>Minimal satu, beserta urutannya</dd>
+        </dl>
+      </div>
+      <div class="card tint-p">
+        <h3>Order Jurnal / Artikel</h3>
+        <dl class="kv">
+          <dt>Tipe</dt><dd>Jurnal Mandiri / Jurnal Kolaborasi</dd>
+          <dt>Judul</dt><dd>Pilih judul yang sudah ada, atau ketik judul baru</dd>
+          <dt>Indeksasi</dt><dd>Target: SINTA 1–6, Scopus Q1–Q4, DOAJ, WoS, Copernicus, Garuda</dd>
+          <dt>Bidang ilmu</dt><dd>Pilih dari daftar atau ketik baru</dd>
+          <dt>Naskah</dt><dd>Dibuatkan / Mandiri</dd>
+          <dt>Publikasi</dt><dd>Regular / Fastrack</dd>
+          <dt>Biaya</dt><dd>Nominal yang disepakati</dd>
+          <dt>Kontak</dt><dd>Telepon &amp; email klien (wajib)</dd>
+          <dt>Penulis</dt><dd>Minimal satu, beserta urutannya</dd>
+        </dl>
+      </div>
+    </div>
+
+    <div class="note warn" style="margin-top:16px">
+      <div><b>Soal kolom Judul:</b> kalau Anda mengetik judul yang belum ada, sistem membuat judul baru
+        dan <b>langsung menandainya disetujui</b> — karena judul yang lahir dari order dianggap sudah
+        divalidasi oleh adanya pesanan. Kalau judul dengan nama dan jenis yang sama sudah ada,
+        sistem <b>memakai ulang</b> judul itu, bukan membuat kembar.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 14. YANG TERBENTUK OTOMATIS ==================== -->
+<section class="slide" data-title="Yang terbentuk otomatis dari Order" data-phase="Fase 2 · Order">
+  <div class="wrap wide">
+    <div class="kicker">Fase 2 · Di Balik Layar</div>
+    <h2>Satu klik "Simpan", enam hal terbentuk</h2>
+    <p class="lead">Ini bagian yang paling sering tidak disadari. Menyimpan satu order akan
+      menghasilkan rangkaian data yang saling terhubung.</p>
+
+    <div class="grid g3">
+      <div class="card"><h3><span class="num">1</span> Order</h3>
+        <p>Wadah utama dengan <b>kode order</b> unik (format <span class="code">ORD-…</span>),
+          pemilik (marketing pembuatnya), tanggal, dan status awal <b>pending</b>.</p></div>
+      <div class="card"><h3><span class="num">2</span> Rincian Order</h3>
+        <p>Tipe layanan, judul, jumlah bab, indeksasi, jenis naskah, jenis publikasi, dan <b>biaya</b>.</p></div>
+      <div class="card"><h3><span class="num">3</span> Judul</h3>
+        <p>Dibuat baru atau dipakai ulang, lalu <b>ditautkan</b> ke rincian order.
+          Judul inilah yang muncul di Direktori Judul.</p></div>
+      <div class="card"><h3><span class="num">4</span> Progres Naskah</h3>
+        <p>Otomatis dibuat di tahap <b>Menunggu Proses</b> dan langsung masuk antrean papan manuskrip.</p></div>
+      <div class="card"><h3><span class="num">5</span> Kontak &amp; Penulis</h3>
+        <p>Telepon &amp; email klien disimpan; penulis tercatat beserta urutannya dan masuk ke Direktori Author.</p></div>
+      <div class="card"><h3><span class="num">6</span> Bidang Ilmu</h3>
+        <p>Bidang ilmu baru yang Anda ketik akan otomatis ditambahkan ke daftar untuk dipakai order berikutnya.</p></div>
+    </div>
+
+    <hr class="rule">
+    <h3 style="margin-bottom:10px">Bagaimana semuanya terhubung</h3>
+    <div class="flow">
+      <div class="step"><div class="st-n">Wadah</div><div class="st-t">Order</div>
+        <div class="st-d">kode order, pemilik, status bayar</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="st-n">Isi</div><div class="st-t">Rincian Order</div>
+        <div class="st-d">tipe, biaya, jumlah bab</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="st-n">Identitas</div><div class="st-t">Judul</div>
+        <div class="st-d">dipakai lintas order</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="st-n">Pekerjaan</div><div class="st-t">Progres Naskah</div>
+        <div class="st-d">tahap saat ini + riwayat</div></div>
+    </div>
+
+    <div class="note" style="margin-top:16px">
+      <div><b>Kenapa Judul dipisah dari Order?</b> Karena satu judul bisa dipesan lebih dari sekali
+        (misalnya order tambahan untuk cetak ulang atau bab tambahan). Judul menyimpan identitas karya;
+        order menyimpan transaksinya. Di Direktori Judul, tahap yang ditampilkan adalah
+        <b>tahap paling awal</b> di antara semua order yang tertaut — supaya yang paling tertinggal
+        yang terlihat, bukan yang paling maju.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 15. DAFTAR ORDER ==================== -->
+<section class="slide" data-title="Mengelola Daftar Order" data-phase="Fase 2 · Order">
+  <div class="wrap wide">
+    <div class="kicker">Fase 2 · Menu: Order → Daftar Order</div>
+    <h2>Mengelola daftar order</h2>
+    <p class="lead">Halaman ini adalah pusat kendali sebuah pesanan. Semua tindakan lanjutan
+      berangkat dari sini.</p>
+
+    <div class="grid g2">
+      <div class="card">
+        <h3>Yang bisa Anda lakukan</h3>
+        <ul class="clean">
+          <li><b>Lihat detail</b> — data lengkap order, kontak, penulis, dan riwayat pembayaran</li>
+          <li><b>Ubah order</b> — memperbaiki data yang salah ketik</li>
+          <li><b>Setor pembayaran</b> — masuk ke form DP / pelunasan</li>
+          <li><b>Lihat progres naskah</b> — melompat ke halaman tahap judul ini</li>
+          <li><b>Refund</b> — hanya muncul untuk superadmin</li>
+        </ul>
+        <div class="note" style="margin-top:12px">
+          <div>Seluruh daftar di SiMAPA memakai tabel yang bisa <b>dicari, diurutkan, dan dipilih
+            jumlah barisnya</b>. Manfaatkan kolom pencarian sebelum menggulir panjang.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Yang Anda lihat, tergantung peran</h3>
+        <div class="tbl-scroll" style="box-shadow:none">
+          <table>
+            <thead><tr><th>Peran</th><th>Cakupan data</th></tr></thead>
+            <tbody>
+              <tr><td><span class="rolechip r-mkt">Marketing</span></td>
+                <td><b>Hanya order miliknya sendiri.</b> Order rekan setim tidak terlihat, termasuk di halaman progres naskah.</td></tr>
+              <tr><td><span class="rolechip r-mgr">Manager</span></td><td>Seluruh order perusahaan</td></tr>
+              <tr><td><span class="rolechip r-sa">Superadmin</span></td><td>Seluruh order perusahaan + tombol refund</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <hr class="rule">
+        <h3>Status order</h3>
+        <div style="display:flex; gap:8px; flex-wrap:wrap">
+          <span class="badge b-warn">pending</span>
+          <span style="color:var(--muted)">→</span>
+          <span class="badge b-ok">lunas</span>
+        </div>
+        <p style="margin-top:8px; font-size:14px; color:var(--ink2)">Status berubah menjadi <b>lunas</b> secara
+          otomatis ketika pembayaran bertipe <i>pelunasan</i> masuk, atau ketika total uang bersih
+          sudah menutup biaya order.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== FASE 3 — DIVIDER ==================== -->
+<section class="slide" data-title="FASE 3 — Pembayaran & Invoice" data-phase="Fase 3 · Pembayaran" data-kind="section">
+  <div class="wrap divider">
+    <div class="ph">Fase 3</div>
+    <h2>Pembayaran &amp; Invoice</h2>
+    <div class="dbar"></div>
+    <p class="dsub">Uang masuk selalu lewat satu pintu: setor bukti → disetujui → invoice lunas → kas tercatat.
+      Tidak ada jalur samping, supaya laporan keuangan tidak pernah berbeda dengan kenyataan.</p>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px">
+      <span class="rolechip r-mkt">Marketing menyetor</span>
+      <span class="rolechip r-mgr">Manager menyetujui</span>
+      <span class="rolechip r-sa">Superadmin refund</span>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 17. SETOR PEMBAYARAN ==================== -->
+<section class="slide" data-title="Menyetor pembayaran" data-phase="Fase 3 · Pembayaran">
+  <div class="wrap wide">
+    <div class="kicker">Fase 3 · Menu: Order → Daftar Order → Bayar</div>
+    <h2>Menyetor pembayaran klien</h2>
+    <p class="lead">Pembayaran selalu dilekatkan pada sebuah order. Anda tidak bisa mencatat uang masuk
+      tanpa tahu itu untuk pesanan yang mana.</p>
+
+    <div class="grid g2">
+      <div class="card">
+        <h3>Langkah</h3>
+        <ol class="list">
+          <li>Buka order yang dimaksud, klik <b>Bayar</b>.</li>
+          <li>Layar menampilkan <b>total biaya</b>, <b>sudah dibayar</b>, dan <b>sisa</b>.</li>
+          <li>Pilih jenis: <span class="badge b-info">DP</span>
+            <span class="badge b-ok">Pelunasan</span> <span class="badge b-ok">Lunas</span></li>
+          <li>Isi tanggal bayar dan tanggal jatuh tempo.</li>
+          <li>Isi nominal yang dibayar.</li>
+          <li><b>Unggah bukti transfer</b> — JPG, PNG, atau PDF, maksimal 10&nbsp;MB. <b>Wajib.</b></li>
+          <li>Centang bila invoice perlu dikirim ke email klien.</li>
+          <li>Simpan.</li>
+        </ol>
+      </div>
+
+      <div class="card">
+        <h3>Yang otomatis terjadi saat disimpan</h3>
+        <div class="flow" style="flex-direction:column; gap:8px">
+          <div class="step"><div class="st-n">A</div><div class="st-t">Pembayaran tercatat</div>
+            <div class="st-d">Beserta bukti transfer yang Anda unggah</div></div>
+          <div class="step"><div class="st-n">B</div><div class="st-t">Invoice terbit otomatis</div>
+            <div class="st-d">Nomor dibuat sistem, status <b>Diterbitkan</b></div></div>
+          <div class="step"><div class="st-n">C</div><div class="st-t">Antrean persetujuan dibuat</div>
+            <div class="st-d">Status <b>menunggu</b> di menu Persetujuan</div></div>
+          <div class="step"><div class="st-n">D</div><div class="st-t">Entri Jurnal Kas terbentuk</div>
+            <div class="st-d">Masuk sebagai pemasukan, berkategori sesuai tipe produk</div></div>
+          <div class="step"><div class="st-n">E</div><div class="st-t">Notifikasi terkirim</div>
+            <div class="st-d">Manager &amp; superadmin diberitahu ada setoran baru</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note warn" style="margin-top:16px">
+      <div><b>Penting untuk dipahami:</b> nominal yang Anda setorkan <b>langsung dihitung</b>
+        sebagai uang masuk pada laporan dan sisa tagihan, bahkan sebelum manager menyetujuinya.
+        Persetujuan berfungsi mengunci invoice menjadi <b>Lunas</b> dan menjadi kontrol berlapis —
+        bukan menahan angkanya. Karena itu: <b>jangan menyetor pembayaran yang uangnya belum benar-benar masuk.</b></div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 18. PERSETUJUAN PEMBAYARAN ==================== -->
+<section class="slide" data-title="Persetujuan pembayaran" data-phase="Fase 3 · Pembayaran">
+  <div class="wrap wide">
+    <div class="kicker">Fase 3 · Menu: Pembayaran → Persetujuan</div>
+    <h2>Memeriksa dan menyetujui pembayaran</h2>
+    <p class="lead">Tugas manager dan superadmin: mencocokkan bukti transfer dengan mutasi rekening,
+      lalu memutuskan.</p>
+
+    <div class="grid g3">
+      <div class="card tint-b">
+        <h3>1. Periksa</h3>
+        <ul class="clean">
+          <li>Buka bukti transfer yang diunggah</li>
+          <li>Cocokkan <b>nominal</b> dan <b>tanggal</b></li>
+          <li>Pastikan order dan klien sesuai</li>
+        </ul>
+      </div>
+      <div class="card tint-g">
+        <h3>2a. Setujui</h3>
+        <ul class="clean check">
+          <li>Invoice terkait menjadi <b>Lunas</b></li>
+          <li>Riwayat invoice mencatat persetujuan otomatis</li>
+          <li>Bila jenisnya pelunasan → <b>order menjadi lunas</b></li>
+          <li>Bila diminta, <b>invoice PDF dikirim ke email klien</b> lewat antrean</li>
+          <li>Penyetor mendapat notifikasi</li>
+        </ul>
+      </div>
+      <div class="card tint-r">
+        <h3>2b. Tolak</h3>
+        <ul class="clean cross">
+          <li>Pembayaran ditandai ditolak</li>
+          <li>Penyetor mendapat notifikasi</li>
+          <li>Bukti perlu diperbaiki dan disetor ulang</li>
+        </ul>
+      </div>
+    </div>
+
+    <hr class="rule">
+    <div class="grid g2">
+      <div class="card flat">
+        <h3>Aman dari klik ganda</h3>
+        <p>Kalau sebuah pembayaran sudah pernah disetujui, klik berikutnya tidak akan memproses ulang —
+          sistem menjawab bahwa pembayaran sudah disetujui. Form penyetoran juga dilindungi agar
+          menekan tombol simpan dua kali tidak menghasilkan dua pembayaran kembar.</p>
+      </div>
+      <div class="card flat">
+        <h3>Dua halaman pendamping</h3>
+        <ul class="clean">
+          <li><b>Pembayaran → DP/Pembayaran</b> — daftar order yang baru sebagian dibayar</li>
+          <li><b>Pembayaran → Pelunasan</b> — daftar order yang sudah tuntas</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 19. INVOICE ==================== -->
+<section class="slide" data-title="Siklus hidup Invoice" data-phase="Fase 3 · Pembayaran">
+  <div class="wrap wide">
+    <div class="kicker">Fase 3 · Menu: Pembayaran → Invoice</div>
+    <h2>Siklus hidup invoice</h2>
+    <p class="lead">Enam status. Sebagian besar berpindah otomatis mengikuti pembayaran,
+      sisanya diubah manual oleh manager atau superadmin.</p>
+
+    <div class="states" style="margin-bottom:10px">
+      <div class="state"><span class="badge b-mute">Draft</span></div>
+      <span class="to">→</span>
+      <div class="state"><span class="badge b-info">Diterbitkan</span></div>
+      <span class="to">→</span>
+      <div class="state"><span class="badge b-warn">Jatuh Tempo</span></div>
+      <span class="to">→</span>
+      <div class="state"><span class="badge b-ok">Lunas</span></div>
+      <span class="to">→</span>
+      <div class="state"><span class="badge b-purp">Refund</span></div>
+    </div>
+    <div class="states" style="margin-bottom:20px">
+      <span class="to" style="padding-left:8px">↘</span>
+      <div class="state"><span class="badge b-dang">Dibatalkan</span><span class="who">superadmin, wajib beralasan</span></div>
+    </div>
+
+    <div class="grid g2">
+      <div class="card">
+        <div class="tbl-scroll" style="box-shadow:none">
+          <table>
+            <thead><tr><th>Status</th><th>Artinya</th><th>Siapa</th></tr></thead>
+            <tbody>
+              <tr><td><span class="badge b-mute">Draft</span></td><td>Dibuat manual, belum aktif</td><td>otomatis saat dibuat</td></tr>
+              <tr><td><span class="badge b-info">Diterbitkan</span></td><td>Aktif, menunggu pembayaran</td><td>otomatis dari setoran</td></tr>
+              <tr><td><span class="badge b-warn">Jatuh Tempo</span></td><td>Lewat tanggal, belum lunas</td><td>manager / superadmin</td></tr>
+              <tr><td><span class="badge b-ok">Lunas</span></td><td>Pembayaran disetujui</td><td>otomatis saat approve</td></tr>
+              <tr><td><span class="badge b-dang">Dibatalkan</span></td><td>Dibatalkan paksa</td><td>superadmin</td></tr>
+              <tr><td><span class="badge b-purp">Refund</span></td><td>Dana dikembalikan</td><td>superadmin</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Yang bisa dilakukan di halaman invoice</h3>
+        <ul class="clean">
+          <li><b>Lihat detail</b> — data invoice + order terkait</li>
+          <li><b>Unduh PDF</b> — dokumen resmi untuk klien</li>
+          <li><b>Ubah</b> — nominal, tanggal jatuh tempo, catatan <span class="badge b-purp">manager+</span></li>
+          <li><b>Ganti status</b> secara manual <span class="badge b-purp">manager+</span></li>
+          <li><b>Batalkan</b> <span class="badge b-dang">superadmin</span></li>
+          <li><b>Riwayat</b> — daftar perpindahan status: dari apa, ke apa, oleh siapa, catatannya</li>
+        </ul>
+        <div class="note ok" style="margin-top:12px">
+          <div>Setiap perubahan status invoice <b>selalu meninggalkan jejak</b>. Kalau ada pertanyaan
+            "kenapa invoice ini dibatalkan", jawabannya ada di tab Riwayat.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 20. REFUND ==================== -->
+<section class="slide" data-title="Refund order" data-phase="Fase 3 · Pembayaran">
+  <div class="wrap wide">
+    <div class="kicker">Fase 3 · Menu: Daftar Order → Refund</div>
+    <h2>Refund: mengembalikan uang klien</h2>
+    <p class="lead">Refund melekat pada <b>order</b>, bukan pada invoice — karena yang dikembalikan adalah
+      uang yang sudah diterima untuk pesanan itu, berapa pun jumlah pembayarannya.</p>
+
+    <div class="grid g2">
+      <div class="card tint-r">
+        <h3>Langkah <span class="rolechip r-sa">superadmin saja</span></h3>
+        <ol class="list">
+          <li>Buka <b>Daftar Order</b>, klik tombol <b>Refund</b> pada order terkait.</li>
+          <li>Isi <b>nominal</b> yang dikembalikan.</li>
+          <li>Isi <b>alasan refund</b>.</li>
+          <li>Isi <b>metode</b> dan <b>rekening tujuan</b> pengembalian.</li>
+          <li>Simpan.</li>
+        </ol>
+      </div>
+      <div class="card tint-b">
+        <h3>Yang otomatis terjadi</h3>
+        <ul class="clean">
+          <li>Tercatat sebagai pembayaran bertipe <b>refund</b> pada order</li>
+          <li>Otomatis menjadi <b>pengeluaran</b> di Jurnal Kas — bukan pemasukan negatif</li>
+          <li><b>Mengurangi uang bersih</b> order, sehingga status lunas bisa berubah kembali</li>
+          <li>Manager &amp; superadmin lain mendapat notifikasi</li>
+          <li>Tersedia <b>PDF bukti refund</b> lengkap dengan riwayat pembayaran order</li>
+        </ul>
+      </div>
+    </div>
+
+    <hr class="rule">
+    <h3 style="margin-bottom:10px">Dua cara memandang uang — dan kapan memakai yang mana</h3>
+    <div class="grid g2">
+      <div class="card flat">
+        <h3 style="font-size:16px">Pemasukan <span class="badge b-mute">untuk pelaporan</span></h3>
+        <p>Menjumlahkan <b>uang masuk saja</b>; refund tidak ikut dikurangkan di sini karena refund sudah
+          muncul sebagai pengeluaran di sisi lain. Dipakai oleh Laporan Keuangan, Dashboard, dan Target Marketing.</p>
+      </div>
+      <div class="card flat">
+        <h3 style="font-size:16px">Uang bersih <span class="badge b-mute">untuk status order</span></h3>
+        <p>Pembayaran masuk <b>dikurangi</b> refund. Dipakai untuk menjawab "order ini sudah dibayar berapa",
+          menentukan lunas atau belum, sisa tagihan, dan kelayakan pengarsipan.</p>
+      </div>
+    </div>
+    <div class="note" style="margin-top:14px">
+      <div>Perbedaan ini <b>disengaja</b>, bukan ketidakkonsistenan. Kalau angka di Laporan Keuangan berbeda
+        dengan sisa tagihan sebuah order yang pernah di-refund, itu perilaku yang benar.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 21. LAPORAN KEUANGAN MARKETING ==================== -->
+<section class="slide" data-title="Laporan Keuangan & piutang" data-phase="Fase 3 · Pembayaran">
+  <div class="wrap wide">
+    <div class="kicker">Fase 3 · Menu: Laporan → Laporan Keuangan</div>
+    <h2>Melihat hasilnya: pemasukan, piutang, order selesai</h2>
+    <p class="lead">Tiga halaman yang menjawab tiga pertanyaan berbeda. Semuanya bisa diunduh
+      sebagai <b>PDF</b> maupun <b>CSV</b>.</p>
+
+    <div class="grid g3">
+      <div class="card tint-g">
+        <h3>Pemasukan</h3>
+        <p><b>"Berapa uang yang masuk?"</b></p>
+        <ul class="clean">
+          <li>Seluruh pembayaran yang diterima</li>
+          <li>Bisa disaring per periode</li>
+          <li>Refund tidak dikurangkan di sini</li>
+        </ul>
+      </div>
+      <div class="card tint-a">
+        <h3>Piutang</h3>
+        <p><b>"Siapa yang masih berhutang?"</b></p>
+        <ul class="clean">
+          <li>Order yang belum tertutup biayanya</li>
+          <li>Menampilkan sisa yang harus ditagih</li>
+          <li>Bahan utama untuk penagihan</li>
+        </ul>
+      </div>
+      <div class="card tint-b">
+        <h3>Order Selesai</h3>
+        <p><b>"Mana yang sudah beres?"</b></p>
+        <ul class="clean">
+          <li>Order yang sudah lunas</li>
+          <li>Untuk rekap capaian</li>
+        </ul>
+      </div>
+    </div>
+
+    <hr class="rule">
+    <div class="grid g2">
+      <div class="card">
+        <h3>Target Marketing</h3>
+        <ul class="clean">
+          <li><span class="rolechip r-mgr">Manager</span> menetapkan target dan menandai komisi terbayar
+            lewat menu <b>Target Marketing</b></li>
+          <li><span class="rolechip r-mkt">Marketing</span> melihat capaiannya sendiri lewat menu
+            <b>Target Saya</b></li>
+          <li>Marketing mendapat notifikasi saat target ditetapkan dan saat komisi dibayarkan</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Cakupan data mengikuti peran</h3>
+        <p>Sama seperti daftar order: <b>marketing hanya melihat angka dari order miliknya sendiri</b>
+          di ketiga laporan di atas. Manager dan superadmin melihat seluruh perusahaan.</p>
+        <div class="note" style="margin-top:12px">
+          <div>Karena itu, total di dashboard manager tidak akan sama dengan jumlah yang dilihat
+            satu orang marketing — dan itu memang seharusnya.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== FASE 4 — DIVIDER ==================== -->
+<section class="slide" data-title="FASE 4 — Judul & Dokumen" data-phase="Fase 4 · Judul" data-kind="section">
+  <div class="wrap divider">
+    <div class="ph">Fase 4</div>
+    <h2>Judul &amp; Kelengkapan Dokumen</h2>
+    <div class="dbar"></div>
+    <p class="dsub">Judul adalah identitas karya yang hidup lebih panjang daripada satu transaksi.
+      Di fase ini judul divalidasi, dilengkapi informasi publikasinya, dan diperiksa kelengkapan berkasnya.</p>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px">
+      <span class="rolechip r-adm">Admin</span>
+      <span class="rolechip r-prod">Production</span>
+      <span class="rolechip r-mgr">Manager</span>
+      <span class="rolechip r-sa">Superadmin</span>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 23. DIREKTORI JUDUL ==================== -->
+<section class="slide" data-title="Direktori Judul" data-phase="Fase 4 · Judul">
+  <div class="wrap wide">
+    <div class="kicker">Fase 4 · Menu: Direktori → Direktori Judul</div>
+    <h2>Direktori Judul: dua asal, satu daftar</h2>
+    <p class="lead">Judul bisa lahir dari dua arah, dan itu menentukan apakah ia perlu melewati persetujuan.</p>
+
+    <div class="grid g2">
+      <div class="card tint-b">
+        <h3>Asal: <span class="badge b-info">Order</span></h3>
+        <p>Judul yang otomatis terbentuk ketika marketing membuat order.</p>
+        <ul class="clean check">
+          <li>Langsung berstatus <b>Disetujui</b></li>
+          <li>Tidak perlu diajukan ulang — pesanan yang masuk sudah menjadi validasinya</li>
+        </ul>
+      </div>
+      <div class="card tint-a">
+        <h3>Asal: <span class="badge b-acc">Distribusi</span></h3>
+        <p>Judul yang sengaja didaftarkan lebih dulu oleh admin atau production,
+          sebelum ada pesanan — misalnya hasil riset topik atau penugasan internal.</p>
+        <ul class="clean">
+          <li>Dimulai dari status <b>Draft</b></li>
+          <li>Harus <b>diajukan</b> lalu <b>disetujui</b> sebelum dipakai</li>
+          <li>Bisa ditugaskan ke marketing tertentu untuk ditawarkan</li>
+        </ul>
+      </div>
+    </div>
+
+    <hr class="rule">
+    <h3 style="margin-bottom:10px">Siklus status judul</h3>
+    <div class="states" style="margin-bottom:14px">
+      <div class="state"><span class="badge b-mute">Draft</span><span class="who">bisa diedit</span></div>
+      <span class="to">→</span>
+      <div class="state"><span class="badge b-warn">Menunggu</span><span class="who">terkunci</span></div>
+      <span class="to">→</span>
+      <div class="state"><span class="badge b-ok">Disetujui</span><span class="who">siap dipakai order</span></div>
+      <span class="to">/</span>
+      <div class="state"><span class="badge b-dang">Ditolak</span><span class="who">bisa diperbaiki</span></div>
+    </div>
+
+    <div class="grid g3">
+      <div class="card flat">
+        <h3 style="font-size:16px">Jalur pintas</h3>
+        <p>Kalau yang menekan tombol <b>Ajukan</b> adalah <b>manager</b> atau <b>superadmin</b>,
+          judul <b>langsung disetujui</b> tanpa mampir ke status Menunggu.</p>
+      </div>
+      <div class="card flat">
+        <h3 style="font-size:16px">Kapan bisa diedit</h3>
+        <p>Hanya saat berstatus <b>Draft</b> atau <b>Ditolak</b>. Judul yang sudah disetujui terkunci
+          agar tidak berubah di tengah proses produksi.</p>
+      </div>
+      <div class="card flat">
+        <h3 style="font-size:16px">Isi sebuah judul</h3>
+        <p>Nama, kode otomatis, jenis (buku/artikel), tipe naskah (mandiri/kolaborasi),
+          target indeksasi, bidang ilmu, marketing penanggung jawab, dan daftar bab bila buku.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 24. INFO PUBLIKASI ==================== -->
+<section class="slide" data-title="Info publikasi & opsi jurnal" data-phase="Fase 4 · Judul">
+  <div class="wrap wide">
+    <div class="kicker">Fase 4 · Menu: Direktori Judul → Detail</div>
+    <h2>Melengkapi informasi publikasi</h2>
+    <p class="lead">Terpisah dari data dasar judul, ada blok <b>Info Publikasi</b> yang boleh diperbarui
+      kapan saja — bahkan setelah judul disetujui — karena isinya memang berkembang seiring proses.</p>
+
+    <div class="grid g2">
+      <div class="card">
+        <h3>Yang bisa diisi <span class="rolechip r-adm">admin</span></h3>
+        <dl class="kv">
+          <dt>Kode</dt><dd>Kode judul; dikosongkan → dibuat ulang otomatis dari nama judul</dd>
+          <dt>Target terbit</dt><dd>Tanggal sasaran publikasi</dd>
+          <dt>Jurnal target</dt><dd>Nama jurnal yang dituju</dd>
+          <dt>Link jurnal</dt><dd>Alamat situs jurnal</dd>
+          <dt>Template</dt><dd>Tautan berkas template penulisan</dd>
+          <dt>APC</dt><dd>Informasi biaya publikasi</dd>
+          <dt>Catatan</dt><dd>Keterangan bebas</dd>
+        </dl>
+      </div>
+      <div class="card">
+        <h3>Opsi jurnal berjenjang</h3>
+        <p>Untuk artikel, Anda bisa mendaftarkan <b>beberapa jurnal alternatif</b> secara berurutan —
+          pilihan pertama, kedua, ketiga. Berguna ketika naskah ditolak jurnal pertama dan perlu dialihkan.</p>
+        <ul class="clean">
+          <li>Bisa diambil dari <b>Direktori Jurnal</b> — nama, link, dan APC ikut terisi otomatis</li>
+          <li>Atau diketik manual bila jurnalnya belum terdaftar</li>
+        </ul>
+        <div class="note ok" style="margin-top:12px">
+          <div>Setiap penyimpanan menuliskan <b>ringkasan perubahan</b> ke riwayat judul
+            (contoh: "Target terbit, Opsi jurnal diperbarui") dan <b>memberi tahu superadmin</b>.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note" style="margin-top:16px">
+      <div>Untuk buku kolaborasi, di halaman detail judul juga tersedia pengaturan
+        <b>penulis per bab</b> — siapa menulis bab berapa. Data ini dipakai saat menyusun buku final.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 25. CEK KELENGKAPAN DOKUMEN ==================== -->
+<section class="slide" data-title="Cek kelengkapan dokumen" data-phase="Fase 4 · Judul">
+  <div class="wrap wide">
+    <div class="kicker">Fase 4 · Menu: Direktori Judul → Detail → Kelengkapan Dokumen</div>
+    <h2>Memastikan berkas klien lengkap</h2>
+    <p class="lead">Daftar periksa berkas yang harus dikumpulkan untuk sebuah judul.
+      Isinya tidak dipatok di kode — superadmin menyusun sendiri daftarnya lewat template.</p>
+
+    <div class="flow" style="margin-bottom:18px">
+      <div class="step"><div class="st-n">1</div><div class="st-t">Template disusun</div>
+        <div class="st-d">Superadmin menetapkan dokumen apa saja yang wajib, per kategori</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="st-n">2</div><div class="st-t">Ditandai per judul</div>
+        <div class="st-d">Admin menandai tiap dokumen: ada / belum</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="st-n">3</div><div class="st-t">Berkas diunggah</div>
+        <div class="st-d">Tiap dokumen bisa dilampiri berkas &amp; catatan</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="st-n">4</div><div class="st-t">Diajukan</div>
+        <div class="st-d">Checklist ditandai <b>Diajukan</b> untuk ditinjau</div></div>
+    </div>
+
+    <div class="grid g2">
+      <div class="card">
+        <h3>Cara memakainya</h3>
+        <ul class="clean">
+          <li>Setiap baris dokumen ditandai statusnya, diberi catatan bila perlu</li>
+          <li>Berkas yang diunggah tersimpan dan bisa dibuka kembali kapan saja</li>
+          <li>Menyimpan ulang <b>tanpa</b> memilih berkas baru <b>tidak menghapus</b> berkas lama —
+            aman untuk sekadar mengubah catatan</li>
+          <li>Kemajuan ditampilkan sebagai <b>sudah / total</b> per kategori</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Siapa boleh apa</h3>
+        <div class="tbl-scroll" style="box-shadow:none">
+          <table>
+            <thead><tr><th>Aksi</th><th>Peran</th></tr></thead>
+            <tbody>
+              <tr><td>Menyusun template dokumen wajib</td><td><span class="rolechip r-sa">Superadmin</span></td></tr>
+              <tr><td>Menandai &amp; mengunggah per judul</td><td><span class="rolechip r-adm">Admin</span> <span class="rolechip r-sa">Superadmin</span></td></tr>
+              <tr><td>Mengajukan checklist</td><td><span class="rolechip r-adm">Admin</span> <span class="rolechip r-sa">Superadmin</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note warn" style="margin-top:12px">
+          <div><b>Manager sengaja tidak diberi akses</b> ke halaman kelengkapan dokumen —
+            ini pekerjaan administratif, bukan pengawasan.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 26. DIREKTORI PENDUKUNG ==================== -->
+<section class="slide" data-title="Direktori pendukung" data-phase="Fase 4 · Judul">
+  <div class="wrap wide">
+    <div class="kicker">Fase 4 · Menu: Direktori</div>
+    <h2>Tiga direktori pendukung</h2>
+    <p class="lead">Selain Judul, ada tiga daftar induk yang membuat pengisian data jadi cepat
+      dan konsisten — tidak perlu mengetik ulang hal yang sama berkali-kali.</p>
+
+    <div class="grid g3">
+      <div class="card tint-p">
+        <h3>Direktori Jurnal</h3>
+        <p>Katalog jurnal tujuan beserta datanya.</p>
+        <ul class="clean">
+          <li>Nama, link, penerbit, indeksasi, biaya APC</li>
+          <li>Dipakai ulang saat mengisi <b>opsi jurnal</b> sebuah judul</li>
+          <li>Punya catatan <b>submission</b>: riwayat pengiriman naskah ke jurnal tersebut,
+            beserta hasilnya</li>
+        </ul>
+        <p style="margin-top:8px"><span class="badge b-mute">Semua peran bisa melihat · admin &amp; manager mengelola</span></p>
+      </div>
+
+      <div class="card tint-a">
+        <h3>Direktori Author</h3>
+        <p>Daftar seluruh penulis yang pernah masuk lewat order.</p>
+        <ul class="clean">
+          <li>Terisi <b>otomatis</b> dari penulis yang diketik di form order</li>
+          <li>Halaman detail menampilkan <b>riwayat order</b> penulis tersebut</li>
+          <li>Bersifat baca-saja</li>
+        </ul>
+        <p style="margin-top:8px"><span class="badge b-dang">Production &amp; accounting tidak diberi akses</span></p>
+      </div>
+
+      <div class="card tint-t">
+        <h3>Direktori ISBN</h3>
+        <p>Registri pengurusan ISBN untuk buku.</p>
+        <ul class="clean">
+          <li>Status: <span class="badge b-warn">Pendaftaran</span>
+            <span class="badge b-info">Ber-ISBN</span>
+            <span class="badge b-ok">Cetak/Terbit</span></li>
+          <li>Menyimpan nomor pendaftaran, nomor ISBN, nomor buku cetak, penerbit,
+            serta tanggal daftar / ISBN terbit / buku terbit</li>
+          <li>Hanya untuk buku yang naskahnya <b>sudah mencapai tahap ISBN</b></li>
+        </ul>
+        <p style="margin-top:8px"><span class="badge b-mute">Dikelola production &amp; admin</span></p>
+      </div>
+    </div>
+
+    <div class="note" style="margin-top:16px">
+      <div><b>Kenapa ini penting:</b> setiap kali Anda mengetik nama jurnal atau bidang ilmu baru,
+        sistem menyimpannya untuk dipakai lagi. Konsistensi penamaan inilah yang membuat laporan
+        dan pengelompokan data bisa dipercaya.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== FASE 5 — DIVIDER ==================== -->
+<section class="slide" data-title="FASE 5 — Produksi Naskah" data-phase="Fase 5 · Produksi" data-kind="section">
+  <div class="wrap divider">
+    <div class="ph">Fase 5</div>
+    <h2>Produksi Naskah</h2>
+    <div class="dbar"></div>
+    <p class="dsub">Inti pekerjaan penerbitan. Setiap naskah berjalan di rel tahap yang tetap,
+      selalu ada pemiliknya, dan setiap perpindahan meninggalkan jejak.</p>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px">
+      <span class="rolechip r-prod">Production menggerakkan</span>
+      <span class="rolechip r-mgr">Manager mengawasi</span>
+      <span class="rolechip r-sa">Superadmin menutup</span>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 28. DUA REL TAHAP ==================== -->
+<section class="slide" data-title="Dua rel tahap produksi" data-phase="Fase 5 · Produksi">
+  <div class="wrap wide">
+    <div class="kicker">Fase 5 · Rel Tahap</div>
+    <h2>Dua rel, tujuh tahap masing-masing</h2>
+    <p class="lead">Rel ditentukan oleh tipe order. Warna di bawah setiap tahap menunjukkan
+      <b>peran mana yang berhak memindahkannya</b>.</p>
+
+    <h3 style="margin:0 0 8px"><span class="badge b-teal">Rel Buku</span> — untuk <span class="code">bk_mandiri</span> &amp; <span class="code">bk_kolab</span></h3>
+    <div class="rail book" style="margin-bottom:22px">
+      <div class="rs"><div class="rn">01</div><div class="rt">Menunggu Proses</div><span class="rh r-mkt">marketing</span></div>
+      <div class="rs"><div class="rn">02</div><div class="rt">Editing</div><span class="rh r-prod">production</span></div>
+      <div class="rs"><div class="rn">03</div><div class="rt">Layout</div><span class="rh r-prod">production</span></div>
+      <div class="rs"><div class="rn">04</div><div class="rt">Proofreading</div><span class="rh r-prod">production</span></div>
+      <div class="rs"><div class="rn">05</div><div class="rt">ISBN</div><span class="rh r-prod">production</span></div>
+      <div class="rs"><div class="rn">06</div><div class="rt">Cetak</div><span class="rh r-sa">superadmin</span></div>
+      <div class="rs final"><div class="rn">07</div><div class="rt">Terbit</div><span class="rh r-sa">superadmin</span></div>
+    </div>
+
+    <h3 style="margin:0 0 8px"><span class="badge b-purp">Rel Artikel / Jurnal</span> — untuk <span class="code">at_mandiri</span> &amp; <span class="code">at_kolab</span></h3>
+    <div class="rail art" style="margin-bottom:20px">
+      <div class="rs"><div class="rn">01</div><div class="rt">Menunggu Proses</div><span class="rh r-mkt">marketing</span></div>
+      <div class="rs"><div class="rn">02</div><div class="rt">Templating</div><span class="rh r-prod">production</span></div>
+      <div class="rs"><div class="rn">03</div><div class="rt">Editing</div><span class="rh r-prod">production</span></div>
+      <div class="rs"><div class="rn">04</div><div class="rt">Revisi</div><span class="rh r-prod">production</span></div>
+      <div class="rs"><div class="rn">05</div><div class="rt">Submit</div><span class="rh r-prod">production</span></div>
+      <div class="rs"><div class="rn">06</div><div class="rt">LoA</div><span class="rh r-sa">superadmin</span></div>
+      <div class="rs final"><div class="rn">07</div><div class="rt">Publish</div><span class="rh r-sa">superadmin</span></div>
+    </div>
+
+    <div class="grid g3">
+      <div class="card flat">
+        <h3 style="font-size:16px">Tahap awal milik marketing</h3>
+        <p><b>Menunggu Proses</b> bukan tahap kosong. Ini masa ketika marketing masih melengkapi
+          berkas dan koordinasi dengan klien sebelum naskah diserahkan ke produksi.</p>
+      </div>
+      <div class="card flat">
+        <h3 style="font-size:16px">Tahap akhir milik superadmin</h3>
+        <p><b>Cetak &amp; Terbit</b> (buku) serta <b>LoA &amp; Publish</b> (artikel) hanya bisa digerakkan
+          superadmin — karena menyangkut komitmen biaya dan pernyataan resmi ke luar.</p>
+      </div>
+      <div class="card flat">
+        <h3 style="font-size:16px">Dua tahap final</h3>
+        <p><b>Terbit</b> dan <b>Publish</b> adalah garis akhir. Naskah yang sudah sampai di sana
+          <b>terkunci</b> dan hanya superadmin yang masih bisa menyentuhnya.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 29. PAPAN MANUSKRIP ==================== -->
+<section class="slide" data-title="Papan Manuskrip" data-phase="Fase 5 · Produksi">
+  <div class="wrap wide">
+    <div class="kicker">Fase 5 · Menu: Produksi → Pelacak Naskah / Meja Kerja Saya</div>
+    <h2>Papan Manuskrip: tempat kerja harian produksi</h2>
+    <p class="lead">Satu halaman berisi semua naskah yang sedang berjalan, dikelompokkan per tahap.
+      Nama menunya berubah mengikuti peran Anda.</p>
+
+    <div class="grid g2" style="margin-bottom:18px">
+      <div class="card tint-t">
+        <h3>Bagi <span class="rolechip r-prod">Production</span></h3>
+        <p>Menu bernama <b>"Meja Kerja Saya"</b>. Fokusnya adalah pekerjaan yang menjadi tanggung jawab Anda.</p>
+      </div>
+      <div class="card tint-p">
+        <h3>Bagi <span class="rolechip r-mgr">Manager</span> &amp; <span class="rolechip r-sa">Superadmin</span></h3>
+        <p>Menu bernama <b>"Pelacak Naskah"</b>. Menampilkan seluruh naskah perusahaan untuk keperluan pengawasan.</p>
+      </div>
+    </div>
+
+    <h3 style="margin-bottom:10px">Yang tersedia di papan</h3>
+    <div class="grid g3">
+      <div class="card"><h3><span class="num">1</span> Pindah tahap</h3>
+        <p>Majukan naskah ke tahap berikutnya, atau kembalikan ke tahap sebelumnya bila ada koreksi.</p></div>
+      <div class="card"><h3><span class="num">2</span> Tugaskan editor</h3>
+        <p>Tetapkan siapa yang mengerjakan naskah ini. Hanya pengguna berperan <b>production</b>
+          atau <b>manager</b> yang bisa dipilih.</p></div>
+      <div class="card"><h3><span class="num">3</span> Atur prioritas</h3>
+        <p>Tandai sebagai <span class="badge b-mute">rendah</span>
+          <span class="badge b-info">normal</span> <span class="badge b-dang">tinggi</span>
+          agar antrean kerja jelas.</p></div>
+      <div class="card"><h3><span class="num">4</span> Target tanggal</h3>
+        <p>Tetapkan tenggat penyelesaian tahap. Marketing juga boleh menetapkan target
+          untuk naskah pesanannya.</p></div>
+      <div class="card"><h3><span class="num">5</span> Tandai perlu ditinjau</h3>
+        <p>Manager menandai naskah yang perlu diperiksa ulang. Muncul sebagai penanda mencolok di kartu.</p></div>
+      <div class="card"><h3><span class="num">6</span> Riwayat</h3>
+        <p>Setiap kartu menyimpan catatan perpindahan: dari tahap apa ke apa, oleh siapa, kapan,
+          dan alasannya.</p></div>
+    </div>
+
+    <div class="note" style="margin-top:16px">
+      <div><b>Naskah yang sudah final tidak menumpuk selamanya di papan.</b> Setelah mencapai
+        Terbit atau Publish, kartunya tetap tampil sebentar sebagai konfirmasi, lalu menghilang dari
+        papan aktif — riwayat dan datanya tetap utuh dan bisa dilihat lewat Direktori Judul dan Arsip.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 30. ATURAN PERGERAKAN ==================== -->
+<section class="slide" data-title="Aturan pindah tahap" data-phase="Fase 5 · Produksi">
+  <div class="wrap wide">
+    <div class="kicker">Fase 5 · Aturan Penting</div>
+    <h2>Maju normal vs. koreksi</h2>
+    <p class="lead">Sistem membedakan dua jenis perpindahan, dan memperlakukannya berbeda.
+      Ini aturan yang paling sering ditanyakan.</p>
+
+    <div class="grid g2" style="margin-bottom:18px">
+      <div class="card tint-g">
+        <h3>Maju normal <span class="badge b-ok">satu langkah ke depan</span></h3>
+        <p>Memindahkan naskah ke <b>tahap tepat berikutnya</b> pada relnya.</p>
+        <ul class="clean check">
+          <li>Catatan <b>tidak wajib</b></li>
+          <li>Tidak menimbulkan penanda apa pun</li>
+          <li>Tetap dicatat di riwayat</li>
+        </ul>
+      </div>
+      <div class="card tint-r">
+        <h3>Koreksi / lompat <span class="badge b-dang">selain satu langkah maju</span></h3>
+        <p>Memundurkan tahap, atau melompati satu atau lebih tahap.</p>
+        <ul class="clean">
+          <li><b>Catatan wajib diisi</b> — sistem menolak bila kosong</li>
+          <li>Naskah otomatis ditandai <b>perlu ditinjau</b></li>
+          <li>Manager &amp; superadmin <b>diberi notifikasi</b></li>
+          <li>Dicatat di riwayat sebagai koreksi, bukan kemajuan biasa</li>
+        </ul>
+        <p style="margin-top:8px; font-size:13.5px; color:var(--muted)">Pengecualian: bila
+          <b>superadmin</b> yang melakukannya, penanda "perlu ditinjau" tidak dipasang.</p>
+      </div>
+    </div>
+
+    <h3 style="margin-bottom:10px">Siapa boleh memindahkan apa</h3>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>Pelaku</th><th>Boleh memindahkan</th><th>Batasan</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="rolechip r-prod">Production</span></td>
+            <td>Tahap yang <b>pemiliknya production</b>: Templating, Editing, Revisi, Submit, Layout, Proofreading, ISBN</td>
+            <td>Tidak bisa menyentuh tahap milik superadmin (Cetak, Terbit, LoA, Publish)</td>
+          </tr>
+          <tr>
+            <td><span class="rolechip r-mgr">Manager</span></td>
+            <td>Semua tahap</td>
+            <td>Kecuali naskah yang sudah <b>final</b> (Terbit / Publish) — terkunci</td>
+          </tr>
+          <tr>
+            <td><span class="rolechip r-sa">Superadmin</span></td>
+            <td>Semua tahap, termasuk yang sudah final</td>
+            <td>Tanpa batasan</td>
+          </tr>
+          <tr>
+            <td><span class="rolechip r-mkt">Marketing</span></td>
+            <td>Tidak memindahkan tahap</td>
+            <td>Hanya boleh melihat progres order miliknya &amp; menetapkan target tanggal</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note warn" style="margin-top:16px">
+      <div><b>Naskah final terkunci untuk semua orang kecuali superadmin.</b> Kalau sebuah judul
+        terlanjur ditandai Terbit padahal belum, mintalah superadmin yang mengoreksi — jangan
+        membuat order atau judul baru sebagai jalan pintas.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 31. PROGRES PER BAB ==================== -->
+<section class="slide" data-title="Progres per bab (buku)" data-phase="Fase 5 · Produksi">
+  <div class="wrap wide">
+    <div class="kicker">Fase 5 · Khusus Buku</div>
+    <h2>Pelacakan per bab dan aturan "bab paling lambat"</h2>
+    <p class="lead">Buku — terutama buku kolaborasi — tidak selesai serentak. Setiap bab punya tahapnya
+      sendiri, editornya sendiri, dan riwayatnya sendiri.</p>
+
+    <div class="grid g2" style="margin-bottom:18px">
+      <div class="card">
+        <h3>Bagaimana bab terbentuk</h3>
+        <ul class="clean">
+          <li>Diambil dari daftar bab yang diisi di Direktori Judul, atau</li>
+          <li>Dibuat otomatis sebanyak <b>jumlah bab</b> yang diisi di order — dinamai Bab 1, Bab 2, dan seterusnya</li>
+          <li>Setiap bab mendapat progresnya sendiri, dimulai dari tahap yang sama dengan bukunya</li>
+          <li>Penulis tiap bab <b>diisi otomatis</b> dari daftar penulis order, tinggal disesuaikan</li>
+        </ul>
+      </div>
+      <div class="card tint-a">
+        <h3>Aturan bab paling lambat</h3>
+        <p>Tahap <b>buku secara keseluruhan</b> selalu mengikuti <b>bab yang paling tertinggal</b>.</p>
+        <div class="card flat" style="margin-top:10px">
+          <p style="font-size:13.5px"><b>Contoh:</b> Bab 1 sudah <i>Proofreading</i>, Bab 2 sudah <i>Layout</i>,
+            Bab 3 masih <i>Editing</i>.</p>
+          <p style="font-size:13.5px; margin-top:6px">→ Status buku ditampilkan sebagai
+            <span class="badge b-warn">Editing</span>, bukan Proofreading.</p>
+        </div>
+        <p style="margin-top:10px; font-size:14px; color:var(--ink2)">Ini disengaja: yang perlu terlihat
+          adalah <b>apa yang menghambat</b>, bukan pencapaian terbaik.</p>
+      </div>
+    </div>
+
+    <div class="grid g3">
+      <div class="card flat">
+        <h3 style="font-size:16px">Aturan yang sama berlaku</h3>
+        <p>Memindahkan bab tunduk pada aturan yang identik dengan memindahkan naskah:
+          koreksi wajib beralasan, tahap final terkunci, dan hak per peran sama persis.</p>
+      </div>
+      <div class="card flat">
+        <h3 style="font-size:16px">Editor per bab</h3>
+        <p>Setiap bab bisa ditugaskan ke editor berbeda. Hanya pengguna berperan
+          <b>production</b> atau <b>manager</b> yang bisa dipilih sebagai editor.</p>
+      </div>
+      <div class="card flat">
+        <h3 style="font-size:16px">Tercatat di riwayat buku</h3>
+        <p>Perpindahan bab muncul di riwayat naskah bukunya, ditulis jelas
+          bab mana yang berpindah ke tahap apa.</p>
+      </div>
+    </div>
+
+    <div class="note" style="margin-top:16px">
+      <div>Di Direktori Judul, prinsip yang sama berlaku satu tingkat di atas: bila satu judul punya
+        <b>beberapa order</b>, tahap yang ditampilkan adalah <b>yang paling awal</b> di antara semuanya.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 32. ISBN OTOMATIS ==================== -->
+<section class="slide" data-title="ISBN menggerakkan naskah" data-phase="Fase 5 · Produksi">
+  <div class="wrap wide">
+    <div class="kicker">Fase 5 · Otomatisasi</div>
+    <h2>Registrasi ISBN ikut menggerakkan naskah</h2>
+    <p class="lead">Contoh nyata bagaimana dua modul saling terhubung, sehingga Anda tidak perlu
+      memperbarui hal yang sama di dua tempat.</p>
+
+    <div class="flow" style="margin-bottom:18px">
+      <div class="step"><div class="st-n">1</div><div class="st-t">Naskah mencapai ISBN</div>
+        <div class="st-d">Buku baru muncul sebagai kandidat di Direktori ISBN</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="st-n">2</div><div class="st-t">Didaftarkan</div>
+        <div class="st-d">Production mengisi nomor pendaftaran &amp; tanggal</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="st-n">3</div><div class="st-t">Status ISBN naik</div>
+        <div class="st-d">Pendaftaran → Ber-ISBN → Cetak/Terbit</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="st-n">4</div><div class="st-t">Naskah ikut maju</div>
+        <div class="st-d">Tahap buku &amp; semua babnya ikut disesuaikan otomatis</div></div>
+    </div>
+
+    <div class="grid g2">
+      <div class="card tint-g">
+        <h3>Sifat penyesuaian otomatis ini</h3>
+        <ul class="clean check">
+          <li><b>Hanya maju, tidak pernah mundur.</b> Bab yang sudah lebih maju dibiarkan apa adanya.</li>
+          <li>Berlaku ke <b>seluruh bab</b> sekaligus, plus progres di setiap order yang tertaut judul itu.</li>
+          <li>Tercatat di riwayat sebagai <b>"Sinkron otomatis dari registrasi ISBN"</b>,
+            sehingga jelas ini bukan tindakan manual seseorang.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Syarat masuk Direktori ISBN</h3>
+        <ul class="clean">
+          <li>Judul berjenis <b>buku</b> — artikel tidak pernah muncul di sini</li>
+          <li>Tahap naskahnya sudah <b>mencapai atau melewati ISBN</b></li>
+        </ul>
+        <div class="note" style="margin-top:12px">
+          <div>Kalau sebuah buku tidak muncul di daftar kandidat ISBN, periksa dulu tahap naskahnya
+            di papan manuskrip — biasanya masih tertahan di Proofreading atau sebelumnya.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== FASE 6 — DIVIDER ==================== -->
+<section class="slide" data-title="FASE 6 — Arsip Judul" data-phase="Fase 6 · Arsip" data-kind="section">
+  <div class="wrap divider">
+    <div class="ph">Fase 6</div>
+    <h2>Penyelesaian &amp; Arsip</h2>
+    <div class="dbar"></div>
+    <p class="dsub">Pekerjaan belum benar-benar selesai saat naskah terbit. Selesai berarti:
+      uangnya beres, naskahnya final, dan semua bukti hasil kerja terkumpul di satu tempat.</p>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px">
+      <span class="rolechip r-prod">Production melengkapi</span>
+      <span class="rolechip r-adm">Admin melengkapi</span>
+      <span class="rolechip r-mgr">Manager menyetujui</span>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 34. SYARAT ARSIP ==================== -->
+<section class="slide" data-title="Syarat & artefak arsip" data-phase="Fase 6 · Arsip">
+  <div class="wrap wide">
+    <div class="kicker">Fase 6 · Menu: Direktori → Arsip Judul</div>
+    <h2>Dua syarat mutlak sebelum diarsipkan</h2>
+    <p class="lead">Sebuah judul baru layak masuk arsip kalau <b>kedua</b> syarat ini terpenuhi.
+      Salah satu saja tidak cukup.</p>
+
+    <div class="grid g2" style="margin-bottom:20px">
+      <div class="card tint-g">
+        <h3>Syarat 1 — Lunas</h3>
+        <p><b>Seluruh order</b> yang tertaut ke judul ini sudah lunas. Kalau satu judul dipesan dua kali
+          dan salah satunya masih menyisakan piutang, judul itu belum layak arsip.</p>
+        <p style="margin-top:8px; font-size:13.5px; color:var(--muted)">Perhitungannya memakai
+          <b>uang bersih</b> — sudah dikurangi refund.</p>
+      </div>
+      <div class="card tint-t">
+        <h3>Syarat 2 — Naskah final</h3>
+        <p>Tahap naskahnya sudah mencapai <b>Terbit</b> (buku) atau <b>Publish</b> (artikel).</p>
+        <p style="margin-top:8px; font-size:13.5px; color:var(--muted)">Ingat aturan bab paling lambat:
+          semua bab harus sudah final, bukan sebagian.</p>
+      </div>
+    </div>
+
+    <h3 style="margin-bottom:10px">Artefak yang dikumpulkan — berbeda per jenis</h3>
+    <div class="grid g2">
+      <div class="card">
+        <h3><span class="badge b-teal">Buku</span> — 6 artefak</h3>
+        <dl class="kv" style="margin-top:8px">
+          <dt>No. ISBN</dt><dd>diketik</dd>
+          <dt>File Barcode</dt><dd>unggah berkas</dd>
+          <dt>Link Buku Publish</dt><dd>tautan</dd>
+          <dt>Link Scholar</dt><dd>tautan</dd>
+          <dt>File HKI</dt><dd>unggah berkas</dd>
+          <dt>File Buku Final</dt><dd>unggah berkas ber-ISBN</dd>
+        </dl>
+      </div>
+      <div class="card">
+        <h3><span class="badge b-purp">Artikel</span> — 4 artefak</h3>
+        <dl class="kv" style="margin-top:8px">
+          <dt>LoA</dt><dd>unggah berkas</dd>
+          <dt>Link Publish</dt><dd>tautan</dd>
+          <dt>Naskah Final</dt><dd>unggah berkas</dd>
+          <dt>Bukti Bayar APC</dt><dd>unggah berkas</dd>
+        </dl>
+        <div class="note" style="margin-top:14px">
+          <div>Artefak inilah yang dikirim ke klien sebagai bukti pekerjaan selesai —
+            sekaligus arsip perusahaan bila suatu saat diminta lagi.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 35. ALUR ARSIP ==================== -->
+<section class="slide" data-title="Alur pengarsipan" data-phase="Fase 6 · Arsip">
+  <div class="wrap wide">
+    <div class="kicker">Fase 6 · Alur Persetujuan</div>
+    <h2>Alur pengarsipan</h2>
+
+    <div class="flow" style="margin-bottom:20px">
+      <div class="step"><div class="st-n">1</div><div class="st-t">Draft</div>
+        <div class="st-d">Artefak diisi bertahap, bisa disimpan berkali-kali</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="st-n">2</div><div class="st-t">Diajukan</div>
+        <div class="st-d">Production / admin menyatakan sudah lengkap</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="st-n">3</div><div class="st-t">Ditinjau</div>
+        <div class="st-d">Manager &amp; superadmin dapat notifikasi</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="st-n">4a</div><div class="st-t">Disetujui</div>
+        <div class="st-d">Arsip resmi, PDF bisa diunduh</div></div>
+      <div class="arrow">/</div>
+      <div class="step"><div class="st-n">4b</div><div class="st-t">Ditolak</div>
+        <div class="st-d">Kembali dilengkapi, lalu diajukan ulang</div></div>
+    </div>
+
+    <div class="grid g3">
+      <div class="card tint-t">
+        <h3>Yang mengisi</h3>
+        <p><span class="rolechip r-prod">Production</span> <span class="rolechip r-adm">Admin</span></p>
+        <ul class="clean" style="margin-top:8px">
+          <li>Mengisi &amp; mengunggah artefak</li>
+          <li>Mengajukan untuk ditinjau</li>
+        </ul>
+      </div>
+      <div class="card tint-p">
+        <h3>Yang menyetujui</h3>
+        <p><span class="rolechip r-mgr">Manager</span> <span class="rolechip r-sa">Superadmin</span></p>
+        <ul class="clean" style="margin-top:8px">
+          <li>Menyetujui dengan catatan, atau</li>
+          <li>Menolak disertai alasan</li>
+        </ul>
+      </div>
+      <div class="card tint-b">
+        <h3>Hasil akhir</h3>
+        <ul class="clean">
+          <li><b>Lembar arsip PDF</b> berisi ringkasan judul, order, pembayaran, dan seluruh artefak</li>
+          <li>Tersimpan permanen dan bisa dibuka kapan saja lewat menu Arsip Judul</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="note ok" style="margin-top:16px">
+      <div><b>Semua peran bisa melihat</b> daftar dan detail arsip, termasuk accounting dan marketing.
+        Yang dibatasi adalah mengisi dan menyetujuinya. Arsip memang dimaksudkan sebagai rujukan bersama.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== FASE 7 — DIVIDER ==================== -->
+<section class="slide" data-title="FASE 7 — Keuangan" data-phase="Fase 7 · Keuangan" data-kind="section">
+  <div class="wrap divider">
+    <div class="ph">Fase 7</div>
+    <h2>Keuangan &amp; Pembukuan</h2>
+    <div class="dbar"></div>
+    <p class="dsub">Delapan halaman yang menjawab dari "uang masuk-keluar hari ini apa saja"
+      sampai "berapa laba yang layak dibagi". Sebagian besar terisi otomatis dari fase-fase sebelumnya.</p>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px">
+      <span class="rolechip r-acc">Accounting</span>
+      <span class="rolechip r-sa">Superadmin</span>
+      <span class="badge b-dang">Manager sengaja tidak diberi akses</span>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 37. JURNAL KAS ==================== -->
+<section class="slide" data-title="Jurnal Kas" data-phase="Fase 7 · Keuangan">
+  <div class="wrap wide">
+    <div class="kicker">Fase 7 · Menu: Keuangan → Jurnal Kas</div>
+    <h2>Jurnal Kas: buku besar uang masuk &amp; keluar</h2>
+    <p class="lead">Setiap baris adalah satu peristiwa kas. Sebagian Anda catat sendiri,
+      sebagian muncul otomatis.</p>
+
+    <div class="grid g2" style="margin-bottom:18px">
+      <div class="card tint-g">
+        <h3>Terisi otomatis <span class="badge b-ok">dari pembayaran</span></h3>
+        <ul class="clean">
+          <li>Setiap pembayaran klien → entri <b>pemasukan</b></li>
+          <li>Setiap refund → entri <b>pengeluaran</b></li>
+          <li>Kategori dipilih otomatis sesuai tipe produk (buku/artikel)</li>
+          <li>Keterangan berisi nomor invoice atau kode order + judul</li>
+          <li>Bila pembayaran diubah atau dibatalkan, entri kasnya ikut menyesuaikan —
+            tidak menghasilkan catatan kembar</li>
+        </ul>
+      </div>
+      <div class="card tint-a">
+        <h3>Dicatat manual <span class="badge b-acc">oleh accounting</span></h3>
+        <ul class="clean">
+          <li>Seluruh <b>pengeluaran operasional</b>: gaji, sewa, listrik, cetak, honor</li>
+          <li>Pemasukan di luar order, bila ada</li>
+          <li><b>Transfer antar akun</b> — mis. dari rekening A ke rekening B</li>
+        </ul>
+        <div class="note" style="margin-top:12px">
+          <div>Transfer antar akun <b>tidak dihitung</b> sebagai pemasukan maupun pengeluaran
+            dalam laporan laba — uangnya hanya berpindah tempat, bukan bertambah atau berkurang.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid g4">
+      <div class="card flat"><h3 style="font-size:15px">Isi satu entri</h3>
+        <p>Tanggal, kode, keterangan, jenis, nominal, kategori, akun, produk, referensi, catatan.</p></div>
+      <div class="card flat"><h3 style="font-size:15px">Multi-akun</h3>
+        <p>Kas bisa dipecah per rekening/dompet, masing-masing punya saldo sendiri.</p></div>
+      <div class="card flat"><h3 style="font-size:15px">Kategori</h3>
+        <p>Dikelola sendiri oleh accounting — bisa ditambah sesuai kebutuhan.</p></div>
+      <div class="card flat"><h3 style="font-size:15px">Ekspor</h3>
+        <p>Seluruh jurnal bisa diunduh sebagai <b>CSV</b> atau <b>PDF</b>.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 38. PETA MENU KEUANGAN ==================== -->
+<section class="slide" data-title="Delapan halaman Keuangan" data-phase="Fase 7 · Keuangan">
+  <div class="wrap wide">
+    <div class="kicker">Fase 7 · Menu: Keuangan</div>
+    <h2>Delapan halaman dan tugasnya masing-masing</h2>
+
+    <div class="grid g4">
+      <div class="card tint-b"><h3><span class="num">1</span> Ringkasan</h3>
+        <p>Halaman pembuka keuangan. Gambaran cepat posisi kas dan sorotan penting.</p></div>
+      <div class="card tint-g"><h3><span class="num">2</span> Jurnal Kas</h3>
+        <p>Buku besar transaksi. Tempat mencatat dan menelusuri setiap rupiah.</p></div>
+      <div class="card tint-b"><h3><span class="num">3</span> Dashboard Keuangan</h3>
+        <p>Rekap per bulan dan per kategori, dengan grafik. Bisa diekspor CSV/PDF.</p></div>
+      <div class="card tint-p"><h3><span class="num">4</span> Distribusi Profit</h3>
+        <p>Aturan pembagian laba yang fleksibel — siapa dapat berapa persen atau berapa nominal.</p></div>
+      <div class="card tint-a"><h3><span class="num">5</span> Asumsi</h3>
+        <p>Margin per produk dan pengeluaran tetap bulanan. Dipakai untuk perhitungan perkiraan.</p></div>
+      <div class="card tint-a"><h3><span class="num">6</span> Anggaran &amp; Target</h3>
+        <p>Menetapkan target pemasukan dan batas anggaran, lalu memantau capaiannya.</p></div>
+      <div class="card tint-t"><h3><span class="num">7</span> Analisa Profit</h3>
+        <p>Perkiraan laba berbasis margin asumsi, untuk melihat produk mana yang paling menguntungkan.</p></div>
+      <div class="card tint-r"><h3><span class="num">8</span> Riwayat Perubahan</h3>
+        <p>Jejak audit: siapa mengubah entri kas apa, kapan, dan dari nilai berapa ke berapa.</p></div>
+    </div>
+
+    <div class="note warn" style="margin-top:18px">
+      <div><b>Asumsi bukan pengganti catatan nyata.</b> Halaman Asumsi dan Analisa Profit memakai
+        <b>perkiraan</b> margin, bukan angka kas sesungguhnya. Keduanya alat bantu pengambilan keputusan —
+        pengeluaran tetap harus dicatat sebagai entri nyata di Jurnal Kas agar laporan akurat.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 39. KUNCI PERIODE ==================== -->
+<section class="slide" data-title="Kunci periode & audit" data-phase="Fase 7 · Keuangan">
+  <div class="wrap wide">
+    <div class="kicker">Fase 7 · Tata Kelola</div>
+    <h2>Kunci periode &amp; jejak audit</h2>
+    <p class="lead">Dua mekanisme yang menjaga agar pembukuan yang sudah dilaporkan tidak berubah diam-diam.</p>
+
+    <div class="grid g2">
+      <div class="card tint-r">
+        <h3>Kunci Periode <span class="rolechip r-sa">superadmin saja</span></h3>
+        <p>Setelah pembukuan satu bulan selesai dan dilaporkan, periode itu dikunci.</p>
+        <ul class="clean">
+          <li>Entri kas pada periode terkunci <b>tidak bisa diubah atau dihapus</b></li>
+          <li>Bisa dibuka kembali bila memang perlu koreksi — tapi hanya oleh superadmin</li>
+          <li>Ini keputusan tata kelola, bukan pembukuan harian — karena itu accounting pun tidak diberi wewenang ini</li>
+        </ul>
+      </div>
+      <div class="card tint-b">
+        <h3>Riwayat Perubahan</h3>
+        <p>Setiap perubahan pada entri kas tercatat.</p>
+        <ul class="clean">
+          <li>Siapa yang mengubah</li>
+          <li>Kapan diubah</li>
+          <li>Dari nilai berapa ke nilai berapa</li>
+        </ul>
+        <div class="note ok" style="margin-top:12px">
+          <div>Kalau ada selisih di akhir bulan, halaman ini adalah tempat pertama untuk mencari
+            jawabannya — bukan menebak-nebak.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note" style="margin-top:16px">
+      <div><b>Catatan jujur soal batasan:</b> penguncian periode berlaku untuk entri kas yang dicatat manual.
+        Beberapa jalur otomatis — misalnya pembayaran yang disetujui belakangan untuk tanggal lama —
+        masih bisa menyentuh periode yang sudah dikunci. Karena itu, tutup periode setelah memastikan
+        tidak ada setoran tertunggak yang belum disetujui.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 40. SLIP GAJI ==================== -->
+<section class="slide" data-title="Slip Gaji" data-phase="Fase 7 · Keuangan">
+  <div class="wrap wide">
+    <div class="kicker">Fase 7 · Menu: Keuangan → Slip Gaji · Laporan → Slip Gaji Saya</div>
+    <h2>Slip Gaji: dua sisi, dua menu</h2>
+
+    <div class="grid g2" style="margin-bottom:18px">
+      <div class="card tint-g">
+        <h3>Slip Gaji <span class="rolechip r-acc">accounting</span> <span class="rolechip r-sa">superadmin</span></h3>
+        <ol class="list">
+          <li>Buat slip: pilih <b>karyawan</b> dan <b>periode</b> (bulan &amp; tahun).</li>
+          <li>Isi baris <b>pendapatan</b> (gaji pokok, tunjangan, bonus…).</li>
+          <li>Isi baris <b>potongan</b> (pinjaman, absensi…).</li>
+          <li>Total dan gaji bersih dihitung otomatis.</li>
+          <li>Simpan sebagai <span class="badge b-mute">Draft</span>.</li>
+          <li>Ubah ke <span class="badge b-ok">Terbit</span> bila sudah final.</li>
+          <li>Klik <b>Kirim</b> → PDF dikirim ke email karyawan lewat antrean,
+            dan karyawan mendapat notifikasi.</li>
+        </ol>
+      </div>
+      <div class="card tint-b">
+        <h3>Slip Gaji Saya <span class="badge b-mute">semua karyawan</span></h3>
+        <p>Setiap pengguna yang login bisa membuka menu ini untuk melihat slip gajinya sendiri
+          dan mengunduh PDF-nya.</p>
+        <ul class="clean check" style="margin-top:8px">
+          <li>Hanya menampilkan slip milik sendiri</li>
+          <li>Tidak perlu izin khusus — terbuka untuk semua peran</li>
+          <li>Tidak bisa mengubah apa pun, hanya melihat dan mengunduh</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="grid g3">
+      <div class="card flat">
+        <h3 style="font-size:15px">Satu slip per periode</h3>
+        <p>Sistem menolak pembuatan slip kedua untuk karyawan dan periode yang sama.</p>
+      </div>
+      <div class="card flat">
+        <h3 style="font-size:15px">Cara mengoreksi</h3>
+        <p>Slip yang sudah terbit dan salah: <b>hapus lalu buat ulang</b>. Ini disengaja agar tidak ada
+          slip yang isinya berubah setelah dikirim ke karyawan.</p>
+      </div>
+      <div class="card flat">
+        <h3 style="font-size:15px">Manager tidak punya akses</h3>
+        <p>Slip gaji sengaja hanya untuk accounting dan superadmin, meski manager punya akses luas
+          di modul lain.</p>
+      </div>
+    </div>
+
+    <div class="note warn" style="margin-top:16px">
+      <div><b>Slip gaji belum otomatis masuk Jurnal Kas.</b> Pembayaran gaji tetap harus dicatat
+        sendiri sebagai entri pengeluaran. Ini keputusan yang disengaja saat ini, bukan kelalaian —
+        jadi jangan menunggu entri itu muncul sendiri.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== ALAT HARIAN — DIVIDER ==================== -->
+<section class="slide" data-title="Alat Kerja Harian" data-phase="Alat Harian" data-kind="section">
+  <div class="wrap divider">
+    <div class="ph">Lintas Fase</div>
+    <h2>Alat Kerja Harian</h2>
+    <div class="dbar"></div>
+    <p class="dsub">Modul yang dipakai semua orang setiap hari, terlepas dari peran:
+      tugas pribadi, laporan kerja, pengumuman, notifikasi, dan penyimpanan berkas bersama.</p>
+    <span class="badge b-ok">Terbuka untuk semua peran yang login</span>
+  </div>
+</section>
+
+<!-- ==================== 42. TUGAS ==================== -->
+<section class="slide" data-title="Tugas: papan, kalender, daftar" data-phase="Alat Harian">
+  <div class="wrap wide">
+    <div class="kicker">Menu: Tugas</div>
+    <h2>Tugas: tiga cara melihat pekerjaan yang sama</h2>
+    <p class="lead">Tugas bersifat pribadi. Anda melihat tugas Anda sendiri —
+      tiga menu di bawah adalah tiga sudut pandang atas daftar yang sama.</p>
+
+    <div class="grid g3" style="margin-bottom:18px">
+      <div class="card tint-b">
+        <h3>Papan Tugas</h3>
+        <p>Tampilan kolom: <span class="badge b-mute">To Do</span>
+          <span class="badge b-info">Dikerjakan</span> <span class="badge b-ok">Selesai</span></p>
+        <p style="margin-top:8px">Geser kartu antar kolom untuk mengubah status. Urutan kartu
+          bisa diatur sesuai prioritas kerja Anda.</p>
+      </div>
+      <div class="card tint-a">
+        <h3>Kalender</h3>
+        <p>Tugas ditampilkan pada tanggal tenggatnya.</p>
+        <p style="margin-top:8px">Berguna untuk melihat beban kerja minggu ini dan menggeser
+          jadwal tugas langsung dari kalender.</p>
+      </div>
+      <div class="card tint-t">
+        <h3>Daftar Tugas</h3>
+        <p>Tabel lengkap yang bisa dicari dan diurutkan.</p>
+        <p style="margin-top:8px">Paling cocok untuk menambah tugas baru secara cepat
+          atau mencari tugas lama.</p>
+      </div>
+    </div>
+
+    <div class="grid g2">
+      <div class="card">
+        <h3>Isi sebuah tugas</h3>
+        <dl class="kv">
+          <dt>Judul</dt><dd>Apa yang harus dikerjakan</dd>
+          <dt>Deskripsi</dt><dd>Rincian bila perlu</dd>
+          <dt>Status</dt><dd>To Do / Dikerjakan / Selesai</dd>
+          <dt>Prioritas</dt><dd>Rendah / Normal / Tinggi</dd>
+          <dt>Tenggat</dt><dd>Tanggal target penyelesaian</dd>
+          <dt>Pemilik</dt><dd>Siapa yang mengerjakan</dd>
+        </dl>
+      </div>
+      <div class="card">
+        <h3>Penugasan &amp; pemantauan</h3>
+        <ul class="clean">
+          <li>Tugas bisa <b>dibuatkan untuk orang lain</b> — yang ditugaskan langsung mendapat notifikasi</li>
+          <li>Sistem mengirim <b>pengingat menjelang tenggat</b> secara otomatis</li>
+          <li>Menu <b>Pemantauan Tugas</b> memperlihatkan tugas seluruh tim —
+            hanya untuk manager dan superadmin</li>
+        </ul>
+        <div class="note" style="margin-top:12px">
+          <div>Tugas di modul ini <b>terpisah</b> dari tahap naskah di papan manuskrip.
+            Papan manuskrip melacak <i>naskah</i>; Tugas melacak <i>pekerjaan orang</i>.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 43. LAPORAN HARIAN ==================== -->
+<section class="slide" data-title="Laporan Harian & Bulanan" data-phase="Alat Harian">
+  <div class="wrap wide">
+    <div class="kicker">Menu: Laporan → Laporan Harian / Bulanan</div>
+    <h2>Laporan kerja harian</h2>
+    <p class="lead">Setiap orang menuliskan apa yang dikerjakan hari itu. Sederhana, tapi inilah
+      dasar penilaian kinerja dan bahan rapat.</p>
+
+    <div class="flow" style="margin-bottom:20px">
+      <div class="step"><div class="st-n">1</div><div class="st-t">Tulis catatan</div>
+        <div class="st-d">Apa yang dikerjakan hari ini</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="st-n">2</div><div class="st-t">Lampirkan berkas</div>
+        <div class="st-d">Bukti kerja bila ada — opsional</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="st-n">3</div><div class="st-t">Setor</div>
+        <div class="st-d">Laporan ditandai sudah disetorkan</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="st-n">4</div><div class="st-t">Direkap</div>
+        <div class="st-d">Masuk ke Laporan Bulanan &amp; Pemantauan</div></div>
+    </div>
+
+    <div class="grid g3">
+      <div class="card tint-b">
+        <h3>Laporan Harian</h3>
+        <ul class="clean">
+          <li>Catatan bisa disimpan bertahap sebelum disetor</li>
+          <li>Berkas lampiran bisa ditambah dan dihapus</li>
+          <li>Terbuka untuk <b>semua peran</b> tanpa perlu izin khusus</li>
+        </ul>
+      </div>
+      <div class="card tint-a">
+        <h3>Laporan Bulanan</h3>
+        <ul class="clean">
+          <li>Rekap laporan harian Anda dalam satu bulan</li>
+          <li>Memperlihatkan hari mana yang terisi dan mana yang kosong</li>
+        </ul>
+      </div>
+      <div class="card tint-p">
+        <h3>Pemantauan Laporan <span class="rolechip r-mgr">manager+</span></h3>
+        <ul class="clean">
+          <li>Rekap setoran <b>seluruh tim</b></li>
+          <li>Cepat terlihat siapa yang belum menyetor</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 44. NOTIFIKASI ==================== -->
+<section class="slide" data-title="Pengumuman & Notifikasi" data-phase="Alat Harian">
+  <div class="wrap wide">
+    <div class="kicker">Menu: Pengumuman · ikon lonceng</div>
+    <h2>Pengumuman &amp; notifikasi</h2>
+    <p class="lead">Dua saluran informasi yang berbeda: pengumuman untuk semua orang,
+      notifikasi untuk hal yang menyangkut Anda secara langsung.</p>
+
+    <div class="grid g2" style="margin-bottom:18px">
+      <div class="card tint-a">
+        <h3>Pengumuman <span class="rolechip r-adm">dikelola admin</span></h3>
+        <ul class="clean">
+          <li>Dibuat, diubah, diaktifkan/dinonaktifkan oleh admin</li>
+          <li>Tampil ke seluruh pengguna</li>
+          <li>Setiap orang bisa menandainya sudah dibaca —
+            aksi ini terbuka untuk <b>semua peran</b>, bukan hanya admin</li>
+        </ul>
+      </div>
+      <div class="card tint-b">
+        <h3>Notifikasi <span class="badge b-mute">otomatis</span></h3>
+        <ul class="clean">
+          <li>Muncul di ikon lonceng, dengan halaman daftar lengkap</li>
+          <li>Bisa ditandai dibaca satu per satu atau sekaligus</li>
+          <li>Dikirim ke orang yang <b>berkepentingan</b>, bukan disiarkan ke semua</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3 style="margin-bottom:10px">Peristiwa yang memicu notifikasi</h3>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>Peristiwa</th><th>Siapa yang diberi tahu</th></tr></thead>
+        <tbody>
+          <tr><td>Pembayaran disetorkan</td><td>Manager &amp; superadmin</td></tr>
+          <tr><td>Pembayaran disetujui / ditolak</td><td>Marketing pemilik order</td></tr>
+          <tr><td>Refund dilakukan</td><td>Manager &amp; superadmin lain</td></tr>
+          <tr><td>Tagihan diajukan</td><td>Superadmin</td></tr>
+          <tr><td>Tagihan disetujui / ditolak</td><td>Pembuat tagihan</td></tr>
+          <tr><td>Tahap naskah berubah</td><td>Marketing pemilik order</td></tr>
+          <tr><td>Naskah ditandai perlu ditinjau</td><td>Manager &amp; superadmin</td></tr>
+          <tr><td>Info publikasi judul diperbarui</td><td>Superadmin</td></tr>
+          <tr><td>Arsip judul diajukan</td><td>Manager &amp; superadmin</td></tr>
+          <tr><td>Target marketing ditetapkan · komisi dibayar</td><td>Marketing bersangkutan</td></tr>
+          <tr><td>Tugas ditugaskan · tenggat mendekat</td><td>Pemilik tugas</td></tr>
+          <tr><td>Slip gaji diterbitkan</td><td>Karyawan bersangkutan</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 45. GUDANG DATA ==================== -->
+<section class="slide" data-title="Gudang Data" data-phase="Alat Harian">
+  <div class="wrap wide">
+    <div class="kicker">Menu: Alat → Gudang Data</div>
+    <h2>Gudang Data: berkas &amp; tautan kerja bersama</h2>
+    <p class="lead">Tempat menyimpan berkas kerja dan tautan Google Sheets yang tidak punya rumah
+      di modul lain — supaya tidak tercecer di chat.</p>
+
+    <div class="grid g3">
+      <div class="card tint-b">
+        <h3>Apa yang bisa disimpan</h3>
+        <ul class="clean">
+          <li><b>Tautan Google Sheets</b> — cukup tempel alamatnya</li>
+          <li><b>Berkas Excel / CSV</b> — diunggah langsung</li>
+        </ul>
+      </div>
+      <div class="card tint-a">
+        <h3>Siapa yang bisa melihat</h3>
+        <ul class="clean">
+          <li><b>Pribadi</b> — hanya Anda</li>
+          <li><b>Dibagikan</b> — bisa dibatasi ke peran tertentu saja</li>
+        </ul>
+      </div>
+      <div class="card tint-g">
+        <h3>Siapa yang bisa mengubah</h3>
+        <ul class="clean">
+          <li>Hanya <b>pemilik</b> yang boleh mengubah dan menghapus</li>
+          <li>Yang lain hanya bisa membuka dan mengunduh</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="note" style="margin-top:18px">
+      <div>Gudang Data terbuka untuk <b>semua peran</b>. Gunakan untuk berkas kerja sehari-hari —
+        bukan sebagai pengganti Arsip Judul, yang punya struktur dan alur persetujuan sendiri.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 46. HARI-HARI ANDA ==================== -->
+<section class="slide" data-title="Rutinitas harian per peran" data-phase="Ringkasan">
+  <div class="wrap wide">
+    <div class="kicker">Ringkasan</div>
+    <h2>Hari-hari Anda di SiMAPA</h2>
+    <p class="lead">Kalau semua yang tadi terasa banyak, ini versi ringkasnya: apa yang perlu Anda buka
+      setiap hari, sesuai peran.</p>
+
+    <div class="grid g3">
+      <div class="card tint-a">
+        <h3><span class="rolechip r-mkt">Marketing</span></h3>
+        <ol class="list">
+          <li>Cek <b>Dashboard</b> — capaian terhadap target</li>
+          <li>Buka <b>notifikasi</b> — pembayaran disetujui? naskah bergerak?</li>
+          <li>Tindak lanjuti <b>Piutang</b> — siapa yang perlu ditagih</li>
+          <li>Setor <b>pembayaran</b> yang masuk hari ini</li>
+          <li>Buat <b>Tagihan / Order</b> untuk prospek baru</li>
+          <li>Isi <b>Laporan Harian</b></li>
+        </ol>
+      </div>
+
+      <div class="card tint-t">
+        <h3><span class="rolechip r-prod">Production</span></h3>
+        <ol class="list">
+          <li>Buka <b>Meja Kerja Saya</b> — naskah yang ditugaskan</li>
+          <li>Dahulukan yang berprioritas <b>tinggi</b> dan mendekati target</li>
+          <li>Majukan tahap naskah / bab yang selesai</li>
+          <li>Daftarkan <b>ISBN</b> untuk buku yang siap</li>
+          <li>Lengkapi <b>artefak arsip</b> untuk judul yang sudah terbit</li>
+          <li>Isi <b>Laporan Harian</b></li>
+        </ol>
+      </div>
+
+      <div class="card tint-b">
+        <h3><span class="rolechip r-adm">Admin</span></h3>
+        <ol class="list">
+          <li>Cek <b>Dashboard</b> — judul yang perlu dilengkapi</li>
+          <li>Lengkapi <b>info publikasi</b> judul</li>
+          <li>Perbarui <b>kelengkapan dokumen</b> klien</li>
+          <li>Rapikan <b>Direktori Jurnal &amp; ISBN</b></li>
+          <li>Terbitkan <b>Pengumuman</b> bila ada</li>
+          <li>Isi <b>Laporan Harian</b></li>
+        </ol>
+      </div>
+
+      <div class="card tint-g">
+        <h3><span class="rolechip r-acc">Accounting</span></h3>
+        <ol class="list">
+          <li>Cek <b>Dashboard Keuangan</b> — posisi kas</li>
+          <li>Catat <b>pengeluaran</b> hari ini di Jurnal Kas</li>
+          <li>Cocokkan entri otomatis dengan mutasi rekening</li>
+          <li>Perbarui <b>Anggaran &amp; Target</b> bila perlu</li>
+          <li>Susun <b>Slip Gaji</b> menjelang akhir bulan</li>
+          <li>Isi <b>Laporan Harian</b></li>
+        </ol>
+      </div>
+
+      <div class="card tint-p">
+        <h3><span class="rolechip r-mgr">Manager</span></h3>
+        <ol class="list">
+          <li>Proses antrean <b>Persetujuan Pembayaran</b></li>
+          <li>Setujui / tolak <b>Tagihan</b> yang masuk</li>
+          <li>Periksa naskah bertanda <b>perlu ditinjau</b></li>
+          <li>Setujui <b>pengajuan arsip</b></li>
+          <li>Pantau <b>Tugas</b> &amp; <b>Setoran Laporan</b> tim</li>
+          <li>Tetapkan <b>Target Marketing</b></li>
+        </ol>
+      </div>
+
+      <div class="card tint-r">
+        <h3><span class="rolechip r-sa">Superadmin</span></h3>
+        <ol class="list">
+          <li>Semua yang dilakukan manager, plus:</li>
+          <li>Gerakkan tahap akhir: <b>Cetak/Terbit</b>, <b>LoA/Publish</b></li>
+          <li>Proses <b>refund</b> bila ada</li>
+          <li><b>Kunci periode</b> kas setelah tutup buku</li>
+          <li>Kelola <b>Hak Akses</b> &amp; <b>User</b></li>
+          <li>Pantau <b>Riwayat Perubahan</b> keuangan</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 47. ATURAN EMAS ==================== -->
+<section class="slide" data-title="Aturan emas & kesalahan umum" data-phase="Ringkasan">
+  <div class="wrap wide">
+    <div class="kicker">Ringkasan</div>
+    <h2>Aturan emas &amp; kesalahan yang sering terjadi</h2>
+
+    <div class="grid g2">
+      <div class="card tint-g">
+        <h3>Delapan aturan emas</h3>
+        <ul class="clean check">
+          <li><b>Jangan setor pembayaran yang uangnya belum masuk</b> — angkanya langsung terhitung.</li>
+          <li><b>Periksa tipe order sebelum menyimpan</b> — tipe menentukan rel produksi.</li>
+          <li><b>Setiap koreksi tahap wajib beralasan</b> — tulis yang jelas, bukan "revisi".</li>
+          <li><b>Unggah bukti transfer yang terbaca</b> — bukan tangkapan layar terpotong.</li>
+          <li><b>Isi Laporan Harian setiap hari</b> — bukan dirapel akhir bulan.</li>
+          <li><b>Catat pengeluaran saat terjadi</b> — bukan menunggu tutup buku.</li>
+          <li><b>Pakai judul yang sudah ada</b> bila memang sama, jangan buat kembar.</li>
+          <li><b>Kalau menu tidak ada, mintalah izin</b> — jangan cari jalan memutar.</li>
+        </ul>
+      </div>
+
+      <div class="card tint-r">
+        <h3>Kesalahan yang sering terjadi</h3>
+        <ul class="clean cross">
+          <li><b>Membuat order baru</b> untuk memperbaiki data order lama — gunakan tombol Ubah.</li>
+          <li><b>Mengetik judul yang sedikit berbeda</b> ("Metode Penelitian" vs "Metode penelitian") sehingga muncul dua judul untuk karya yang sama.</li>
+          <li><b>Menunggu buku muncul di Direktori ISBN</b> padahal tahap naskahnya belum sampai ISBN.</li>
+          <li><b>Bingung kenapa judul belum bisa diarsipkan</b> — periksa keduanya: lunas <i>dan</i> naskah final.</li>
+          <li><b>Menganggap Analisa Profit sebagai laba nyata</b> — itu perkiraan berbasis asumsi.</li>
+          <li><b>Menunggu gaji masuk Jurnal Kas sendiri</b> — harus dicatat manual.</li>
+          <li><b>Mengubah slip gaji yang sudah dikirim</b> — hapus dan buat ulang.</li>
+          <li><b>Menutup periode kas</b> saat masih ada setoran menunggu persetujuan.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 48. PENUTUP ==================== -->
+<section class="slide" data-title="Penutup" data-phase="Penutup" data-kind="section">
+  <div class="wrap">
+    <div class="kicker">Penutup</div>
+    <h2>Satu kalimat untuk diingat</h2>
+    <p class="lead" style="font-size:clamp(18px,2.2vw,24px); font-family:var(--serif); color:var(--ink)">
+      Catat di tempat asalnya, sekali saja — sisanya sistem yang mengurus.</p>
+
+    <hr class="rule">
+
+    <div class="grid g4" style="margin-bottom:22px">
+      <div class="card stat"><div class="v">7</div><div class="l">Fase kerja</div></div>
+      <div class="card stat"><div class="v">6</div><div class="l">Peran pengguna</div></div>
+      <div class="card stat"><div class="v">4</div><div class="l">Lini produk</div></div>
+      <div class="card stat"><div class="v">2×7</div><div class="l">Tahap produksi</div></div>
+    </div>
+
+    <div class="grid g3">
+      <div class="card flat">
+        <h3 style="font-size:16px">Kalau ragu soal alur</h3>
+        <p>Buka kembali presentasi ini lewat daftar isi — tekan <b>D</b>. Setiap fase punya
+          slide sendiri beserta menunya.</p>
+      </div>
+      <div class="card flat">
+        <h3 style="font-size:16px">Kalau ragu soal akses</h3>
+        <p>Menu di sidebar Anda adalah jawabannya. Bila memang kurang, mintalah superadmin
+          membuka halaman <b>Hak Akses</b>.</p>
+      </div>
+      <div class="card flat">
+        <h3 style="font-size:16px">Kalau ada angka yang janggal</h3>
+        <p>Telusuri jejaknya: <b>Riwayat</b> invoice, <b>Riwayat</b> naskah, atau
+          <b>Riwayat Perubahan</b> keuangan. Semuanya tercatat.</p>
+      </div>
+    </div>
+
+    <div style="text-align:center; margin-top:34px">
+      <div class="brand" style="font-size:26px">Si<span>MAPA</span> v2</div>
+      <p style="color:var(--muted); font-size:13px; margin-top:6px">
+        Sistem Manajemen Penerbitan · Panduan Alur Kerja Tim</p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="botbar">
+  <div class="counter"><b id="cur">1</b> / <span id="tot">1</span></div>
+  <div class="dots" id="dots"></div>
+  <div class="hintkeys"><kbd>←</kbd> <kbd>→</kbd> geser · <kbd>D</kbd> daftar isi</div>
+  <button class="btn icon" id="prevBtn" aria-label="Sebelumnya">◀</button>
+  <button class="btn primary" id="nextBtn">Lanjut ▶</button>
+</footer>
+
+<div class="toc" id="toc" role="dialog" aria-label="Daftar isi">
+  <div class="toc-head">
+    <h2>Daftar Isi</h2>
+    <button class="btn" id="tocClose">Tutup ✕</button>
+  </div>
+  <div class="toc-grid" id="tocGrid"></div>
+</div>
+
+<script>
+(function(){
+  var deck=document.getElementById('deck');
+  var slides=[].slice.call(deck.querySelectorAll('.slide'));
+  var i=0, n=slides.length;
+  var cur=document.getElementById('cur'), tot=document.getElementById('tot');
+  var bar=document.getElementById('bar'), dots=document.getElementById('dots');
+  var tag=document.getElementById('phaseTag');
+  var toc=document.getElementById('toc'), tocGrid=document.getElementById('tocGrid');
+
+  tot.textContent=n;
+
+  // dots + toc
+  slides.forEach(function(s,k){
+    var d=document.createElement('i');
+    d.title=(k+1)+'. '+(s.dataset.title||'');
+    d.onclick=function(){go(k)};
+    dots.appendChild(d);
+
+    var b=document.createElement('button');
+    b.className='toc-item'+(s.dataset.kind==='section'?' sec':'');
+    b.innerHTML='<span class="tn">'+(k+1)+'</span><span>'+(s.dataset.title||'—')+'</span>';
+    b.onclick=function(){go(k); closeToc()};
+    tocGrid.appendChild(b);
+  });
+  var dotEls=[].slice.call(dots.children), tocEls=[].slice.call(tocGrid.children);
+
+  function go(k){
+    if(k<0)k=0; if(k>n-1)k=n-1;
+    slides[i].classList.remove('active');
+    i=k;
+    slides[i].classList.add('active');
+    slides[i].scrollTop=0;
+    cur.textContent=i+1;
+    bar.style.width=((i)/(n-1)*100)+'%';
+    tag.textContent=slides[i].dataset.phase||'';
+    dotEls.forEach(function(d,x){d.className=x===i?'on':(x<i?'seen':'')});
+    tocEls.forEach(function(t,x){t.classList.toggle('on',x===i)});
+    document.getElementById('prevBtn').disabled=(i===0);
+    var nb=document.getElementById('nextBtn');
+    nb.disabled=(i===n-1);
+    nb.textContent=(i===n-1)?'Selesai':'Lanjut ▶';
+    if(history.replaceState) history.replaceState(null,'','#s'+(i+1));
+  }
+  function next(){go(i+1)} function prev(){go(i-1)}
+  function openToc(){toc.classList.add('open')}
+  function closeToc(){toc.classList.remove('open')}
+
+  document.getElementById('nextBtn').onclick=next;
+  document.getElementById('prevBtn').onclick=prev;
+  document.getElementById('tocBtn').onclick=function(){toc.classList.contains('open')?closeToc():openToc()};
+  document.getElementById('tocClose').onclick=closeToc;
+  toc.addEventListener('click',function(e){if(e.target===toc)closeToc()});
+
+  // tema
+  var tb=document.getElementById('themeBtn');
+  tb.onclick=function(){
+    var r=document.documentElement;
+    var d=r.getAttribute('data-theme');
+    if(!d){ d = matchMedia('(prefers-color-scheme:dark)').matches ? 'dark':'light'; }
+    r.setAttribute('data-theme', d==='dark'?'light':'dark');
+  };
+
+  document.addEventListener('keydown',function(e){
+    if(e.metaKey||e.ctrlKey||e.altKey)return;
+    var k=e.key;
+    if(k==='Escape'){closeToc(); return}
+    if(toc.classList.contains('open')&&k!=='d'&&k!=='D')return;
+    if(k==='ArrowRight'||k==='PageDown'||k===' '){e.preventDefault(); next()}
+    else if(k==='ArrowLeft'||k==='PageUp'){e.preventDefault(); prev()}
+    else if(k==='Home'){e.preventDefault(); go(0)}
+    else if(k==='End'){e.preventDefault(); go(n-1)}
+    else if(k==='d'||k==='D'){e.preventDefault(); toc.classList.contains('open')?closeToc():openToc()}
+    else if(k==='t'||k==='T'){tb.click()}
+  });
+
+  // swipe
+  var x0=null,y0=null;
+  deck.addEventListener('touchstart',function(e){x0=e.touches[0].clientX;y0=e.touches[0].clientY},{passive:true});
+  deck.addEventListener('touchend',function(e){
+    if(x0===null)return;
+    var dx=e.changedTouches[0].clientX-x0, dy=e.changedTouches[0].clientY-y0;
+    if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*1.6){dx<0?next():prev()}
+    x0=null;y0=null;
+  },{passive:true});
+
+  var h=location.hash.match(/^#s(\d+)$/);
+  go(h?Math.min(parseInt(h[1],10)-1,n-1):0);
+})();
+</script>
+</body>
+</html>
