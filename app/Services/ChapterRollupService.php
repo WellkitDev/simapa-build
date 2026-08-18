@@ -25,15 +25,21 @@ class ChapterRollupService
     /** Batas wilayah bab: buku di tahap ini atau sebelumnya masih ikut roll-up. */
     private const CHAPTER_ZONE_LIMIT = 'editing';
 
-    public function recalc(Title $book, ?User $actor = null): void
+    /**
+     * @return bool true bila ada yang benar-benar BERUBAH. Pemanggil yang melaporkan
+     *              jumlah (naskah:migrate-v2) memakai ini: ringkasan yang menghitung
+     *              buku "yang diperiksa" membuat sinkronisasi yang sudah selesai tetap
+     *              melaporkan baris, sehingga migrasi tampak tak pernah konvergen.
+     */
+    public function recalc(Title $book, ?User $actor = null): bool
     {
         if (! $this->isCollaborative($book)) {
-            return;
+            return false;
         }
 
         $statuses = $this->chapterStatuses($book);
         if ($statuses->isEmpty()) {
-            return;
+            return false;
         }
 
         $rolled = $this->bottleneck($statuses);
@@ -43,12 +49,13 @@ class ChapterRollupService
             ->map->titleProgress->filter();
 
         if ($progresses->isEmpty()) {
-            return;
+            return false;
         }
 
         $firstTimeDone = $done && $progresses->contains(fn (TitleProgress $p) => ! $p->chapters_done);
+        $berubah       = false;
 
-        DB::transaction(function () use ($progresses, $rolled, $done) {
+        DB::transaction(function () use ($progresses, $rolled, $done, &$berubah) {
             foreach ($progresses as $p) {
                 $attrs = ['chapters_done' => $done];
 
@@ -59,13 +66,21 @@ class ChapterRollupService
                     $attrs['started_at']    = now();
                 }
 
-                $p->update($attrs);
+                // fill+isDirty menggantikan update() supaya "berubah" dinilai dari
+                // atribut yang benar-benar bergeser, bukan dari fakta baris disentuh.
+                // Keduanya menyimpan hal yang sama: update() sendiri = fill()+save().
+                $p->fill($attrs);
+                $berubah = $berubah || $p->isDirty();
+                $p->save();
             }
         });
 
         if ($firstTimeDone) {
             $this->logChaptersDone($progresses->first(), $statuses->count(), $actor);
+            $berubah = true;
         }
+
+        return $berubah;
     }
 
     /**

@@ -207,18 +207,31 @@ class NaskahMigrateV2 extends Command
         return $n;
     }
 
+    /**
+     * @return int jumlah buku yang roll-up-nya BERUBAH — bukan yang diperiksa. Selisih
+     *             itu penting: deploy.sh menilai keberhasilan dari "sekali selaras,
+     *             jalan berikutnya nol perubahan".
+     */
     private function hitungRollup(): int
     {
         $rollup = app(ChapterRollupService::class);
         $buku   = \App\Models\Title::where('jenis', 'buku')->get()
             ->filter(fn ($b) => $rollup->isCollaborative($b));
 
-        if (! $this->dry) {
-            foreach ($buku as $b) {
-                $rollup->recalc($b);
+        // Uji coba harus melaporkan angka yang sama dengan jalan sesungguhnya. Roll-up
+        // tak punya penghitung terpisah yang bisa dipercaya (menghitungnya dua kali =
+        // dua sumber kebenaran yang bisa berselisih), jadi perubahannya benar-benar
+        // dijalankan lalu dibatalkan.
+        if ($this->dry) {
+            DB::beginTransaction();
+
+            try {
+                return $buku->filter(fn ($b) => $rollup->recalc($b))->count();
+            } finally {
+                DB::rollBack();
             }
         }
 
-        return $buku->count();
+        return $buku->filter(fn ($b) => $rollup->recalc($b))->count();
     }
 }

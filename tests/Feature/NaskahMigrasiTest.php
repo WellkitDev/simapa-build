@@ -192,6 +192,41 @@ class NaskahMigrasiTest extends TestCase
             'Menjalankan ulang migrasi tidak boleh menumpuk baris riwayat.');
     }
 
+    /**
+     * Angka pada ringkasan adalah alat verifikasi deploy: deploy.sh menilai
+     * keberhasilan dari "sekali selaras, jalan berikutnya nol perubahan". Langkah
+     * roll-up dulu mengembalikan jumlah buku yang DIPERIKSA, bukan yang BERUBAH,
+     * sehingga sinkronisasi yang sudah selesai tetap melaporkan baris — operator
+     * membacanya sebagai migrasi yang tak pernah konvergen.
+     *
+     * @test
+     */
+    public function laporan_roll_up_menghitung_yang_berubah_bukan_yang_diperiksa(): void
+    {
+        $p    = $this->progressLama(['status' => 'editing'], 'bk_kolab');
+        $book = $p->orderDetail->titleRef;
+
+        foreach (['menunggu_proses', 'layout'] as $i => $statusLama) {
+            $bab = $book->chapters()->create(['judul' => 'Bab ' . ($i + 1), 'urutan' => $i + 1]);
+            $bab->progress()->create(['status' => $statusLama, 'started_at' => now()]);
+        }
+
+        $this->artisan('naskah:migrate-v2')->assertSuccessful();
+
+        // Jalan kedua: data sudah selaras, jadi SETIAP langkah harus melaporkan nol.
+        $this->artisan('naskah:migrate-v2')
+            ->expectsTable(['Langkah', 'Baris'], [
+                ['Status "templating" → "editing"', 0],
+                ['Isi bidang dari tipe order', 0],
+                ['Pisahkan PJ (admin) & pelaksana', 0],
+                ['Naskah publish/terbit → arsip', 0],
+                ['Status bab lama → CHAPTER_STAGES', 0],
+                ['Selaraskan author bab dgn ordernya', 0],
+                ['Hitung ulang roll-up buku kolaborasi', 0],
+            ])
+            ->assertSuccessful();
+    }
+
     // ─── naskah:check-overdue ───
 
     /** @test */
