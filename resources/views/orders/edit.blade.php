@@ -222,6 +222,8 @@
                     <div class="card-body">
                         <h6 class="card-title">Informasi Tambahan</h6>
 
+                        @include('orders.partials.pemilik', ['terpilih' => $order->user_id])
+
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Issue Date</label>

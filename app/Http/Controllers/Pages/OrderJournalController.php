@@ -88,7 +88,7 @@ class OrderJournalController extends Controller
             'authors.*.affiliation' => 'nullable|string',
             'authors.*.position'   => 'required|integer|min:1',
             'note'               => 'nullable|string',
-        ]);
+        ] + app(\App\Services\OrderOwnerService::class)->aturanValidasi(Auth::user()));
 
         // Nama judul: prefix "new:" dipangkas, id dipetakan ke nama judulnya.
         $titleName = app(\App\Services\TitleService::class)->titleNameFrom($validate['title_id']);
@@ -126,7 +126,10 @@ class OrderJournalController extends Controller
                 // ORDER (HEAD)
                 $order = Order::create([
                     'code_order' => $codeOrder,
-                    'user_id' => Auth::user()->id,
+                    // Superadmin boleh menugaskan order ke marketing lain atau ke
+                    // dirinya sendiri; role lain selalu jadi pemiliknya sendiri.
+                    'user_id' => app(\App\Services\OrderOwnerService::class)
+                        ->tentukan(Auth::user(), $validate['user_id'] ?? null),
                     'status' => 'pending',
                     'note' => $validate['note'] ?? null,
                     'ordered_at' => $validate['issued_at'],
@@ -260,6 +263,10 @@ class OrderJournalController extends Controller
      */
     public function update(Request $request, string $code_order)
     {
+        // Pemilik sekarang ikut jadi nilai yang sah: order lama bisa dimiliki user
+        // non-marketing, dan menyimpan ulang nilai itu tak boleh ditolak.
+        $pemilikSekarang = Order::withTrashed()->where('code_order', $code_order)->first()?->user_id;
+
         $request->validate([
             'type'                  => 'required|in:at_mandiri,at_kolab',
             'title_id'              => 'required|string|max:300',
@@ -278,7 +285,7 @@ class OrderJournalController extends Controller
             'authors.*.affiliation' => 'nullable|string',
             'authors.*.position'    => 'required|integer|min:1',
             'note'                  => 'nullable|string',
-        ]);
+        ] + app(\App\Services\OrderOwnerService::class)->aturanValidasi(Auth::user(), $pemilikSekarang));
 
         $titleName = app(\App\Services\TitleService::class)->titleNameFrom($request->title_id);
         if ($titleName === '' || mb_strlen($titleName) > 255) {
@@ -297,6 +304,10 @@ class OrderJournalController extends Controller
                 $order->update([
                     'note'       => $request->note,
                     'ordered_at' => $request->issued_at,
+                    // Superadmin boleh memindahkan order ke marketing lain; role lain
+                    // tidak, jadi bagi mereka nilainya tetap seperti semula.
+                    'user_id' => app(\App\Services\OrderOwnerService::class)
+                        ->tentukanUntukPerubahan(Auth::user(), $request->input('user_id'), $order->user_id),
                 ]);
 
                 $detail = $order->details;
