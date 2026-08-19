@@ -44,6 +44,63 @@
             word-break: break-word;
             overflow-wrap: anywhere;
         }
+
+        /*
+         | Gulir mendatar kedua di ATAS tabel, menempel di bawah navbar.
+         |
+         | Gulir bawaan .table-responsive duduk di tepi BAWAH tabel. Pada tabel
+         | panjang, satu-satunya cara menggeser kolom adalah menggulir halaman
+         | sampai dasar tabel dulu — persis saat baris yang ingin dilihat sudah
+         | keluar layar. Salinan yang menempel ini membuat kendali geser selalu
+         | ada di tempat mata sedang bekerja.
+         |
+         | Gulir bawaan di bawah sengaja DIBIARKAN: ia tetap berguna saat orang
+         | memang sudah berada di dasar tabel, dan keduanya tersinkron.
+         */
+        .gulir-tabel-atas {
+            position: sticky;
+            top: 60px;          /* tinggi .page-wrapper .navbar yang position:fixed */
+            z-index: 970;       /* di bawah navbar (978), di atas isi kartu */
+            overflow-x: auto;
+            overflow-y: hidden;
+            height: 14px;
+            margin-bottom: 0.35rem;
+            background: #fff;
+            border-bottom: 1px solid #f2f4f9;
+        }
+
+        .gulir-tabel-atas > div {
+            height: 1px;
+        }
+
+        /* Batang gulir tipis tapi masih cukup lebar untuk ditarik dengan tetikus. */
+        .gulir-tabel-atas::-webkit-scrollbar {
+            height: 10px;
+        }
+
+        .gulir-tabel-atas::-webkit-scrollbar-thumb {
+            background: #c3cbd8;
+            border-radius: 6px;
+        }
+
+        .gulir-tabel-atas::-webkit-scrollbar-thumb:hover {
+            background: #a7b1c2;
+        }
+
+        .gulir-tabel-atas::-webkit-scrollbar-track {
+            background: #f2f4f9;
+            border-radius: 6px;
+        }
+
+        .gulir-tabel-atas {
+            scrollbar-width: thin;                 /* Firefox */
+            scrollbar-color: #c3cbd8 #f2f4f9;
+        }
+
+        /* Saat dicetak, kendali gulir tak punya arti. */
+        @media print {
+            .gulir-tabel-atas { display: none !important; }
+        }
     </style>
 
     @stack('style')
@@ -206,6 +263,109 @@
                 delete t.dataset.mengunggah;
             });
         });
+    })();
+    </script>
+
+    <script>
+    /*
+     | Salinan batang gulir mendatar yang menempel di atas tiap .table-responsive.
+     |
+     | Dipasang satu kali untuk SELURUH aplikasi (56 view memakai .table-responsive)
+     | supaya tak perlu diingat-ingat tiap kali ada tabel baru. Yang dipasang cuma
+     | salinan kendali: elemen yang benar-benar menggulir tetap wadah aslinya, jadi
+     | tak ada tata letak yang berubah dan wadah yang tak meluber tak kebagian apa pun.
+     |
+     | Berlaku juga untuk wadah gulir mendatar yang BUKAN tabel — papan zona Pelacakan
+     | Naskah adalah alasan fitur ini diminta — lewat atribut data-gulir-mendatar.
+     */
+    (function () {
+        function pasang(wadah) {
+            if (wadah.dataset.gulirAtas) return;
+
+            // Modal punya wadah gulirnya sendiri: "menempel 60px dari atas" di sana
+            // berarti 60px dari puncak isi modal, bukan di bawah navbar — bar-nya
+            // mengambang di tengah dialog. Tabel dalam modal juga pendek.
+            if (wadah.closest && wadah.closest('.modal')) return;
+
+            wadah.dataset.gulirAtas = '1';
+
+            var proksi = document.createElement('div');
+            proksi.className = 'gulir-tabel-atas';
+            // Duplikat kendali, bukan isi: disembunyikan dari pembaca layar, dan
+            // dikeluarkan dari urutan tab supaya tak jadi perhentian keyboard kosong
+            // (wadah yang bisa digulir memang fokusabel di sebagian peramban).
+            proksi.setAttribute('aria-hidden', 'true');
+            proksi.setAttribute('tabindex', '-1');
+            var isi = document.createElement('div');
+            proksi.appendChild(isi);
+            wadah.parentNode.insertBefore(proksi, wadah);
+
+            // Menyetel scrollLeft memicu event scroll di sisi lawan; tanpa penjaga
+            // ini keduanya saling mendorong dan gulirannya tersendat.
+            var sedangMenyalin = false;
+            function sambung(dari, ke) {
+                dari.addEventListener('scroll', function () {
+                    if (sedangMenyalin) return;
+                    sedangMenyalin = true;
+                    ke.scrollLeft = dari.scrollLeft;
+                    sedangMenyalin = false;
+                });
+            }
+            sambung(proksi, wadah);
+            sambung(wadah, proksi);
+
+            function selaraskan() {
+                var meluber = wadah.scrollWidth > wadah.clientWidth + 1;
+                proksi.style.display = meluber ? '' : 'none';
+                if (meluber) {
+                    isi.style.width = wadah.scrollWidth + 'px';
+                    proksi.scrollLeft = wadah.scrollLeft;
+                }
+            }
+
+            // Lebar tabel berubah di luar kendali kita: DataTables menggambar ulang,
+            // kolom disembunyikan, jendela diubah ukurannya, tabel dalam collapse baru
+            // punya lebar sesudah terbuka.
+            if (window.ResizeObserver) {
+                var pengamat = new ResizeObserver(selaraskan);
+                pengamat.observe(wadah);
+                if (wadah.firstElementChild) pengamat.observe(wadah.firstElementChild);
+            }
+            window.addEventListener('resize', selaraskan);
+
+            wadah.__selaraskanGulir = selaraskan;
+            selaraskan();
+        }
+
+        // .table-responsive dapat otomatis; apa pun yang menggulir mendatar tapi bukan
+        // tabel (mis. papan zona Pelacakan Naskah) ikut dengan menambahkan atribut
+        // data-gulir-mendatar pada wadah gulirnya.
+        var SASARAN = '.table-responsive, [data-gulir-mendatar]';
+
+        function sapu() {
+            document.querySelectorAll(SASARAN).forEach(function (wadah) {
+                pasang(wadah);
+                if (wadah.__selaraskanGulir) wadah.__selaraskanGulir();
+            });
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', sapu);
+        } else {
+            sapu();
+        }
+        window.addEventListener('load', sapu);
+
+        // Tabel yang tadinya tersembunyi baru punya lebar sesungguhnya setelah tampil.
+        document.addEventListener('shown.bs.collapse', sapu);
+        document.addEventListener('shown.bs.tab', sapu);
+        document.addEventListener('shown.bs.modal', sapu);
+
+        // DataTables menggambar ulang saat cari/urut/ganti halaman — lebar kolomnya
+        // bisa ikut berubah. Peristiwanya jQuery, jadi hanya dipasang bila jQuery ada.
+        if (window.jQuery) {
+            window.jQuery(document).on('draw.dt responsive-resize.dt column-visibility.dt', sapu);
+        }
     })();
     </script>
 </body>

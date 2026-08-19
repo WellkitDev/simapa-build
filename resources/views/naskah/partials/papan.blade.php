@@ -12,7 +12,10 @@
     ];
 @endphp
 
-<div class="d-flex gap-3 overflow-auto pb-2">
+{{-- data-gulir-mendatar: papan ini menggulir mendatar dan bisa jauh lebih lebar
+     dari layar. Tanpa penanda ini, satu-satunya batang gulir ada di tepi BAWAH
+     papan — tak terlihat selama orang membaca kartu di bagian atas. --}}
+<div class="d-flex gap-3 overflow-auto pb-2" data-gulir-mendatar>
     @foreach ($zona as $z)
         @php $w = $warnaZona[$z['warna']]; @endphp
         <div class="rounded-3 p-2 flex-shrink-0"
