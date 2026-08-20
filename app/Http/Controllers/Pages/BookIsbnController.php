@@ -85,11 +85,23 @@ class BookIsbnController extends Controller
     }
 
     /**
-     * Berkas wajib saat Cetak/Terbit, TAPI yang sudah pernah diunggah dihitung terisi —
-     * menyimpan ulang tak boleh memaksa memilih berkas yang sama sekali lagi. Slot mana
-     * yang wajib dibaca dari ManuscriptFile::BERKAS_ISBN, bukan didaftar ulang di sini.
+     * Berkas wajib saat Cetak/Terbit. Yang sudah pernah diunggah dihitung terisi —
+     * menyimpan ulang tak boleh memaksa memilih berkas yang sama lagi. Slot mana yang
+     * wajib dibaca dari ManuscriptFile::BERKAS_ISBN, bukan didaftar ulang di sini.
+     *
+     * Sejak unggahan pindah ke queue, hanya berkas berstatus 'selesai' yang dihitung.
+     * Menghitung yang masih 'antre' berarti order bisa berstatus Cetak/Terbit lalu
+     * unggahannya gagal — persis keadaan yang pemeriksaan ini dibuat untuk mencegah.
+     *
+     * Dipanggil SESUDAH simpanBerkas() supaya berkas yang baru dipilih sudah punya
+     * baris berstatus: kalau urutannya dibalik, submit yang ditolak akan membuang
+     * berkasnya dan orang harus memilih ulang berkas 20 MB.
+     *
+     * Menerima Title, bukan BookIsbn: pada store() registrasinya memang belum ada,
+     * jadi menanyakan berkas lewat BookIsbn selalu menjawab "tak ada" dan setiap
+     * pendaftaran Cetak akan ditolak walau berkasnya sudah lengkap.
      */
-    private function assertBerkasLengkap(Request $request, ?BookIsbn $isbn): void
+    private function assertBerkasLengkap(Request $request, ?Title $title): void
     {
         if ($request->input('status') !== 'cetak') {
             return;
@@ -100,10 +112,23 @@ class BookIsbnController extends Controller
             if (! $berkas['wajibCetak']) {
                 continue;
             }
-            if ($request->hasFile($slot) || ($isbn && $isbn->berkas($slot))) {
+
+            $ada = $title ? ManuscriptFile::where('title_id', $title->id)
+                ->whereNull('title_chapter_id')
+                ->where('slot', $slot)
+                ->orderByDesc('version')->first() : null;
+
+            if ($ada && $ada->selesai()) {
                 continue;
             }
-            $galat[$slot] = $berkas['label'] . ' wajib diunggah untuk status Cetak/Terbit.';
+
+            $galat[$slot] = match (true) {
+                $ada && $ada->antre() => $berkas['label'] . ' masih diunggah ke Drive di latar belakang. '
+                    . 'Berkasnya sudah tersimpan — tunggu sampai selesai (biasanya kurang dari semenit), '
+                    . 'lalu ubah statusnya jadi Cetak/Terbit.',
+                $ada && $ada->gagal()  => $berkas['label'] . ' gagal diunggah. Unggah ulang berkasnya dulu.',
+                default                => $berkas['label'] . ' wajib diunggah untuk status Cetak/Terbit.',
+            };
         }
 
         if ($galat !== []) {
@@ -119,10 +144,10 @@ class BookIsbnController extends Controller
             return back()->with('error', 'Buku sudah punya registrasi ISBN.');
         }
         $data = $this->validated($request);
-        $this->assertBerkasLengkap($request, null);
-        // Berkas naik DULU: unggahan yang gagal tak boleh meninggalkan registrasi
-        // Cetak/Terbit tanpa berkas — keadaan yang dilarang assertBerkasLengkap().
+        // Berkas diantrekan DULU, baru gerbangnya diperiksa: berkas yang sudah dipilih
+        // tak boleh hangus hanya karena statusnya belum boleh berubah.
         $this->simpanBerkas($request, $title);
+        $this->assertBerkasLengkap($request, $title);
 
         $data['title_id']   = $title->id;
         $data['created_by'] = Auth::id();
@@ -137,10 +162,10 @@ class BookIsbnController extends Controller
         $isbn  = BookIsbn::findOrFail($id);
         $title = $isbn->title()->first();
         $data  = $this->validated($request);
-        $this->assertBerkasLengkap($request, $isbn);
         if ($title) {
             $this->simpanBerkas($request, $title);
         }
+        $this->assertBerkasLengkap($request, $title);
         $isbn->update($data);
         $this->syncManuscript($isbn);
 

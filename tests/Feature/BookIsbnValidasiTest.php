@@ -211,23 +211,32 @@ class BookIsbnValidasiTest extends TestCase
     }
 
     /**
-     * Unggahan yang gagal tak boleh meninggalkan registrasi Cetak/Terbit tanpa berkas —
-     * keadaan yang justru dilarang aturan kelengkapan yang baru saja dipasang.
+     * Unggahan yang gagal tak boleh meninggalkan registrasi Cetak/Terbit tanpa berkas.
+     *
+     * Propertinya tak berubah, penegakannya yang pindah. Dulu Drive dipanggil di dalam
+     * request, jadi kegagalannya langsung melempar dan store() batal. Sejak unggahan
+     * masuk queue, Drive tak lagi tersentuh saat request — yang menahan sekarang adalah
+     * gerbang kelengkapan, yang hanya menghitung berkas berstatus 'selesai'.
      *
      * @test
      */
-    public function unggahan_gagal_tidak_meninggalkan_registrasi_tanpa_berkas(): void
+    public function berkas_yang_gagal_diunggah_tak_bisa_menaikkan_status_ke_cetak(): void
     {
-        // Drive menolak: uploadFile() mengembalikan null, service melempar.
-        $this->mock(\App\Services\GoogleDriveService::class, function ($m) {
-            $m->shouldReceive('uploadFile')->andReturn(null);
-        });
-
         $book = $this->buku();
 
+        // Dua berkas wajib sudah pernah dicoba, tapi berakhir gagal di Drive.
+        foreach (['ebook', 'barcode_isbn'] as $slot) {
+            \App\Models\ManuscriptFile::create([
+                'title_id' => $book->id, 'title_chapter_id' => null, 'slot' => $slot,
+                'status' => 'gagal', 'version' => 1, 'original_name' => $slot . '.pdf',
+                'upload_error' => 'token kedaluwarsa', 'uploaded_by' => $this->admin()->id,
+            ]);
+        }
+
+        // Tak memilih berkas baru — mengandalkan yang sudah ada, yang ternyata gagal.
         $this->actingAs($this->admin())
-            ->post(route('isbn.store'), $this->lengkap($book))
-            ->assertSessionHasErrors();
+            ->post(route('isbn.store'), $this->lengkap($book, ['ebook', 'barcode_isbn']))
+            ->assertSessionHasErrors(['ebook', 'barcode_isbn']);
 
         $this->assertDatabaseMissing('tb_book_isbns', ['title_id' => $book->id]);
     }

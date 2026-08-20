@@ -431,6 +431,60 @@ class Notifier
         return User::role($existing)->get()->reject(fn (User $u) => $u->id === $actor->id)->values();
     }
 
+    /**
+     * Unggahan berkas ke Drive gagal di queue.
+     *
+     * Sejak unggahan pindah ke belakang layar, kegagalannya tak lagi muncul sebagai
+     * galat di layar orang yang mengunggah — tanpa notifikasi ini ia hanya mengendap
+     * di failed_jobs, dan berkasnya tak pernah ada tanpa ada yang tahu.
+     *
+     * Penerimanya pengunggah DAN superadmin: pengunggah karena dialah yang perlu
+     * mengulang, superadmin karena kegagalan beruntun biasanya berarti token Drive
+     * bermasalah, bukan berkasnya.
+     */
+    public function unggahanGagal(\App\Models\ManuscriptFile $berkas, string $sebab): void
+    {
+        $penerima = User::query()
+            ->where('id', $berkas->uploaded_by)
+            ->orWhereHas('roles', fn ($q) => $q->where('name', 'superadmin'))
+            ->get();
+
+        $this->send($penerima, [
+            'category' => 'naskah',
+            'title'    => 'Unggahan berkas gagal',
+            'message'  => sprintf('%s (%s) — %s. Berkasnya masih tersimpan, coba unggah ulang.',
+                $berkas->original_name, $berkas->slotLabel(), \Illuminate\Support\Str::limit($sebab, 120)),
+            'url'      => route('title.show', $berkas->title_id),
+            'icon'     => 'alert-triangle',
+        ]);
+    }
+
+    /**
+     * Job pengiriman email gagal setelah semua percobaan habis.
+     *
+     * Tanpa ini kegagalan berhenti di tabel failed_jobs — tempat yang tak pernah
+     * dibuka siapa pun — sehingga invoice atau slip gaji tercatat "terkirim" di layar
+     * padahal tak pernah sampai, dan yang pertama tahu adalah penerimanya.
+     *
+     * Penerima notifikasi = superadmin: kegagalan email hampir selalu urusan setelan
+     * (SMTP, kuota, alamat salah), bukan sesuatu yang bisa diperbaiki pemakai biasa.
+     */
+    public function pengirimanGagal(string $apa, ?string $rujukan, string $sebab, ?string $url = null): void
+    {
+        $penerima = User::whereHas('roles', fn ($q) => $q->where('name', 'superadmin'))->get();
+
+        $this->send($penerima, [
+            'category' => 'sistem',
+            'title'    => 'Pengiriman email gagal',
+            'message'  => trim(sprintf('%s%s gagal dikirim — %s',
+                $apa,
+                $rujukan ? ' ' . $rujukan : '',
+                \Illuminate\Support\Str::limit($sebab, 160))),
+            'url'      => $url ?? route('dashboard'),
+            'icon'     => 'alert-octagon',
+        ]);
+    }
+
     private function toOwner(?User $owner, User $actor, array $payload): void
     {
         if (! $owner || $owner->id === $actor->id) {

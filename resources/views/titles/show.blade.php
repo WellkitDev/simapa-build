@@ -353,8 +353,20 @@
                                         @endif
                                     </label>
                                     <input type="file" name="{{ $slot }}" class="form-control form-control-sm" accept="{{ $b['accept'] }}">
-                                    @if($tersimpan)
+                                    @if($tersimpan && $tersimpan->selesai())
                                         <div class="form-text"><a href="{{ $tersimpan->drive_url }}" target="_blank" rel="noopener">{{ $tersimpan->original_name }}</a> · v{{ $tersimpan->version }} · {{ $tersimpan->uploader?->name ?? '—' }}</div>
+                                    @elseif($tersimpan && $tersimpan->antre())
+                                        {{-- Berkasnya sudah tersimpan di server; yang belum selesai adalah
+                                             pengirimannya ke Drive. Statusnya belum boleh naik ke Cetak. --}}
+                                        <div class="form-text text-warning">
+                                            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                            {{ $tersimpan->original_name }} sedang diunggah… Anda bisa lanjut mengerjakan yang lain.
+                                        </div>
+                                    @elseif($tersimpan && $tersimpan->gagal())
+                                        <div class="form-text text-danger">
+                                            {{ $tersimpan->original_name }} gagal diunggah — {{ \Illuminate\Support\Str::limit($tersimpan->upload_error, 90) }}
+                                            <br>Pilih berkasnya lagi untuk mengulang.
+                                        </div>
                                     @else
                                         <div class="form-text">Belum ada berkas.</div>
                                     @endif

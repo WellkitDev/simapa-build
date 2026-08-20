@@ -135,9 +135,36 @@ class ManuscriptFile extends Model
     }
 
     protected $fillable = [
-        'title_id', 'title_chapter_id', 'slot', 'version',
-        'original_name', 'drive_file_id', 'drive_url', 'file_size', 'uploaded_by',
+        'title_id', 'title_chapter_id', 'slot', 'status', 'version',
+        'original_name', 'drive_file_id', 'drive_url', 'local_path', 'upload_error',
+        'file_size', 'uploaded_by',
     ];
+
+    /** Sudah benar-benar mendarat di Drive — satu-satunya keadaan yang boleh dihitung "ada". */
+    public function selesai(): bool
+    {
+        return $this->status === 'selesai';
+    }
+
+    public function antre(): bool
+    {
+        return $this->status === 'antre';
+    }
+
+    public function gagal(): bool
+    {
+        return $this->status === 'gagal';
+    }
+
+    /** Keterangan singkat untuk ditampilkan menggantikan tautan yang belum ada. */
+    public function statusKeterangan(): string
+    {
+        return match ($this->status) {
+            'antre' => 'Sedang diunggah…',
+            'gagal' => 'Gagal diunggah',
+            default => '',
+        };
+    }
 
     public function title() { return $this->belongsTo(Title::class); }
     public function chapter() { return $this->belongsTo(TitleChapter::class, 'title_chapter_id'); }

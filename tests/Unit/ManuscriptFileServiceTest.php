@@ -17,11 +17,23 @@ class ManuscriptFileServiceTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * Mock WAJIB dipasang di container, bukan disuntik ke konstruktor.
+     *
+     * Sejak unggahan pindah ke queue, yang memanggil Drive bukan lagi service ini
+     * melainkan UnggahBerkasKeDrive — dan job itu me-resolve GoogleDriveService dari
+     * container. Menyuntik mock ke konstruktor membuat service-nya bersih tapi
+     * job-nya memakai service SUNGGUHAN, sehingga test benar-benar mengunggah
+     * berkas ke Google Drive milik pengguna. Sudah pernah terjadi.
+     */
     private function service(): ManuscriptFileService
     {
-        $drive = Mockery::mock(GoogleDriveService::class);
-        $drive->shouldReceive('uploadFile')->andReturn(['id' => 'drv1', 'name' => 'n', 'url' => 'http://drive/n.pdf']);
-        return new ManuscriptFileService($drive);
+        $this->mock(GoogleDriveService::class, function ($m) {
+            $m->shouldReceive('uploadFile')
+                ->andReturn(['id' => 'drv1', 'name' => 'n', 'url' => 'http://drive/n.pdf']);
+        });
+
+        return app(ManuscriptFileService::class);
     }
 
     private function book(): Title
@@ -41,8 +53,16 @@ class ManuscriptFileServiceTest extends TestCase
 
         $this->assertSame(1, $f1->version);
         $this->assertSame(2, $f2->version);
-        $this->assertSame('http://drive/n.pdf', $f2->drive_url);
         $this->assertSame($actor->id, $f2->uploaded_by);
+
+        // Kontrak berubah: upload() MENGANTREKAN, tak lagi mengembalikan berkas yang
+        // sudah mendarat di Drive. Baris yang dikembalikan masih 'antre' dan belum
+        // punya URL; UnggahBerkasKeDrive yang mengisinya. Di test queue-nya sync
+        // (phpunit.xml), jadi job itu sudah jalan saat dispatch — karena itu nilai
+        // barunya baru terlihat sesudah fresh().
+        $this->assertSame('antre', $f2->status);
+        $this->assertNull($f2->drive_url);
+        $this->assertSame('http://drive/n.pdf', $f2->fresh()->drive_url);
     }
 
     /** @test */

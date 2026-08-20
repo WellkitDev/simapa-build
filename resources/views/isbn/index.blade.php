@@ -30,7 +30,19 @@
                         <td>{{ $b->bookIsbn?->no_isbn ?: '—' }}</td>
                         @foreach(array_keys(\App\Models\ManuscriptFile::BERKAS_ISBN) as $slot)
                             @php $f = $berkas[$b->id . ':' . $slot] ?? null; @endphp
-                            <td>@if($f && $f->drive_url)<a href="{{ $f->drive_url }}" target="_blank" rel="noopener">Unduh</a>@else—@endif</td>
+                            {{-- Sejak unggahan masuk queue, "ada barisnya" tak sama dengan "berkasnya
+                                 sudah bisa diunduh". Tautan hanya untuk yang benar-benar mendarat. --}}
+                            <td>
+                                @if($f && $f->selesai() && $f->drive_url)
+                                    <a href="{{ $f->drive_url }}" target="_blank" rel="noopener">Unduh</a>
+                                @elseif($f && $f->antre())
+                                    <span class="badge bg-warning text-dark">Sedang diunggah…</span>
+                                @elseif($f && $f->gagal())
+                                    <span class="badge bg-danger" title="{{ $f->upload_error }}">Gagal</span>
+                                @else
+                                    —
+                                @endif
+                            </td>
                         @endforeach
                         <td>@if($b->bookIsbn?->link_terbit)<a href="{{ $b->bookIsbn->link_terbit }}" target="_blank" rel="noopener">Buka</a>@else—@endif</td>
                         <td>@if($b->bookIsbn)<span class="badge bg-info">{{ $b->bookIsbn->statusLabel() }}</span>@else<span class="badge bg-light text-dark border">Belum didaftarkan</span>@endif</td>
