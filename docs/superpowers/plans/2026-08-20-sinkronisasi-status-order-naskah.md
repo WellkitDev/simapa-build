@@ -765,6 +765,10 @@ baris sekaligus) — menambah query per judul akan mengembalikan N+1 yang sudah 
 
 - [ ] **Step 5: Perbarui `groupOf()` di `TitleProgressService`**
 
+Task 3 sudah mengubah method ini (eager-load `orderDetail.order` + komentarnya).
+**Jangan tulis ulang seluruh method** — cukup sisipkan satu baris `whereNull`, sehingga
+hasil akhirnya:
+
 ```php
     /** @return Collection<int,TitleProgress> */
     private function groupOf(TitleProgress $progress): Collection
@@ -774,7 +778,10 @@ baris sekaligus) — menambah query per judul akan mengembalikan N+1 yang sudah 
             return collect([$progress]);
         }
 
-        return TitleProgress::with('orderDetail')
+        // `orderDetail.order` ikut dimuat: applyStatus() menyinkronkan order tiap
+        // anggota grup, dan tanpa ini setiap anggota menembak SELECT-nya sendiri di
+        // dalam transaksi.
+        return TitleProgress::with('orderDetail.order')
             ->whereNull('withdrawn_at')
             ->whereHas('orderDetail', fn ($q) => $q->where('group_key', $key))
             ->get();
@@ -807,15 +814,18 @@ baris sekaligus) — menambah query per judul akan mengembalikan N+1 yang sudah 
 
 Di setiap baris berikut, sisipkan `->notWithdrawn()` tepat setelah `orderDetails()`:
 
-| Berkas | Baris | Sebelum → Sesudah |
+Nomor baris di bawah adalah **perkiraan** — Task 3 sudah menggeser sebagian. Cari polanya,
+jangan percaya nomornya: `grep -rn "orderDetails()->with('titleProgress')" app/`
+
+| Berkas | Baris (±) | Sebelum → Sesudah |
 |---|---|---|
-| `app/Services/AssignmentService.php` | 362 | `->orderDetails()->with('titleProgress')` → `->orderDetails()->notWithdrawn()->with('titleProgress')` |
-| `app/Services/ChapterRollupService.php` | 48 | idem |
-| `app/Services/ChapterManuscriptService.php` | 35 | idem |
-| `app/Services/ChapterManuscriptService.php` | 89 | idem |
-| `app/Services/ChapterManuscriptService.php` | 103 | idem |
-| `app/Services/ManuscriptFileService.php` | 97 | idem |
-| `app/Services/TitleProgressService.php` | 188 | idem |
+| `app/Services/AssignmentService.php` | ~362 | `->orderDetails()->with('titleProgress')` → `->orderDetails()->notWithdrawn()->with('titleProgress')` |
+| `app/Services/ChapterRollupService.php` | ~48 | idem |
+| `app/Services/ChapterManuscriptService.php` | ~35 | idem |
+| `app/Services/ChapterManuscriptService.php` | ~89 | idem |
+| `app/Services/ChapterManuscriptService.php` | ~103 | idem |
+| `app/Services/ManuscriptFileService.php` | ~97 | idem |
+| `app/Services/TitleProgressService.php` | ~188 | idem |
 
 Contoh hasil di `ChapterManuscriptService.php:89`:
 
