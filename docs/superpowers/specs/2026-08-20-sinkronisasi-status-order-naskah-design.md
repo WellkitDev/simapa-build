@@ -51,7 +51,7 @@ sudah terbit.
 | | Temuan | Kelompok |
 |---|---|---|
 | A1 | Jurnal tak punya sinkronisasi apa pun; `submitted/loa/published` dan tahap `submit/loa/publish` adalah kembar yang tak saling bicara | Terbit |
-| **A2** | **Order tak pernah "selesai". `completed_at` tidak pernah ditulis di mana pun**, padahal dibaca `DailyReportService` → Laporan Harian selamanya kosong | **Tulang Punggung** |
+| **A2** | **Order tak pernah "selesai". `completed_at` tidak pernah ditulis di mana pun** — order tak punya cara menyatakan naskahnya sudah terbit (lihat koreksi §1.4) | **Tulang Punggung** |
 | A3 | Order jadi `lunas` **sebelum** pembayaran disetujui (`PaymentBookController::store()`) | Uang |
 | A4 | `lunas` tak dihitung ulang saat `cost_amount` order diedit | Uang |
 | A5 | Invoice `jatuh_tempo` manual; `isOverdue()` ada tapi tak ada scheduled command | Uang |
@@ -62,6 +62,37 @@ sudah terbit.
 | A10 | Nilai status tersebar sebagai literal; `Order` dan `Payment` tak punya `const STATUSES` | Uang |
 | **A11** | **`TitleArchive` berstatus `draft` tidak pernah dibuat kode mana pun** → ubin dashboard "Arsip Menunggu Artefak" selalu 0 | **Tulang Punggung** |
 | **A12** | **`/management/archive` hanya menampilkan judul yang sudah punya baris arsip.** `archive.show` tak ditaut dari halaman lain → praktis tak ada pintu masuk untuk mengajukan arsip | **Tulang Punggung** |
+
+### 1.4 Koreksi: siapa sebenarnya pembaca `completed_at`
+
+Versi pertama dokumen ini menyatakan `tb_orders.completed_at` dibaca `DailyReportService`
+sehingga Laporan Harian selamanya kosong. **Itu salah.** `DailyReportService` membaca
+`Task::completed_at` (tugas harian pegawai), bukan kolom milik order.
+
+Pembaca sebenarnya satu-satunya adalah `FinancialReportService::orderSelesai()`, yang
+menyurfacekannya sebagai kolom **"Tanggal Lunas"** di Laporan Keuangan, PDF, dan ekspor CSV:
+
+```php
+$o->tanggal_lunas = $o->completed_at ?? $o->updated_at;
+```
+
+Karena `completed_at` selama ini SELALU null, cabang `?? $o->updated_at` selalu menang dan
+tak seorang pun pernah melihat cabang satunya.
+
+**Dua akibat yang mengubah pekerjaan:**
+
+1. Begitu `completed_at` mulai terisi, ia bocor ke laporan **uang** sebagai tanggal lunas —
+   padahal isinya tanggal **pekerjaan**. Itu persis percampuran yang K3 dibuat untuk
+   mencegah. Karena itu `FinancialReportService` dilepas dari kolom ini, kembali ke
+   `updated_at` yang memang selama ini benar-benar tampil. Tanggal lunas yang sebenarnya
+   harus datang dari payment — masuk **Kelompok Uang**, bukan pekerjaan ini.
+
+2. `Order` masih memakai `protected $dates` yang mati sejak Laravel 10, jadi `completed_at`
+   kembali sebagai string, bukan Carbon. Kolomnya harus pindah ke `$casts` atau justru
+   kolom "Tanggal Lunas" jadi kosong.
+
+Lubang A2 sendiri tetap nyata dan pekerjaannya tidak berubah: kolomnya memang tak pernah
+ditulis, dan order memang tak punya keadaan "selesai". Hanya alasan yang dikutip yang keliru.
 
 ---
 
