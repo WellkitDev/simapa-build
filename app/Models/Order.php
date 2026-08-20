@@ -15,8 +15,18 @@ class Order extends Model
 
     protected $table = 'tb_orders';
 
+    /** Keadaan UANG. Dibaca Laporan Keuangan & Piutang — jangan tambahi nilai baru. */
+    public const STATUSES = ['pending', 'lunas', 'dibatalkan'];
+
+    /**
+     * Keadaan PEKERJAAN. `ditarik` = order di-refund penuh dan tak lagi dihitung
+     * sebagai bagian judul. Ditulis HANYA oleh OrderFulfillmentService dan
+     * OrderWithdrawalService.
+     */
+    public const FULFILLMENTS = ['berjalan', 'selesai', 'ditarik', 'dibatalkan'];
+
     protected $fillable = [
-        'code_order', 'user_id', 'status',
+        'code_order', 'user_id', 'status', 'fulfillment_status',
         'note', 'ordered_at', 'completed_at',
         'cancel_reason', 'cancelled_by', 'cancelled_at',
     ];
@@ -81,6 +91,12 @@ class Order extends Model
     public function isCancelled(): bool
     {
         return $this->status === 'dibatalkan' || $this->trashed();
+    }
+
+    /** Order ditarik dari judul karena refund penuh. */
+    public function isWithdrawn(): bool
+    {
+        return $this->fulfillment_status === 'ditarik';
     }
 
     /**
