@@ -2031,10 +2031,71 @@ Expected: mayoritas `berjalan`, sebagian `selesai`, dan jumlah `dibatalkan` sama
 Tanpa langkah ini aplikasi live 500 di kolom yang belum ada — test hijau memakai DB test,
 bukan `avidpedi_simapa`.
 
+- [ ] **Step 3b: Rekonsiliasi untuk rebuild dari dump v1**
+
+Ditemukan saat review Task 3: `ImportV1Command` menulis `tb_title_progress` lewat
+`DB::table()->insert()` massal (baris ~165), melewati Eloquent sepenuhnya — jadi hook
+`syncFromProgress()` tak pernah jalan untuk baris impor. Dan migrasi backfill di atas
+**tidak menolong**: ia sudah selesai jauh sebelum `simapa:import-v1` dijalankan. Tanpa
+langkah ini, dev DB yang dibangun ulang dari dump v1 menampilkan naskah terbit di atas
+order yang masih `berjalan`.
+
+Di `app/Console/Commands/ImportV1Command.php`, di dalam `handle()`, sisipkan pemanggilan
+tepat setelah `$this->seedProgressAndLogs();`:
+
+```php
+        $this->reconcileFulfillment();
+```
+
+Lalu tambahkan method ini ke kelas yang sama. SQL-nya sengaja menyalin migrasi backfill —
+keduanya menjawab pertanyaan yang sama untuk dua jalur masuk yang berbeda:
+
+```php
+    /**
+     * Selaraskan tb_orders.fulfillment_status dengan tahap naskah hasil impor.
+     *
+     * seedProgressAndLogs() menulis tb_title_progress lewat DB::table()->insert() massal,
+     * jadi hook OrderFulfillmentService::syncFromProgress() tak pernah jalan untuk baris
+     * impor. Migrasi backfill juga tak menolong: ia sudah selesai sebelum command ini
+     * dijalankan. Tanpa langkah ini, naskah v1 yang sudah terbit duduk di atas order
+     * yang masih 'berjalan'.
+     */
+    private function reconcileFulfillment(): void
+    {
+        DB::statement("
+            UPDATE tb_orders o
+            JOIN tb_order_details d ON d.order_id = o.id
+            JOIN tb_title_progress p ON p.order_detail_id = d.id
+            SET o.fulfillment_status = 'selesai',
+                o.completed_at = COALESCE(o.completed_at, p.archived_at, p.updated_at)
+            WHERE p.status IN ('terbit', 'publish')
+              AND o.fulfillment_status = 'berjalan'
+        ");
+
+        DB::statement("
+            UPDATE tb_orders o
+            JOIN tb_payments pay ON pay.order_id = o.id
+            SET o.fulfillment_status = 'ditarik'
+            WHERE pay.payment_type = 'refund' AND pay.status = 'paid'
+        ");
+
+        DB::statement("
+            UPDATE tb_orders
+            SET fulfillment_status = 'dibatalkan'
+            WHERE status = 'dibatalkan' OR deleted_at IS NOT NULL
+        ");
+
+        $this->line('  Status pekerjaan order diselaraskan dengan tahap naskah.');
+    }
+```
+
+Pastikan `use Illuminate\Support\Facades\DB;` sudah ada di berkas itu (kemungkinan besar
+sudah, karena command ini penuh operasi DB mentah).
+
 - [ ] **Step 4: Commit**
 
 ```bash
-git add database/migrations/2026_08_20_000004_backfill_order_fulfillment.php
+git add database/migrations/2026_08_20_000004_backfill_order_fulfillment.php app/Console/Commands/ImportV1Command.php
 git commit -m "order: data lama ikut menyandang status pekerjaan"
 ```
 
