@@ -64,10 +64,29 @@ class GoogleDriveService
 
         if($this->client()->isAccessTokenExpired())
         {
-           $token = $this->client()->fetchAccessTokenWithRefreshToken(config('filesystems.disks.disks.google.refreshToken'));
+           $token = $this->client()->fetchAccessTokenWithRefreshToken(config('filesystems.disks.google.refreshToken'));
         }
 
         return $token['access_token'];
+    }
+
+    /**
+     * Panggilan termurah yang membuktikan kredensial Drive masih sah.
+     *
+     * Seluruh unggahan berkas bergantung pada satu refresh token. Kalau token itu
+     * dicabut atau kedaluwarsa, tak ada yang meledak — unggahan hanya diam-diam
+     * berhenti bekerja, dan sebabnya cuma muncul di laravel.log. Perintah terjadwal
+     * memanggil method ini supaya kematian token ketahuan sebelum ada yang mengeluh.
+     *
+     * Sengaja MELEMPAR, tidak mengembalikan false: sebab kegagalan adalah bagian
+     * paling berguna dari kabarnya, dan uploadFile() sudah menunjukkan betapa
+     * mudahnya sebab hilang kalau exception ditelan.
+     */
+    public function cekKesehatan(): bool
+    {
+        $this->service()->files->listFiles(['pageSize' => 1, 'fields' => 'files(id)']);
+
+        return true;
     }
 
     /*

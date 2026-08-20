@@ -40,6 +40,24 @@ class Kernel extends ConsoleKernel
         //
         // Tanpa baris ini seluruh job ShouldQueue — email invoice, refund, slip gaji,
         // invoice layanan — masuk tabel `jobs` lalu diam selamanya tanpa pesan galat.
+        // Berkas yang gagal diunggah meninggalkan salinan lokal supaya bisa diulang.
+        // Tanpa pembersihan berkala, "bisa diulang" berarti menumpuk selamanya —
+        // dan berkas naskah 20 MB akan menghabiskan kuota hosting.
+        $schedule->command('unggahan:prune')
+            ->weekly()
+            ->appendOutputTo(storage_path('logs/unggahan-prune.log'));
+
+        // Drive = titik gagal tunggal untuk SELURUH unggahan berkas. Token yang mati
+        // tak menjatuhkan apa pun; unggahan cuma berhenti bekerja. Sekali sehari cukup
+        // untuk menemukannya lebih dulu daripada pengguna, tanpa jadi kebisingan.
+        //
+        // Sengaja SESUDAH jam kerja dimulai (08:00): notifikasinya perlu dibaca orang
+        // di hari yang sama, bukan menumpuk semalaman.
+        $schedule->command('drive:cek-kesehatan')
+            ->dailyAt('08:00')
+            ->withoutOverlapping()
+            ->appendOutputTo(storage_path('logs/drive-kesehatan.log'));
+
         $schedule->command('queue:work --stop-when-empty --max-time=50 --tries=3')
             ->everyMinute()
             ->withoutOverlapping()
