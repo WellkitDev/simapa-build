@@ -7,6 +7,7 @@ use App\Models\InvoiceLog;
 use App\Models\Order;
 use App\Models\Tagihan;
 use App\Models\TagihanLog;
+use App\Models\TitleChapter;
 use App\Models\TitleProgress;
 use App\Models\User;
 use Carbon\Carbon;
@@ -42,16 +43,26 @@ class OrderCancellationService
             $this->cancelPayments($order, $actor);
             $this->cancelInvoices($order, $actor);
 
+            // WAJIB sebelum progress-nya di-soft-delete: snapshotnya ditulis ke baris
+            // progress itu sendiri, dan baris yang sudah terhapus tak lagi terjangkau
+            // relasi biasa.
+            $this->lepasPenulisBab($order);
+
             $detailIds = $order->details()->pluck('id');
 
             TitleProgress::whereIn('order_detail_id', $detailIds)->delete();
             $order->details()->delete();
 
             $order->update([
-                'status'        => 'dibatalkan',
-                'cancel_reason' => $reason,
-                'cancelled_by'  => $actor->id,
-                'cancelled_at'  => now(),
+                'status'             => 'dibatalkan',
+                // Keadaan PEKERJAAN ikut ditutup di sini, bukan diserahkan ke
+                // OrderFulfillmentService: progress-nya baru saja soft-deleted, jadi
+                // syncFromProgress() tak akan pernah terpicu lagi untuk order ini dan
+                // kolomnya akan mengendap di 'berjalan' selamanya.
+                'fulfillment_status' => 'dibatalkan',
+                'cancel_reason'      => $reason,
+                'cancelled_by'       => $actor->id,
+                'cancelled_at'       => now(),
             ]);
             $order->delete();
 
@@ -93,22 +104,113 @@ class OrderCancellationService
             $detailIds = $order->details()->pluck('id');
             TitleProgress::onlyTrashed()->whereIn('order_detail_id', $detailIds)->restore();
 
+            // Setelah progress-nya hidup lagi: snapshotnya tersimpan di baris itu, dan
+            // $order->fresh() dipakai supaya relasi detail/progress dibaca ulang dari
+            // DB — instance lama masih memegang keadaan sebelum di-restore.
+            $this->pasangPenulisBab($order->fresh());
+
             $this->restorePayments($order);
             $this->restoreInvoices($order, $actor);
 
             $order->update([
-                'status'        => $this->statusAfterRestore($order),
-                'cancel_reason' => null,
-                'cancelled_by'  => null,
-                'cancelled_at'  => null,
+                'status'             => $this->statusAfterRestore($order),
+                // 'berjalan' hanyalah keadaan sementara supaya syncFromProgress() mau
+                // bekerja sama sekali — ia PULANG LEBIH AWAL untuk order `dibatalkan`.
+                // Tahap naskah yang sebenarnyalah yang menentukan berjalan/selesai, dan
+                // itu ditentukan tepat di bawah, setelah transaksi ditutup.
+                'fulfillment_status' => 'berjalan',
+                'cancel_reason'      => null,
+                'cancelled_by'       => null,
+                'cancelled_at'       => null,
             ]);
         });
+
+        // Order tanpa detail/progress tidak punya tahap naskah untuk diselaraskan;
+        // 'berjalan' di atas sudah jawaban akhirnya.
+        $progress = $order->fresh()->details?->titleProgress;
+        if ($progress !== null) {
+            app(OrderFulfillmentService::class)->syncFromProgress($progress);
+        }
 
         try {
             app(Notifier::class)->orderRestored($order, $actor);
         } catch (\Throwable $e) {
             Log::warning('Notifikasi pemulihan order gagal: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Cabut penulis order ini dari babnya, dengan menyimpan snapshotnya lebih dulu di
+     * `tb_title_progress.withdrawal_snapshot` supaya restore() bisa memasangnya kembali.
+     *
+     * Tanpa ini penulis dari order yang dibatalkan tetap tercantum di babnya SELAMANYA:
+     * ChapterAuthorService::remapFromOrders() sengaja MELEWATI bab yang ordernya sudah
+     * hilang, jadi ia tak akan pernah membersihkannya.
+     *
+     * Kolom snapshot-nya sengaja dipakai bersama OrderWithdrawalService (bentuk arraynya
+     * sama persis): satu order tak mungkin ditarik DAN dibatalkan — penarikan selalu
+     * lahir dari refund, dan Order::isCancellable() menutup pembatalan begitu ada refund.
+     *
+     * BEDA dari lepasBab() milik penarikan: di sini tidak ada BATAS_CABUT. Penarikan
+     * menolak mencabut bab buku yang sudah ber-ISBN (karyanya sudah terlanjur resmi),
+     * sedangkan pembatalan berarti ordernya memang tidak pernah sah — penulisnya harus
+     * turun apa pun tahapnya. Status bab pun tidak dimundurkan ke 'menunggu': pembatalan
+     * bukan pernyataan bahwa pekerjaan babnya harus diulang dari nol.
+     */
+    private function lepasPenulisBab(Order $order): void
+    {
+        $detail = $order->details;
+        if ($detail === null || $detail->type !== 'bk_kolab') {
+            return;
+        }
+
+        $chapter = $detail->titleRef?->chapters()
+            ->where('urutan', (int) $detail->chapters)->first();
+        if ($chapter === null) {
+            return;
+        }
+
+        // Penulis dibaca SEBELUM detach — snapshot inilah satu-satunya jalan pulang.
+        $progress = $detail->titleProgress;
+        if ($progress !== null) {
+            $progress->update(['withdrawal_snapshot' => [
+                'chapter_id'     => $chapter->id,
+                'authors'        => $chapter->authors()->get()
+                                        ->map(fn ($a) => ['id' => $a->id, 'position' => $a->pivot->position])
+                                        ->all(),
+                'chapter_status' => optional($chapter->progress)->status,
+                'pelaksana_id'   => optional($chapter->progress)->pelaksana_user_id,
+            ]]);
+        }
+
+        $chapter->authors()->detach();
+    }
+
+    /**
+     * Kebalikan lepasPenulisBab(): pasang kembali dari snapshot, lalu buang snapshotnya.
+     *
+     * Membuangnya bukan sekadar kerapian — kolomnya dipakai berulang kali, dan snapshot
+     * yang tertinggal akan membuat pembatalan berikutnya memulangkan susunan penulis
+     * versi lama.
+     */
+    private function pasangPenulisBab(Order $order): void
+    {
+        $progress = $order->details?->titleProgress;
+        $snapshot = $progress?->withdrawal_snapshot;
+        if ($snapshot === null) {
+            return;
+        }
+
+        $chapter = TitleChapter::find($snapshot['chapter_id'] ?? null);
+        if ($chapter !== null) {
+            $pivot = [];
+            foreach ($snapshot['authors'] ?? [] as $a) {
+                $pivot[$a['id']] = ['position' => $a['position']];
+            }
+            $chapter->authors()->sync($pivot);
+        }
+
+        $progress->update(['withdrawal_snapshot' => null]);
     }
 
     /**
