@@ -1,7 +1,7 @@
 # TODO — Tambahan Pelacakan Naskah & Arsip
 
 **Dibuat:** 2026-08-21 · **Diperbarui:** 2026-08-21 (poin 3–5 ditambahkan)
-**Status:** Ditangkap, belum dirancang — keputusan terbuka di §6
+**Status:** Keputusan LENGKAP (§6) — siap dijadikan rencana implementasi
 **Konteks:** lanjutan dari branch `feat/sinkronisasi-status-order-naskah`
 
 Dokumen ini **menangkap** permintaan supaya tidak hilang. Ia belum rencana implementasi:
@@ -26,7 +26,7 @@ Yang diminta: informasi yang sama **tampil dan bisa langsung diperbarui** di `/n
 - [ ] Panel baru di `resources/views/naskah/detail.blade.php`
 - [ ] Redirect harus kembali ke `naskah.show`, bukan ke halaman judul — butuh `_redirect`
       tersembunyi atau `back()`
-- [ ] Gerbang izin: PJ (admin) dan pelaksana (production) belum tentu punya `title.info` — §6.C
+- [x] Gerbang izin (§6.C): `@can('title.info')` — admin sudah memilikinya, production read-only
 - [ ] Untuk buku kolaborasi panel ini **level judul**, bukan per-order — sebutkan di UI
 
 ---
@@ -43,7 +43,7 @@ Keadaan sekarang:
 | Buku | `tb_book_isbns.link_terbit` | Ya tapi **bocor** — `BookIsbnController` mewajibkannya untuk status `cetak`, tapi `advance()` dari `cetak` → `terbit` tak memeriksa apa pun |
 | Jurnal | `tb_journal_submissions.link_publish` | **Tidak sama sekali** — Direktori Jurnal tak tersambung ke tahap naskah (temuan A1) |
 
-- [ ] Putuskan tempat penyimpanan (§6.A)
+- [x] Tempat penyimpanan diputuskan (§6.A): `tb_titles.link_terbit` + cermin ke direktori
 - [ ] Field "Link Artikel Terbit" di `/naskah/{id}`, muncul saat `nextStage()` final
 - [ ] Gerbang di `TitleProgressService::advance()`, sejajar `assertLayoutUnlocked()`
 - [ ] Gerbang **wajib** ikut menutup `ChapterManuscriptService::advanceBookToStage()`
@@ -75,11 +75,11 @@ Task 11 menambahkan kolom **Pekerjaan** di sebelahnya (`Berjalan` / `Selesai` / 
 `Dibatalkan`) yang sudah menjawab pertanyaannya — tapi dua kolom berdampingan itu kini
 terbaca berulang dan bisa tampak bertentangan ("Diproses" + "Selesai" di satu baris).
 
-- [ ] Putuskan bentuknya (§6.E) — gabung dua kolom, atau perbaiki label kolom lama
+- [x] Bentuk diputuskan (§6.E): dua kolom dipertahankan, kolom lama jadi **Pembayaran**
 - [ ] Apa pun pilihannya, **jangan** menambah nilai baru ke `tb_orders.status`; itu
       melanggar K3 dan merusak Laporan Keuangan + Piutang. Ini murni soal tampilan
-- [ ] Istilah yang diminta user: "Selesai" / "Arsip" / "Terbit" — pilih SATU dan pakai
-      konsisten; "Arsip" dan "Terbit" berarti dua hal berbeda (lihat §6.E)
+- [ ] Lima nilai: `Menunggu` / `DP` / `Lunas` / `Dibatalkan` / `Refund` — lihat §6.E
+      untuk urutan menang dan jebakan `isLunas()`
 
 ---
 
@@ -139,52 +139,67 @@ Penegasan poin 2 khusus jalur artikel: di `/naskah/{id}`, tombol menuju `publish
 
 ---
 
-## 6. Keputusan yang masih terbuka
+## 6. Keputusan — SUDAH DIAMBIL (2026-08-21)
 
-### A. Di mana link artikel terbit disimpan?
+### A+B. Link terbit: disimpan di judul, menyambung ke direktori bila bisa
 
-1. **Kolom baru `tb_titles.link_terbit`** — satu tempat untuk kedua jenis; link itu milik
-   KARYA, bukan satu order (buku 20 order = satu link). Biaya: tumpang tindih dengan dua
-   kolom yang sudah ada.
-2. **Pakai ulang yang ada** — tak menambah kolom, tapi butuh baris induk yang mungkin belum
-   dibuat, dan jurnal wajib punya `JournalSubmission` yang hari ini sepenuhnya manual.
-3. **Kolom di `tb_title_progress`** — salah tempat: per-order, padahal linknya satu per judul.
+Gabungan dua pendekatan, karena link terbit adalah bagian dari **Informasi Publikasi
+judul** — jadi ia ikut aturan yang sama: diisi di `/titles/{id}`, dan kalau belum, bisa
+diisi langsung di `/naskah/{id}`.
 
-Condong ke **1**, dengan prefill dari 2.
+- Kolom baru **`tb_titles.link_terbit`** = sumber kanonik untuk KEDUA jenis.
+- Prefill saat kosong: `BookIsbn.link_terbit` (buku), `JournalSubmission.link_publish`
+  (artikel). Data yang sudah diisi di modul lain tak perlu diketik ulang.
+- Menyimpan dari `/naskah/{id}`:
+  - **selalu** menulis `tb_titles.link_terbit`;
+  - artikel: bila sebuah jurnal dipilih ATAU baris `JournalSubmission` sudah ada, tulis
+    juga `link_publish` di sana (buat barisnya bila jurnal dipilih).
+- **Jurnal yang belum terdaftar di direktori TIDAK menghalangi publish.** `journal_id`
+  tetap NOT NULL — tak ada perubahan skema di modul jurnal; sambungan ke direktori
+  terjadi ketika bisa, bukan sebagai prasyarat.
+- Gerbang naik ke final membaca `tb_titles.link_terbit`, dengan fallback ke dua sumber
+  lama supaya buku yang sudah mengisi form ISBN tidak ikut terkunci.
 
-### B. Gerbangnya untuk jurnal saja, atau buku juga?
+Gerbangnya berlaku untuk **kedua jenis**: buku hanya menambal kebocoran `advance()`
+(`cetak` → `terbit`), artikel mendapat gerbang yang selama ini tak ada sama sekali.
 
-Buku sudah mewajibkan `link_terbit` di form ISBN, jadi memasang gerbang untuk buku sebagian
-besar hanya menambal kebocoran `advance()`. Condong ke **keduanya** — gerbang yang berlaku
-separuh justru membingungkan.
+### C. Yang boleh mengedit Informasi Publikasi dari layar naskah: **admin**
 
-### C. Siapa yang boleh mengedit Informasi Publikasi dari layar naskah?
+Tak butuh pekerjaan tambahan — `admin` **sudah** memegang `title.info` dan `journal.*`
+(`AccessMatrixSeeder`). Panel cukup digerbangi `@can('title.info')`; `production`
+(pelaksana) otomatis melihatnya read-only. Tidak ada perluasan hak akses.
 
-`title.info` belum tentu dipegang PJ (admin) maupun pelaksana (production) — perlu dicek di
-`AccessMatrixSeeder`. Kalau panelnya read-only bagi mereka, permintaan "dapat diupdate
-langsung" tidak terpenuhi. Kalau dibuka, itu perluasan hak akses yang harus disengaja.
+### D. Naskah yang sudah terbit tanpa link
 
-### D. Naskah yang SUDAH terbit tanpa link
+Diterima apa adanya — gerbang hanya berlaku di jalur maju, naskah lama tidak diusik.
 
-Gerbang hanya berlaku di jalur maju, jadi naskah lama tetap final tanpa link. Diterima
-apa adanya, atau perlu daftar "naskah terbit tanpa link" supaya bisa dilengkapi menyusul?
+### E. Kolom status di /management/order
 
-### E. Bentuk kolom status di /management/order
+Dua kolom dipertahankan; kolom lama diperbaiki labelnya jadi **Pembayaran** dengan lima
+nilai yang diturunkan (BUKAN kolom baru — `tb_orders.status` tak boleh ditambahi nilai,
+itu melanggar K3):
 
-1. **Gabung jadi satu kolom** yang menampilkan keadaan paling informatif
-   (`Dibatalkan` > `Ditarik` > `Selesai` > `Menunggu`/`Diproses`). Paling ringkas, tapi
-   menyembunyikan keadaan uang saat pekerjaannya sudah selesai.
-2. **Pertahankan dua kolom, perbaiki labelnya** — ganti judul kolom lama jadi "Pembayaran"
-   dengan nilai `Menunggu` / `Lunas` / `Dibatalkan`. Menghapus kata "Diproses" yang
-   menyesatkan tanpa kehilangan informasi. **Condong ke sini.**
-3. Biarkan dua kolom apa adanya — permintaan tidak terpenuhi.
+| Nilai | Diturunkan dari |
+|---|---|
+| `Menunggu` | belum ada payment masuk sama sekali |
+| `DP` | ada payment masuk, tapi `sisa > 0` |
+| `Lunas` | `sisa <= 0` |
+| `Dibatalkan` | `isCancelled()` |
+| `Refund` | ada payment `payment_type = 'refund'` yang `paid` |
 
-Istilah "Arsip" vs "Terbit" vs "Selesai" juga harus dipilih: `Selesai` = naskah final;
-`Arsip` = arsip judulnya sudah **disetujui** manager (langkah manual terpisah, bisa lama
-menyusul). Keduanya tidak sama, dan memakai "Arsip" berarti kolom ini ikut menunggu
-persetujuan manusia.
+Kolom **Pekerjaan** (Task 11) tetap apa adanya di sebelahnya.
 
----
+Urutan menang saat lebih dari satu benar: `Dibatalkan` > `Refund` > `Lunas` > `DP` >
+`Menunggu`.
+
+**Catatan penting:** `Lunas` di sini WAJIB memakai perhitungan uang (`biaya − paidNet`),
+bukan `Order::isLunas()` — jalan pintas invoice membuat satu DP terbaca lunas (lihat
+memori `sinkronisasi-status-order-naskah`). Kalau tidak, kolom ini akan menampilkan
+`Lunas` untuk order yang baru bayar DP, dan nilai `DP` tak akan pernah muncul.
+
+Istilah "Arsip"/"Terbit" tidak dipakai di kolom ini: `Selesai` (kolom Pekerjaan) sudah
+berarti naskah final, sedangkan "Arsip" menuntut persetujuan manager yang bisa lama
+menyusul.
 
 ## 7. Catatan pengerjaan
 
