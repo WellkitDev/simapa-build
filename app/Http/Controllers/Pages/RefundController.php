@@ -75,6 +75,12 @@ class RefundController extends Controller
             'refunded_by'    => Auth::id(),
         ]);
 
+        // Refund PENUH = penulisnya mundur: ordernya ditarik dari judul supaya tak lagi
+        // menahan bottleneck naskah atau menuntut pelunasan penulis lain sejudul.
+        // Refund sebagian sengaja tidak menarik apa pun.
+        app(\App\Services\OrderWithdrawalService::class)
+            ->withdraw($order, $payment, Auth::user());
+
         SendRefundJob::dispatch($payment->id);
         app(Notifier::class)->refundIssued($payment, Auth::user());
 

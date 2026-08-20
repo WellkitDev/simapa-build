@@ -44,6 +44,8 @@ class TitleProgressLog extends Model
         'overdue_reason_set'  => 'Alasan keterlambatan',
         'auto_advance_upload' => 'Maju otomatis (upload naskah)',
         'chapters_done'       => 'Semua bab selesai',
+        'penarikan'           => 'Ditarik (refund)',
+        'batal_penarikan'     => 'Batalkan penarikan',
     ];
 
     public function eventLabel(): string
