@@ -41,7 +41,7 @@
                                 @foreach ($authors as $author)
                                     <tr>
                                         <td>{{ $author->name }}</td>
-                                        <td>{{ $author->affiliation ?: '-' }}</td>
+                                        <td class="dt-afiliasi">{{ $author->affiliation ?: '-' }}</td>
                                         <td>
                                             @if ($author->email)
                                                 <a href="mailto:{{ $author->email }}">{{ $author->email }}</a>

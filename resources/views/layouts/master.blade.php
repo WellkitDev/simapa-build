@@ -46,6 +46,31 @@
         }
 
         /*
+         | Kolom afiliasi pada daftar penulis. Tabelnya berkelas `nowrap`, yang memaksa
+         | tiap sel jadi satu baris — jadi afiliasi terpanjang (111 karakter) merentang
+         | ratusan piksel dan mendorong kolom lain keluar layar.
+         |
+         | Catatan: komentar di blok <style> ini IKUT TERKIRIM ke peramban di setiap
+         | halaman, jadi jangan menuliskan nama menu persis di sini — SidebarTest
+         | memeriksa menu yang tak boleh terlihat dengan mencocokkan teks halaman,
+         | dan label menu yang bocor lewat komentar membuatnya gagal.
+         |
+         | Dibungkus, bukan dipotong: afiliasi dipakai untuk membedakan orang bernama
+         | mirip, jadi memotongnya di tengah justru menghilangkan bagian yang
+         | membedakan (nama universitasnya sering ada di belakang). Lebarnya diambil
+         | dari data nyata — rata-rata 32 karakter, jadi mayoritas tetap satu baris
+         | dan hanya yang panjang yang turun ke baris kedua.
+         */
+        table.dataTable td.dt-afiliasi,
+        table td.dt-afiliasi {
+            white-space: normal !important;
+            max-width: 240px;
+            min-width: 160px;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+        }
+
+        /*
          | Gulir mendatar kedua di ATAS tabel, menempel di bawah navbar.
          |
          | Gulir bawaan .table-responsive duduk di tepi BAWAH tabel. Pada tabel
