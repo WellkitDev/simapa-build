@@ -248,6 +248,19 @@ RefundController::store()
   lencana, tapi bab dan penulis **tidak diubah**. Uang kembali, karya sudah terlanjur
   resmi.
 
+**Catatan implementasi (2026-08-20).** Kalimat "orderForChapter() otomatis menunjuk order
+baru" di atas ternyata **belum benar saat spec ini ditulis** dan baru menjadi benar setelah
+diperbaiki. `Title::orderForChapter()` tidak menyaring order yang ditarik, sehingga ia terus
+menunjuk order lama. Akibatnya `ChapterAuthorService::seedFromOrders()` — yang berjalan
+setiap kali halaman judul dibuka lewat `TitleController::show()` — melihat bab yang baru
+dikosongkan, bertanya siapa pemesannya, dan **memasang kembali penulis yang baru saja
+dicabut**. Pencabutan bab jadi hiasan yang batal sendiri di tampilan berikutnya.
+
+Saringannya dipasang di `orderForChapter()` sendiri, bukan di tiap pemanggil: keempat
+pemanggilnya sudah memperlakukan `null` sebagai "babnya belum dipesan siapa pun", dan itu
+persis arti yang benar untuk bab yang penulisnya mundur. Dikunci
+`OrderWithdrawalTest::penulis_yang_dicabut_tidak_dipasang_ulang_saat_judul_dibuka`.
+
 Tiga bentuk order diperlakukan berbeda:
 
 | Bentuk | Yang terjadi saat refund penuh |
