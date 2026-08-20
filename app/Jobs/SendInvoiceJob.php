@@ -96,4 +96,31 @@ class SendInvoiceJob implements ShouldQueue
             unlink($tempPath);
         }
     }
+
+    /**
+     * Dipanggil queue sesudah semua percobaan habis.
+     *
+     * Tanpa method ini kegagalan hanya menjadi baris di tabel failed_jobs, yang tak
+     * pernah dibuka siapa pun — email tak sampai tanpa ada yang tahu.
+     *
+     * Sengaja tahan banting: pencarian datanya boleh gagal (barisnya bisa saja sudah
+     * dihapus). failed() yang ikut melempar membuat kegagalannya hilang sama sekali.
+     */
+    public function failed(\Throwable $e): void
+    {
+        $rujukan = null;
+
+        try {
+            $rujukan = \App\Models\Invoice::find($this->invoiceId)?->invoice_number
+                ?? ('#' . $this->invoiceId);
+        } catch (\Throwable) {
+            $rujukan = null;
+        }
+
+        \Illuminate\Support\Facades\Log::error('Invoice gagal dikirim', [
+            'pesan' => $e->getMessage(),
+        ]);
+
+        app(\App\Services\Notifier::class)->pengirimanGagal('Invoice', $rujukan, $e->getMessage());
+    }
 }

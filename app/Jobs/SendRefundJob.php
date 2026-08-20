@@ -56,4 +56,30 @@ class SendRefundJob implements ShouldQueue
             Mail::to($email)->send(new RefundMail($refund, $data, $pdfOut));
         }
     }
+
+    /**
+     * Dipanggil queue sesudah semua percobaan habis.
+     *
+     * Tanpa method ini kegagalan hanya menjadi baris di tabel failed_jobs, yang tak
+     * pernah dibuka siapa pun — email tak sampai tanpa ada yang tahu.
+     *
+     * Sengaja tahan banting: pencarian datanya boleh gagal (barisnya bisa saja sudah
+     * dihapus). failed() yang ikut melempar membuat kegagalannya hilang sama sekali.
+     */
+    public function failed(\Throwable $e): void
+    {
+        $rujukan = null;
+
+        try {
+            $rujukan = 'pembayaran #' . $this->paymentId;
+        } catch (\Throwable) {
+            $rujukan = null;
+        }
+
+        \Illuminate\Support\Facades\Log::error('Bukti refund gagal dikirim', [
+            'pesan' => $e->getMessage(),
+        ]);
+
+        app(\App\Services\Notifier::class)->pengirimanGagal('Bukti refund', $rujukan, $e->getMessage());
+    }
 }
