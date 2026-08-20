@@ -185,7 +185,7 @@ class TitleProgressService
     /** Riwayat bab menempel pada TitleProgress buku — satu linimasa per naskah. */
     private function logChapter(ChapterProgress $chapter, string $event, string $from, string $to, User $actor, ?string $note): void
     {
-        $progress = $chapter->chapter?->title?->orderDetails()->with('titleProgress')->get()
+        $progress = $chapter->chapter?->title?->orderDetails()->notWithdrawn()->with('titleProgress')->get()
             ->map->titleProgress->filter()->first();
 
         if (! $progress) {
@@ -305,6 +305,7 @@ class TitleProgressService
         // anggota grup, dan tanpa ini setiap anggota menembak SELECT-nya sendiri di
         // dalam transaksi.
         return TitleProgress::with('orderDetail.order')
+            ->whereNull('withdrawn_at')
             ->whereHas('orderDetail', fn ($q) => $q->where('group_key', $key))
             ->get();
     }
@@ -412,8 +413,11 @@ class TitleProgressService
             ? TitleProgress::BOOK_STAGES
             : TitleProgress::ARTICLE_STAGES;
 
+        // Bab yang dijual ulang setelah penulis sebelumnya mundur harus mulai bersih:
+        // jangan warisi tahap maupun pelaksana dari order yang sudah ditarik.
         $sibling = OrderDetail::where('group_key', $detail->group_key)
             ->where('id', '!=', $detail->id)
+            ->notWithdrawn()
             ->whereHas('titleProgress')
             ->with('titleProgress')
             ->get()

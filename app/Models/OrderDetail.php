@@ -69,6 +69,27 @@ class OrderDetail extends Model
     }
 
     /**
+     * Detail yang ordernya masih dihitung sebagai bagian judul — mengecualikan order
+     * yang ditarik karena refund penuh.
+     *
+     * Dipasang di SETIAP tempat yang menjelajah "semua order sejudul". Tanpa ini satu
+     * refund menahan bottleneck judul (manuscriptStatus) dan mematikan kelayakan arsip
+     * (isPaidOff) untuk SELURUH penulis lain — buku 20 bab, satu penulis mundur, arsip
+     * mati permanen buat 19 sisanya.
+     *
+     * `whereDoesntHave` sengaja: detail yang BELUM punya baris progress sama sekali
+     * harus tetap ikut terhitung (order baru yang progressnya menyusul). Menuliskannya
+     * sebagai `whereHas(... whereNull)` akan membuang mereka diam-diam.
+     */
+    public function scopeNotWithdrawn($query)
+    {
+        return $query->whereDoesntHave(
+            'titleProgress',
+            fn ($q) => $q->whereNotNull('withdrawn_at')
+        );
+    }
+
+    /**
      * Naskahnya dikirim sendiri oleh author, bukan ditulis tim produksi.
      * Menentukan apakah tahap Pembuatan relevan sama sekali — order mandiri
      * melompatinya begitu file masuk.

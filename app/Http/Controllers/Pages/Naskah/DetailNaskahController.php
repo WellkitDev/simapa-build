@@ -434,7 +434,12 @@ class DetailNaskahController extends Controller
             return collect([$progress]);
         }
 
+        // Harus persis sama saringannya dengan TitleProgressService::groupOf(): banner
+        // ini menjanjikan "berlaku untuk N order", jadi order yang ditarik tak boleh
+        // ikut dihitung — kalau tidak, angkanya lebih besar dari yang benar-benar
+        // bergerak saat tombolnya ditekan.
         return TitleProgress::with('orderDetail.order.user')
+            ->whereNull('withdrawn_at')
             ->whereHas('orderDetail', fn ($q) => $q->where('group_key', $key))
             ->get();
     }

@@ -55,8 +55,17 @@ class TitleArchiveService
 
     public function summarize(Collection $details): object
     {
+        // Order yang ditarik (refund penuh) tidak ikut menentukan tahap maupun jumlah
+        // penulis grup — cermin dari Title::manuscriptStatus(). Kalau SELURUH order
+        // ternyata ditarik, kembali memakai himpunan penuh: barisnya tetap harus bisa
+        // dirender, bukan menghilang atau meledak.
+        $aktif = $details->reject(fn (OrderDetail $d) => optional($d->titleProgress)->withdrawn_at !== null);
+        if ($aktif->isEmpty()) {
+            $aktif = $details;
+        }
+
         // Representative = most recently updated variant; tie-break by largest id.
-        $repr = $details
+        $repr = $aktif
             ->sort(fn (OrderDetail $a, OrderDetail $b) =>
                 ($this->lastUpdateOf($b)->timestamp <=> $this->lastUpdateOf($a)->timestamp)
                     ?: ($b->id <=> $a->id))
@@ -65,7 +74,7 @@ class TitleArchiveService
         $pipeline = $this->pipelineClass($repr->type);
         $stages   = $this->stagesFor($pipeline);
 
-        $statuses = $details->map(fn (OrderDetail $d) =>
+        $statuses = $aktif->map(fn (OrderDetail $d) =>
             optional($d->titleProgress)->status ?? 'menunggu_proses');
 
         // Bottleneck = status with the smallest stage index.
@@ -79,7 +88,7 @@ class TitleArchiveService
             'title'             => $repr->title,
             'type'              => $repr->type,
             'type_label'        => $pipeline === 'buku' ? 'Buku' : 'Artikel',
-            'total_author'      => $details
+            'total_author'      => $aktif
                                     ->flatMap(fn (OrderDetail $d) => $d->authors->pluck('id'))
                                     ->unique()
                                     ->count(),

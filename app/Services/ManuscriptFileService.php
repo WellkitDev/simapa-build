@@ -94,7 +94,7 @@ class ManuscriptFileService
             return;
         }
 
-        $progress = $title->orderDetails()->with('titleProgress')->get()
+        $progress = $title->orderDetails()->notWithdrawn()->with('titleProgress')->get()
             ->map->titleProgress->filter()->first();
 
         if ($progress) {

@@ -175,7 +175,13 @@ class Title extends Model
     {
         $stages = $this->jenis === 'buku' ? TitleProgress::BOOK_STAGES : TitleProgress::ARTICLE_STAGES;
 
+        // Order yang ditarik (refund penuh) tak boleh ikut menentukan bottleneck —
+        // satu penulis yang mundur akan menahan tahap seluruh buku selamanya.
+        // Disaring lewat koleksi, BUKAN scope: $this->orderDetails di sini sudah
+        // di-eager load pemanggilnya (Direktori Judul memuat ratusan baris sekaligus),
+        // dan mengubahnya jadi query akan memulangkan N+1 yang sudah dibereskan.
         $statuses = $this->orderDetails
+            ->reject(fn ($d) => optional($d->titleProgress)->withdrawn_at !== null)
             ->map(fn ($d) => optional($d->titleProgress)->status)
             ->filter();
 
@@ -218,10 +224,20 @@ class Title extends Model
         return $this->hasMany(TitleArchiveArtifact::class)->orderBy('position');
     }
 
-    /** Semua order tertaut sudah lunas (tak ada sisa/DP). */
+    /**
+     * Semua order tertaut sudah lunas (tak ada sisa/DP).
+     *
+     * Order yang ditarik diabaikan: uangnya sudah dikembalikan, jadi menuntutnya lunas
+     * berarti satu refund mematikan kelayakan arsip judul untuk semua penulis lain.
+     * Sama seperti manuscriptStatus(), disaring lewat koleksi supaya tidak menambah
+     * query per judul di daftar yang sudah eager-load.
+     */
     public function isPaidOff(): bool
     {
-        $orders = $this->orderDetails->map->order->filter()->unique('id');
+        $orders = $this->orderDetails
+            ->reject(fn ($d) => optional($d->titleProgress)->withdrawn_at !== null)
+            ->map->order->filter()->unique('id');
+
         return $orders->isNotEmpty() && $orders->every(fn ($o) => $o->isLunas());
     }
 

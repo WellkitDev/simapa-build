@@ -45,7 +45,7 @@ class ChapterRollupService
         $rolled = $this->bottleneck($statuses);
         $done   = $statuses->every(fn (string $s) => $s === 'selesai');
 
-        $progresses = $book->orderDetails()->with('titleProgress')->get()
+        $progresses = $book->orderDetails()->notWithdrawn()->with('titleProgress')->get()
             ->map->titleProgress->filter();
 
         if ($progresses->isEmpty()) {

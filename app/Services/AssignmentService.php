@@ -298,6 +298,7 @@ class AssignmentService
         }
 
         return TitleProgress::with(['orderDetail', 'pj', 'pelaksana'])
+            ->whereNull('withdrawn_at')
             ->whereHas('orderDetail', fn ($q) => $q->where('group_key', $key))
             ->get();
     }
@@ -359,7 +360,7 @@ class AssignmentService
     /** Riwayat bab menempel pada TitleProgress buku (satu linimasa per naskah). */
     private function logChapter(ChapterProgress $cp, string $event, ?string $from, ?string $to, User $actor, ?string $note): void
     {
-        $progress = $cp->chapter?->title?->orderDetails()->with('titleProgress')->get()
+        $progress = $cp->chapter?->title?->orderDetails()->notWithdrawn()->with('titleProgress')->get()
             ->map->titleProgress->filter()->first();
 
         if (! $progress) {

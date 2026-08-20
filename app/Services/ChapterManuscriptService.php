@@ -32,7 +32,7 @@ class ChapterManuscriptService
         }
 
         $seedStatus = optional(
-            $book->orderDetails()->with('titleProgress')->get()
+            $book->orderDetails()->notWithdrawn()->with('titleProgress')->get()
                 ->map->titleProgress->filter()->first()
         )->status ?? 'menunggu_proses';
 
@@ -86,7 +86,7 @@ class ChapterManuscriptService
         }
 
         // TitleProgress tiap order-variant (sumber manuscriptStatus) — maju-saja.
-        foreach ($book->orderDetails()->with('titleProgress')->get() as $detail) {
+        foreach ($book->orderDetails()->notWithdrawn()->with('titleProgress')->get() as $detail) {
             $tp = $detail->titleProgress;
             if (! $tp) {
                 continue;
@@ -109,7 +109,7 @@ class ChapterManuscriptService
         }
 
         if ($moved) {
-            $progress = $book->orderDetails()->with('titleProgress')->get()->map->titleProgress->filter()->first();
+            $progress = $book->orderDetails()->notWithdrawn()->with('titleProgress')->get()->map->titleProgress->filter()->first();
             if ($progress) {
                 TitleProgressLog::create([
                     'title_progress_id' => $progress->id,
