@@ -67,7 +67,9 @@ class BookIsbnController extends Controller
             'tgl_terbit.required'        => 'Tgl Terbit wajib diisi untuk status Cetak/Terbit.',
             'link_terbit.required'       => 'Link terbit wajib diisi untuk status Cetak/Terbit.',
             'link_terbit.url'            => 'Link terbit harus berupa alamat web lengkap (diawali https://).',
-        ]);
+        // Pesan unggahan diturunkan dari BERKAS_ISBN supaya slot baru tak pernah
+        // kembali memakai pesan bawaan Inggris yang tak menyebut sebab.
+        ] + ManuscriptFile::pesanIsbn());
 
         // Berkas ditangani terpisah lewat ManuscriptFileService — jangan sampai ikut
         // masuk ke BookIsbn::create()/update() sebagai kolom.

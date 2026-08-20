@@ -82,7 +82,7 @@ class DailyReportController extends Controller
     {
         $data = $request->validate([
             'date' => 'required|date',
-            'file' => 'required|file|mimes:jpg,jpeg,png,gif,webp,pdf,doc,docx,xls,xlsx|max:10240',
+            'file' => 'required|file|mimes:jpg,jpeg,png,gif,webp,pdf,doc,docx,xls,xlsx|max:' . \App\Support\BatasUnggah::kb(10240),
         ]);
 
         $report = $this->service->getOrCreateReport(Auth::user(), Carbon::parse($data['date']));

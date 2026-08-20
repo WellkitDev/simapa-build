@@ -365,7 +365,14 @@
                                 <input type="url" name="link_terbit" value="{{ old('link_terbit', optional($isbn)->link_terbit) }}" class="form-control form-control-sm" placeholder="https://avidpedia.com/...">
                             </div>
                         </div>
-                        <div class="form-text mt-2">Mengunggah ulang menambah versi baru — berkas lama tetap tersimpan.</div>
+                        {{-- Batas diambil dari batasKb(), yaitu nilai terkecil antara plafon
+                             aplikasi dan upload_max_filesize/post_max_size server. Menuliskan
+                             angka tetap di sini berarti menjanjikan sesuatu yang belum tentu
+                             ditepati server tempat aplikasi dipasang. --}}
+                        <div class="form-text mt-2">
+                            Mengunggah ulang menambah versi baru — berkas lama tetap tersimpan.
+                            Maksimal <strong>{{ \App\Models\ManuscriptFile::batasManusia() }}</strong> per berkas.
+                        </div>
                     </div>
 
                     <button type="submit" class="btn btn-sm btn-primary mt-2">Simpan Registrasi ISBN</button>

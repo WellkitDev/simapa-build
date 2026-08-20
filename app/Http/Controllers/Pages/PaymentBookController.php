@@ -96,7 +96,7 @@ class PaymentBookController extends Controller
             'dued_at'        => 'required|date|after_or_equal:issued_at',
             'status'         => 'required|in:dp,lunas,pelunasan',
             'pay_amount'     => 'required|numeric|min:1',
-            'proof_url'      => 'required|file|mimes:jpg,jpeg,png,pdf|max:10240',
+            'proof_url'      => 'required|file|mimes:jpg,jpeg,png,pdf|max:' . \App\Support\BatasUnggah::kb(10240),
         ]);
 
         $order = Order::with(['details', 'contact'])
@@ -234,7 +234,7 @@ class PaymentBookController extends Controller
             'amount'       => 'required|numeric|min:1',
             'payment_type' => 'required|in:dp,lunas,pelunasan',
             'paid_at'      => 'required|date',
-            'proof_url'    => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240',
+            'proof_url'    => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:' . \App\Support\BatasUnggah::kb(10240),
         ]);
 
         $strukUrl = $payment->proof_url;

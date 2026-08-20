@@ -109,7 +109,7 @@ class DataAssetController extends Controller
             'description'    => 'nullable|string',
             'type'           => 'required|in:link,file',
             'url'            => [$creating ? 'required_if:type,link' : 'nullable', 'nullable', 'url', 'max:1000'],
-            'file'           => [$creating ? 'required_if:type,file' : 'nullable', 'nullable', 'file', 'mimes:xlsx,xls,csv', 'max:10240'],
+            'file'           => [$creating ? 'required_if:type,file' : 'nullable', 'nullable', 'file', 'mimes:xlsx,xls,csv', 'max:' . \App\Support\BatasUnggah::kb(10240)],
             'visibility'     => 'required|in:private,shared',
             'shared_roles'   => 'nullable|array',
             'shared_roles.*' => 'string',

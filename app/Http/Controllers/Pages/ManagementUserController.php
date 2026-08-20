@@ -62,7 +62,7 @@ class ManagementUserController extends Controller
             'birth_date' => 'nullable|date',
             'job_title' => 'nullable|string|max:255',
             'department' => 'nullable|string|max:255',
-            'profile_picture' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'profile_picture' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:' . \App\Support\BatasUnggah::kb(2048),
         ];
 
         if(!$request->has('generate_password')) {
@@ -189,7 +189,7 @@ class ManagementUserController extends Controller
             'birth_date' => 'nullable|date',
             'job_title' => 'nullable|string|max:255',
             'department' => 'nullable|string|max:255',
-            'profile_picture' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'profile_picture' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:' . \App\Support\BatasUnggah::kb(2048),
 
         ]);
 

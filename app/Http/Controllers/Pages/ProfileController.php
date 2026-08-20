@@ -93,7 +93,7 @@ class ProfileController extends Controller
             'birth_date' => 'nullable|date',
             'job_name' => 'nullable|string|max:255',
             'job_description' => 'nullable|string|max:255',
-            'profile_picture' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'profile_picture' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:' . \App\Support\BatasUnggah::kb(2048),
         ]);
 
         $user = User::findOrFail(Auth::id());

@@ -205,7 +205,7 @@ class DetailNaskahController extends Controller
     {
         $request->validate([
             'slot' => 'required|in:' . implode(',', array_keys(ManuscriptFile::SLOTS)),
-            'file' => 'required|file|mimes:pdf,doc,docx,zip|max:20480',
+            'file' => 'required|file|mimes:pdf,doc,docx,zip|max:' . \App\Support\BatasUnggah::kb(20480),
         ]);
         $progress = $this->progress($id);
         $title    = $progress->orderDetail->titleRef;
@@ -261,7 +261,7 @@ class DetailNaskahController extends Controller
     {
         $request->validate([
             'slot' => 'required|in:' . implode(',', array_keys(ManuscriptFile::SLOTS)),
-            'file' => 'required|file|mimes:pdf,doc,docx,zip|max:20480',
+            'file' => 'required|file|mimes:pdf,doc,docx,zip|max:' . \App\Support\BatasUnggah::kb(20480),
         ]);
         $chapter = ChapterProgress::with('chapter.title')->findOrFail($cp);
 

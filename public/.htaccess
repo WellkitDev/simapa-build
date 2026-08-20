@@ -1,7 +1,7 @@
 # Berkas sensitif yang kadang tertinggal di dalam webroot. `public/error_log`
 # misalnya bisa diunduh siapa saja dan membocorkan path absolut server
 # (/home/avidpedi/...) beserta struktur vendor.
-<FilesMatch "(?i)(^\.env|^error_log$|^composer\.(json|lock)$|\.(sql|sqlite|bak|backup|old|orig|save|swp|log|sh|dist)$)">
+<FilesMatch "(?i)(^\.env|^\.user\.ini$|^error_log$|^composer\.(json|lock)$|\.(sql|sqlite|bak|backup|old|orig|save|swp|log|sh|dist)$)">
     <IfModule mod_authz_core.c>
         Require all denied
     </IfModule>
