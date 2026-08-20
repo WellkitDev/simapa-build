@@ -218,4 +218,60 @@ class OrderFulfillmentTest extends TestCase
         $this->assertTrue($updatedAt->equalTo($baris->tanggal_lunas));
         $this->assertFalse($baris->completed_at->equalTo($baris->tanggal_lunas));
     }
+
+    /**
+     * Rekonsiliasi massal dipakai dua jalur yang tak bisa memakai hook per-baris:
+     * migrasi backfill data lama dan `simapa:import-v1`. Keduanya menulis lewat SQL
+     * mentah, jadi tak ada satu pun test lain yang menyentuh logika ini — dan DB dev
+     * kebetulan nol naskah terbit, nol refund, nol pembatalan, sehingga menjalankannya
+     * di sana tak membuktikan apa pun.
+     *
+     * Yang dikunci di sini adalah URUTAN MENANGnya: selesai < ditarik < dibatalkan.
+     *
+     * @test
+     */
+    public function rekonsiliasi_massal_menghormati_urutan_menang(): void
+    {
+        // (a) naskah terbit, tak ada apa-apa lagi → selesai
+        $a = $this->naskah('publish');
+        $a->orderDetail->order->update(['fulfillment_status' => 'berjalan']);
+
+        // (b) naskah terbit TAPI sudah di-refund → ditarik menang atas selesai
+        $b = $this->naskah('publish');
+        \App\Models\Payment::create([
+            'order_id' => $b->orderDetail->order_id, 'payment_type' => 'refund',
+            'amount' => 100, 'status' => 'paid', 'paid_at' => now(),
+        ]);
+
+        // (c) naskah terbit, di-refund, DAN dibatalkan → dibatalkan menang atas semua
+        $c = $this->naskah('publish');
+        \App\Models\Payment::create([
+            'order_id' => $c->orderDetail->order_id, 'payment_type' => 'refund',
+            'amount' => 100, 'status' => 'paid', 'paid_at' => now(),
+        ]);
+        $c->orderDetail->order->update(['status' => 'dibatalkan']);
+
+        // (d) naskah masih jalan → tetap berjalan
+        $d = $this->naskah('editing');
+
+        \DB::table('tb_orders')->update(['fulfillment_status' => 'berjalan', 'completed_at' => null]);
+        \DB::table('tb_title_progress')->update(['withdrawn_at' => null]);
+
+        $n = \App\Services\OrderFulfillmentService::reconcileAll();
+
+        $this->assertSame('selesai',    $a->orderDetail->order->fresh()->fulfillment_status);
+        $this->assertSame('ditarik',    $b->orderDetail->order->fresh()->fulfillment_status);
+        $this->assertSame('dibatalkan', $c->orderDetail->order->fresh()->fulfillment_status);
+        $this->assertSame('berjalan',   $d->orderDetail->order->fresh()->fulfillment_status);
+
+        $this->assertNotNull($a->orderDetail->order->fresh()->completed_at,
+            'order selesai harus punya tanggal penyelesaian');
+
+        $this->assertNotNull($b->fresh()->withdrawn_at,
+            'progress order yang ditarik harus ikut ditandai');
+        $this->assertNull($c->fresh()->withdrawn_at,
+            'order yang dibatalkan bukan order yang ditarik — progressnya jangan ditandai');
+
+        $this->assertSame(['selesai' => 1, 'ditarik' => 1, 'dibatalkan' => 1], $n);
+    }
 }

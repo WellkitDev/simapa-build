@@ -55,6 +55,7 @@ class ImportV1Command extends Command
         $this->fixInvoices();
         $this->regenerateDerived();
         $this->seedProgressAndLogs();
+        $this->reconcileFulfillment();
         $this->resetAutoIncrements();
         $this->printSummary();
 
@@ -197,6 +198,31 @@ class ImportV1Command extends Command
             \DB::statement("ALTER TABLE `{$t}` AUTO_INCREMENT = {$next}");
         }
         $this->line('  ✓ AUTO_INCREMENT direset dinamis (MAX(id)+1)');
+    }
+
+    /**
+     * Selaraskan tb_orders.fulfillment_status dengan tahap naskah hasil impor.
+     *
+     * seedProgressAndLogs() menulis tb_title_progress lewat insert massal, melewati
+     * Eloquent sepenuhnya, jadi hook OrderFulfillmentService::syncFromProgress() tak
+     * pernah jalan untuk baris impor. Migrasi backfill juga tak menolong: ia sudah
+     * selesai jauh sebelum command ini dijalankan. Tanpa langkah ini, naskah v1 yang
+     * sudah terbit duduk di atas order yang masih 'berjalan'.
+     *
+     * Logikanya dipinjam dari OrderFulfillmentService::reconcileAll(), bukan disalin.
+     * Migrasi 2026_08_20_000004 sengaja memegang salinan SQL-nya SENDIRI — migrasi
+     * adalah catatan sejarah dan tak boleh ikut berubah saat kode aplikasi berubah.
+     * Command ini sebaliknya: ia dijalankan hari ini, jadi ia harus memakai aturan
+     * yang berlaku hari ini.
+     */
+    private function reconcileFulfillment(): void
+    {
+        $n = \App\Services\OrderFulfillmentService::reconcileAll();
+
+        $this->line('  ✓ Status pekerjaan order diselaraskan ('
+            . $n['selesai'] . ' selesai, '
+            . $n['ditarik'] . ' ditarik, '
+            . $n['dibatalkan'] . ' dibatalkan)');
     }
 
     private function printSummary(): void
