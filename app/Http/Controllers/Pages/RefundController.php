@@ -87,6 +87,24 @@ class RefundController extends Controller
         return redirect()->route('order.book.index')->with('success', 'Refund diproses. Bukti refund dikirim ke customer.');
     }
 
+    /**
+     * Batalkan penarikan yang terlanjur dilakukan.
+     *
+     * Penarikan mencabut penulis dari babnya, jadi satu salah klik menghapus data
+     * penulis. Ini jalan pulangnya — dan sengaja TIDAK mengembalikan uangnya: yang
+     * dibatalkan adalah penarikan naskahnya, refundnya sendiri tetap tercatat.
+     */
+    public function undo(string $code)
+    {
+        abort_unless(Auth::user()->hasRole('superadmin'), 403);
+        $order = $this->findOrder($code);
+
+        app(\App\Services\OrderWithdrawalService::class)->undo($order, Auth::user());
+
+        return redirect()->route('order.book.index')
+            ->with('success', 'Penarikan order dibatalkan; bab dan penulisnya dipasang kembali.');
+    }
+
     public function pdf(string $code)
     {
         abort_unless(Auth::user()->hasRole('superadmin'), 403);

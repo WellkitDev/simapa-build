@@ -3,12 +3,15 @@
 namespace App\Services;
 
 use App\Models\Order;
+use App\Models\OrderDetail;
 use App\Models\Payment;
+use App\Models\TitleChapter;
 use App\Models\TitleProgress;
 use App\Models\TitleProgressLog;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Menarik satu order dari judulnya karena refund penuh.
@@ -87,6 +90,113 @@ class OrderWithdrawalService
         });
 
         return true;
+    }
+
+    /**
+     * Batalkan penarikan: order kembali dihitung, penulis & bab dipasang ulang dari
+     * snapshot.
+     *
+     * DITOLAK bila babnya sudah dipesan order lain sejak penarikan — memulihkannya akan
+     * menabrak pemilik baru, dan pesan errornya menyebut order penabrak itu supaya
+     * petugas tahu harus bicara dengan siapa.
+     */
+    public function undo(Order $order, User $actor): void
+    {
+        if (! $order->isWithdrawn()) {
+            throw ValidationException::withMessages([
+                'undo' => 'Order ini tidak sedang ditarik.',
+            ]);
+        }
+
+        $progress = $order->details?->titleProgress;
+        $snapshot = $progress?->withdrawal_snapshot;
+
+        if ($snapshot !== null) {
+            $penerus = $this->penerusBab($order);
+            if ($penerus !== null) {
+                throw ValidationException::withMessages([
+                    'undo' => 'Bab ini sudah dipesan order ' . $penerus->order?->code_order
+                            . '. Batalkan order itu dulu bila memang mau dipulihkan.',
+                ]);
+            }
+        }
+
+        DB::transaction(function () use ($order, $actor, $progress, $snapshot) {
+            $order->update(['fulfillment_status' => 'berjalan']);
+
+            if ($progress === null) {
+                return;
+            }
+
+            if ($snapshot !== null) {
+                $this->pasangUlangBab($snapshot);
+            }
+
+            $progress->update([
+                'withdrawn_at'        => null,
+                'withdrawn_reason'    => null,
+                'withdrawal_snapshot' => null,
+            ]);
+
+            TitleProgressLog::create([
+                'title_progress_id' => $progress->id,
+                'event'             => 'batal_penarikan',
+                'from_value'        => 'Ditarik',
+                'to_value'          => $progress->stageLabelId(),
+                'changed_by'        => $actor->id,
+                'note'              => 'Penarikan order ' . $order->code_order . ' dibatalkan.',
+            ]);
+
+            $progress->update(['last_log_at' => now()]);
+        });
+
+        // 'berjalan' di atas hanyalah keadaan sementara supaya syncFromProgress() mau
+        // bekerja sama sekali — ia PULANG LEBIH AWAL untuk order `ditarik`. Tahap naskah
+        // yang sebenarnyalah yang menentukan berjalan/selesai, dan itu ditentukan di sini.
+        //
+        // Order tanpa detail/progress sudah dibereskan di dalam transaksi; tak ada
+        // tahap naskah yang bisa diselaraskan.
+        if ($progress !== null) {
+            app(OrderFulfillmentService::class)->syncFromProgress($progress->fresh());
+        }
+    }
+
+    /** OrderDetail lain yang sudah memesan bab yang sama sejak penarikan. */
+    private function penerusBab(Order $order): ?OrderDetail
+    {
+        $detail = $order->details;
+        if ($detail === null || $detail->type !== 'bk_kolab') {
+            return null;
+        }
+
+        return OrderDetail::with('order')
+            ->where('title_id', $detail->title_id)
+            ->where('type', 'bk_kolab')
+            ->where('chapters', $detail->chapters)
+            ->where('id', '!=', $detail->id)
+            ->first();
+    }
+
+    /** Pasang kembali penulis & status bab persis seperti sebelum penarikan. */
+    private function pasangUlangBab(array $snapshot): void
+    {
+        $chapter = TitleChapter::find($snapshot['chapter_id'] ?? null);
+        if ($chapter === null) {
+            return;
+        }
+
+        $pivot = [];
+        foreach ($snapshot['authors'] ?? [] as $a) {
+            $pivot[$a['id']] = ['position' => $a['position']];
+        }
+        $chapter->authors()->sync($pivot);
+
+        if ($chapter->progress && ($snapshot['chapter_status'] ?? null) !== null) {
+            $chapter->progress->update([
+                'status'            => $snapshot['chapter_status'],
+                'pelaksana_user_id' => $snapshot['pelaksana_id'] ?? null,
+            ]);
+        }
     }
 
     /**
