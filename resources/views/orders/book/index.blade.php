@@ -41,6 +41,7 @@
                                         <th>Penulis</th>
                                         <th>Jenis</th>
                                         <th>Status Order</th>
+                                        <th>Pekerjaan</th>
                                         <th>Aksi</th>
                                     </tr>
                                 </thead>
@@ -80,6 +81,24 @@
                                                 @else
                                                     <span class="badge bg-success">Diproses</span>
                                                 @endif
+                                            </td>
+                                            {{-- Keadaan PEKERJAAN, terpisah dari kolom uang di sebelah kiri.
+                                                 Keduanya sengaja berdampingan: order bisa lunas tapi naskahnya
+                                                 masih jalan, dan bisa terbit tapi belum lunas. --}}
+                                            <td>
+                                                @switch($order->fulfillment_status)
+                                                    @case('selesai')
+                                                        <span class="badge bg-success">Selesai</span>
+                                                        @break
+                                                    @case('ditarik')
+                                                        <span class="badge bg-secondary">Ditarik</span>
+                                                        @break
+                                                    @case('dibatalkan')
+                                                        <span class="badge bg-dark">Dibatalkan</span>
+                                                        @break
+                                                    @default
+                                                        <span class="badge bg-info">Berjalan</span>
+                                                @endswitch
                                             </td>
                                             <td>
                                                 @php
@@ -150,6 +169,21 @@
                                                                 class="btn btn-icon btn-outline-secondary" title="Bukti Refund">
                                                                 <i data-feather="file-text"></i>
                                                             </a>
+                                                            {{-- Batalkan Penarikan: satu-satunya jalan pulang dari refund
+                                                                 yang salah klik. Refund penuh mencabut penulis dari babnya
+                                                                 dan mengosongkan babnya; tanpa tombol ini data itu hilang
+                                                                 tanpa jalan kembali. Muncul hanya untuk order yang benar
+                                                                 -benar ditarik — refund SEBAGIAN tidak menarik apa pun. --}}
+                                                            @if ($order->isWithdrawn())
+                                                                <form method="POST" action="{{ route('order.refund.undo', $order->code_order) }}"
+                                                                    class="d-inline"
+                                                                    onsubmit="return confirm('Batalkan penarikan order {{ $order->code_order }}? Penulis dan babnya akan dipasang kembali seperti sebelum refund.');">
+                                                                    @csrf
+                                                                    <button type="submit" class="btn btn-icon btn-outline-info" title="Batalkan Penarikan">
+                                                                        <i data-feather="rotate-ccw"></i>
+                                                                    </button>
+                                                                </form>
+                                                            @endif
                                                         @elseif ($paidIn > 0)
                                                             <a href="{{ route('order.refund.form', $order->code_order) }}"
                                                                 class="btn btn-icon btn-outline-warning" title="Refund">

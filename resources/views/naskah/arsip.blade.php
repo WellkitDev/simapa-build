@@ -12,7 +12,8 @@
     <div>
         <h4 class="mb-1">Arsip Naskah</h4>
         <p class="text-muted mb-0 small">
-            Naskah yang sudah selesai maupun dibatalkan — tetap tersimpan dan bisa dicari.
+            Naskah yang sudah selesai, dibatalkan, maupun ditarik karena refund —
+            tetap tersimpan dan bisa dicari.
         </p>
     </div>
     <div class="btn-group btn-group-sm">
@@ -20,6 +21,8 @@
            class="btn {{ $hanya === 'selesai' ? 'btn-primary' : 'btn-outline-secondary' }}">Selesai</a>
         <a href="{{ route('naskah.arsip', ['hanya' => 'batal']) }}"
            class="btn {{ $hanya === 'batal' ? 'btn-primary' : 'btn-outline-secondary' }}">Dibatalkan</a>
+        <a href="{{ route('naskah.arsip', ['hanya' => 'ditarik']) }}"
+           class="btn {{ $hanya === 'ditarik' ? 'btn-primary' : 'btn-outline-secondary' }}">Ditarik</a>
     </div>
 </div>
 
@@ -33,8 +36,8 @@
                     <th>Judul</th>
                     <th>Tahap Akhir</th>
                     <th>PJ</th>
-                    <th>{{ $hanya === 'batal' ? 'Dibatalkan' : 'Diarsipkan' }}</th>
-                    <th>{{ $hanya === 'batal' ? 'Alasan' : 'Pelaksana' }}</th>
+                    <th>{{ ['batal' => 'Dibatalkan', 'ditarik' => 'Ditarik'][$hanya] ?? 'Diarsipkan' }}</th>
+                    <th>{{ ['batal' => 'Alasan', 'ditarik' => 'Alasan Refund'][$hanya] ?? 'Pelaksana' }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -47,18 +50,29 @@
                             </a>
                         </td>
                         <td class="dt-judul">{{ $p->orderDetail?->title ?? '—' }}</td>
-                        <td>{{ $p->stageLabelId() }}</td>
+                        <td>
+                            {{ $p->stageLabelId() }}
+                            @if ($p->isWithdrawn())
+                                <span class="badge bg-secondary">Ditarik — Refund</span>
+                            @endif
+                        </td>
                         <td>{{ $p->pj?->name ?? '—' }}</td>
                         <td>
                             @if ($hanya === 'batal')
                                 {{ $p->cancelled_at?->translatedFormat('j M Y') ?? '—' }}
                                 <div class="text-muted small">oleh {{ $p->cancelledBy?->name ?? '—' }}</div>
+                            @elseif ($hanya === 'ditarik')
+                                {{ $p->withdrawn_at?->translatedFormat('j M Y') ?? '—' }}
                             @else
                                 {{ $p->archived_at?->translatedFormat('j M Y') ?? '—' }}
                             @endif
                         </td>
                         <td class="dt-judul">
-                            {{ $hanya === 'batal' ? ($p->cancel_reason ?? '—') : ($p->pelaksana?->name ?? '—') }}
+                            @switch($hanya)
+                                @case('batal')     {{ $p->cancel_reason ?? '—' }} @break
+                                @case('ditarik')   {{ $p->withdrawn_reason ?? '—' }} @break
+                                @default           {{ $p->pelaksana?->name ?? '—' }}
+                            @endswitch
                         </td>
                     </tr>
                 @endforeach

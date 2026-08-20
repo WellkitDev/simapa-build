@@ -58,12 +58,30 @@ class PelacakanNaskahController extends Controller
     /** Arsip — naskah selesai & dibatalkan. Tidak pernah hilang, selalu bisa dicari. */
     public function arsip(Request $request)
     {
-        $hanya = $request->input('hanya') === 'batal' ? 'batal' : 'selesai';
+        $hanya = in_array($request->input('hanya'), ['batal', 'ditarik'], true)
+            ? $request->input('hanya')
+            : 'selesai';
 
+        /*
+         | Tab "Ditarik" berdiri sendiri, bukan digabung ke Selesai maupun Dibatalkan.
+         |
+         | Naskah yang ditarik sudah hilang dari papan lewat scopeActive(). Tanpa tab
+         | sendiri ia juga tak masuk kedua tab lama — `archived_at` biasanya masih kosong
+         | (penarikan bisa terjadi jauh sebelum tahap akhir) dan `cancelled_at` memang tak
+         | pernah diisi jalur refund. Naskahnya akan lenyap sama sekali dari UI.
+         |
+         | Tab Selesai juga harus MENOLAK yang ditarik: naskah yang sudah terbit lalu
+         | di-refund punya `archived_at`, jadi tanpa saringan ia muncul di dua tempat.
+         */
         $rows = TitleProgress::with(['orderDetail.order', 'pj', 'pelaksana', 'cancelledBy'])
             ->when($hanya === 'batal',
-                fn (Builder $q) => $q->whereNotNull('cancelled_at'),
-                fn (Builder $q) => $q->whereNotNull('archived_at')->whereNull('cancelled_at'))
+                fn (Builder $q) => $q->whereNotNull('cancelled_at'))
+            ->when($hanya === 'ditarik',
+                fn (Builder $q) => $q->whereNotNull('withdrawn_at'))
+            ->when($hanya === 'selesai',
+                fn (Builder $q) => $q->whereNotNull('archived_at')
+                                     ->whereNull('cancelled_at')
+                                     ->whereNull('withdrawn_at'))
             ->orderByDesc('archived_at')
             ->orderByDesc('cancelled_at')
             ->get();

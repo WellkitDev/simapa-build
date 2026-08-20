@@ -338,4 +338,121 @@ class OrderWithdrawalTest extends TestCase
         $this->assertSame(1, $bab2->authors()->count(),
             'bab yang ordernya masih hidup harus tetap dipetakan ulang');
     }
+
+    /** @test */
+    public function daftar_order_menampilkan_lencana_pekerjaan(): void
+    {
+        $progress = $this->orderArtikel('publish');
+        $progress->orderDetail->order->update([
+            'fulfillment_status' => 'selesai', 'completed_at' => now(),
+        ]);
+
+        $this->actingAs($this->superadmin())->get(route('order.book.index'))
+            ->assertOk()
+            ->assertSee('Pekerjaan')
+            ->assertSee('Selesai');
+    }
+
+    /**
+     * Tombol Batalkan Penarikan adalah SATU-SATUNYA jalan pulang dari refund yang salah
+     * klik — tanpa UI, `order.refund.undo` cuma route yang tak pernah tersentuh manusia.
+     * Muncul hanya untuk order yang benar-benar ditarik; refund sebagian tidak menarik
+     * apa pun, jadi tombolnya tak boleh ikut muncul di sana.
+     *
+     * @test
+     */
+    public function order_ditarik_punya_tombol_batalkan_penarikan(): void
+    {
+        $progress = $this->orderArtikel();
+        $order    = $progress->orderDetail->order;
+
+        $this->actingAs($this->superadmin())
+            ->post(route('order.refund.store', $order->code_order), [
+                'amount' => 500000, 'reason' => 'Klien mundur',
+                'method' => 'transfer', 'tanggal' => '2026-06-05',
+            ])->assertRedirect();
+
+        $this->actingAs($this->superadmin())->get(route('order.book.index'))
+            ->assertOk()
+            ->assertSee('Ditarik')
+            ->assertSee(route('order.refund.undo', $order->code_order));
+    }
+
+    /** @test */
+    public function refund_sebagian_tidak_memunculkan_tombol_batalkan_penarikan(): void
+    {
+        $progress = $this->orderArtikel();
+        $order    = $progress->orderDetail->order;
+
+        $this->actingAs($this->superadmin())
+            ->post(route('order.refund.store', $order->code_order), [
+                'amount' => 200000, 'reason' => 'Potongan harga',
+                'method' => 'transfer', 'tanggal' => '2026-06-05',
+            ])->assertRedirect();
+
+        $this->actingAs($this->superadmin())->get(route('order.book.index'))
+            ->assertOk()
+            ->assertDontSee(route('order.refund.undo', $order->code_order));
+    }
+
+    /**
+     * Naskah yang ditarik hilang dari papan lewat scopeActive(). Tanpa tab sendiri di
+     * Arsip Naskah ia juga tak masuk tab Selesai (archived_at biasanya masih kosong)
+     * maupun tab Batal (cancelled_at tak pernah diisi jalur refund) — lenyap sama sekali
+     * dari UI. Ini yang menahannya.
+     *
+     * @test
+     */
+    public function naskah_ditarik_muncul_di_tab_arsip_sendiri(): void
+    {
+        $progress = $this->orderArtikel();
+        $order    = $progress->orderDetail->order;
+
+        $this->actingAs($this->superadmin())
+            ->post(route('order.refund.store', $order->code_order), [
+                'amount' => 500000, 'reason' => 'Klien mundur',
+                'method' => 'transfer', 'tanggal' => '2026-06-05',
+            ])->assertRedirect();
+
+        $sa = $this->superadmin();
+
+        $this->actingAs($sa)->get(route('naskah.arsip', ['hanya' => 'ditarik']))
+            ->assertOk()
+            ->assertSee('Ditarik — Refund', false)
+            ->assertSee('Klien mundur');
+
+        // Dan TIDAK bocor ke tab Selesai.
+        $this->actingAs($sa)->get(route('naskah.arsip'))
+            ->assertOk()
+            ->assertDontSee($order->code_order);
+    }
+
+    /**
+     * Naskah yang sudah terbit LALU di-refund punya archived_at DAN withdrawn_at —
+     * tanpa saringan ia akan tampil di dua tab sekaligus.
+     *
+     * @test
+     */
+    public function naskah_terbit_yang_ditarik_tidak_bocor_ke_tab_selesai(): void
+    {
+        $progress = $this->orderArtikel('publish');
+        $progress->update(['archived_at' => now()]);
+        $order = $progress->orderDetail->order;
+
+        $this->actingAs($this->superadmin())
+            ->post(route('order.refund.store', $order->code_order), [
+                'amount' => 500000, 'reason' => 'Terbit lalu mundur',
+                'method' => 'transfer', 'tanggal' => '2026-06-05',
+            ])->assertRedirect();
+
+        $sa = $this->superadmin();
+
+        $this->actingAs($sa)->get(route('naskah.arsip'))
+            ->assertOk()
+            ->assertDontSee($order->code_order);
+
+        $this->actingAs($sa)->get(route('naskah.arsip', ['hanya' => 'ditarik']))
+            ->assertOk()
+            ->assertSee($order->code_order);
+    }
 }
