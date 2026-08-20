@@ -84,8 +84,20 @@ tak seorang pun pernah melihat cabang satunya.
 1. Begitu `completed_at` mulai terisi, ia bocor ke laporan **uang** sebagai tanggal lunas —
    padahal isinya tanggal **pekerjaan**. Itu persis percampuran yang K3 dibuat untuk
    mencegah. Karena itu `FinancialReportService` dilepas dari kolom ini, kembali ke
-   `updated_at` yang memang selama ini benar-benar tampil. Tanggal lunas yang sebenarnya
-   harus datang dari payment — masuk **Kelompok Uang**, bukan pekerjaan ini.
+   `updated_at` yang memang selama ini benar-benar tampil.
+
+   **Koreksi atas kalimat di atas — pelepasannya tidak tuntas.** Yang dicabut hanya
+   ketergantungan **eksplisit**. Sisa ketergantungan tetap ada lewat `updated_at`:
+   `OrderFulfillmentService::apply()` memanggil `$order->save()` tepat pada saat naskah
+   mencapai `publish`/`terbit`, dan `Order` memakai timestamps — jadi `updated_at`
+   tercap momen terbit. Kolom "Tanggal Lunas" karenanya masih menampilkan tanggal
+   terbit untuk order yang baru terbit, dan `orderByDesc('updated_at')` menaikkannya ke
+   puncak laporan. Sebelum pekerjaan ini tak ada yang menyentuh order saat terbit,
+   sehingga kolom itu tak pernah bergerak.
+
+   Ini **diketahui dan diterima**, bukan terlewat. `updated_at` memang selalu proksi
+   lemah, dan perbaikan sebenarnya — tanggal lunas diturunkan dari `paid_at` payment
+   yang disetujui — masuk **Kelompok Uang**, bukan pekerjaan ini. Lihat §9.
 
 2. `Order` masih memakai `protected $dates` yang mati sejak Laravel 10, jadi `completed_at`
    kembali sebagai string, bukan Carbon. Kolomnya harus pindah ke `$casts` atau justru
@@ -414,6 +426,13 @@ Supaya jelas dan tidak dikira terlewat:
 - **A1** — jurnal masih tak tersambung ke tahap naskah.
 - **A8** — judul masih tak punya penanda terbit.
 - **A9** — `revisi` masih terletak sebelum `submit`.
+- **Sisa kebocoran tanggal terbit → "Tanggal Lunas"** (Kelompok Uang). `FinancialReportService::orderSelesai()`
+  tak lagi membaca `completed_at`, tapi memakai `updated_at` — dan sinkronisasi
+  fulfillment menyimpan order tepat saat naskah terbit, sehingga tanggal terbit tetap
+  sampai ke kolom uang lewat pintu belakang, plus mengubah urutan laporan. Tes
+  `tanggal_lunas_tidak_lagi_membaca_completed_at` sengaja dinamai sempit karena hanya
+  memagari pembacaan eksplisitnya. Tuntas hanya bila tanggal lunas diturunkan dari
+  `paid_at` payment yang disetujui.
 
 Rencana berikutnya: **Kelompok Uang** (A3, A4, A5, A10), lalu **Kelompok Terbit**
 (A1, A8, A9).

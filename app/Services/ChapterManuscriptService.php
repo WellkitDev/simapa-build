@@ -100,6 +100,9 @@ class ChapterManuscriptService
             // Jalur ini tidak lewat TitleProgressService::applyStatus(), padahal
             // `terbit` adalah tahap final — tanpa kail ini order buku yang terbit
             // lewat registrasi ISBN akan tertinggal `berjalan` selamanya.
+            // $detail sudah di tangan: disuapkan supaya sinkron tak menembak SELECT
+            // orderDetail-nya sendiri per order-variant.
+            $tp->setRelation('orderDetail', $detail);
             app(OrderFulfillmentService::class)->syncFromProgress($tp);
 
             $moved = true;

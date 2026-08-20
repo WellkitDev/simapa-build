@@ -10,17 +10,18 @@ use App\Models\TitleProgress;
  * NASKAH. Penarikan (refund) ditulis OrderWithdrawalService; pembatalan ditulis
  * OrderCancellationService.
  *
- * `tb_title_progress.status` ditulis di TIGA tempat, dan kail ini dipasang di
- * ketiganya supaya tak ada jalur perpindahan tahap yang lolos tanpa memperbarui
- * ordernya:
- *  - TitleProgressService::applyStatus()   — advance/correct/auto-advance/grup;
- *  - TitleProgressService::createForDetail() — progress baru mewarisi tahap grup,
- *    yang bisa saja sudah final;
- *  - ChapterManuscriptService::advanceBookToStage() — sinkron dari registrasi ISBN,
- *    jalur normal buku mencapai `terbit`.
+ * INVARIAN yang harus dijaga: setiap penulis `tb_title_progress.status` lewat Eloquent
+ * yang bisa mendarat di tahap FINAL wajib memanggil syncFromProgress(). Sengaja
+ * dinyatakan sebagai invarian, bukan daftar penulis — daftar semacam itu sudah pernah
+ * usang diam-diam, dan justru itu yang membuat jalur ISBN lolos menutup ordernya.
  *
- * ChapterRollupService juga menulis status, tapi hanya di dalam wilayah bab
- * (menunggu_proses..editing) yang tak pernah final — jadi tak perlu dikaili.
+ * Menambah penulis status baru? Tanyakan satu hal: bisakah ia mendarat di `terbit` atau
+ * `publish`? Kalau ya, kail ini wajib ikut.
+ *
+ * DIKECUALIKAN: penulisan massal yang menembus Eloquent — `ImportV1Command` mengisi
+ * tb_title_progress lewat DB::table()->insert(), termasuk baris yang sudah final.
+ * Perintah semacam itu membangun ulang data seutuhnya, jadi `fulfillment_status`
+ * diselaraskan lewat backfill tersendiri, bukan lewat kail per-baris ini.
  */
 class OrderFulfillmentService
 {
@@ -65,8 +66,9 @@ class OrderFulfillmentService
         ]);
 
         // Dibatasi ke dua kolom itu saja: layanan ini menerima order milik pemanggil
-        // lain, dan isDirty() polos akan ikut menyimpan perubahan yang belum tentu
-        // siap disimpan.
+        // lain, dan isDirty() polos akan ikut MEMICU penyimpanan atas perubahan yang
+        // belum tentu siap disimpan. Cakupan ini menentukan KAPAN save() dipanggil,
+        // bukan apa yang ditulis — save() tetap menyimpan seluruh atribut yang kotor.
         if ($order->isDirty(['fulfillment_status', 'completed_at'])) {
             $order->save();
         }

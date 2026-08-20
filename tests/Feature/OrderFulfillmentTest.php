@@ -189,11 +189,12 @@ class OrderFulfillmentTest extends TestCase
 
     /**
      * @test
-     * Tanggal Lunas adalah tanggal UANG. Naskah yang terbit mengisi completed_at, dan
-     * kolom itu tak boleh membajak laporan lunas — dulu selalu null sehingga cabangnya
-     * tak pernah terlihat.
+     * Laporan lunas tak lagi MEMBACA completed_at. Sengaja tidak diberi nama "tanggal
+     * lunas lepas dari tanggal terbit": kebocoran lewat updated_at masih ada — order
+     * disimpan tepat saat naskah terbit — dan tes ini tidak memagarinya. Yang dipagari
+     * cuma hilangnya cabang `completed_at ?? updated_at`.
      */
-    public function tanggal_lunas_tidak_ikut_tanggal_terbit_naskah(): void
+    public function tanggal_lunas_tidak_lagi_membaca_completed_at(): void
     {
         $progress = $this->naskah('loa');
         $order    = $progress->orderDetail->order;
@@ -208,9 +209,13 @@ class OrderFulfillmentTest extends TestCase
 
         $baris = app(FinancialReportService::class)->orderSelesai(null)['detail']->first();
 
+        // Dibaca ulang lepas dari $baris: membandingkan $baris->updated_at dengan
+        // $baris->tanggal_lunas berarti membandingkan objek dengan dirinya sendiri.
+        $updatedAt = Order::findOrFail($order->id)->updated_at;
+
         $this->assertNotNull($baris);
         $this->assertInstanceOf(Carbon::class, $baris->tanggal_lunas);
-        $this->assertTrue($baris->updated_at->equalTo($baris->tanggal_lunas));
+        $this->assertTrue($updatedAt->equalTo($baris->tanggal_lunas));
         $this->assertFalse($baris->completed_at->equalTo($baris->tanggal_lunas));
     }
 }
