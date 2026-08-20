@@ -284,8 +284,25 @@ class Title extends Model
     public function orderForChapter(int $urutan): ?OrderDetail
     {
         $details = $this->relationLoaded('orderDetails')
-            ? $this->orderDetails
-            : $this->orderDetails()->get();
+            ? $this->orderDetails->loadMissing('titleProgress')
+            : $this->orderDetails()->with('titleProgress')->get();
+
+        /*
+         | Order yang ditarik (refund penuh) tidak lagi memiliki babnya.
+         |
+         | Tanpa saringan ini pencabutan bab hanya jadi hiasan: ChapterAuthorService::
+         | seedFromOrders() berjalan setiap kali halaman judul dibuka, melihat bab yang
+         | baru dikosongkan, bertanya ke sini siapa pemesannya, dan memasang kembali
+         | penulis yang baru saja dicabut. Terbukti begitu saat Task 5/6 diuji.
+         |
+         | `titleProgress` sengaja di-eager load: method ini dipanggil sekali per bab di
+         | dalam perulangan, jadi memeriksanya lewat lazy load berarti N×N query untuk
+         | buku bab banyak.
+         |
+         | Seluruh pemanggil sudah memperlakukan null sebagai "babnya belum dipesan
+         | siapa pun" — itu persis arti yang benar untuk bab yang penulisnya mundur.
+         */
+        $details = $details->reject(fn ($d) => optional($d->titleProgress)->withdrawn_at !== null);
 
         if ($details->contains(fn ($d) => $d->type === 'bk_kolab')) {
             return $details->firstWhere(fn ($d) => $d->type === 'bk_kolab'

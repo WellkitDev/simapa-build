@@ -277,4 +277,65 @@ class OrderWithdrawalTest extends TestCase
 
         $this->assertSame('ditarik', $order->fresh()->fulfillment_status);
     }
+
+    /**
+     * Pencabutan bab harus BERTAHAN, bukan sekadar terjadi sesaat.
+     *
+     * ChapterAuthorService::seedFromOrders() dipanggil TitleController::show() setiap
+     * kali halaman judul dibuka, dan ia mengisi bab yang kosong dari
+     * Title::orderForChapter(). Selama resolver itu masih menunjuk order yang ditarik,
+     * penulis yang baru dicabut akan terpasang lagi begitu ada yang membuka halamannya —
+     * pencabutannya jadi hiasan. Ini yang menahannya.
+     *
+     * @test
+     */
+    public function penulis_yang_dicabut_tidak_dipasang_ulang_saat_judul_dibuka(): void
+    {
+        [$book, $progresses] = $this->bukuKolaborasi('editing');
+        $order = $progresses->first()->orderDetail->order;
+
+        $this->actingAs($this->superadmin())
+            ->post(route('order.refund.store', $order->code_order), [
+                'amount' => 1000000, 'reason' => 'Penulis mundur',
+                'method' => 'transfer', 'tanggal' => '2026-06-05',
+            ])->assertRedirect();
+
+        $bab1 = $book->chapters()->where('urutan', 1)->first();
+        $this->assertSame(0, $bab1->authors()->count(), 'prasyarat: sudah tercabut');
+
+        // Persis yang dilakukan TitleController::show().
+        app(\App\Services\ChapterAuthorService::class)->seedFromOrders($book->fresh());
+
+        $this->assertSame(0, $bab1->authors()->count(),
+            'bab yang penulisnya mundur tidak boleh diisi ulang dari order yang ditarik');
+        $this->assertNull($book->fresh()->orderForChapter(1),
+            'bab itu kini tak dimiliki order mana pun — siap dijual ulang');
+    }
+
+    /**
+     * Cermin test di atas: bab milik order yang MASIH hidup tetap harus terisi otomatis.
+     * Tanpa ini, saringan withdrawn di orderForChapter() bisa saja terlalu rakus dan
+     * mengosongkan seluruh buku tanpa ketahuan.
+     *
+     * @test
+     */
+    public function bab_milik_order_hidup_tetap_terisi_otomatis(): void
+    {
+        [$book, $progresses] = $this->bukuKolaborasi('editing');
+        $order = $progresses->first()->orderDetail->order;
+
+        $this->actingAs($this->superadmin())
+            ->post(route('order.refund.store', $order->code_order), [
+                'amount' => 1000000, 'reason' => 'Penulis mundur',
+                'method' => 'transfer', 'tanggal' => '2026-06-05',
+            ])->assertRedirect();
+
+        $bab2 = $book->chapters()->where('urutan', 2)->first();
+        $bab2->authors()->detach();
+
+        app(\App\Services\ChapterAuthorService::class)->seedFromOrders($book->fresh());
+
+        $this->assertSame(1, $bab2->authors()->count(),
+            'bab yang ordernya masih hidup harus tetap dipetakan ulang');
+    }
 }
