@@ -22,21 +22,24 @@ class TitleProgress extends Model
         'pj_user_id', 'bidang', 'sla_due_at', 'overdue_reason', 'overdue_note',
         'is_on_hold', 'chapters_done', 'archived_at',
         'cancelled_at', 'cancelled_by', 'cancel_reason',
+        'withdrawn_at', 'withdrawn_reason', 'withdrawal_snapshot',
     ];
 
     // CATATAN: `protected $dates` sudah TIDAK berlaku sejak Laravel 10 — properti itu
     // dulu ada di sini untuk `started_at` dan diam-diam tak berefek, sehingga kolomnya
     // kembali sebagai string. Semua kolom waktu kini dideklarasikan di $casts.
     protected $casts = [
-        'needs_review'  => 'boolean',
-        'started_at'    => 'datetime',
-        'target_date'   => 'date',
-        'last_log_at'   => 'datetime',
-        'sla_due_at'    => 'date',
-        'is_on_hold'    => 'boolean',
-        'chapters_done' => 'boolean',
-        'archived_at'   => 'datetime',
-        'cancelled_at'  => 'datetime',
+        'needs_review'        => 'boolean',
+        'started_at'          => 'datetime',
+        'target_date'         => 'date',
+        'last_log_at'         => 'datetime',
+        'sla_due_at'          => 'date',
+        'is_on_hold'          => 'boolean',
+        'chapters_done'       => 'boolean',
+        'archived_at'         => 'datetime',
+        'cancelled_at'        => 'datetime',
+        'withdrawn_at'        => 'datetime',
+        'withdrawal_snapshot' => 'array',
     ];
 
     const ARTICLE_STAGES = [
@@ -189,10 +192,12 @@ class TitleProgress extends Model
 
     // ─── Scope ───
 
-    /** Naskah yang masih hidup di papan: belum diarsip & belum dibatalkan. */
+    /** Naskah yang masih hidup di papan: belum diarsip, dibatalkan, atau ditarik. */
     public function scopeActive($query)
     {
-        return $query->whereNull('archived_at')->whereNull('cancelled_at');
+        return $query->whereNull('archived_at')
+                     ->whereNull('cancelled_at')
+                     ->whereNull('withdrawn_at');
     }
 
     /** Tugas milik satu user: sebagai pelaksana ATAU sebagai PJ. */
@@ -244,6 +249,12 @@ class TitleProgress extends Model
         return $this->target_date !== null
             && ! self::isFinal((string) $this->status)
             && $this->target_date->lt($today);
+    }
+
+    /** Ordernya di-refund penuh: baris ini tak lagi dihitung sebagai bagian judul. */
+    public function isWithdrawn(): bool
+    {
+        return $this->withdrawn_at !== null;
     }
 
     public function nextStage(): ?string
