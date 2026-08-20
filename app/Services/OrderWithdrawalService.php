@@ -111,14 +111,26 @@ class OrderWithdrawalService
         $progress = $order->details?->titleProgress;
         $snapshot = $progress?->withdrawal_snapshot;
 
-        if ($snapshot !== null) {
-            $penerus = $this->penerusBab($order);
-            if ($penerus !== null) {
-                throw ValidationException::withMessages([
-                    'undo' => 'Bab ini sudah dipesan order ' . $penerus->order?->code_order
-                            . '. Batalkan order itu dulu bila memang mau dipulihkan.',
-                ]);
-            }
+        /*
+         | Gerbang penerus SENGAJA tidak digantungkan pada ada-tidaknya snapshot.
+         |
+         | Snapshot kosong TIDAK berarti babnya tak bisa dijual ulang: buku kolaborasi
+         | yang ditarik pada/di atas tahap ISBN tak pernah dicabut babnya (jadi snapshot
+         | null), begitu pula order kolaborasi yang belum punya baris progress. Padahal
+         | Title::orderForChapter() menyaring berdasarkan `withdrawn_at`, bukan snapshot —
+         | jadi babnya tetap terbaca tak bermilik dan bisa dipesan orang lain. Kalau
+         | gerbangnya dilewati, undo menghidupkan order lama dan DUA order hidup memiliki
+         | bab yang sama.
+         |
+         | penerusBab() sudah menyaring sendiri jenis ordernya, jadi artikel dan buku
+         | mandiri tetap lolos tanpa biaya.
+         */
+        $penerus = $this->penerusBab($order);
+        if ($penerus !== null) {
+            throw ValidationException::withMessages([
+                'undo' => 'Bab ini sudah dipesan order ' . $penerus->order?->code_order
+                        . '. Batalkan order itu dulu bila memang mau dipulihkan.',
+            ]);
         }
 
         DB::transaction(function () use ($order, $actor, $progress, $snapshot) {

@@ -253,4 +253,82 @@ class WithdrawalUndoTest extends TestCase
             'naskahnya sudah publish — undo tidak boleh meninggalkannya di "berjalan"');
         $this->assertNotNull($order->fresh()->completed_at);
     }
+
+    /**
+     * Sama seperti babDitarik(), tapi naskahnya sudah di tahap `cetak` saat ditarik —
+     * jadi lepasBab() tak mencabut apa pun dan `withdrawal_snapshot` tetap null.
+     *
+     * @return array{0: Order, 1: TitleProgress, 2: \App\Models\TitleChapter}
+     */
+    private function babDitarikSetelahIsbn(): array
+    {
+        $judul = 'Buku Kolaborasi ' . Str::random(6);
+        $book  = Title::create(['title' => $judul, 'jenis' => 'buku',
+                                'tipe_naskah' => 'kolaborasi', 'status' => 'disetujui']);
+
+        $chapter = $book->chapters()->create(['judul' => 'Bab 1', 'urutan' => 1]);
+        $author  = Author::create(['name' => 'Penulis Bab 1 ' . Str::random(4)]);
+        $chapter->authors()->attach($author->id, ['position' => 1]);
+        $chapter->progress()->create(['status' => 'editing', 'started_at' => now()]);
+
+        $order  = Order::factory()->create();
+        $detail = OrderDetail::factory()->create([
+            'order_id' => $order->id, 'type' => 'bk_kolab',
+            'title' => $judul, 'title_id' => $book->id,
+            'chapters' => 1, 'cost_amount' => 1000000,
+        ]);
+        $detail->authors()->attach($author->id, ['position' => 1]);
+
+        Payment::create(['order_id' => $order->id, 'payment_type' => 'lunas',
+                         'amount' => 1000000, 'status' => 'paid', 'paid_at' => '2026-06-01']);
+
+        $progress = TitleProgress::create([
+            'order_detail_id' => $detail->id, 'status' => 'cetak',
+            'bidang' => 'buku', 'started_at' => now(),
+        ]);
+
+        $refund = Payment::create([
+            'order_id' => $order->id, 'payment_type' => 'refund',
+            'amount' => 1000000, 'status' => 'paid', 'paid_at' => '2026-06-05',
+            'refund_reason' => 'Mundur terlambat',
+        ]);
+
+        app(OrderWithdrawalService::class)->withdraw($order->fresh(), $refund, $this->user('superadmin'));
+
+        return [$order->fresh(), $progress->fresh(), $chapter->fresh(), $book];
+    }
+
+    /**
+     * Celah yang ditemukan saat review Task 7: gerbang penerus dulu digantungkan pada
+     * `$snapshot !== null`. Buku kolaborasi yang ditarik pada/di atas tahap ISBN tak
+     * pernah dicabut babnya, jadi snapshotnya null — padahal orderForChapter() menyaring
+     * lewat `withdrawn_at`, bukan snapshot, sehingga babnya TETAP terbaca tak bermilik
+     * dan bisa dipesan orang lain. Undo lalu menghidupkan order lama, dan dua order
+     * hidup memiliki bab yang sama.
+     *
+     * @test
+     */
+    public function undo_tanpa_snapshot_tetap_ditolak_bila_bab_sudah_dipesan_lagi(): void
+    {
+        [$order, $progress, $chapter, $book] = $this->babDitarikSetelahIsbn();
+
+        $this->assertNull($progress->withdrawal_snapshot, 'prasyarat: snapshot memang kosong');
+        $this->assertNull($book->fresh()->orderForChapter(1), 'babnya terbaca tak bermilik');
+
+        // Bab 1 dijual ulang ke penulis lain.
+        $penerus = Order::factory()->create();
+        OrderDetail::factory()->create([
+            'order_id' => $penerus->id, 'type' => 'bk_kolab',
+            'title' => $book->title, 'title_id' => $book->id,
+            'chapters' => 1, 'cost_amount' => 1000000,
+        ]);
+
+        $this->actingAs($this->user('superadmin'))
+            ->post(route('order.refund.undo', $order->code_order))
+            ->assertRedirect()
+            ->assertSessionHasErrors('undo');
+
+        $this->assertSame('ditarik', $order->fresh()->fulfillment_status,
+            'order lama tidak boleh hidup lagi di atas bab yang sudah punya pemilik baru');
+    }
 }
