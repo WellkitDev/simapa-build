@@ -7,9 +7,13 @@ use App\Models\Announcement;
 use App\Models\BookIsbn;
 use App\Models\Journal;
 use App\Models\JournalSubmission;
+use App\Models\Order;
+use App\Models\OrderDetail;
 use App\Models\Title;
 use App\Models\TitleArchive;
 use App\Models\TitleDocChecklist;
+use App\Models\TitleProgress;
+use App\Models\User;
 use App\Services\AdminDashboardService;
 use App\Services\GoogleDriveService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -52,14 +56,49 @@ class AdminDashboardServiceTest extends TestCase
         $this->assertSame(1, $this->svc->forAdmin()['doc_belum_lengkap']);
     }
 
-    /** @test */
-    public function menghitung_arsip_yang_masih_draft(): void
+    /** Judul yang naskahnya sudah final — order + progress tahap 'terbit'. */
+    private function judulFinal(): Title
     {
-        TitleArchive::create(['title_id' => $this->title()->id, 'status' => 'draft']);
-        TitleArchive::create(['title_id' => $this->title()->id, 'status' => 'diajukan']);
+        $title = $this->title();
+        $order = Order::create([
+            'code_order' => 'ORD-' . uniqid(), 'user_id' => User::factory()->create()->id,
+            'status' => 'pending', 'ordered_at' => now(),
+        ]);
+        $detail = OrderDetail::create([
+            'order_id' => $order->id, 'title_id' => $title->id, 'type' => 'bk_mandiri',
+            'title' => $title->title, 'slug' => 'od-' . uniqid(), 'chapters' => 1,
+            'cost_amount' => 500000, 'naskah_type' => 'mandiri', 'publication_type' => 'regular',
+        ]);
+        TitleProgress::create([
+            'order_detail_id' => $detail->id, 'status' => 'terbit',
+            'assigned_role' => 'production', 'started_at' => now(), 'archived_at' => now(),
+        ]);
+
+        return $title->fresh();
+    }
+
+    /**
+     * Ubin "Arsip Menunggu Artefak" DULU menghitung TitleArchive berstatus 'draft'.
+     * Tak ada satu pun kode yang pernah membuat baris 'draft' (TitleArchivalService cuma
+     * menulis diajukan/disetujui/ditolak), jadi angkanya abadi 0 di produksi — versi lama
+     * test ini hijau semata karena ia membuat sendiri baris yang mustahil itu.
+     *
+     * Sekarang ubinnya menghitung judul final yang arsipnya belum diajukan/disetujui,
+     * yakni daftar "Siap Diarsipkan" yang jadi tujuan tautannya.
+     *
+     * @test
+     */
+    public function menghitung_judul_final_yang_arsipnya_belum_diajukan(): void
+    {
+        $this->judulFinal();                                   // final, tanpa arsip → dihitung
+        $this->title();                                        // tanpa order sama sekali → tidak
+        TitleArchive::create(['title_id' => $this->judulFinal()->id, 'status' => 'diajukan']);
+        TitleArchive::create(['title_id' => $this->judulFinal()->id, 'status' => 'disetujui']);
+        // Ditolak harus kembali terhitung supaya bisa diperbaiki lalu diajukan ulang.
+        TitleArchive::create(['title_id' => $this->judulFinal()->id, 'status' => 'ditolak']);
 
         $d = $this->svc->forAdmin();
-        $this->assertSame(1, $d['arsip_menunggu_artefak']);
+        $this->assertSame(2, $d['arsip_menunggu_artefak']);
         $this->assertSame(1, $d['arsip_diajukan']);
     }
 

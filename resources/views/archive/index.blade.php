@@ -9,6 +9,41 @@
 @section('content')
 <h5 class="mb-3">Arsip Judul</h5>
 
+{{-- Pintu masuk arsip: judul final yang belum punya baris arsip sama sekali. --}}
+@if($siap->isNotEmpty())
+<div class="row"><div class="col-12 grid-margin stretch-card"><div class="card border-info"><div class="card-body">
+    <h6 class="card-title">Siap Diarsipkan ({{ $siap->count() }})</h6>
+    <p class="text-muted small mb-2">Naskahnya sudah final. Lengkapi artefaknya lalu ajukan ke arsip.</p>
+    <div class="table-responsive">
+        <table class="table table-hover datatable dt-responsive nowrap" style="width:100%">
+            <thead><tr><th>Kode</th><th>Judul</th><th>Jenis</th><th>Naskah</th><th>Pembayaran</th><th>Aksi</th></tr></thead>
+            <tbody>
+                @foreach($siap as $t)
+                    @php $sisa = $t->sisaTagihan(); $ditarik = $t->jumlahDitarik(); @endphp
+                    <tr>
+                        <td>{{ $t->code ?? '—' }}</td>
+                        <td class="dt-judul">{{ $t->title }}</td>
+                        <td>{{ ucfirst($t->jenis) }}</td>
+                        <td><span class="badge bg-success">{{ $t->manuscriptStatusLabel() }}</span></td>
+                        <td>
+                            @if($sisa > 0)
+                                <span class="badge bg-danger">Kurang Rp {{ number_format($sisa, 0, ',', '.') }}</span>
+                            @else
+                                <span class="badge bg-success">Lunas</span>
+                            @endif
+                            @if($ditarik > 0)
+                                <span class="badge bg-secondary">{{ $ditarik }} ditarik</span>
+                            @endif
+                        </td>
+                        <td><a href="{{ route('archive.show', $t->id) }}" class="btn btn-xs btn-info">Siapkan</a></td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+</div></div></div></div>
+@endif
+
 @if($canApprove && $pending->isNotEmpty())
 <div class="row"><div class="col-12 grid-margin stretch-card"><div class="card border-warning"><div class="card-body">
     <h6 class="card-title">Menunggu Persetujuan ({{ $pending->count() }})</h6>

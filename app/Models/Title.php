@@ -252,6 +252,74 @@ class Title extends Model
         return $this->isPaidOff() && $this->manuscriptIsFinal();
     }
 
+    /**
+     * Total kekurangan bayar seluruh order judul ini (0 bila lunas).
+     *
+     * SENGAJA memakai uang yang benar-benar masuk (`paidNet()`), BUKAN `isLunas()`.
+     * `isLunas()` menang duluan begitu ada invoice berstatus 'lunas', dan
+     * PaymentBookController::approve() menstempel 'lunas' pada invoice SETIAP payment
+     * yang disetujui — termasuk DP. Jadi order yang baru bayar DP 200rb dari 500rb sudah
+     * dianggap lunas oleh gerbang arsip. Jalan pintas itu sengaja dipertahankan (dikunci
+     * PaidNetTest::lunas_invoice_shortcut_still_wins) dan tidak diutak-atik di sini —
+     * tapi ia persis alasan keputusan K2 ada: pembayaran tak boleh menghambat naskah,
+     * namun di titik penutupan (arsip) kekurangannya harus kelihatan beserta ANGKAnya.
+     * Angka inilah sumber kebenaran uang di layar arsip; gerbang "Ajukan" tetap pakai
+     * isPaidOff(). Keduanya boleh berbeda — yang satu izin, yang satu fakta.
+     *
+     * Order yang ditarik tidak dihitung — uangnya sudah dikembalikan, dan menuntutnya
+     * lunas berarti satu penulis yang mundur menahan arsip semua penulis lain.
+     */
+    public function sisaTagihan(): int
+    {
+        return (int) $this->orderDetails
+            ->reject(fn ($d) => optional($d->titleProgress)->withdrawn_at !== null)
+            ->sum(function ($d) {
+                $order = $d->order;
+                if ($order === null) {
+                    return 0;
+                }
+
+                return max(0, (int) $d->cost_amount - $order->paidNet());
+            });
+    }
+
+    /** Jumlah order judul ini yang ditarik karena refund. */
+    public function jumlahDitarik(): int
+    {
+        return $this->orderDetails
+            ->filter(fn ($d) => optional($d->titleProgress)->withdrawn_at !== null)
+            ->count();
+    }
+
+    /**
+     * Judul yang naskahnya sudah final tapi arsipnya belum diajukan/disetujui.
+     *
+     * Inilah satu-satunya pintu masuk ke halaman detail arsip untuk judul baru: sebelum
+     * ini `archive.show` hanya ditaut dari daftar judul yang SUDAH punya baris arsip,
+     * padahal satu-satunya cara membuat baris itu adalah menekan tombol di halaman
+     * tersebut — lingkaran tertutup yang membuat arsip praktis tak bisa diajukan.
+     *
+     * Arsip berstatus 'ditolak' sengaja TIDAK dikecualikan: penolakan harus memulangkan
+     * judulnya ke daftar kerja supaya bisa diperbaiki lalu diajukan ulang.
+     *
+     * Penyaringan tahap final dilakukan di PHP, bukan SQL: `manuscriptStatus()` adalah
+     * bottleneck lintas order (dan mengecualikan order yang ditarik) yang tak punya
+     * padanan SQL sederhana. Pra-saring `whereHas` menekan jumlah baris yang perlu
+     * dihitung. Dipakai bersama oleh daftar Arsip dan ubin dashboard admin supaya
+     * angka ubin tak pernah berbeda dari panjang daftarnya.
+     */
+    public static function siapDiarsipkan(): \Illuminate\Database\Eloquent\Collection
+    {
+        return static::query()
+            ->whereDoesntHave('archive', fn ($q) => $q->whereIn('status', ['diajukan', 'disetujui']))
+            ->whereHas('orderDetails.titleProgress', fn ($q) => $q->whereIn('status', TitleProgress::FINAL_STAGES))
+            ->with(['orderDetails.titleProgress', 'orderDetails.order'])
+            ->latest()
+            ->get()
+            ->filter->manuscriptIsFinal()
+            ->values();
+    }
+
     /** Buku yang manuskripnya sudah mencapai tahap 'isbn' (bottleneck ≥ index 'isbn'). */
     public function isbnEligible(): bool
     {

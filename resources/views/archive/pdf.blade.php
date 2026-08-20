@@ -35,12 +35,19 @@
         <thead><tr><th>Kode Order</th><th>Marketing</th><th>Tanggal</th><th>Biaya</th><th>Bayar</th></tr></thead>
         <tbody>
         @forelse($title->orderDetails as $od)
+            {{-- Sama persis dengan layar detail arsip: uang yang benar-benar masuk, bukan
+                 isLunas() (yang ikut jalan pintas invoice 'lunas'). Dokumen resmi tidak
+                 boleh menyebut "Lunas" untuk order yang masih menyisakan tagihan. --}}
+            @php
+                $ditarik = (bool) optional($od->titleProgress)->withdrawn_at || (bool) $od->order?->isWithdrawn();
+                $kurang  = $od->order ? max(0, (int) $od->cost_amount - $od->order->paidNet()) : 0;
+            @endphp
             <tr>
                 <td>{{ $od->order?->code_order ?? '-' }}</td>
                 <td>{{ $od->order?->user?->name ?? '-' }}</td>
                 <td>{{ optional($od->order?->ordered_at)->format('d M Y') ?? '-' }}</td>
                 <td>Rp {{ number_format((int) $od->cost_amount, 0, ',', '.') }}</td>
-                <td>{{ $od->order && $od->order->isLunas() ? 'Lunas' : 'Belum' }}</td>
+                <td>@if($ditarik)Ditarik (refund)@elseif(! $od->order)-@elseif($kurang > 0)Kurang Rp {{ number_format($kurang, 0, ',', '.') }}@else Lunas @endif</td>
             </tr>
         @empty
             <tr><td colspan="5">Belum ada order.</td></tr>

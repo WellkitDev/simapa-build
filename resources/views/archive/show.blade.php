@@ -21,7 +21,24 @@
 {{-- Kelayakan + aksi Ajukan --}}
 <div class="row"><div class="col-md-9 col-12 grid-margin stretch-card"><div class="card"><div class="card-body">
     <h6 class="card-title">Kelayakan Arsip</h6>
-    <span class="badge {{ $isPaidOff ? 'bg-success' : 'bg-secondary' }}">Pembayaran {{ $isPaidOff ? 'Lunas' : 'Belum Lunas' }}</span>
+    {{--
+        Badge pembayaran membaca SISA TAGIHAN (uang yang benar-benar masuk), bukan
+        $isPaidOff. $isPaidOff ikut jalan pintas invoice 'lunas' yang tercap pada setiap
+        payment disetujui — termasuk DP — sehingga order yang baru bayar separuh tampak
+        lunas. Gerbang "Ajukan ke Arsip" di bawah tetap memakai $eligible/$isPaidOff:
+        pembayaran tidak boleh MENGHALANGI penutupan, tapi kekurangannya wajib terbaca
+        beserta angkanya di titik penutupan ini (keputusan K2).
+    --}}
+    @if($sisaTagihan > 0)
+        <span class="badge bg-danger">Pembayaran Belum Lunas — kurang Rp {{ number_format($sisaTagihan, 0, ',', '.') }}</span>
+    @elseif($isPaidOff)
+        <span class="badge bg-success">Pembayaran Lunas</span>
+    @else
+        <span class="badge bg-secondary">Pembayaran — belum ada order aktif</span>
+    @endif
+    @if($jumlahDitarik > 0)
+        <span class="badge bg-secondary">{{ $jumlahDitarik }} order ditarik</span>
+    @endif
     <span class="badge {{ $isFinal ? 'bg-success' : 'bg-secondary' }}">Manuskrip {{ $isFinal ? 'Final' : 'Belum Final' }}</span>
     @if($canManage && in_array($st, ['draft', 'ditolak'], true))
         @can('archive.submit')
@@ -43,12 +60,28 @@
         <thead><tr><th>Kode Order</th><th>Marketing</th><th>Tanggal</th><th>Biaya</th><th>Pembayaran</th></tr></thead>
         <tbody>
         @forelse($title->orderDetails as $od)
-            <tr>
+            @php
+                $ditarik = (bool) optional($od->titleProgress)->withdrawn_at || (bool) $od->order?->isWithdrawn();
+                // Sama seperti badge kelayakan: uang yang benar-benar masuk, bukan isLunas().
+                $kurang  = $od->order ? max(0, (int) $od->cost_amount - $od->order->paidNet()) : 0;
+            @endphp
+            {{-- Order yang ditarik tetap tercantum (riwayat), tapi diredupkan supaya terbaca sebagai dicoret. --}}
+            <tr @class(['text-muted' => $ditarik])>
                 <td>{{ $od->order?->code_order ?? '—' }}</td>
                 <td>{{ $od->order?->user?->name ?? '—' }}</td>
                 <td>{{ optional($od->order?->ordered_at)->format('d M Y') ?? '—' }}</td>
                 <td>Rp {{ number_format((int) $od->cost_amount, 0, ',', '.') }}</td>
-                <td>@if($od->order && $od->order->isLunas())<span class="badge bg-success">Lunas</span>@else<span class="badge bg-secondary">Belum</span>@endif</td>
+                <td>
+                    @if($ditarik)
+                        <span class="badge bg-secondary">Ditarik · Refund</span>
+                    @elseif(! $od->order)
+                        <span class="badge bg-secondary">—</span>
+                    @elseif($kurang > 0)
+                        <span class="badge bg-danger">Kurang Rp {{ number_format($kurang, 0, ',', '.') }}</span>
+                    @else
+                        <span class="badge bg-success">Lunas</span>
+                    @endif
+                </td>
             </tr>
         @empty
             <tr><td colspan="5" class="text-muted">Belum ada order.</td></tr>

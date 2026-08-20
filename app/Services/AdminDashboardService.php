@@ -25,7 +25,19 @@ class AdminDashboardService
             'doc_belum_lengkap' => Title::where('jenis', 'buku')
                                     ->whereNotIn('id', $diajukanIds)->count(),
 
-            'arsip_menunggu_artefak' => TitleArchive::where('status', 'draft')->count(),
+            // Judul final yang arsipnya belum diajukan/disetujui. Dulu menghitung
+            // TitleArchive berstatus 'draft' — baris yang tak pernah dibuat kode mana pun
+            // (TitleArchivalService hanya menulis diajukan/disetujui/ditolak), sehingga
+            // ubinnya abadi 0 dan menaut ke halaman yang toh tak menampilkan judul itu.
+            //
+            // Sengaja memakai Title::siapDiarsipkan() — daftar yang SAMA persis dengan
+            // yang ditampilkan halaman tujuannya, lengkap dengan penyaringan PHP
+            // manuscriptIsFinal(). Versi hemat (pra-saring SQL saja, tanpa ->get())
+            // sudah dipertimbangkan dan ditolak: ia melebihkan hitungan untuk judul yang
+            // ordernya membentang lintas tahap atau yang order publish-nya ditarik, jadi
+            // kita cuma menukar ubin mati dengan ubin bohong — persis cacat yang sedang
+            // ditambal. Biayanya wajar: pra-saring sudah memangkas ke judul tahap final.
+            'arsip_menunggu_artefak' => Title::siapDiarsipkan()->count(),
             'arsip_diajukan'         => TitleArchive::where('status', 'diajukan')->count(),
 
             // Aktif = belum terbit; 'published' sudah selesai.

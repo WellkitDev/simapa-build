@@ -27,7 +27,15 @@ class TitleArchiveController extends Controller
             ? Title::whereHas('archive', fn ($q) => $q->where('status', 'diajukan'))->with('archive.submitter')->latest()->get()
             : collect();
 
-        return view('archive.index', ['approved' => $approved, 'pending' => $pending, 'canApprove' => $this->canApprove()]);
+        return view('archive.index', [
+            // Pintu masuk untuk judul yang BELUM punya baris arsip sama sekali —
+            // tanpa ini halaman detail arsip tak tertaut dari mana pun (lihat
+            // Title::siapDiarsipkan()).
+            'siap'       => Title::siapDiarsipkan(),
+            'approved'   => $approved,
+            'pending'    => $pending,
+            'canApprove' => $this->canApprove(),
+        ]);
     }
 
     public function show(int $id)
@@ -46,6 +54,10 @@ class TitleArchiveController extends Controller
             'eligible'        => $title->archiveEligible(),
             'isPaidOff'       => $title->isPaidOff(),
             'isFinal'         => $title->manuscriptIsFinal(),
+            // Sisa tagihan dipisah dari isPaidOff() dengan sengaja: yang pertama fakta
+            // uang, yang kedua izin gerbang (yang bisa dibuka jalan pintas invoice).
+            'sisaTagihan'     => $title->sisaTagihan(),
+            'jumlahDitarik'   => $title->jumlahDitarik(),
             'canManage'       => $this->canManage(),
             'canApprove'      => $this->canApprove(),
             'staff'           => User::whereHas('roles', fn ($q) => $q->whereIn('name', ['superadmin', 'manager', 'admin', 'production', 'marketing']))->orderBy('name')->get(['id', 'name']),
