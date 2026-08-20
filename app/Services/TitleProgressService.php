@@ -332,6 +332,8 @@ class TitleProgressService
             $isCorrection
         );
 
+        app(OrderFulfillmentService::class)->syncFromProgress($progress);
+
         return $progress;
     }
 
