@@ -1725,6 +1725,28 @@ class ChapterAuthorCleanupTest extends TestCase
     }
 
     /** @test */
+    public function order_dibatalkan_juga_berhenti_sebagai_pekerjaan(): void
+    {
+        [$order] = $this->babBerpenulis();
+
+        app(OrderCancellationService::class)->cancel($order, 'Klien batal', $this->superadmin());
+
+        $this->assertSame('dibatalkan', $order->fresh()->fulfillment_status);
+    }
+
+    /** @test */
+    public function pemulihan_order_mengembalikan_status_pekerjaan(): void
+    {
+        [$order] = $this->babBerpenulis();
+        $sa = $this->superadmin();
+
+        app(OrderCancellationService::class)->cancel($order, 'Klien batal', $sa);
+        app(OrderCancellationService::class)->restore($order->fresh(), $sa);
+
+        $this->assertSame('berjalan', $order->fresh()->fulfillment_status);
+    }
+
+    /** @test */
     public function pemulihan_order_memasang_penulisnya_kembali(): void
     {
         [$order, $chapter, $author] = $this->babBerpenulis();
@@ -1793,6 +1815,27 @@ Lalu tambahkan method ini ke kelas yang sama:
     }
 ```
 
+- [ ] **Step 3b: Tulis `fulfillment_status` saat cancel**
+
+Ditemukan saat review Task 1: `cancel()` tidak pernah menyentuh `fulfillment_status`, dan
+karena TitleProgress ikut soft-deleted, `OrderFulfillmentService::syncFromProgress()` tak
+akan pernah menyalakannya. Tanpa langkah ini setiap order yang dibatalkan terbaca
+`berjalan` selamanya — persis perpecahan makna yang kolom ini dibuat untuk mencegah.
+Task 9 hanya menambal data lama; ini menambal pembatalan yang akan datang.
+
+Di `app/Services/OrderCancellationService.php`, di dalam `cancel()`, ubah blok
+`$order->update([...])` menjadi:
+
+```php
+            $order->update([
+                'status'             => 'dibatalkan',
+                'fulfillment_status' => 'dibatalkan',
+                'cancel_reason'      => $reason,
+                'cancelled_by'       => $actor->id,
+                'cancelled_at'       => now(),
+            ]);
+```
+
 - [ ] **Step 4: Pasang kembali saat restore**
 
 Di `app/Services/OrderCancellationService.php`, di dalam `DB::transaction` milik `restore()`,
@@ -1827,10 +1870,40 @@ Lalu tambahkan method:
     }
 ```
 
+- [ ] **Step 4b: Kembalikan `fulfillment_status` saat restore**
+
+Di `app/Services/OrderCancellationService.php`, di dalam `restore()`, ubah blok
+`$order->update([...])` menjadi:
+
+```php
+            $order->update([
+                'status'             => $this->statusAfterRestore($order),
+                'fulfillment_status' => 'berjalan',
+                'cancel_reason'      => null,
+                'cancelled_by'       => null,
+                'cancelled_at'       => null,
+            ]);
+```
+
+`berjalan` bukan `selesai`, meski naskahnya mungkin sudah final: pemanggilan
+`OrderFulfillmentService::syncFromProgress()` di baris berikutnya yang menentukan
+nilai sebenarnya, dan ia perlu menemukan order dalam keadaan bukan-akhir supaya
+tidak keluar lebih awal lewat gerbang `in_array(['dibatalkan','ditarik'])`.
+
+Tepat setelah blok `DB::transaction(...)` di `restore()` (di luar transaksi, sebelum
+blok notifikasi `try`), tambahkan:
+
+```php
+        $progress = $order->fresh()->details?->titleProgress;
+        if ($progress !== null) {
+            app(OrderFulfillmentService::class)->syncFromProgress($progress);
+        }
+```
+
 - [ ] **Step 5: Jalankan test, pastikan lulus**
 
 Run: `php artisan test --filter=ChapterAuthorCleanupTest`
-Expected: PASS (2 test).
+Expected: PASS (4 test).
 
 - [ ] **Step 6: Pastikan pembatalan lama tidak rusak**
 
