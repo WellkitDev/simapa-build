@@ -1,6 +1,7 @@
 @extends('layouts.master')
 @section('title', 'Detail Naskah - SiMAPA')
 @section('content')
+    <div class="mb-3">@include('partials.tombol-kembali', ['cadangan' => route('naskah.pelacakan')])</div>
 
 @php
     $d     = $progress->orderDetail;

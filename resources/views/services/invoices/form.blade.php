@@ -2,6 +2,7 @@
 @section('title', ($mode === 'create' ? 'Buat' : 'Edit') . ' Invoice Layanan - SiMAPA')
 
 @section('content')
+    <div class="mb-3">@include('partials.tombol-kembali', ['ke' => route('service.invoice.index')])</div>
 <form method="POST"
       action="{{ $mode === 'create' ? route('service.invoice.store') : route('service.invoice.update', $invoice->id) }}">
     @csrf

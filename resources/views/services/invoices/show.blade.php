@@ -2,6 +2,7 @@
 @section('title', 'Invoice ' . $invoice->invoice_no . ' - SiMAPA')
 
 @section('content')
+    <div class="mb-3">@include('partials.tombol-kembali', ['ke' => route('service.invoice.index')])</div>
 @php
     $workColors = ['belum' => 'secondary', 'proses' => 'warning', 'selesai' => 'success', 'batal' => 'danger'];
     $payColors  = ['belum' => 'secondary', 'dp' => 'info', 'lunas' => 'success'];

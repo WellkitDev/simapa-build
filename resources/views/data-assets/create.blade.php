@@ -1,6 +1,7 @@
 @extends('layouts.master')
 @section('title', 'Tambah Data - Gudang Data - SiMAPA')
 @section('content')
+    <div class="mb-3">@include('partials.tombol-kembali', ['ke' => route('data.index')])</div>
 <div class="row"><div class="col-lg-8">
 <div class="card"><div class="card-body">
     <h5 class="mb-3">Tambah Data</h5>

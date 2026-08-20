@@ -6,6 +6,7 @@
 @endpush
 
 @section('content')
+    <div class="mb-3">@include('partials.tombol-kembali', ['ke' => route('announcement.index')])</div>
 <div class="row"><div class="col-md-10 offset-md-1 grid-margin stretch-card"><div class="card"><div class="card-body">
     <h6 class="card-title">{{ $announcement->exists ? 'Edit' : 'Buat' }} Pengumuman</h6>
     <form method="POST" action="{{ $announcement->exists ? route('announcement.update', $announcement->id) : route('announcement.store') }}">

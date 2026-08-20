@@ -2,6 +2,7 @@
 @section('title', ($mode === 'edit' ? 'Edit' : 'Buat') . ' Slip Gaji - SiMAPA')
 
 @section('content')
+    <div class="mb-3">@include('partials.tombol-kembali', ['ke' => route('salary.slip.index')])</div>
 @php
     $action = $mode === 'edit' ? route('salary.slip.update', $slip->id) : route('salary.slip.store');
     $oldEarnings = old('earnings', $earnings->map(fn ($l) => ['label' => $l->label, 'amount' => (int) $l->amount])->values()->all());
