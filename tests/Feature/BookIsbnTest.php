@@ -65,7 +65,6 @@ class BookIsbnTest extends TestCase
             'tgl_terbit'      => '2026-03-10',
             'link_terbit'     => 'https://avidpedia.com/buku-terbit',
             'ebook'           => UploadedFile::fake()->create('ebook.pdf', 20, 'application/pdf'),
-            'sertifikat_isbn' => UploadedFile::fake()->create('sertifikat.pdf', 20, 'application/pdf'),
             'barcode_isbn'    => UploadedFile::fake()->create('barcode.png', 5, 'image/png'),
         ];
     }

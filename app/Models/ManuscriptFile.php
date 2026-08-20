@@ -47,10 +47,6 @@ class ManuscriptFile extends Model
             'label' => 'E-book', 'mimes' => 'pdf,epub,zip',
             'accept' => '.pdf,.epub,.zip', 'wajibCetak' => true,
         ],
-        'sertifikat_isbn' => [
-            'label' => 'Sertifikat ISBN', 'mimes' => 'pdf,jpg,jpeg,png',
-            'accept' => '.pdf,.jpg,.jpeg,.png', 'wajibCetak' => true,
-        ],
         'barcode_isbn' => [
             'label' => 'Barcode ISBN', 'mimes' => 'pdf,jpg,jpeg,png',
             'accept' => '.pdf,.jpg,.jpeg,.png', 'wajibCetak' => true,
@@ -76,12 +72,55 @@ class ManuscriptFile extends Model
         return array_merge(array_keys(self::SLOTS), self::slotsIsbn());
     }
 
+    /** @deprecated pakai BatasUnggah::iniKeKb() — dibiarkan agar tes lama tetap sah. */
+    public static function iniKeKb(string $kunci): int
+    {
+        return \App\Support\BatasUnggah::iniKeKb($kunci);
+    }
+
+    /** Batas unggahan berkas ISBN yang benar-benar berlaku (KB). */
+    public static function batasKb(): int
+    {
+        return \App\Support\BatasUnggah::kb(self::BATAS_KB);
+    }
+
+    /** Batas efektif berkas ISBN, enak dibaca orang. */
+    public static function batasManusia(): string
+    {
+        return \App\Support\BatasUnggah::manusia(self::BATAS_KB);
+    }
+
     /** @return array<string,string> aturan validasi unggahan per slot ISBN. */
     public static function rulesIsbn(): array
     {
         $out = [];
         foreach (self::BERKAS_ISBN as $slot => $b) {
-            $out[$slot] = 'nullable|file|mimes:' . $b['mimes'] . '|max:' . self::BATAS_KB;
+            $out[$slot] = 'nullable|file|mimes:' . $b['mimes'] . '|max:' . self::batasKb();
+        }
+
+        return $out;
+    }
+
+    /**
+     * Pesan galat unggahan per slot ISBN.
+     *
+     * `uploaded` adalah kunci yang dipakai Laravel ketika PHP sendiri yang menolak
+     * berkasnya (upload_max_filesize terlampaui, tak ada direktori sementara, dsb).
+     * Pesan bawaannya berbahasa Inggris dan tak menyebut sebab — pengguna hanya
+     * melihat "The ebook failed to upload." lalu buntu.
+     *
+     * @return array<string,string>
+     */
+    public static function pesanIsbn(): array
+    {
+        $out = [];
+        $batas = self::batasManusia();
+        foreach (self::BERKAS_ISBN as $slot => $b) {
+            $out[$slot . '.uploaded'] = $b['label'] . ' gagal diunggah — kemungkinan besar '
+                . 'ukurannya melampaui batas server (maks ' . $batas . '). Kecilkan berkasnya, '
+                . 'atau minta batas upload_max_filesize/post_max_size dinaikkan di server.';
+            $out[$slot . '.max'] = $b['label'] . ' melebihi batas ' . $batas . '.';
+            $out[$slot . '.mimes'] = $b['label'] . ' harus berformat ' . $b['accept'] . '.';
         }
 
         return $out;

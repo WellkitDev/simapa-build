@@ -71,7 +71,7 @@ class BookIsbnBerkasTest extends TestCase
     public function empat_berkas_isbn_terdaftar_tapi_tidak_bocor_ke_berkas_naskah(): void
     {
         $this->assertSame(
-            ['ebook', 'sertifikat_isbn', 'barcode_isbn', 'sertifikat_hki'],
+            ['ebook', 'barcode_isbn', 'sertifikat_hki'],
             ManuscriptFile::slotsIsbn()
         );
 
@@ -113,7 +113,7 @@ class BookIsbnBerkasTest extends TestCase
         }
 
         $this->assertSame('ebook-v2.pdf', $isbn->berkas('ebook')?->original_name);
-        $this->assertNull($isbn->berkas('sertifikat_isbn'));
+        $this->assertNull($isbn->berkas('barcode_isbn'));
         $this->assertSame('https://avidpedia.com/buku-1', $isbn->fresh()->link_terbit);
     }
 
@@ -129,12 +129,12 @@ class BookIsbnBerkasTest extends TestCase
                 'no_isbn'         => '978-602-1234-56-7',
                 'link_terbit'     => 'https://avidpedia.com/buku-uji',
                 'ebook'           => UploadedFile::fake()->create('buku.pdf', 200, 'application/pdf'),
-                'sertifikat_isbn' => UploadedFile::fake()->create('sertifikat.pdf', 50, 'application/pdf'),
+                'sertifikat_hki' => UploadedFile::fake()->create('sertifikat.pdf', 50, 'application/pdf'),
             ])->assertRedirect();
 
         $isbn = BookIsbn::where('title_id', $book->id)->firstOrFail();
         $this->assertSame('buku.pdf', $isbn->berkas('ebook')?->original_name);
-        $this->assertSame('sertifikat.pdf', $isbn->berkas('sertifikat_isbn')?->original_name);
+        $this->assertSame('sertifikat.pdf', $isbn->berkas('sertifikat_hki')?->original_name);
         $this->assertSame('https://avidpedia.com/buku-uji', $isbn->link_terbit);
     }
 
@@ -222,13 +222,13 @@ class BookIsbnBerkasTest extends TestCase
     }
 
     /** @test */
-    public function direktori_menampilkan_keempat_kolom_berkas(): void
+    public function direktori_menampilkan_ketiga_kolom_berkas(): void
     {
         $book = $this->buku();
         \App\Models\BookIsbn::create([
             'title_id' => $book->id, 'status' => 'cetak', 'no_isbn' => '978-602-2',
         ]);
-        foreach (['ebook' => 'e', 'sertifikat_isbn' => 's', 'barcode_isbn' => 'b', 'sertifikat_hki' => 'h'] as $slot => $tanda) {
+        foreach (['ebook' => 'e', 'barcode_isbn' => 'b', 'sertifikat_hki' => 'h'] as $slot => $tanda) {
             ManuscriptFile::create([
                 'title_id' => $book->id, 'title_chapter_id' => null, 'slot' => $slot,
                 'version' => 1, 'original_name' => $slot . '.pdf',
@@ -239,10 +239,10 @@ class BookIsbnBerkasTest extends TestCase
         $isi = $this->actingAs($this->user('marketing'))
             ->get(route('isbn.index'))->assertOk()->getContent();
 
-        foreach (['E-book', 'Sertifikat ISBN', 'Barcode ISBN', 'Sertifikat HKI'] as $label) {
+        foreach (['E-book', 'Barcode ISBN', 'Sertifikat HKI'] as $label) {
             $this->assertStringContainsString($label, $isi);
         }
-        foreach (['https://drive/e', 'https://drive/s', 'https://drive/b', 'https://drive/h'] as $url) {
+        foreach (['https://drive/e', 'https://drive/b', 'https://drive/h'] as $url) {
             $this->assertStringContainsString($url, $isi);
         }
     }

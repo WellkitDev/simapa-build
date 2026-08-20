@@ -76,7 +76,6 @@ class BookIsbnValidasiTest extends TestCase
             'tgl_terbit'      => '2026-03-10',
             'link_terbit'     => 'https://avidpedia.com/buku-terbit',
             'ebook'           => UploadedFile::fake()->create('ebook.pdf', 20, 'application/pdf'),
-            'sertifikat_isbn' => UploadedFile::fake()->create('sertifikat.pdf', 20, 'application/pdf'),
             'barcode_isbn'    => UploadedFile::fake()->create('barcode.png', 5, 'image/png'),
         ];
 
@@ -115,8 +114,8 @@ class BookIsbnValidasiTest extends TestCase
 
         $book2 = $this->buku();
         $this->actingAs($this->admin())
-            ->post(route('isbn.store'), $this->lengkap($book2, ['sertifikat_isbn']))
-            ->assertSessionHasErrors('sertifikat_isbn');
+            ->post(route('isbn.store'), $this->lengkap($book2, ['barcode_isbn']))
+            ->assertSessionHasErrors('barcode_isbn');
     }
 
     /** @test */
@@ -129,7 +128,6 @@ class BookIsbnValidasiTest extends TestCase
         $this->actingAs($admin)->post(route('isbn.store'), [
             'title_id' => $book->id, 'status' => 'ber_isbn', 'no_isbn' => '978-602-1234-56-7',
             'ebook' => UploadedFile::fake()->create('ebook.pdf', 20, 'application/pdf'),
-            'sertifikat_isbn' => UploadedFile::fake()->create('sertifikat.pdf', 20, 'application/pdf'),
             'barcode_isbn' => UploadedFile::fake()->create('barcode.png', 5, 'image/png'),
         ])->assertRedirect();
 

@@ -31,7 +31,7 @@ class BookIsbn extends Model
     }
 
     /**
-     * Berkas ISBN versi terbaru untuk satu slot (`ebook` | `sertifikat_isbn`).
+     * Berkas ISBN versi terbaru untuk satu slot (`ebook` | `barcode_isbn` | `sertifikat_hki`).
      *
      * Satu query per panggilan — pakai ini di halaman detail saja. Direktori ISBN
      * memuat berkas seluruh baris dalam SATU query di controller; jangan panggil

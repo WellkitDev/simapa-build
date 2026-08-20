@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 /**
  * Link terbit di web avidpedia — dipakai marketing untuk mengabari klien dan
  * ditampilkan langsung di Direktori ISBN. E-book & sertifikat TIDAK butuh kolom:
- * keduanya menumpang tb_manuscript_files lewat slot `ebook` / `sertifikat_isbn`.
+ * keduanya menumpang tb_manuscript_files lewat slot `ebook` / `barcode_isbn`.
  */
 return new class extends Migration
 {
