@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Exceptions\OrderCancellationException;
 use App\Models\InvoiceLog;
 use App\Models\Order;
+use App\Models\OrderDetail;
 use App\Models\Tagihan;
 use App\Models\TagihanLog;
 use App\Models\TitleChapter;
@@ -90,6 +91,13 @@ class OrderCancellationService
     {
         if (! $order->isCancelled()) {
             throw OrderCancellationException::notCancelled();
+        }
+
+        $penerus = $this->penerusBab($order);
+        if ($penerus !== null) {
+            throw OrderCancellationException::chapterTakenOver(
+                (string) ($penerus->order?->code_order ?? '—')
+            );
         }
 
         // Hanya entri kas milik payment yang SEDANG 'batal' akan dibuat ulang —
@@ -184,6 +192,32 @@ class OrderCancellationService
         }
 
         $chapter->authors()->detach();
+    }
+
+    /**
+     * OrderDetail lain yang sudah memesan bab yang sama selagi order ini dibatalkan.
+     *
+     * Cermin OrderWithdrawalService::penerusBab(). Dipakai untuk MENOLAK pemulihan,
+     * bukan sekadar melewatkan pemasangan ulang: `sync()` di pasangPenulisBab() bersifat
+     * otoritatif, jadi tanpa gerbang ini pemulihan akan menimpa penulis pemilik baru —
+     * dan meninggalkan dua order hidup di atas satu bab.
+     *
+     * `withTrashed()` wajib: detail order ini masih soft-deleted saat gerbang ini
+     * diperiksa, karena pemeriksaannya sengaja dilakukan sebelum transaksi dibuka.
+     */
+    private function penerusBab(Order $order): ?OrderDetail
+    {
+        $detail = $order->details()->withTrashed()->first();
+        if ($detail === null || $detail->type !== 'bk_kolab') {
+            return null;
+        }
+
+        return OrderDetail::with('order')
+            ->where('title_id', $detail->title_id)
+            ->where('type', 'bk_kolab')
+            ->where('chapters', $detail->chapters)
+            ->where('id', '!=', $detail->id)
+            ->first();
     }
 
     /**

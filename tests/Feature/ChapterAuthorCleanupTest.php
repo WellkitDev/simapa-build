@@ -247,4 +247,49 @@ class ChapterAuthorCleanupTest extends TestCase
         $this->assertSame([$author->id, $author2->id], $kembali,
             'yang dipasang ulang harus susunan TERAKHIR, bukan snapshot siklus pertama');
     }
+
+    /**
+     * Celah yang ditemukan saat review Task 8: pasangPenulisBab() memakai sync(), yang
+     * otoritatif. Selagi order dibatalkan, babnya terbaca tak bermilik dan bisa dijual
+     * ulang; tanpa gerbang, pemulihan akan MENIMPA penulis pemilik baru dan meninggalkan
+     * dua order hidup di atas satu bab.
+     *
+     * Menolak, bukan melewatkan diam-diam — cermin dari OrderWithdrawalService::undo().
+     *
+     * @test
+     */
+    public function pemulihan_ditolak_bila_bab_sudah_dipesan_order_lain(): void
+    {
+        [$order, $chapter, $author] = $this->babBerpenulis();
+        $sa = $this->superadmin();
+
+        app(OrderCancellationService::class)->cancel($order, 'Klien batal', $sa);
+
+        // Bab 1 dijual ulang ke penulis lain selagi ordernya dibatalkan.
+        $penerusAuthor = Author::create(['name' => 'Penulis Pengganti']);
+        $penerus       = Order::factory()->create();
+        $detailPenerus = OrderDetail::factory()->create([
+            'order_id' => $penerus->id, 'type' => 'bk_kolab',
+            'title' => $order->details()->withTrashed()->first()->title,
+            'title_id' => $order->details()->withTrashed()->first()->title_id,
+            'chapters' => 1, 'cost_amount' => 1000000,
+        ]);
+        $detailPenerus->authors()->attach($penerusAuthor->id, ['position' => 1]);
+        $chapter->authors()->sync([$penerusAuthor->id => ['position' => 1]]);
+
+        $this->expectException(\App\Exceptions\OrderCancellationException::class);
+
+        try {
+            app(OrderCancellationService::class)->restore($order->fresh(), $sa);
+        } finally {
+            $this->assertTrue(
+                $chapter->authors()->where('tb_authors.id', $penerusAuthor->id)->exists(),
+                'penulis pemilik baru tidak boleh tertimpa'
+            );
+            $this->assertFalse(
+                $chapter->authors()->where('tb_authors.id', $author->id)->exists(),
+                'penulis lama tidak boleh dipasang kembali'
+            );
+        }
+    }
 }

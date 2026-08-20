@@ -34,6 +34,20 @@ class OrderCancellationException extends Exception
         return new self('Order ini tidak dalam keadaan dibatalkan.');
     }
 
+    /**
+     * Bab yang dulu dipesan order ini sudah dijual ulang selagi ordernya dibatalkan.
+     * Memulihkannya akan menimpa penulis pemilik baru DAN meninggalkan dua order hidup
+     * di atas satu bab — ambiguitas kepemilikan yang harus diputuskan manusia, bukan
+     * diselesaikan diam-diam oleh kode.
+     */
+    public static function chapterTakenOver(string $successorCode): self
+    {
+        return new self(
+            'Bab ini sudah dipesan order ' . $successorCode . ' selagi order ini dibatalkan. '
+            . 'Batalkan order itu dulu bila memang order ini yang mau dipulihkan.'
+        );
+    }
+
     public function render(Request $request)
     {
         if ($request->expectsJson()) {
