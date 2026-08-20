@@ -53,7 +53,7 @@
                                                 <small class="text-muted">{{ $order->contact->cp_email }}</small>
                                             </td>
                                             <td style="max-width: 250px;" class="text-truncate">
-                                                {{ Str::title(Str::limit($detail->title, 40)) ?? 'N/A' }}
+                                                {{ Str::limit($detail->title, 40) ?? 'N/A' }}
                                             </td>
                                             <td>Rp {{ number_format($totalCost, 0, ',', '.') }}</td>
                                             <td class="text-success fw-bold">

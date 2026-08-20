@@ -205,9 +205,9 @@
             <td width="55%">
                 <h4>Kepada Yth.</h4>
                 <p>
-                    {{ Str::title($invoice->client_name) }}<br>
+                    {{ $invoice->client_name }}<br>
                     @if ($invoice->client_institution)
-                        {{ Str::title($invoice->client_institution) }}<br>
+                        {{ $invoice->client_institution }}<br>
                     @endif
                     {{ $invoice->client_email ?? '-' }}<br>
                     {{ $invoice->client_phone ?? '-' }}

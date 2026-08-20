@@ -48,7 +48,7 @@
                                     @foreach ($orders as $order)
                                         <tr>
                                             <td>{{ $order->code_order }}</td>
-                                            <td>{{ $order->details ? Str::title(Str::limit($order->details->title, 30)) : '-' }}</td>
+                                            <td>{{ $order->details ? Str::limit($order->details->title, 30) : '-' }}</td>
                                             <td class="dt-judul">
                                                 @foreach ($order->details?->authors ?? [] as $author)
                                                     <span class="badge border text-dark fw-normal bg-light me-1 mb-1">

@@ -207,11 +207,11 @@
                 <h4>Kepada Yth.</h4>
                 <p>
                     @if ($detail && $detail->authors->isNotEmpty())
-                        {{ Str::title($detail->authors->first()->name) }}@if ($detail->authors->count() > 1)
+                        {{ $detail->authors->first()->name }}@if ($detail->authors->count() > 1)
                             , dkk.
                         @endif
                         <br>
-                        {{ Str::title($detail->authors->first()->affiliation) ?? '-' }}<br>
+                        {{ $detail->authors->first()->affiliation ?? '-' }}<br>
                         {{ $order->contact->cp_email ?? '-' }}<br>
                         {{ $order->contact->cp_phone ?? '-' }}
                     @else
@@ -262,7 +262,7 @@
         </tr>
         <tr>
             <td><strong>Judul</strong></td>
-            <td>: {{ Str::title($detail->title) ?? '-' }}</td>
+            <td>: {{ $detail->title ?? '-' }}</td>
         </tr>
         <tr>
             <td><strong>Scope</strong></td>
@@ -286,7 +286,7 @@
             <td>:
                 <ol style="margin:5px 0 0 0; padding-left:20px;">
                     @foreach ($detail->authors as $author)
-                        <li>{{ Str::title($author->name) }} ({{ Str::title($author->affiliation) ?? '-' }})</li>
+                        <li>{{ $author->name }} ({{ $author->affiliation ?? '-' }})</li>
                     @endforeach
                 </ol>
             </td>
