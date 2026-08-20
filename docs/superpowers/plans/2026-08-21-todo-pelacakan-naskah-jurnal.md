@@ -4,8 +4,9 @@
 **Status:** Keputusan LENGKAP (§6) — siap dijadikan rencana implementasi
 **Konteks:** lanjutan dari branch `feat/sinkronisasi-status-order-naskah`
 
-Dokumen ini **menangkap** permintaan supaya tidak hilang. Ia belum rencana implementasi:
-§6 harus dijawab dulu.
+Dokumen ini **menangkap** permintaan dan keputusannya. Seluruh keputusan di §6 sudah
+diambil, jadi ia siap dijadikan rencana implementasi bertahap — tapi ia sendiri belum
+rencana: langkah, kode, dan testnya belum ditulis.
 
 ---
 
