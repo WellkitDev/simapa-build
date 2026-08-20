@@ -96,6 +96,12 @@ class ChapterManuscriptService
                 continue;
             }
             $tp->update(['status' => $target, 'assigned_role' => TitleProgress::getHandlerForStatus($target)]);
+
+            // Jalur ini tidak lewat TitleProgressService::applyStatus(), padahal
+            // `terbit` adalah tahap final — tanpa kail ini order buku yang terbit
+            // lewat registrasi ISBN akan tertinggal `berjalan` selamanya.
+            app(OrderFulfillmentService::class)->syncFromProgress($tp);
+
             $moved = true;
         }
 

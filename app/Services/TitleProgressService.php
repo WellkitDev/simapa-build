@@ -301,7 +301,10 @@ class TitleProgressService
             return collect([$progress]);
         }
 
-        return TitleProgress::with('orderDetail')
+        // `orderDetail.order` ikut dimuat: applyStatus() menyinkronkan order tiap
+        // anggota grup, dan tanpa ini setiap anggota menembak SELECT-nya sendiri di
+        // dalam transaksi.
+        return TitleProgress::with('orderDetail.order')
             ->whereHas('orderDetail', fn ($q) => $q->where('group_key', $key))
             ->get();
     }
@@ -436,6 +439,11 @@ class TitleProgressService
         if (in_array($detail->type, $bookTypes, true) && $detail->title_id) {
             app(\App\Services\ChapterManuscriptService::class)->ensureChapters($detail->titleRef);
         }
+
+        // Status warisan grup bisa langsung final (semua order sejudul sudah terbit).
+        // Tanpa ini order barunya lahir `berjalan` dan tak akan pernah ada perpindahan
+        // tahap yang menutupnya.
+        app(OrderFulfillmentService::class)->syncFromProgress($progress);
 
         return $progress;
     }

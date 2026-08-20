@@ -20,8 +20,9 @@ class Order extends Model
 
     /**
      * Keadaan PEKERJAAN. `ditarik` = order di-refund penuh dan tak lagi dihitung
-     * sebagai bagian judul. Ditulis HANYA oleh OrderFulfillmentService dan
-     * OrderWithdrawalService.
+     * sebagai bagian judul. Ditulis HANYA oleh tiga layanan: OrderFulfillmentService
+     * (dipicu naskah), OrderWithdrawalService (refund), dan OrderCancellationService
+     * (pembatalan).
      */
     public const FULFILLMENTS = ['berjalan', 'selesai', 'ditarik', 'dibatalkan'];
 
@@ -31,9 +32,16 @@ class Order extends Model
         'cancel_reason', 'cancelled_by', 'cancelled_at',
     ];
 
-    protected $dates = ['ordered_at', 'completed_at'];
-
-    protected $casts = ['cancelled_at' => 'datetime'];
+    // CATATAN: `protected $dates` sudah TIDAK berlaku sejak Laravel 10 — getDates()
+    // hanya mengembalikan created_at/updated_at. Properti itu dulu ada di sini untuk
+    // `ordered_at` dan `completed_at`, diam-diam tanpa efek, sehingga keduanya kembali
+    // sebagai string dan tiap `optional($order->completed_at)->format(...)` senyap
+    // menghasilkan null. Semua kolom waktu kini dideklarasikan di $casts.
+    protected $casts = [
+        'cancelled_at' => 'datetime',
+        'ordered_at'   => 'datetime',
+        'completed_at' => 'datetime',
+    ];
 
     public function details()
     {

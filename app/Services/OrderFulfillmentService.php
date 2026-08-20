@@ -10,9 +10,17 @@ use App\Models\TitleProgress;
  * NASKAH. Penarikan (refund) ditulis OrderWithdrawalService; pembatalan ditulis
  * OrderCancellationService.
  *
- * Dikaitkan ke TitleProgressService::applyStatus() — satu-satunya tempat
- * tb_title_progress.status ditulis — sehingga tak ada jalur perpindahan tahap yang
- * bisa lolos tanpa memperbarui ordernya.
+ * `tb_title_progress.status` ditulis di TIGA tempat, dan kail ini dipasang di
+ * ketiganya supaya tak ada jalur perpindahan tahap yang lolos tanpa memperbarui
+ * ordernya:
+ *  - TitleProgressService::applyStatus()   — advance/correct/auto-advance/grup;
+ *  - TitleProgressService::createForDetail() — progress baru mewarisi tahap grup,
+ *    yang bisa saja sudah final;
+ *  - ChapterManuscriptService::advanceBookToStage() — sinkron dari registrasi ISBN,
+ *    jalur normal buku mencapai `terbit`.
+ *
+ * ChapterRollupService juga menulis status, tapi hanya di dalam wilayah bab
+ * (menunggu_proses..editing) yang tak pernah final — jadi tak perlu dikaili.
  */
 class OrderFulfillmentService
 {
@@ -36,19 +44,31 @@ class OrderFulfillmentService
 
         $final = TitleProgress::isFinal((string) $progress->status);
 
-        $this->apply($order, $final ? 'selesai' : 'berjalan', $final ? now() : null);
+        // Tanggal terbit yang sudah tercatat dipertahankan — sinkron ulang (grup maju
+        // lagi, form ISBN disimpan dua kali) tidak boleh menggeser tanggalnya ke now().
+        // `?? now()` juga yang menyembuhkan baris `selesai` bertanggal kosong.
+        $this->apply($order, $final ? 'selesai' : 'berjalan', $final ? ($order->completed_at ?? now()) : null);
     }
 
-    /** Tulis hanya bila benar-benar berubah, supaya `updated_at` order tidak berisik. */
-    private function apply(Order $order, string $status, $completedAt): void
+    /**
+     * Tulis hanya bila benar-benar berubah, supaya `updated_at` order tidak berisik.
+     *
+     * Sengaja fill()+isDirty(), bukan membandingkan `fulfillment_status` saja: baris
+     * yang sudah `selesai` tapi `completed_at`-nya kosong (jalur ISBN sebelum dikaili,
+     * dan backfill data lama) harus tetap bisa diperbaiki.
+     */
+    private function apply(Order $order, string $status, ?\DateTimeInterface $completedAt): void
     {
-        if ($order->fulfillment_status === $status) {
-            return;
-        }
-
-        $order->update([
+        $order->fill([
             'fulfillment_status' => $status,
             'completed_at'       => $completedAt,
         ]);
+
+        // Dibatasi ke dua kolom itu saja: layanan ini menerima order milik pemanggil
+        // lain, dan isDirty() polos akan ikut menyimpan perubahan yang belum tentu
+        // siap disimpan.
+        if ($order->isDirty(['fulfillment_status', 'completed_at'])) {
+            $order->save();
+        }
     }
 }

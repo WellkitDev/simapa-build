@@ -7,8 +7,12 @@ use App\Models\OrderDetail;
 use App\Models\Title;
 use App\Models\TitleProgress;
 use App\Models\User;
+use App\Services\ChapterManuscriptService;
+use App\Services\FinancialReportService;
 use App\Services\GoogleDriveService;
+use App\Services\OrderFulfillmentService;
 use App\Services\TitleProgressService;
+use Illuminate\Support\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -97,5 +101,116 @@ class OrderFulfillmentTest extends TestCase
         app(TitleProgressService::class)->advance($progress, $this->superadmin());
 
         $this->assertSame('dibatalkan', $order->fresh()->fulfillment_status);
+    }
+
+    /** Buku di tahap `cetak` — satu langkah sebelum `terbit`, jalur registrasi ISBN. */
+    private function buku(string $status = 'cetak'): TitleProgress
+    {
+        $title  = Title::create(['title' => 'Buku Uji', 'jenis' => 'buku',
+                                 'tipe_naskah' => 'mandiri', 'status' => 'disetujui']);
+        $order  = Order::factory()->create();
+        $detail = OrderDetail::factory()->create([
+            'order_id' => $order->id, 'type' => 'bk_mandiri',
+            'title' => 'Buku Uji', 'title_id' => $title->id,
+        ]);
+
+        return TitleProgress::create([
+            'order_detail_id' => $detail->id, 'status' => $status,
+            'bidang' => 'buku', 'started_at' => now(),
+        ]);
+    }
+
+    /** @test */
+    public function registrasi_isbn_yang_menerbitkan_buku_menutup_ordernya(): void
+    {
+        $progress = $this->buku('cetak');
+        $book     = $progress->orderDetail->titleRef;
+
+        app(ChapterManuscriptService::class)->advanceBookToStage($book, 'terbit', $this->superadmin());
+
+        $order = $progress->fresh()->orderDetail->order;
+        $this->assertSame('terbit', $progress->fresh()->status);
+        $this->assertSame('selesai', $order->fulfillment_status);
+        $this->assertNotNull($order->completed_at);
+    }
+
+    /** @test */
+    public function order_baru_pada_judul_yang_sudah_terbit_langsung_selesai(): void
+    {
+        $lama = $this->naskah('publish');
+
+        $order  = Order::factory()->create();
+        $detail = OrderDetail::factory()->create([
+            'order_id' => $order->id, 'type' => 'at_mandiri',
+            'title' => 'Artikel Uji', 'title_id' => $lama->orderDetail->title_id,
+        ]);
+
+        $baru = app(TitleProgressService::class)->createForDetail($detail);
+
+        $this->assertSame('publish', $baru->status);
+        $this->assertSame('selesai', $order->fresh()->fulfillment_status);
+        $this->assertNotNull($order->fresh()->completed_at);
+    }
+
+    /** @test */
+    public function completed_at_yang_kosong_disembuhkan_saat_sinkron_ulang(): void
+    {
+        $progress = $this->naskah('publish');
+        $order    = $progress->orderDetail->order;
+        $order->update(['fulfillment_status' => 'selesai', 'completed_at' => null]);
+
+        app(OrderFulfillmentService::class)->syncFromProgress($progress->fresh());
+
+        $this->assertNotNull($order->fresh()->completed_at);
+    }
+
+    /** @test */
+    public function sinkron_ulang_tidak_menggeser_tanggal_terbit_yang_sudah_tercatat(): void
+    {
+        $progress = $this->naskah('publish');
+        $order    = $progress->orderDetail->order;
+        $awal     = now()->subDays(30)->startOfSecond();
+        $order->update(['fulfillment_status' => 'selesai', 'completed_at' => $awal]);
+
+        app(OrderFulfillmentService::class)->syncFromProgress($progress->fresh());
+
+        $this->assertTrue($awal->equalTo($order->fresh()->completed_at));
+    }
+
+    /** @test */
+    public function completed_at_kembali_sebagai_carbon_bukan_string(): void
+    {
+        $progress = $this->naskah('loa');
+
+        app(TitleProgressService::class)->advance($progress, $this->superadmin());
+
+        $this->assertInstanceOf(Carbon::class, $progress->orderDetail->order->fresh()->completed_at);
+    }
+
+    /**
+     * @test
+     * Tanggal Lunas adalah tanggal UANG. Naskah yang terbit mengisi completed_at, dan
+     * kolom itu tak boleh membajak laporan lunas — dulu selalu null sehingga cabangnya
+     * tak pernah terlihat.
+     */
+    public function tanggal_lunas_tidak_ikut_tanggal_terbit_naskah(): void
+    {
+        $progress = $this->naskah('loa');
+        $order    = $progress->orderDetail->order;
+        $order->update(['status' => 'lunas']);
+
+        app(TitleProgressService::class)->advance($progress, $this->superadmin());
+
+        // Naskah terbit sebulan lalu, ordernya baru disentuh hari ini. Tanpa jarak ini
+        // completed_at dan updated_at ditulis pada save() yang sama dan tes tak bisa
+        // membedakan keduanya — assertion-nya lulus semu.
+        $order->fresh()->update(['completed_at' => now()->subMonth()]);
+
+        $baris = app(FinancialReportService::class)->orderSelesai(null)['detail']->first();
+
+        $this->assertNotNull($baris);
+        $this->assertInstanceOf(Carbon::class, $baris->tanggal_lunas);
+        $this->assertTrue($baris->updated_at->equalTo($baris->tanggal_lunas));
+        $this->assertFalse($baris->completed_at->equalTo($baris->tanggal_lunas));
     }
 }

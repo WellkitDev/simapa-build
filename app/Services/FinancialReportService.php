@@ -78,7 +78,14 @@ class FinancialReportService
             ->get()
             ->map(function ($o) {
                 $o->nilai         = (int) (optional($o->details)->cost_amount ?? 0);
-                $o->tanggal_lunas = $o->completed_at ?? $o->updated_at;
+                // `completed_at` SENGAJA tidak dipakai di sini: sejak order punya
+                // fulfillment_status, kolom itu berarti "naskahnya terbit" — tanggal
+                // PEKERJAAN, bukan tanggal uang. Memakainya membuat kolom Tanggal Lunas
+                // melaporkan hal yang berbeda dari namanya. Sebelum kolom itu pernah
+                // terisi, cabang ini toh selalu jatuh ke updated_at, jadi ini
+                // mempertahankan perilaku yang selama ini benar-benar tampil.
+                // Tanggal lunas yang sebenarnya harus datang dari payment — Kelompok Uang.
+                $o->tanggal_lunas = $o->updated_at;
                 return $o;
             });
 
