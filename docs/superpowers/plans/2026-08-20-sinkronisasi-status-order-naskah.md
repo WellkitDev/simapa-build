@@ -2356,10 +2356,11 @@ Lalu di `resources/views/naskah/arsip.blade.php`, pada sel "Tahap Akhir", bungku
 Run: `php artisan test --filter=OrderWithdrawalTest`
 Expected: PASS (8 test).
 
-- [ ] **Step 6: Jalankan seluruh suite**
+- [ ] **Step 6: Pastikan halaman order & pelacakan tidak rusak**
 
-Run: `php artisan test`
-Expected: PASS semua.
+Run: `php artisan test --filter="OrderCancel|OrderRestore|OrderPemilik|NaskahPelacakan|NaskahLayar|DetailOrderPaymentInvoice"`
+Expected: PASS semua. Suite penuh dijalankan sekali di Pemeriksaan akhir, bukan di sini
+(~18 menit sekali jalan).
 
 - [ ] **Step 7: Commit**
 
@@ -2375,8 +2376,11 @@ git commit -m "tampilan: keadaan pekerjaan order terbaca sekilas di daftar dan a
 - [ ] **Seluruh suite hijau**
 
 Run: `php artisan test`
-Expected: PASS semua. Bandingkan jumlahnya dengan baseline (744 lulus, 1 dilewati) —
-angkanya harus naik sekitar 21 test baru, tak ada yang hilang.
+Expected: PASS semua. Baseline sebelum pekerjaan ini: **1111 lulus, 1 dilewati, 0 gagal**
+(diukur 2026-08-20). Angkanya harus naik sekitar 21 test baru, tak ada yang hilang.
+
+Suite penuh butuh **~18 menit**. Itu sebabnya hanya Task 4 dan pemeriksaan akhir ini yang
+menjalankannya utuh; tugas lain memakai `--filter` yang menyasar modul terdampak.
 
 - [ ] **DB dev sudah dimigrasikan**
 
