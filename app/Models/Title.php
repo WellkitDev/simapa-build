@@ -231,6 +231,19 @@ class Title extends Model
      * berarti satu refund mematikan kelayakan arsip judul untuk semua penulis lain.
      * Sama seperti manuscriptStatus(), disaring lewat koleksi supaya tidak menambah
      * query per judul di daftar yang sudah eager-load.
+     *
+     * SENGAJA memakai sisaTagihan(), BUKAN Order::isLunas().
+     *
+     * `isLunas()` mengambil jalan pintas: ia benar begitu ada satu invoice berstatus
+     * 'lunas' — dan PaymentBookController::approve() mencap 'lunas' pada invoice SETIAP
+     * payment yang disetujui, termasuk DP. Jadi order yang baru membayar 200rb dari
+     * 500rb terbaca lunas, dan judulnya lolos gerbang arsip sambil masih menunggak.
+     * Lencana di halaman arsip sudah menyebut angka kekurangan yang sebenarnya; tanpa
+     * perubahan ini lencana dan tombol Ajukan berbeda pendapat di layar yang sama.
+     *
+     * Perbaikannya sengaja DIBATASI ke kelayakan arsip. `Order::isLunas()` sendiri tidak
+     * disentuh — ia dipakai Laporan Keuangan, Piutang, dan target marketing, dan
+     * membetulkannya adalah pekerjaan Kelompok Uang (lihat A3/A4 di spec).
      */
     public function isPaidOff(): bool
     {
@@ -238,7 +251,7 @@ class Title extends Model
             ->reject(fn ($d) => optional($d->titleProgress)->withdrawn_at !== null)
             ->map->order->filter()->unique('id');
 
-        return $orders->isNotEmpty() && $orders->every(fn ($o) => $o->isLunas());
+        return $orders->isNotEmpty() && $this->sisaTagihan() === 0;
     }
 
     public function manuscriptIsFinal(): bool

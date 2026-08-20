@@ -254,4 +254,50 @@ class ArchiveSiapDiarsipkanTest extends TestCase
         $this->assertSame(2, Title::siapDiarsipkan()->count());
         $this->assertSame(2, app(AdminDashboardService::class)->forAdmin()['arsip_menunggu_artefak']);
     }
+
+    /**
+     * Gerbang arsip harus membaca uang yang benar-benar masuk, bukan jalan pintas
+     * invoice 'lunas'.
+     *
+     * PaymentBookController::approve() mencap invoice 'lunas' untuk SETIAP payment yang
+     * disetujui — termasuk DP. Order::isLunas() mengambil jalan pintas itu, jadi order
+     * yang baru bayar 200rb dari 500rb terbaca lunas dan judulnya lolos ke arsip sambil
+     * masih menunggak. Lencananya sudah jujur menyebut kekurangan; ini yang membuat
+     * tombolnya ikut jujur.
+     *
+     * @test
+     */
+    public function judul_yang_masih_menunggak_tidak_layak_diarsipkan(): void
+    {
+        $title = $this->judulFinal('Baru DP Saja', 200000);
+
+        // Persis yang dilakukan approve(): invoice payment mana pun dicap 'lunas'.
+        \App\Models\Invoice::create([
+            'order_id'   => $title->orderDetails->first()->order_id,
+            'invoice_no' => 'INV-' . uniqid(),
+            'status'     => 'lunas',
+        ]);
+
+        $title = $title->fresh()->load(['orderDetails.titleProgress', 'orderDetails.order']);
+
+        $this->assertTrue(
+            $title->orderDetails->first()->order->isLunas(),
+            'prasyarat: jalan pintas invoice memang membuat ordernya terbaca lunas'
+        );
+        $this->assertSame(300000, $title->sisaTagihan());
+        $this->assertFalse($title->isPaidOff(), 'gerbang arsip harus membaca uangnya, bukan invoicenya');
+        $this->assertFalse($title->archiveEligible());
+    }
+
+    /** Cermin: yang benar-benar lunas tetap layak, supaya gerbangnya tak jadi terlalu rakus. */
+    /** @test */
+    public function judul_yang_benar_benar_lunas_tetap_layak_diarsipkan(): void
+    {
+        $title = $this->judulFinal('Lunas Betul', 500000)
+                      ->fresh()->load(['orderDetails.titleProgress', 'orderDetails.order']);
+
+        $this->assertSame(0, $title->sisaTagihan());
+        $this->assertTrue($title->isPaidOff());
+        $this->assertTrue($title->archiveEligible());
+    }
 }
