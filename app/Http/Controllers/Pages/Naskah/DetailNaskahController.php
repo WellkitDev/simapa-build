@@ -56,6 +56,11 @@ class DetailNaskahController extends Controller
             'pelaksanaOptions' => $this->usersWithRole('production'),
             'adminOptions'     => $this->usersWithRole('admin'),
             'izin'       => $this->permissions($actor),
+            // $book sudah diambil di atas — tak ada query baru untuk panel Informasi
+            // Publikasi. Bisa null untuk order lama yang belum tertaut judul; partialnya
+            // menanganinya.
+            'title'       => $book,
+            'canEditInfo' => $actor->can('title.info'),
         ]);
     }
 

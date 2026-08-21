@@ -274,4 +274,105 @@ class NaskahInfoPublikasiTest extends TestCase
 
         $this->assertNull($title->fresh()->jurnal_target);
     }
+
+    /** @test */
+    public function layar_naskah_menampilkan_informasi_publikasi(): void
+    {
+        [$title, $progress] = $this->naskah();
+        $title->update(['jurnal_target' => 'Jurnal Pendidikan Nusantara', 'apc_info' => 'Rp 1.500.000']);
+
+        $this->actingAs($this->user('admin'))
+            ->get(route('naskah.show', $progress->order_detail_id))
+            ->assertOk()
+            ->assertSee('Informasi Publikasi')
+            ->assertSee('Jurnal Pendidikan Nusantara')
+            ->assertSee('Rp 1.500.000');
+    }
+
+    /** @test */
+    public function admin_melihat_form_edit_di_layar_naskah(): void
+    {
+        [, $progress] = $this->naskah();
+
+        $this->actingAs($this->user('admin'))
+            ->get(route('naskah.show', $progress->order_detail_id))
+            ->assertOk()
+            ->assertSee('Edit Informasi Publikasi');
+    }
+
+    /**
+     * Pelaksana (production) tidak memegang `title.info`. Panelnya harus terbaca, tapi
+     * tanpa form — kalau formnya bocor ke mereka, penyimpanannya toh akan ditolak dan
+     * yang muncul cuma layar galat, bukan penolakan yang bisa dipahami.
+     *
+     * @test
+     */
+    public function production_melihat_panel_tanpa_form_edit(): void
+    {
+        [$title, $progress] = $this->naskah();
+        $title->update(['jurnal_target' => 'Jurnal Pendidikan Nusantara']);
+
+        $this->actingAs($this->user('production'))
+            ->get(route('naskah.show', $progress->order_detail_id))
+            ->assertOk()
+            ->assertSee('Jurnal Pendidikan Nusantara')
+            ->assertDontSee('Edit Informasi Publikasi');
+    }
+
+    /** Peringatan link kosong hanya relevan saat tahap berikutnya adalah tahap akhir. */
+    /** @test */
+    public function peringatan_muncul_saat_satu_langkah_sebelum_publish(): void
+    {
+        [, $progress] = $this->naskah(); // status 'loa' → next 'publish'
+
+        $this->actingAs($this->user('admin'))
+            ->get(route('naskah.show', $progress->order_detail_id))
+            ->assertOk()
+            ->assertSee('belum diisi');
+    }
+
+    /** @test */
+    public function peringatan_tak_muncul_saat_masih_jauh_dari_tahap_akhir(): void
+    {
+        [$title] = $this->naskah();
+        $progress = $title->orderDetails->first()->titleProgress;
+        $progress->update(['status' => 'editing']);
+
+        $this->actingAs($this->user('admin'))
+            ->get(route('naskah.show', $progress->order_detail_id))
+            ->assertOk()
+            ->assertDontSee('naskah belum bisa ditandai');
+    }
+
+    /**
+     * Panel ini hanya mengirim sebagian field. Sejak updateInfo() dibuat aman untuk
+     * kiriman sebagian, menyimpan dari sini tak boleh menyentuh apa pun yang tak
+     * ditampilkannya — terutama Opsi Jurnal, yang panel ini memang tak punya.
+     *
+     * @test
+     */
+    public function menyimpan_dari_panel_naskah_tak_menyentuh_opsi_jurnal(): void
+    {
+        $title = $this->judulLengkap();
+        $order  = \App\Models\Order::factory()->create();
+        $detail = \App\Models\OrderDetail::factory()->create([
+            'order_id' => $order->id, 'type' => 'at_mandiri',
+            'title' => $title->title, 'title_id' => $title->id,
+        ]);
+        $progress = TitleProgress::create([
+            'order_detail_id' => $detail->id, 'status' => 'loa',
+            'bidang' => 'artikel', 'started_at' => now(),
+        ]);
+
+        $this->actingAs($this->user('admin'))
+            ->put(route('title.info.update', $title->id), [
+                'link_terbit' => 'https://jurnal.test/dari-panel',
+                '_redirect'   => route('naskah.show', $progress->order_detail_id),
+            ])->assertRedirect(route('naskah.show', $progress->order_detail_id));
+
+        $segar = $title->fresh();
+        $this->assertSame('https://jurnal.test/dari-panel', $segar->link_terbit);
+        $this->assertSame(2, $segar->journalOptions()->count(), 'opsi jurnal tak boleh tersentuh');
+        $this->assertSame('KODE-LAMA', $segar->code);
+    }
 }
