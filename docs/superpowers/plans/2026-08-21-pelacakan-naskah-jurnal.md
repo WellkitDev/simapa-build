@@ -697,10 +697,65 @@ Dan tambahkan method ini ke kelas yang sama:
     }
 ```
 
+- [ ] **Step 4b: Munculkan field di halaman judul juga**
+
+Task 3 sampai di sini baru membuat backend-nya menerima `link_terbit`; belum ada satu pun
+layar yang bisa mengisinya. Task 4 memberi input itu di `/naskah/{id}`, tapi keputusan
+§6.A berbunyi "diisi di `/titles/{id}`, **dan kalau belum**, bisa diisi di `/naskah/{id}`"
+— jadi halaman judul harus punya inputnya lebih dulu, bukan hanya layar naskah.
+
+Di `resources/views/titles/show.blade.php`, di dalam `<dl>` kartu **Informasi Publikasi**,
+tambahkan sebuah baris tepat setelah baris `Catatan`:
+
+```blade
+        <dt class="col-sm-4 text-muted small">{{ $title->jenis === 'buku' ? 'Link Buku Terbit' : 'Link Artikel Terbit' }}</dt>
+        <dd class="col-sm-8">
+            @php $lt = $title->linkTerbit(); @endphp
+            @if($lt)<a href="{{ $lt }}" target="_blank" rel="noopener">{{ $lt }}</a>@else <span class="text-danger">belum diisi</span> @endif
+        </dd>
+```
+
+Label sengaja menyebut jenisnya. Kartu ISBN di halaman yang sama sudah punya baris
+berjudul "Link Terbit" (`titles/show.blade.php:296`) yang membaca `$isbn->link_terbit`
+langsung — dua baris berjudul sama persis di satu halaman akan membuat orang mengira
+keduanya field yang sama.
+
+Lalu di form edit (`<div class="collapse mt-3" id="infoForm">`), tambahkan field tepat
+sebelum blok `Catatan`:
+
+```blade
+            <div class="mb-2">
+                <label class="form-label">{{ $title->jenis === 'buku' ? 'Link Buku Terbit' : 'Link Artikel Terbit' }}</label>
+                <input type="url" name="link_terbit" class="form-control @error('link_terbit') is-invalid @enderror"
+                       value="{{ old('link_terbit', $title->link_terbit) }}" placeholder="https://...">
+                @error('link_terbit')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                <small class="text-muted">Wajib diisi sebelum naskah bisa ditandai terbit/publish.</small>
+            </div>
+```
+
+Perhatikan `value` memakai `$title->link_terbit` (kolom mentah), **bukan** `linkTerbit()`:
+form ini menulis kolom judul, jadi ia harus menampilkan isi kolom itu apa adanya. Memuat
+nilai cadangan ke dalam input akan diam-diam menyalin data dari modul lain ke judul begitu
+form disimpan.
+
+Tambahkan satu test ke `tests/Feature/NaskahInfoPublikasiTest.php`:
+
+```php
+    /** @test */
+    public function halaman_judul_juga_punya_field_link_terbit(): void
+    {
+        [$title] = $this->naskah();
+
+        $this->actingAs($this->user('admin'))->get(route('title.show', $title->id))
+            ->assertOk()
+            ->assertSee('Link Artikel Terbit');
+    }
+```
+
 - [ ] **Step 5: Jalankan test, pastikan lulus**
 
 Run: `php artisan test --filter=NaskahInfoPublikasiTest`
-Expected: PASS (5 test).
+Expected: PASS (6 test).
 
 - [ ] **Step 6: Pastikan halaman judul tidak rusak**
 
@@ -1364,9 +1419,11 @@ Di `app/Services/TitleArchivalService.php`, ganti awal `defaultArtifacts()` samp
          */
         $prefill = [
             'isbn'            => optional($title->bookIsbn)->no_isbn,
-            'publish_link'    => $title->jenis === 'buku'
-                                    ? optional($title->bookIsbn)->link_terbit
-                                    : optional($submission)->link_publish,
+            // Lewat linkTerbit(), BUKAN cabang jenis buatan sendiri: kolom judul harus
+            // ikut terbaca. Tanpa itu, link yang diisi lewat form Informasi Publikasi
+            // tampil di layar naskah tapi arsip tetap berkata "belum diisi" — dua tempat
+            // berbeda isi atas data yang sama.
+            'publish_link'    => $title->linkTerbit(),
             'barcode_file'    => $berkas['barcode_isbn']   ?? null,
             'hki_file'        => $berkas['sertifikat_hki'] ?? null,
             'final_book_file' => $berkas['ebook']          ?? null,
@@ -1377,7 +1434,9 @@ Di `app/Services/TitleArchivalService.php`, ganti awal `defaultArtifacts()` samp
 
         $sumber = [
             'isbn'            => 'Direktori ISBN',
-            'publish_link'    => $title->jenis === 'buku' ? 'Direktori ISBN' : 'Direktori Jurnal',
+            'publish_link'    => trim((string) $title->link_terbit) !== ''
+                                    ? 'Informasi Publikasi'
+                                    : ($title->jenis === 'buku' ? 'Direktori ISBN' : 'Direktori Jurnal'),
             'barcode_file'    => 'Berkas ISBN',
             'hki_file'        => 'Berkas ISBN',
             'final_book_file' => 'Berkas ISBN',
