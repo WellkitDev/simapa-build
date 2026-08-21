@@ -41,7 +41,10 @@ class OrderFulfillmentTest extends TestCase
     private function naskah(string $status = 'loa'): TitleProgress
     {
         $title  = Title::create(['title' => 'Artikel Uji', 'jenis' => 'artikel',
-                                 'tipe_naskah' => 'mandiri', 'status' => 'disetujui']);
+                                 'tipe_naskah' => 'mandiri', 'status' => 'disetujui',
+                                 // Gerbang tahap akhir menolak naskah terbit tanpa alamat terbitnya;
+                                 // berkas ini menguji penutupan order, bukan gerbang itu.
+                                 'link_terbit' => 'https://uji.test/terbit']);
         $order  = Order::factory()->create();
         $detail = OrderDetail::factory()->create([
             'order_id' => $order->id, 'type' => 'at_mandiri',
@@ -107,7 +110,10 @@ class OrderFulfillmentTest extends TestCase
     private function buku(string $status = 'cetak'): TitleProgress
     {
         $title  = Title::create(['title' => 'Buku Uji', 'jenis' => 'buku',
-                                 'tipe_naskah' => 'mandiri', 'status' => 'disetujui']);
+                                 'tipe_naskah' => 'mandiri', 'status' => 'disetujui',
+                                 // Gerbang tahap akhir menolak naskah terbit tanpa alamat terbitnya;
+                                 // berkas ini menguji penutupan order, bukan gerbang itu.
+                                 'link_terbit' => 'https://uji.test/terbit']);
         $order  = Order::factory()->create();
         $detail = OrderDetail::factory()->create([
             'order_id' => $order->id, 'type' => 'bk_mandiri',

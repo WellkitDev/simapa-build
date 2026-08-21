@@ -236,7 +236,9 @@ class BookIsbnTest extends TestCase
     public function sync_is_forward_only_never_regresses(): void
     {
         $book = $this->bookAtStage('isbn');
-        $isbn = BookIsbn::create(['title_id' => $book->id, 'status' => 'cetak', 'no_buku_cetak' => 'BK-1']);
+        // link_terbit ikut diisi: gerbang tahap akhir menolak buku 'terbit' tanpa alamat.
+        $isbn = BookIsbn::create(['title_id' => $book->id, 'status' => 'cetak',
+                                  'no_buku_cetak' => 'BK-1', 'link_terbit' => 'https://isbn.test/bk-1']);
         // manuskrip dimajukan ke terbit lewat store-sync manual:
         app(\App\Services\ChapterManuscriptService::class)->advanceBookToStage($book, 'terbit', $this->user('superadmin'));
         $this->assertSame('terbit', $this->manuscriptStatus($book));

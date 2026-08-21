@@ -61,6 +61,22 @@ class ChapterManuscriptService
             return;
         }
 
+        /*
+         | Jalur ISBN menulis tahap secara langsung, jadi gerbang di
+         | TitleProgressService::advance() tak berlaku di sini. Tanpa penjagaan ini
+         | buku bisa mendarat di 'terbit' tanpa link — persis kebocoran yang sudah
+         | menggigit sekali saat OrderFulfillmentService dipasang.
+         |
+         | MELEWATI, bukan melempar: ini sinkronisasi yang dipicu penyimpanan form ISBN,
+         | bukan aksi "majukan tahap" milik pengguna. Melempar di sini akan menggagalkan
+         | penyimpanan ISBN yang sah. BookIsbnController sudah mewajibkan link_terbit
+         | untuk status Cetak/Terbit, jadi cabang ini praktis tak terpicu — ia ada supaya
+         | invariannya benar tak peduli siapa pemanggilnya.
+         */
+        if (TitleProgress::isFinal($target) && $book->butuhLinkTerbit()) {
+            return;
+        }
+
         $moved = false;
 
         /*

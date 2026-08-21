@@ -42,6 +42,7 @@ class TitleProgressService
         }
 
         $this->assertLayoutUnlocked($progress, $next);
+        $this->assertLinkTerbit($progress, $next);
 
         return $this->applyGroup($progress, $next, $actor, $note, false, 'status_advanced');
     }
@@ -223,6 +224,35 @@ class TitleProgressService
                 'status' => 'Semua bab harus Selesai dulu sebelum masuk tahap Layout.',
             ]);
         }
+    }
+
+    /**
+     * Tahap akhir menuntut link karya terbit.
+     *
+     * Naskah yang "terbit" tanpa alamat terbitnya adalah klaim tanpa bukti: ia langsung
+     * dihitung selesai, menutup ordernya, dan memenuhi syarat arsip. Gerbang ini menahan
+     * ketiganya sekaligus — archiveEligible() sudah menuntut manuscriptIsFinal(), jadi
+     * tak perlu gerbang kedua di sisi arsip yang bisa berbeda pendapat.
+     *
+     * correct() TIDAK melewati gerbang ini: koreksi adalah wewenang superadmin untuk
+     * membetulkan keadaan, termasuk naskah lama yang linknya memang tak pernah tercatat.
+     */
+    private function assertLinkTerbit(TitleProgress $progress, string $next): void
+    {
+        if (! TitleProgress::isFinal($next)) {
+            return;
+        }
+
+        $title = $progress->orderDetail?->titleRef;
+        if ($title === null || ! $title->butuhLinkTerbit()) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'link_terbit' => $title->jenis === 'buku'
+                ? 'Isi dulu Link Buku Terbit sebelum menandai naskah Terbit.'
+                : 'Isi dulu Link Artikel Terbit sebelum menandai naskah Publish.',
+        ]);
     }
 
     /**

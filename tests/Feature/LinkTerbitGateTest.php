@@ -5,9 +5,15 @@ namespace Tests\Feature;
 use App\Models\BookIsbn;
 use App\Models\Journal;
 use App\Models\JournalSubmission;
+use App\Models\Order;
+use App\Models\OrderDetail;
 use App\Models\Title;
+use App\Models\TitleProgress;
+use App\Models\User;
 use App\Services\GoogleDriveService;
+use App\Services\TitleProgressService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -212,5 +218,107 @@ class LinkTerbitGateTest extends TestCase
             'https://baru.test/b',
             Title::with('journalSubmissions')->find($title->id)->linkTerbit()
         );
+    }
+
+    private function superadmin(): User
+    {
+        $u = User::factory()->create();
+        $u->assignRole('superadmin');
+
+        return $u->fresh();
+    }
+
+    /** Naskah satu langkah sebelum tahap akhir. */
+    private function naskah(Title $title, string $status, string $type = 'at_mandiri'): TitleProgress
+    {
+        $order  = Order::factory()->create();
+        $detail = OrderDetail::factory()->create([
+            'order_id' => $order->id, 'type' => $type,
+            'title' => $title->title, 'title_id' => $title->id,
+        ]);
+
+        return TitleProgress::create([
+            'order_detail_id' => $detail->id, 'status' => $status,
+            'bidang' => $type === 'at_mandiri' ? 'artikel' : 'buku',
+            'started_at' => now(),
+        ]);
+    }
+
+    /** @test */
+    public function artikel_tanpa_link_tidak_bisa_naik_ke_publish(): void
+    {
+        $title    = Title::create(['title' => 'Artikel F', 'jenis' => 'artikel',
+                                   'tipe_naskah' => 'mandiri', 'status' => 'disetujui']);
+        $progress = $this->naskah($title, 'loa');
+
+        try {
+            app(TitleProgressService::class)->advance($progress, $this->superadmin());
+            $this->fail('Seharusnya ditolak karena link terbit kosong.');
+        } catch (ValidationException $e) {
+            $this->assertStringContainsString('link', strtolower($e->getMessage()));
+        }
+
+        $this->assertSame('loa', $progress->fresh()->status);
+    }
+
+    /** @test */
+    public function artikel_dengan_link_boleh_naik_ke_publish(): void
+    {
+        $title    = Title::create(['title' => 'Artikel G', 'jenis' => 'artikel',
+                                   'tipe_naskah' => 'mandiri', 'status' => 'disetujui',
+                                   'link_terbit' => 'https://jurnal.test/g']);
+        $progress = $this->naskah($title, 'loa');
+
+        app(TitleProgressService::class)->advance($progress, $this->superadmin());
+
+        $this->assertSame('publish', $progress->fresh()->status);
+    }
+
+    /** @test */
+    public function buku_tanpa_link_tidak_bisa_naik_ke_terbit(): void
+    {
+        $title    = Title::create(['title' => 'Buku H', 'jenis' => 'buku',
+                                   'tipe_naskah' => 'mandiri', 'status' => 'disetujui']);
+        $progress = $this->naskah($title, 'cetak', 'bk_mandiri');
+
+        try {
+            app(TitleProgressService::class)->advance($progress, $this->superadmin());
+            $this->fail('Seharusnya ditolak karena link terbit kosong.');
+        } catch (ValidationException $e) {
+            $this->assertStringContainsString('link', strtolower($e->getMessage()));
+        }
+
+        $this->assertSame('cetak', $progress->fresh()->status);
+    }
+
+    /** Gerbang HANYA di tahap akhir — tahap tengah tak boleh ikut terkunci. */
+    /** @test */
+    public function tahap_tengah_tidak_menuntut_link(): void
+    {
+        $title    = Title::create(['title' => 'Artikel I', 'jenis' => 'artikel',
+                                   'tipe_naskah' => 'mandiri', 'status' => 'disetujui']);
+        $progress = $this->naskah($title, 'submit');
+
+        app(TitleProgressService::class)->advance($progress, $this->superadmin());
+
+        $this->assertSame('loa', $progress->fresh()->status);
+    }
+
+    /**
+     * Koreksi superadmin sengaja dikecualikan: ia justru wewenang membetulkan keadaan,
+     * termasuk menandai naskah lama yang linknya memang tak pernah tercatat.
+     *
+     * @test
+     */
+    public function koreksi_superadmin_tidak_terhalang_gerbang(): void
+    {
+        $title    = Title::create(['title' => 'Artikel J', 'jenis' => 'artikel',
+                                   'tipe_naskah' => 'mandiri', 'status' => 'disetujui']);
+        $progress = $this->naskah($title, 'editing');
+
+        app(TitleProgressService::class)
+            ->correct($progress, 'publish', $this->superadmin(), 'Naskah lama, link menyusul');
+
+        $this->assertSame('publish', $progress->fresh()->status);
     }
 }

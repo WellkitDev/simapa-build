@@ -51,7 +51,9 @@ class NaskahNotifikasiTest extends TestCase
     private function naskah(string $status, User $owner, ?User $pj = null): TitleProgress
     {
         $title  = Title::create(['title' => 'Naskah ' . fake()->unique()->word(), 'jenis' => 'artikel',
-                                 'tipe_naskah' => 'mandiri', 'status' => 'disetujui']);
+                                 'tipe_naskah' => 'mandiri', 'status' => 'disetujui',
+                                 // Gerbang tahap akhir menuntut alamat terbit; di sini yang diuji notifikasinya.
+                                 'link_terbit' => 'https://uji.test/' . fake()->unique()->slug()]);
         $order  = Order::factory()->create(['user_id' => $owner->id]);
         $detail = OrderDetail::factory()->create([
             'order_id' => $order->id, 'type' => 'at_mandiri',

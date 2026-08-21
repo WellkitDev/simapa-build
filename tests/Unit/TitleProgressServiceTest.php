@@ -152,7 +152,10 @@ class TitleProgressServiceTest extends TestCase
         $jenis = $bidang === 'buku' ? 'buku' : 'artikel';
         $type  = $bidang === 'buku' ? 'bk_mandiri' : 'at_mandiri';
         $title = \App\Models\Title::create(['title' => 'Naskah ' . fake()->unique()->word(),
-            'jenis' => $jenis, 'tipe_naskah' => 'mandiri', 'status' => 'disetujui']);
+            'jenis' => $jenis, 'tipe_naskah' => 'mandiri', 'status' => 'disetujui',
+            // Gerbang tahap akhir menuntut alamat terbit. Yang diuji di berkas ini
+            // adalah perpindahan tahap, bukan gerbangnya — itu urusan LinkTerbitGateTest.
+            'link_terbit' => 'https://uji.test/' . fake()->unique()->slug()]);
 
         $first = null;
         for ($i = 0; $i < $orders; $i++) {

@@ -71,7 +71,9 @@ class NotificationHooksTest extends TestCase
         // yang dipakai menghubungi klien. Perpindahan tahap biasa TIDAK mengabari mereka.
         $owner = $this->user('marketing');
         $admin = $this->user('admin');
-        $title = \App\Models\Title::create(['title' => 'Naskah Z', 'jenis' => 'artikel', 'tipe_naskah' => 'mandiri', 'status' => 'disetujui']);
+        // link_terbit ikut diisi: gerbang tahap akhir menolak publish tanpa alamat terbit.
+        $title = \App\Models\Title::create(['title' => 'Naskah Z', 'jenis' => 'artikel', 'tipe_naskah' => 'mandiri',
+                                            'status' => 'disetujui', 'link_terbit' => 'https://uji.test/z']);
         $order = Order::factory()->create(['user_id' => $owner->id]);
         $detail = OrderDetail::factory()->create(['order_id' => $order->id, 'type' => 'at_mandiri', 'title' => 'Naskah Z', 'title_id' => $title->id]);
         $p = TitleProgress::create([
