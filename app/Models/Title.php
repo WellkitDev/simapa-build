@@ -205,6 +205,12 @@ class Title extends Model
         return $this->hasOne(BookIsbn::class);
     }
 
+    /** Semua submission jurnal judul ini (bisa lebih dari satu: resubmit ke jurnal lain, koreksi admin, dsb). */
+    public function journalSubmissions()
+    {
+        return $this->hasMany(JournalSubmission::class);
+    }
+
     public function docMarks()
     {
         return $this->hasMany(TitleDocMark::class);
@@ -356,6 +362,25 @@ class Title extends Model
      * Urutan: kolom judul menang, lalu cadangan dari modul asalnya. Cadangan itu ADA
      * supaya judul yang linknya sudah diisi di Direktori ISBN / Direktori Jurnal tidak
      * ikut terkunci oleh gerbang baru — bukan supaya dua tempat boleh berbeda isi.
+     *
+     * SELALU panggil method ini untuk tampilan, JANGAN baca `$title->link_terbit`
+     * mentah — kolom mentah tidak punya cadangan, jadi baris lama yang linknya masih
+     * tersimpan di Direktori ISBN/Jurnal akan tampak kosong padahal sebenarnya ada.
+     *
+     * Judul bisa punya beberapa `JournalSubmission` (resubmit ke jurnal lain, entri
+     * ganda, koreksi admin). Baris TERBARU dipilih hanya di antara yang benar-benar
+     * punya link — kalau baris terbaru kebetulan kosong tapi baris lama sudah terbit,
+     * mengambil baris terbaru apa adanya akan melaporkan "belum ada link" untuk judul
+     * yang sebenarnya sudah terbit. `latest('id')`, bukan `latest()` (created_at):
+     * dua baris yang lahir di detik yang sama membuat urutan created_at DESC tidak
+     * deterministik di MySQL, sedangkan id DESC selalu total dan stabil.
+     *
+     * Pemanggil yang melebar ke banyak judul dalam satu loop (Direktori Judul —
+     * `TitleController::index`, yang sudah memanggil manuscriptStatus() per baris;
+     * daftar arsip — `Title::siapDiarsipkan()` yang dirender `archive/index.blade.php`)
+     * WAJIB eager-load `bookIsbn` dan `journalSubmissions` dulu, kalau tidak method ini
+     * mengulang query per baris. `BookIsbnController::index` aman hari ini karena
+     * cuma menampilkan buku dan sudah eager-load `bookIsbn`.
      */
     public function linkTerbit(): ?string
     {
@@ -370,8 +395,14 @@ class Title extends Model
             return $isbn !== '' ? $isbn : null;
         }
 
-        $submission = \App\Models\JournalSubmission::where('title_id', $this->id)
-            ->latest('id')->first();
+        $berlink = fn ($s) => trim((string) $s->link_publish) !== '';
+
+        $submission = $this->relationLoaded('journalSubmissions')
+            ? $this->journalSubmissions->filter($berlink)->sortByDesc('id')->first()
+            : $this->journalSubmissions()
+                ->whereNotNull('link_publish')->where('link_publish', '!=', '')
+                ->latest('id')->first();
+
         $link = trim((string) optional($submission)->link_publish);
 
         return $link !== '' ? $link : null;

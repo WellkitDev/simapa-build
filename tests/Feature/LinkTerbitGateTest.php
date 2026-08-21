@@ -71,11 +71,84 @@ class LinkTerbitGateTest extends TestCase
     }
 
     /** @test */
-    public function string_kosong_diperlakukan_sebagai_tidak_ada(): void
+    public function spasi_saja_diperlakukan_sebagai_tidak_ada(): void
     {
         $title = Title::create(['title' => 'Artikel E', 'jenis' => 'artikel',
                                 'tipe_naskah' => 'mandiri', 'status' => 'disetujui',
                                 'link_terbit' => '   ']);
+
+        $this->assertNull($title->fresh()->linkTerbit());
+    }
+
+    /**
+     * Regresi I3: submission terbaru boleh kosong tanpa mengubur link yang sudah ada
+     * di submission lama — kalau tidak, gerbang Terbit akan mengunci naskah yang
+     * sebenarnya sudah terbit hanya karena ada baris submission baru yang belum diisi
+     * (koreksi jurnal, entri ganda, dsb).
+     *
+     * @test
+     */
+    public function submission_lama_yang_berlink_menang_atas_submission_baru_yang_kosong(): void
+    {
+        $title   = Title::create(['title' => 'Artikel F', 'jenis' => 'artikel',
+                                  'tipe_naskah' => 'mandiri', 'status' => 'disetujui']);
+        $journal = Journal::create(['nama' => 'Jurnal Uji']);
+
+        JournalSubmission::create(['journal_id' => $journal->id, 'title_id' => $title->id,
+                                   'link_publish' => 'https://submission.test/lama']);
+        JournalSubmission::create(['journal_id' => $journal->id, 'title_id' => $title->id,
+                                   'link_publish' => null]);
+
+        $this->assertSame('https://submission.test/lama', $title->fresh()->linkTerbit());
+    }
+
+    /** @test */
+    public function submission_terbaru_menang_ketika_keduanya_berlink(): void
+    {
+        $title   = Title::create(['title' => 'Artikel G', 'jenis' => 'artikel',
+                                  'tipe_naskah' => 'mandiri', 'status' => 'disetujui']);
+        $journal = Journal::create(['nama' => 'Jurnal Uji']);
+
+        JournalSubmission::create(['journal_id' => $journal->id, 'title_id' => $title->id,
+                                   'link_publish' => 'https://submission.test/lama']);
+        JournalSubmission::create(['journal_id' => $journal->id, 'title_id' => $title->id,
+                                   'link_publish' => 'https://submission.test/baru']);
+
+        $this->assertSame('https://submission.test/baru', $title->fresh()->linkTerbit());
+    }
+
+    /** @test */
+    public function spasi_di_link_judul_jatuh_ke_submission_bukan_berhenti_di_null(): void
+    {
+        $title   = Title::create(['title' => 'Artikel H', 'jenis' => 'artikel',
+                                  'tipe_naskah' => 'mandiri', 'status' => 'disetujui',
+                                  'link_terbit' => '   ']);
+        $journal = Journal::create(['nama' => 'Jurnal Uji']);
+        JournalSubmission::create(['journal_id' => $journal->id, 'title_id' => $title->id,
+                                   'link_publish' => 'https://submission.test/h']);
+
+        $this->assertSame('https://submission.test/h', $title->fresh()->linkTerbit());
+    }
+
+    /** @test */
+    public function buku_mengabaikan_journal_submission(): void
+    {
+        $title   = Title::create(['title' => 'Buku I', 'jenis' => 'buku',
+                                  'tipe_naskah' => 'mandiri', 'status' => 'disetujui']);
+        $journal = Journal::create(['nama' => 'Jurnal Uji']);
+        JournalSubmission::create(['journal_id' => $journal->id, 'title_id' => $title->id,
+                                   'link_publish' => 'https://submission.test/i']);
+
+        $this->assertNull($title->fresh()->linkTerbit());
+    }
+
+    /** @test */
+    public function artikel_mengabaikan_book_isbn(): void
+    {
+        $title = Title::create(['title' => 'Artikel J', 'jenis' => 'artikel',
+                                'tipe_naskah' => 'mandiri', 'status' => 'disetujui']);
+        BookIsbn::create(['title_id' => $title->id, 'status' => 'cetak',
+                          'link_terbit' => 'https://isbn.test/j']);
 
         $this->assertNull($title->fresh()->linkTerbit());
     }
