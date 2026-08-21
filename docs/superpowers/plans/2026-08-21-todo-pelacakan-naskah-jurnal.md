@@ -42,7 +42,7 @@ Keadaan sekarang:
 | Jenis | Link disimpan di | Digerbangi? |
 |---|---|---|
 | Buku | `tb_book_isbns.link_terbit` | Ya tapi **bocor** — `BookIsbnController` mewajibkannya untuk status `cetak`, tapi `advance()` dari `cetak` → `terbit` tak memeriksa apa pun |
-| Jurnal | `tb_journal_submissions.link_publish` | **Tidak sama sekali** — Direktori Jurnal tak tersambung ke tahap naskah (temuan A1) |
+| Jurnal | `tb_journal_submissions.link_publish` | Awalnya tidak sama sekali (temuan A1). Gerbangnya lahir di sini; penyambungan penuhnya menyusul 2026-08-22 di `b21f761` |
 
 - [x] Tempat penyimpanan diputuskan (§6.A): `tb_titles.link_terbit` + cermin ke direktori
 - [x] Field "Link Artikel Terbit" di `/naskah/{id}`, muncul saat `nextStage()` final

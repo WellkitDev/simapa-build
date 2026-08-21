@@ -125,7 +125,7 @@ ditulis, dan order memang tak punya keadaan "selesai". Hanya alasan yang dikutip
 **Dikerjakan:** A2, A6 (sebagai peringatan, bukan blokir), A7, A11, A12, dan
 perbaikan R3 pada jalur pembatalan order.
 
-**Tidak dikerjakan sekarang:** A1, A3, A4, A5, A8, A9, A10 (kecuali konstanta
+**Tidak dikerjakan sekarang:** A1 (kemudian diselesaikan 2026-08-22, lihat §9), A3, A4, A5, A8, A9, A10 (kecuali konstanta
 `Order::STATUSES` / `Order::FULFILLMENTS` yang ikut lahir).
 
 Catatan soal A3: karena `fulfillment_status` terpisah dari `status`, bug A3
@@ -436,7 +436,11 @@ Supaya jelas dan tidak dikira terlewat:
 - **A3** — order jadi `lunas` sebelum approval. Bug aktif hari ini, tapi milik Kelompok Uang.
 - **A4** — `lunas` tak dihitung ulang saat biaya order diedit.
 - **A5** — invoice `jatuh_tempo` masih manual; tak ada scheduled command.
-- **A1** — jurnal masih tak tersambung ke tahap naskah.
+- ~~**A1** — jurnal masih tak tersambung ke tahap naskah.~~ **SELESAI 2026-08-22**
+  (`b21f761`, dikerjakan sesi lain): `JurnalSubmissionService` merebut data jurnal di
+  tombol "Selesaikan tahap". Ia membaca `Title::butuhLinkTerbit()` — bukan membuat
+  pemeriksaan tandingan — dan meminta link saat **LoA**, bukan Publish, justru karena
+  `assertLinkTerbit()` menahan transisi ke tahap final.
 - **A8** — judul masih tak punya penanda terbit.
 - **A9** — `revisi` masih terletak sebelum `submit`.
 - **Sisa kebocoran tanggal terbit → "Tanggal Lunas"** (Kelompok Uang). `FinancialReportService::orderSelesai()`
