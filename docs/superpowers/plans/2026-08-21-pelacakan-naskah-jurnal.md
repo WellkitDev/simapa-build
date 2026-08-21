@@ -352,8 +352,11 @@ Tambahkan ke `tests/Feature/LinkTerbitGateTest.php`. Tambahkan dulu import
         $this->assertSame('cetak', $progress->fresh()->status);
     }
 
-    /** Gerbang HANYA di tahap akhir — tahap tengah tak boleh ikut terkunci. */
-    /** @test */
+    /**
+     * Gerbang HANYA di tahap akhir — tahap tengah tak boleh ikut terkunci.
+     *
+     * @test
+     */
     public function tahap_tengah_tidak_menuntut_link(): void
     {
         $title    = Title::create(['title' => 'Artikel I', 'jenis' => 'artikel',
@@ -575,8 +578,11 @@ class NaskahInfoPublikasiTest extends TestCase
             ])->assertRedirect($kembali);
     }
 
-    /** Redirect hanya boleh ke dalam aplikasi sendiri. */
-    /** @test */
+    /**
+     * Redirect hanya boleh ke dalam aplikasi sendiri.
+     *
+     * @test
+     */
     public function redirect_ke_luar_aplikasi_diabaikan(): void
     {
         [$title] = $this->naskah();
@@ -603,8 +609,11 @@ class NaskahInfoPublikasiTest extends TestCase
         $this->assertSame('https://jurnal.test/cermin', $sub->fresh()->link_publish);
     }
 
-    /** Tanpa baris submission, penyimpanan tetap berhasil — direktori menyusul. */
-    /** @test */
+    /**
+     * Tanpa baris submission, penyimpanan tetap berhasil — direktori menyusul.
+     *
+     * @test
+     */
     public function tanpa_baris_submission_tetap_tersimpan(): void
     {
         [$title] = $this->naskah();
@@ -828,8 +837,11 @@ Tambahkan ke `tests/Feature/NaskahInfoPublikasiTest.php`:
             ->assertDontSee('Edit Informasi Publikasi');
     }
 
-    /** Peringatan link kosong harus muncul saat tahap berikutnya adalah tahap akhir. */
-    /** @test */
+    /**
+     * Peringatan link kosong harus muncul saat tahap berikutnya adalah tahap akhir.
+     *
+     * @test
+     */
     public function peringatan_muncul_saat_satu_langkah_sebelum_publish(): void
     {
         [, $progress] = $this->naskah(); // status 'loa' → next 'publish'
@@ -1376,8 +1388,11 @@ class ArtefakPrefillTest extends TestCase
         $this->assertSame('https://drive.test/final', $a['final_naskah']['value']);
     }
 
-    /** Nilai yang sudah disimpan manual tak boleh ditimpa prefill. */
-    /** @test */
+    /**
+     * Nilai yang sudah disimpan manual tak boleh ditimpa prefill.
+     *
+     * @test
+     */
     public function nilai_tersimpan_menang_atas_prefill(): void
     {
         $t = $this->buku();

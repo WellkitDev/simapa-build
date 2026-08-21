@@ -30,6 +30,11 @@ use Illuminate\Support\Str;
  * di dev — data uji tidak boleh mengirim email ke siapa pun. Penarikan adalah
  * pengecualian, karena OrderWithdrawalService::withdraw() tidak menotifikasi dan
  * cabang bab/penulisnya justru yang ingin dilihat.
+ *
+ * Judul yang tahapnya final WAJIB punya `link_terbit`. Sejak gerbang tahap akhir
+ * dipasang, naskah tanpa link tak bisa lagi mencapai terbit/publish lewat UI — data demo
+ * tanpa link akan menggambarkan keadaan yang mustahil, dan layar yang justru ingin
+ * diperiksa akan penuh peringatan "belum diisi".
  */
 class DemoStatusNaskah extends Command
 {
@@ -139,7 +144,8 @@ class DemoStatusNaskah extends Command
     /** Layak diarsipkan, benar-benar lunas. */
     private function artikelTerbitLunas(): void
     {
-        [$title, , $order] = $this->artikel('Efektivitas Pembelajaran Daring', 500_000);
+        [$title, , $order] = $this->artikel('Efektivitas Pembelajaran Daring', 500_000,
+            'https://jurnal.demo.test/efektivitas-pembelajaran-daring');
         $this->bayar($order, 500_000);
         $this->tahap($title, 'publish', final: true);
     }
@@ -147,7 +153,8 @@ class DemoStatusNaskah extends Command
     /** Layak dari sisi naskah, tapi masih menunggak 300rb — gerbang arsip harus menahannya. */
     private function artikelTerbitMenunggak(): void
     {
-        [$title, , $order] = $this->artikel('Analisis Kebijakan Fiskal Daerah', 500_000);
+        [$title, , $order] = $this->artikel('Analisis Kebijakan Fiskal Daerah', 500_000,
+            'https://jurnal.demo.test/analisis-kebijakan-fiskal');
         $this->bayar($order, 200_000, 'dp');
         $this->tahap($title, 'publish', final: true);
     }
@@ -162,6 +169,7 @@ class DemoStatusNaskah extends Command
         $title = Title::create([
             'title' => self::PREFIX . 'Metodologi Penelitian Terapan', 'jenis' => 'buku',
             'tipe_naskah' => 'kolaborasi', 'status' => 'disetujui',
+            'link_terbit' => 'https://toko.demo.test/metodologi-penelitian-terapan',
         ]);
 
         $progresses = $this->babBuku($title, 'editing');
@@ -188,6 +196,7 @@ class DemoStatusNaskah extends Command
         $title = Title::create([
             'title' => self::PREFIX . 'Statistika Terapan untuk Sosial', 'jenis' => 'buku',
             'tipe_naskah' => 'kolaborasi', 'status' => 'disetujui',
+            'link_terbit' => 'https://toko.demo.test/statistika-terapan',
         ]);
 
         $progresses = $this->babBuku($title, 'cetak');
@@ -292,11 +301,12 @@ class DemoStatusNaskah extends Command
     // ─── Perkakas ───
 
     /** @return array{0: Title, 1: OrderDetail, 2: Order} */
-    private function artikel(string $judul, int $biaya): array
+    private function artikel(string $judul, int $biaya, ?string $linkTerbit = null): array
     {
         $title = Title::create([
             'title' => self::PREFIX . $judul, 'jenis' => 'artikel',
             'tipe_naskah' => 'mandiri', 'status' => 'disetujui',
+            'link_terbit' => $linkTerbit,
         ]);
 
         $order  = $this->order();
