@@ -16,13 +16,42 @@ class TitleArchivalService
     /** Daftar artefak baku (dengan prefill dari data existing) untuk render form. */
     public function defaultArtifacts(Title $title): array
     {
-        $existing = $title->archiveArtifacts->keyBy('key');
+        $existing   = $title->archiveArtifacts->keyBy('key');
         $submission = JournalSubmission::where('title_id', $title->id)->latest()->first();
+        $berkas     = $this->berkasTerbaru($title);
+
+        /*
+         | Artefak yang datanya sudah diisi di modul lain tidak perlu diketik ulang.
+         | Sumbernya dicatat di $sumber supaya UI bisa menyebut "dari Direktori ISBN" —
+         | tanpa itu orang tak tahu harus mengubahnya di mana, lalu mengetik ulang di
+         | sini dan dua tempat diam-diam berbeda isi.
+         |
+         | `publish_link` lewat linkTerbit(), BUKAN cabang jenis buatan sendiri: link
+         | yang diisi lewat form Informasi Publikasi tersimpan di kolom judul, dan arsip
+         | tak boleh berkata "belum diisi" untuk data yang jelas ada.
+         */
         $prefill = [
-            'isbn'         => optional($title->bookIsbn)->no_isbn,
-            'loa'          => optional($submission)->loa_url,
-            'publish_link' => optional($submission)->link_publish,
-            'apc_bukti'    => optional($submission)->bukti_bayar_url,
+            'isbn'            => optional($title->bookIsbn)->no_isbn,
+            'publish_link'    => $title->linkTerbit(),
+            'barcode_file'    => $berkas['barcode_isbn']   ?? null,
+            'hki_file'        => $berkas['sertifikat_hki'] ?? null,
+            'final_book_file' => $berkas['ebook']          ?? null,
+            'loa'             => optional($submission)->loa_url ?: ($berkas['loa'] ?? null),
+            'final_naskah'    => $berkas['final'] ?? null,
+            'apc_bukti'       => optional($submission)->bukti_bayar_url,
+        ];
+
+        $sumber = [
+            'isbn'            => 'Direktori ISBN',
+            'publish_link'    => trim((string) $title->link_terbit) !== ''
+                                    ? 'Informasi Publikasi'
+                                    : ($title->jenis === 'buku' ? 'Direktori ISBN' : 'Direktori Jurnal'),
+            'barcode_file'    => 'Berkas ISBN',
+            'hki_file'        => 'Berkas ISBN',
+            'final_book_file' => 'Berkas ISBN',
+            'loa'             => optional($submission)->loa_url ? 'Direktori Jurnal' : 'Detail Naskah',
+            'final_naskah'    => 'Detail Naskah',
+            'apc_bukti'       => 'Direktori Jurnal',
         ];
 
         $out = [];
@@ -37,9 +66,38 @@ class TitleArchivalService
                 'pic_user_id' => $row->pic_user_id ?? null,
                 'pic_name'    => $row ? optional($row->pic)->name : null,
                 'note'        => $row->note ?? null,
+                // Nilai tersimpan manual menang atas prefill, jadi `dari_luar` hanya
+                // benar bila TIDAK ada baris tersimpan dan prefill-nya yang mengisi.
+                'dari_luar'   => $row === null && ($prefill[$key] ?? null) !== null,
+                'sumber'      => $sumber[$key] ?? null,
             ];
         }
         return $out;
+    }
+
+    /**
+     * URL Drive versi terbaru per slot, untuk SELURUH slot sekaligus.
+     *
+     * Satu query — BookIsbn::berkas() sudah memperingatkan jangan dipanggil di dalam
+     * perulangan, dan di sini ada sampai lima slot yang dicari.
+     *
+     * Hanya berkas berstatus 'selesai' yang dihitung: yang masih 'antre' belum punya
+     * `drive_url`, dan menampilkannya sebagai artefak lengkap adalah klaim palsu.
+     *
+     * @return array<string,string> slot => drive_url
+     */
+    private function berkasTerbaru(Title $title): array
+    {
+        return \App\Models\ManuscriptFile::where('title_id', $title->id)
+            ->whereNull('title_chapter_id')
+            ->where('status', 'selesai')
+            ->orderBy('slot')
+            ->orderByDesc('version')
+            ->get(['slot', 'drive_url'])
+            ->groupBy('slot')
+            ->map(fn ($rows) => (string) $rows->first()->drive_url)
+            ->filter(fn (string $url) => $url !== '')
+            ->all();
     }
 
     public function saveArtifacts(Title $title, array $fixed, array $custom, User $actor): void
