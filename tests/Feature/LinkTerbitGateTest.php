@@ -152,4 +152,65 @@ class LinkTerbitGateTest extends TestCase
 
         $this->assertNull($title->fresh()->linkTerbit());
     }
+
+    /**
+     * Kedua cabang linkTerbit() — lazy (SQL) dan eager (koleksi PHP) — harus menjawab
+     * SAMA untuk data yang sama.
+     *
+     * Seluruh test lain memakai `fresh()`, yang tak memuat relasi apa pun, sehingga
+     * cabang eager tak pernah dijalankan sama sekali. Justru di cabang tak-teruji itulah
+     * penyimpangannya bersembunyi: `!= ''` di SQL menolak spasi hanya karena kolasi
+     * MariaDB ber-PADSPACE, sedangkan tab dan newline lolos — lalu trim() memulangkannya
+     * jadi kosong dan link baris lama ikut terkubur.
+     *
+     * @test
+     * @dataProvider kosongYangMenipu
+     */
+    public function kedua_cabang_sepakat_untuk_isian_kosong_yang_menipu(string $kosong): void
+    {
+        $title   = Title::create(['title' => 'Artikel Dua Cabang', 'jenis' => 'artikel',
+                                  'tipe_naskah' => 'mandiri', 'status' => 'disetujui']);
+        $journal = Journal::create(['nama' => 'Jurnal Uji']);
+
+        JournalSubmission::create(['journal_id' => $journal->id, 'title_id' => $title->id,
+                                   'link_publish' => 'https://lama.test/berisi']);
+        JournalSubmission::create(['journal_id' => $journal->id, 'title_id' => $title->id,
+                                   'link_publish' => $kosong]);
+
+        $lazy  = Title::find($title->id)->linkTerbit();
+        $eager = Title::with('journalSubmissions')->find($title->id)->linkTerbit();
+
+        $this->assertSame('https://lama.test/berisi', $lazy,  'cabang lazy (SQL)');
+        $this->assertSame('https://lama.test/berisi', $eager, 'cabang eager (koleksi)');
+    }
+
+    /** @return array<string,array{0:string}> */
+    public static function kosongYangMenipu(): array
+    {
+        return [
+            'spasi'   => ['   '],
+            'tab'     => ["\t"],
+            'newline' => ["\n"],
+            'campur'  => [" \t \n "],
+        ];
+    }
+
+    /** Cabang eager tetap memilih baris terbaru saat keduanya berlink. */
+    /** @test */
+    public function cabang_eager_juga_memilih_submission_terbaru(): void
+    {
+        $title   = Title::create(['title' => 'Artikel Eager', 'jenis' => 'artikel',
+                                  'tipe_naskah' => 'mandiri', 'status' => 'disetujui']);
+        $journal = Journal::create(['nama' => 'Jurnal Uji']);
+
+        JournalSubmission::create(['journal_id' => $journal->id, 'title_id' => $title->id,
+                                   'link_publish' => 'https://lama.test/a']);
+        JournalSubmission::create(['journal_id' => $journal->id, 'title_id' => $title->id,
+                                   'link_publish' => 'https://baru.test/b']);
+
+        $this->assertSame(
+            'https://baru.test/b',
+            Title::with('journalSubmissions')->find($title->id)->linkTerbit()
+        );
+    }
 }

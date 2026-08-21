@@ -395,13 +395,31 @@ class Title extends Model
             return $isbn !== '' ? $isbn : null;
         }
 
+        /*
+         | Penyaringan "berlink" HANYA ada di sini, dalam PHP, dan berlaku untuk kedua
+         | cabang. Sempat dicoba menyaringnya di SQL, dan itu keliru dua kali:
+         |
+         |   `link_publish != ''`  menolak spasi cuma karena kolasi MariaDB ber-PADSPACE
+         |                         — tab dan newline tetap lolos;
+         |   `TRIM(link_publish)`  hanya membuang SPASI di MySQL, sedangkan trim() PHP
+         |                         juga membuang \t \n \r \0 \x0B.
+         |
+         | Keduanya membuat baris terbaru yang "kosong tapi tak persis kosong" terpilih,
+         | lalu trim() di bawah memulangkannya jadi kosong — dan link baris yang lebih
+         | lama ikut terkubur. Itu penguncian publish yang sama dengan yang method ini
+         | dibuat untuk mencegah, lewat pintu yang lebih sempit.
+         |
+         | Satu judul hanya punya segelintir submission, jadi memuat semuanya lalu
+         | menyaring di PHP jauh lebih murah daripada risiko dua predikat yang diam-diam
+         | berbeda arti.
+         */
         $berlink = fn ($s) => trim((string) $s->link_publish) !== '';
 
-        $submission = $this->relationLoaded('journalSubmissions')
-            ? $this->journalSubmissions->filter($berlink)->sortByDesc('id')->first()
-            : $this->journalSubmissions()
-                ->whereNotNull('link_publish')->where('link_publish', '!=', '')
-                ->latest('id')->first();
+        $kandidat = $this->relationLoaded('journalSubmissions')
+            ? $this->journalSubmissions
+            : $this->journalSubmissions()->get(['id', 'title_id', 'link_publish']);
+
+        $submission = $kandidat->filter($berlink)->sortByDesc('id')->first();
 
         $link = trim((string) optional($submission)->link_publish);
 
