@@ -69,13 +69,32 @@ class DetailNaskahController extends Controller
     public function selesaikan(Request $request, int $id, TitleProgressService $stages)
     {
         $progress = $this->progress($id);
+        $jurnal   = app(\App\Services\JurnalSubmissionService::class);
 
-        return $this->run($request, function () use ($stages, $progress, $request) {
-            $n = $stages->advance($progress, $request->user(), $request->input('note'));
+        // Divalidasi SEBELUM tahap bergerak: kalau link terbit ditolak sesudah
+        // advance(), tahapnya sudah terlanjur maju tanpa catatan jurnalnya.
+        $data = $request->validate(\App\Services\JurnalSubmissionService::aturan($progress));
 
-            return $n > 1
-                ? "Tahap diperbarui — berlaku untuk {$n} order sejudul."
-                : 'Tahap diperbarui.';
+        // Dibaca sekarang juga — sesudah advance() jejak tahap yang baru saja
+        // diselesaikan sudah hilang.
+        $tahapSelesai = $progress->status;
+
+        return $this->run($request, function () use ($stages, $progress, $request, $jurnal, $data, $tahapSelesai) {
+            // catat() DULU, baru advance(): assertLinkTerbit() menahan transisi ke tahap
+            // final selama Title::linkTerbit() masih null, dan untuk artikel nilai itu
+            // dicari di link_publish submission. Kalau urutannya dibalik, orang yang
+            // sudah mengisi link terbit tetap ditolak.
+            //
+            // Dibungkus transaksi karena run() tidak membungkusnya: tanpa ini, advance()
+            // yang gagal meninggalkan submission untuk tahap yang tak jadi berpindah.
+            return \Illuminate\Support\Facades\DB::transaction(function () use ($stages, $progress, $request, $jurnal, $data, $tahapSelesai) {
+                $jurnal->catat($progress, $tahapSelesai, $data, $request->user());
+                $n = $stages->advance($progress, $request->user(), $request->input('note'));
+
+                return $n > 1
+                    ? "Tahap diperbarui — berlaku untuk {$n} order sejudul."
+                    : 'Tahap diperbarui.';
+            });
         });
     }
 

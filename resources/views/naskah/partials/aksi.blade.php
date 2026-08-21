@@ -28,6 +28,68 @@
     @if ($izin['advance'] && $next)
         <form method="POST" action="{{ route('naskah.selesaikan', $progress->order_detail_id) }}">
             @csrf
+
+            {{-- Data jurnal direbut di sini, bukan di modul terpisah: inilah layar tempat
+                 orang produksi benar-benar bekerja. Sebelumnya tahap bergerak tanpa
+                 meninggalkan jejak jurnal sama sekali — 15 artikel produksi sampai ke
+                 tahap jurnal dengan nol catatan submission. --}}
+            @php
+                $mintaJurnal = \App\Services\JurnalSubmissionService::tahapMintaData($progress->status)
+                    && ! in_array($progress->orderDetail?->type, ['bk_mandiri', 'bk_kolab'], true);
+                $daftarJurnal = $mintaJurnal ? \App\Models\Journal::orderBy('nama')->get(['id', 'nama']) : collect();
+            @endphp
+
+            @if ($mintaJurnal && $progress->status === 'submit')
+                <div class="border rounded p-2 mb-2 bg-light">
+                    <label class="form-label small fw-bold mb-1">Jurnal tujuan <span class="text-danger">*</span></label>
+                    @if ($daftarJurnal->isNotEmpty())
+                        <select name="journal_id" class="form-select form-select-sm mb-2">
+                            <option value="">— pilih dari Direktori Jurnal —</option>
+                            @foreach ($daftarJurnal as $j)
+                                <option value="{{ $j->id }}" @selected(old('journal_id') == $j->id)>{{ $j->nama }}</option>
+                            @endforeach
+                        </select>
+                        <div class="small text-muted mb-1">atau ketik nama jurnal baru:</div>
+                    @endif
+                    <input type="text" name="nama_jurnal" class="form-control form-control-sm mb-2"
+                           value="{{ old('nama_jurnal') }}" placeholder="Nama jurnal (otomatis masuk Direktori Jurnal)">
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <input type="date" name="tgl_submit" class="form-control form-control-sm"
+                                   value="{{ old('tgl_submit', now()->toDateString()) }}">
+                        </div>
+                        <div class="col-6">
+                            <input type="text" name="ojs_akun" class="form-control form-control-sm"
+                                   value="{{ old('ojs_akun') }}" placeholder="Akun OJS (opsional)">
+                        </div>
+                    </div>
+                </div>
+            @endif
+
+            @if ($mintaJurnal && $progress->status === 'loa')
+                {{-- Wajib hanya bila linknya memang belum ada di mana pun. Title::linkTerbit()
+                     punya tiga sumber; menandai `required` tanpa syarat membuat peramban
+                     memblokir naskah yang linknya sudah tercatat di Direktori Judul. --}}
+                @php $wajibLink = \App\Services\JurnalSubmissionService::butuhLink($progress); @endphp
+                <div class="border rounded p-2 mb-2 bg-light">
+                    <label class="form-label small fw-bold mb-1">
+                        Link artikel terbit @if ($wajibLink)<span class="text-danger">*</span>@endif
+                    </label>
+                    <input type="url" name="link_publish" class="form-control form-control-sm mb-2"
+                           value="{{ old('link_publish') }}" placeholder="https://jurnal.../artikel/123"
+                           @if ($wajibLink) required @endif>
+                    <input type="date" name="tgl_terbit" class="form-control form-control-sm"
+                           value="{{ old('tgl_terbit', now()->toDateString()) }}">
+                    <div class="form-text">
+                        @if ($wajibLink)
+                            Wajib: naskah tak boleh ditandai Publish tanpa alamat terbitnya.
+                        @else
+                            Link terbit sudah tercatat. Isi hanya bila ingin menggantinya.
+                        @endif
+                    </div>
+                </div>
+            @endif
+
             <button class="btn btn-primary w-100 py-2 mb-2">
                 ✓ Selesaikan {{ $progress->stageLabelId() }} → lanjut ke {{ \App\Models\TitleProgress::labelFor($next) }}
             </button>

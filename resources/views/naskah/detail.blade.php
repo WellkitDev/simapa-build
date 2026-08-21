@@ -79,6 +79,59 @@
             @endif
         </div></div>
 
+        {{-- Jurnal (artikel saja) --}}
+        @if (! $buku)
+            @php
+                $judulRef = $d?->titleRef;
+                $sub      = $judulRef?->journalSubmissions()->orderByDesc('id')->first();
+            @endphp
+            <div class="card mb-3"><div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="text-uppercase text-muted small fw-bold mb-0">Jurnal</h6>
+                    @if ($judulRef)
+                        <a href="{{ route('title.show', $judulRef->id) }}" class="btn btn-xs btn-outline-secondary">Direktori Judul</a>
+                    @endif
+                </div>
+
+                @if ($sub)
+                    <div class="d-flex justify-content-between border-bottom border-dashed py-2 small">
+                        <span class="text-muted">Jurnal tujuan</span>
+                        <strong class="text-end">
+                            @if ($sub->journal)
+                                <a href="{{ route('journal.show', $sub->journal_id) }}">{{ $sub->journal->nama }}</a>
+                            @else
+                                —
+                            @endif
+                        </strong>
+                    </div>
+                    <div class="d-flex justify-content-between border-bottom border-dashed py-2 small">
+                        <span class="text-muted">Tgl submit</span>
+                        <strong class="text-end">{{ $sub->tgl_submit?->translatedFormat('j M Y') ?? '—' }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between border-bottom border-dashed py-2 small">
+                        <span class="text-muted">Status</span>
+                        <strong class="text-end">{{ $sub->statusLabel() }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between py-2 small">
+                        <span class="text-muted">Link terbit</span>
+                        <strong class="text-end">
+                            @if ($sub->link_publish)
+                                <a href="{{ $sub->link_publish }}" target="_blank" rel="noopener">Buka</a>
+                            @else
+                                Belum ada
+                            @endif
+                        </strong>
+                    </div>
+                @else
+                    {{-- Tak memakai kata "belum diisi": sebelum tahap Submit memang belum
+                         waktunya, jadi menyebutnya kekurangan hanya jadi kebisingan. --}}
+                    <p class="small text-muted mb-0">
+                        Catatan jurnal terbentuk saat tahap <strong>Submit</strong> diselesaikan.
+                    </p>
+                @endif
+            </div></div>
+        @endif
+
         {{-- Brief dari marketing --}}
         <div class="card mb-3"><div class="card-body">
             <h6 class="text-uppercase text-muted small fw-bold mb-2">Brief dari Marketing</h6>
