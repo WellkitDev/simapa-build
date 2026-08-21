@@ -26,6 +26,7 @@ class Title extends Model
         'title', 'code', 'jenis', 'indeksasi', 'tipe_naskah', 'scope_id', 'assigned_to', 'status', 'asal', 'slug',
         'created_by', 'approved_by', 'approved_at', 'reject_note',
         'target_terbit', 'jurnal_target', 'jurnal_link', 'template_link', 'apc_info', 'catatan_publikasi',
+        'link_terbit',
         'deactivated_at', 'deactivated_by',
     ];
 
@@ -347,6 +348,39 @@ class Title extends Model
         $reached = array_search($status, $stages, true);
         $isbnIdx = array_search('isbn', $stages, true);
         return $reached !== false && $reached >= $isbnIdx;
+    }
+
+    /**
+     * Link karya terbit — satu jawaban untuk kedua jenis.
+     *
+     * Urutan: kolom judul menang, lalu cadangan dari modul asalnya. Cadangan itu ADA
+     * supaya judul yang linknya sudah diisi di Direktori ISBN / Direktori Jurnal tidak
+     * ikut terkunci oleh gerbang baru — bukan supaya dua tempat boleh berbeda isi.
+     */
+    public function linkTerbit(): ?string
+    {
+        $sendiri = trim((string) $this->link_terbit);
+        if ($sendiri !== '') {
+            return $sendiri;
+        }
+
+        if ($this->jenis === 'buku') {
+            $isbn = trim((string) optional($this->bookIsbn)->link_terbit);
+
+            return $isbn !== '' ? $isbn : null;
+        }
+
+        $submission = \App\Models\JournalSubmission::where('title_id', $this->id)
+            ->latest('id')->first();
+        $link = trim((string) optional($submission)->link_publish);
+
+        return $link !== '' ? $link : null;
+    }
+
+    /** Belum punya link terbit — dipakai gerbang tahap akhir dan peringatan di UI. */
+    public function butuhLinkTerbit(): bool
+    {
+        return $this->linkTerbit() === null;
     }
 
     /**
