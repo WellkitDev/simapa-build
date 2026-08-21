@@ -160,4 +160,118 @@ class NaskahInfoPublikasiTest extends TestCase
             ->assertOk()
             ->assertSee('Link Artikel Terbit');
     }
+
+    /** Judul lengkap berisi setiap field publikasi + dua opsi jurnal. */
+    private function judulLengkap(): Title
+    {
+        $title = Title::create([
+            'title' => 'Artikel Lengkap', 'jenis' => 'artikel',
+            'tipe_naskah' => 'mandiri', 'status' => 'disetujui',
+            'code' => 'KODE-LAMA', 'target_terbit' => '2026-12-01',
+            'jurnal_target' => 'Jurnal Lama', 'jurnal_link' => 'https://lama.test',
+            'template_link' => 'https://template.test', 'apc_info' => 'Rp 1.000.000',
+            'catatan_publikasi' => 'Catatan lama',
+        ]);
+        $title->journalOptions()->create(['nama_jurnal' => 'Opsi A', 'urutan' => 0]);
+        $title->journalOptions()->create(['nama_jurnal' => 'Opsi B', 'urutan' => 1]);
+
+        return $title->fresh();
+    }
+
+    /**
+     * Kiriman sebagian tidak boleh menghapus apa pun yang tak disebutnya.
+     *
+     * Dulu setiap field dibaca `?? null`, jadi kunci yang absen berarti "kosongkan" —
+     * aman selama satu-satunya pengirim adalah formulir judul yang mengirim semuanya,
+     * tapi layar naskah hanya mengirim sebagian.
+     *
+     * @test
+     */
+    public function kiriman_sebagian_tidak_menghapus_field_lain(): void
+    {
+        $title = $this->judulLengkap();
+
+        $this->actingAs($this->user('admin'))
+            ->put(route('title.info.update', $title->id), [
+                'link_terbit' => 'https://jurnal.test/sebagian',
+            ])->assertRedirect();
+
+        $segar = $title->fresh();
+        $this->assertSame('https://jurnal.test/sebagian', $segar->link_terbit);
+        $this->assertSame('KODE-LAMA', $segar->code, 'kode tak boleh dibuat ulang saat tak dikirim');
+        $this->assertSame('2026-12-01', $segar->target_terbit->toDateString());
+        $this->assertSame('Jurnal Lama', $segar->jurnal_target);
+        $this->assertSame('https://lama.test', $segar->jurnal_link);
+        $this->assertSame('https://template.test', $segar->template_link);
+        $this->assertSame('Rp 1.000.000', $segar->apc_info);
+        $this->assertSame('Catatan lama', $segar->catatan_publikasi);
+    }
+
+    /**
+     * Opsi jurnal hanya boleh diganti oleh formulir yang memang menampilkannya.
+     *
+     * @test
+     */
+    public function kiriman_sebagian_tidak_menghapus_opsi_jurnal(): void
+    {
+        $title = $this->judulLengkap();
+
+        $this->actingAs($this->user('admin'))
+            ->put(route('title.info.update', $title->id), [
+                'link_terbit' => 'https://jurnal.test/sebagian',
+            ])->assertRedirect();
+
+        $this->assertSame(2, $title->fresh()->journalOptions()->count());
+    }
+
+    /** @test */
+    public function formulir_lengkap_tetap_mengganti_opsi_jurnal(): void
+    {
+        $title = $this->judulLengkap();
+
+        $this->actingAs($this->user('admin'))
+            ->put(route('title.info.update', $title->id), [
+                'code' => 'KODE-LAMA',
+                'journal_options_dikirim' => 1,
+                'journal_options' => [['nama_jurnal' => 'Opsi Baru']],
+            ])->assertRedirect();
+
+        $opsi = $title->fresh()->journalOptions()->get();
+        $this->assertCount(1, $opsi);
+        $this->assertSame('Opsi Baru', $opsi->first()->nama_jurnal);
+    }
+
+    /**
+     * Inilah kasus yang penandanya ada untuk membedakan: menghapus semua opsi lalu
+     * menyimpan tiba TANPA kunci `journal_options` sama sekali — sama persis dengan
+     * kiriman sebagian, kalau tak ada penanda.
+     *
+     * @test
+     */
+    public function formulir_lengkap_masih_bisa_mengosongkan_opsi_jurnal(): void
+    {
+        $title = $this->judulLengkap();
+
+        $this->actingAs($this->user('admin'))
+            ->put(route('title.info.update', $title->id), [
+                'code' => 'KODE-LAMA',
+                'journal_options_dikirim' => 1,
+            ])->assertRedirect();
+
+        $this->assertSame(0, $title->fresh()->journalOptions()->count());
+    }
+
+    /** Dikirim tapi kosong tetap berarti "kosongkan" — bukan "abaikan". */
+    /** @test */
+    public function field_yang_dikirim_kosong_tetap_dikosongkan(): void
+    {
+        $title = $this->judulLengkap();
+
+        $this->actingAs($this->user('admin'))
+            ->put(route('title.info.update', $title->id), [
+                'jurnal_target' => '',
+            ])->assertRedirect();
+
+        $this->assertNull($title->fresh()->jurnal_target);
+    }
 }

@@ -232,31 +232,63 @@ class TitleService
      * dan beri tahu superadmin. $data: code?, target_terbit?, jurnal_target?, jurnal_link?,
      * template_link?, apc_info?, catatan_publikasi?. $journalOptions: array of [nama_jurnal, link?, apc?].
      */
-    public function updateInfo(Title $title, array $data, array $journalOptions, User $actor): void
+    /**
+     * @param bool $opsiDikirim formulir menyatakan dirinya berwenang atas Opsi Jurnal.
+     *                          Absennya kunci `journal_options` TIDAK bisa dibedakan dari
+     *                          "user menghapus semua opsi" — keduanya tiba tanpa input.
+     *                          Penanda inilah yang memisahkan keduanya, supaya pengirim
+     *                          sebagian (layar naskah) tak menghapus opsi milik judul.
+     */
+    public function updateInfo(Title $title, array $data, array $journalOptions, User $actor, bool $opsiDikirim = true): void
     {
-        // Kode: kosong → regenerasi dari judul.
-        $newCode = trim((string) ($data['code'] ?? ''));
-        $code = $newCode !== '' ? $newCode : app(TitleCodeService::class)->generate($title->title, $title->id);
-
+        /*
+         | Field yang TIDAK dikirim tidak disentuh.
+         |
+         | Dulu setiap field dibaca dengan `?? null`, sehingga kunci yang absen berarti
+         | "kosongkan". Itu aman selama satu-satunya pengirim adalah form judul yang
+         | selalu mengirim semuanya — tapi begitu layar naskah ikut memakai endpoint ini
+         | dengan sebagian field saja, menyimpan satu link akan memusnahkan Target Terbit,
+         | Jurnal Target, APC, Catatan, dan seluruh Opsi Jurnal judul itu.
+         |
+         | `array_key_exists`, bukan `isset`/`??`: string kosong yang DIKIRIM tetap berarti
+         | "kosongkan field ini", sedangkan kunci yang absen berarti "jangan sentuh".
+         | Keduanya harus tetap bisa dibedakan.
+         */
         $labels = [
             'code' => 'Kode', 'target_terbit' => 'Target terbit', 'jurnal_target' => 'Jurnal target',
             'jurnal_link' => 'Link jurnal', 'template_link' => 'Template', 'apc_info' => 'APC',
             'catatan_publikasi' => 'Catatan',
             'link_terbit' => 'Link terbit',
         ];
-        $next = [
-            'code'              => $code,
-            'target_terbit'     => ($data['target_terbit'] ?? '') ?: null, // absent/kosong → null (hindari '' → hari ini via date cast)
-            'jurnal_target'     => $data['jurnal_target'] ?? null,
-            'jurnal_link'       => $data['jurnal_link'] ?? null,
-            'template_link'     => $data['template_link'] ?? null,
-            'apc_info'          => $data['apc_info'] ?? null,
-            'catatan_publikasi' => $data['catatan_publikasi'] ?? null,
-            'link_terbit'       => ($data['link_terbit'] ?? '') ?: null, // string kosong → null, supaya butuhLinkTerbit() tak tertipu
-        ];
+
+        $next = [];
+        foreach (array_keys($labels) as $field) {
+            if (! array_key_exists($field, $data)) {
+                continue;
+            }
+
+            $next[$field] = match ($field) {
+                // Kode DIKIRIM tapi kosong tetap berarti "buat ulang dari judul" — itu
+                // janji tombol "Kosongkan untuk buat ulang" di formulir. Yang berubah
+                // hanya arti kunci yang ABSEN, yang kini tak menyentuh kode sama sekali.
+                'code' => trim((string) $data['code']) !== ''
+                    ? trim((string) $data['code'])
+                    : app(TitleCodeService::class)->generate($title->title, $title->id),
+
+                // Kosong → null, bukan '': date cast mengubah '' jadi hari ini, dan
+                // butuhLinkTerbit() tak boleh tertipu string kosong.
+                'target_terbit', 'link_terbit' => ($data[$field] ?? '') ?: null,
+
+                default => $data[$field] ?? null,
+            };
+        }
 
         $changed = [];
         foreach ($labels as $field => $label) {
+            if (! array_key_exists($field, $next)) {
+                continue; // tak dikirim → tak berubah → tak perlu masuk catatan riwayat
+            }
+
             $old = $field === 'target_terbit'
                 ? (string) (optional($title->target_terbit)->toDateString() ?? '')
                 : (string) ($title->$field ?? '');
@@ -270,8 +302,14 @@ class TitleService
         $before = $title->journalOptions()->orderBy('urutan')->get()
             ->map(fn ($o) => $o->nama_jurnal . '|' . $o->link . '|' . $o->apc)->implode(';;');
 
-        DB::transaction(function () use ($title, $next, $journalOptions) {
-            $title->update($next);
+        DB::transaction(function () use ($title, $next, $journalOptions, $opsiDikirim) {
+            if ($next !== []) {
+                $title->update($next);
+            }
+
+            if (! $opsiDikirim) {
+                return;
+            }
 
             $title->journalOptions()->delete();
             $i = 0;

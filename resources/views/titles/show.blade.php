@@ -178,6 +178,10 @@
     <div class="collapse mt-3" id="infoForm">
         <form method="POST" action="{{ route('title.info.update', $title->id) }}">
             @csrf @method('PUT')
+            {{-- Formulir ini menampilkan SELURUH Opsi Jurnal, jadi ia berwenang
+                 menggantinya — termasuk mengosongkannya. Pengirim sebagian (layar
+                 naskah) tidak memasang penanda ini, sehingga opsinya aman. --}}
+            <input type="hidden" name="journal_options_dikirim" value="1">
             <div class="row">
                 <div class="col-md-4 mb-2">
                     <label class="form-label">Kode</label>

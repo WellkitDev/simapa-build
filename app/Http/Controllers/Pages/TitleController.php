@@ -284,9 +284,20 @@ class TitleController extends Controller
             'journal_options.*.nama_jurnal'    => 'nullable|string|max:255',
             'journal_options.*.link'           => 'nullable|string|max:255',
             'journal_options.*.apc'            => 'nullable|string|max:255',
+            'journal_options_dikirim'          => 'nullable|boolean',
         ]);
 
-        $this->service->updateInfo($title, $data, $request->input('journal_options', []), Auth::user());
+        $this->service->updateInfo(
+            $title,
+            $data,
+            $request->input('journal_options', []),
+            Auth::user(),
+            // Kehadiran kunci `journal_options` SUDAH pernyataan wewenang atas opsi.
+            // Penandanya hanya diperlukan untuk kasus yang tak bisa dibedakan: formulir
+            // lengkap yang dikirim setelah SELURUH opsinya dihapus tiba tanpa kunci itu,
+            // persis seperti pengirim sebagian yang memang tak berurusan dengan opsi.
+            $request->has('journal_options') || $request->boolean('journal_options_dikirim')
+        );
 
         // Form ini dipakai dari halaman judul DAN dari layar naskah. Tanpa ini,
         // menyimpan dari layar naskah melempar orang ke halaman judul dan konteks
