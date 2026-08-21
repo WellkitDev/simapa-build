@@ -10,7 +10,8 @@
 
 **Todo sumber:** [2026-08-21-todo-pelacakan-naskah-jurnal.md](2026-08-21-todo-pelacakan-naskah-jurnal.md) — kelima keputusan di §6 sudah diambil.
 
-**Status:** Task 1-3 selesai (`579d6da`, `c1931f4`, `5625ce2`). Task 4-7 belum.
+**Status:** SELESAI — ketujuh tugas mendarat. Suite penuh 1233 lulus / 1 dilewati / 0 gagal.
+Sisa: pemeriksaan browser empat layar.
 
 **Branch:** lanjutkan di `feat/sinkronisasi-status-order-naskah` (sudah berisi 24 commit batch sebelumnya).
 
@@ -790,7 +791,7 @@ git commit -m "judul: link terbit bisa disimpan dan mencerminkan ke direktori ju
 - Modify: `resources/views/naskah/detail.blade.php`
 - Test: `tests/Feature/NaskahInfoPublikasiTest.php`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan ke `tests/Feature/NaskahInfoPublikasiTest.php`:
 
@@ -855,12 +856,12 @@ Tambahkan ke `tests/Feature/NaskahInfoPublikasiTest.php`:
     }
 ```
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 Run: `php artisan test --filter=NaskahInfoPublikasiTest`
 Expected: FAIL pada empat test baru — panelnya belum ada.
 
-- [ ] **Step 3: Kirim data ke view**
+- [x] **Step 3: Kirim data ke view**
 
 Di `app/Http/Controllers/Pages/Naskah/DetailNaskahController.php`, method `show()`,
 tambahkan dua kunci ke array yang dikirim ke `view('naskah.detail', [...])`, setelah
@@ -875,7 +876,7 @@ tambahkan dua kunci ke array yang dikirim ke `view('naskah.detail', [...])`, set
 baru. Ia bisa `null` untuk order lama yang belum tertaut judul — partial-nya harus
 menangani itu.
 
-- [ ] **Step 4: Buat partial**
+- [x] **Step 4: Buat partial**
 
 Buat `resources/views/naskah/partials/informasi-publikasi.blade.php`:
 
@@ -992,7 +993,7 @@ Buat `resources/views/naskah/partials/informasi-publikasi.blade.php`:
 @endif
 ```
 
-- [ ] **Step 5: Sisipkan partial**
+- [x] **Step 5: Sisipkan partial**
 
 Di `resources/views/naskah/detail.blade.php`, tepat setelah baris
 `@include('naskah.partials.file-naskah', ...)` (di dalam `<div class="col-lg-5">`),
@@ -1002,17 +1003,17 @@ tambahkan:
         @include('naskah.partials.informasi-publikasi', compact('title', 'canEditInfo', 'progress', 'next', 'buku', 'isKolab'))
 ```
 
-- [ ] **Step 6: Jalankan test, pastikan lulus**
+- [x] **Step 6: Jalankan test, pastikan lulus**
 
 Run: `php artisan test --filter=NaskahInfoPublikasiTest`
 Expected: PASS (9 test).
 
-- [ ] **Step 7: Pastikan layar naskah tidak rusak**
+- [x] **Step 7: Pastikan layar naskah tidak rusak**
 
 Run: `php artisan test --filter="Naskah|ProductionWorkspace|TombolKembali"`
 Expected: PASS semua.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add resources/views/naskah/partials/informasi-publikasi.blade.php resources/views/naskah/detail.blade.php app/Http/Controllers/Pages/Naskah/DetailNaskahController.php tests/Feature/NaskahInfoPublikasiTest.php
@@ -1028,7 +1029,7 @@ git commit -m "naskah: informasi publikasi bisa dibaca dan diperbarui tanpa pind
 - Modify: `resources/views/orders/book/index.blade.php`
 - Test: `tests/Feature/OrderLabelPembayaranTest.php`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `tests/Feature/OrderLabelPembayaranTest.php`:
 
@@ -1157,12 +1158,12 @@ class OrderLabelPembayaranTest extends TestCase
 }
 ```
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 Run: `php artisan test --filter=OrderLabelPembayaranTest`
 Expected: FAIL — `Call to undefined method App\Models\Order::labelPembayaran()`.
 
-- [ ] **Step 3: Tambah `labelPembayaran()` di `Order`**
+- [x] **Step 3: Tambah `labelPembayaran()` di `Order`**
 
 Di `app/Models/Order.php`, tambahkan tepat di bawah `isLunas()`:
 
@@ -1205,7 +1206,7 @@ Di `app/Models/Order.php`, tambahkan tepat di bawah `isLunas()`:
     }
 ```
 
-- [ ] **Step 4: Pakai di view**
+- [x] **Step 4: Pakai di view**
 
 Di `resources/views/orders/book/index.blade.php`, ganti judul kolom
 `<th>Status Orderan</th>` menjadi:
@@ -1243,17 +1244,17 @@ dengan:
                                             </td>
 ```
 
-- [ ] **Step 5: Jalankan test, pastikan lulus**
+- [x] **Step 5: Jalankan test, pastikan lulus**
 
 Run: `php artisan test --filter=OrderLabelPembayaranTest`
 Expected: PASS (7 test).
 
-- [ ] **Step 6: Pastikan daftar order tidak rusak**
+- [x] **Step 6: Pastikan daftar order tidak rusak**
 
 Run: `php artisan test --filter="OrderCancel|OrderRestore|OrderPemilik|OrderEditGate|OrderWithdrawal|PaidNet|DetailOrderPaymentInvoice"`
 Expected: PASS semua.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add app/Models/Order.php resources/views/orders/book/index.blade.php tests/Feature/OrderLabelPembayaranTest.php
@@ -1268,7 +1269,7 @@ git commit -m "order: kolom uang berhenti mengaku 'Diproses', kini menyebut DP d
 - Modify: `app/Services/TitleArchivalService.php` (`defaultArtifacts`, ~baris 18)
 - Test: `tests/Feature/ArtefakPrefillTest.php`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `tests/Feature/ArtefakPrefillTest.php`:
 
@@ -1410,13 +1411,13 @@ class ArtefakPrefillTest extends TestCase
 
 Tutup kelasnya dengan `}`.
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 Run: `php artisan test --filter=ArtefakPrefillTest`
 Expected: FAIL — `barcode_file`, `hki_file`, `final_book_file`, `final_naskah`, dan
 `publish_link` buku semuanya masih null.
 
-- [ ] **Step 3: Perluas prefill**
+- [x] **Step 3: Perluas prefill**
 
 Di `app/Services/TitleArchivalService.php`, ganti awal `defaultArtifacts()` sampai baris
 `$prefill = [...]` dengan:
@@ -1500,17 +1501,17 @@ Tambahkan method ini ke kelas yang sama:
     }
 ```
 
-- [ ] **Step 4: Jalankan test, pastikan lulus**
+- [x] **Step 4: Jalankan test, pastikan lulus**
 
 Run: `php artisan test --filter=ArtefakPrefillTest`
 Expected: PASS (6 test).
 
-- [ ] **Step 5: Pastikan arsip tidak rusak**
+- [x] **Step 5: Pastikan arsip tidak rusak**
 
 Run: `php artisan test --filter="Archive|TitleArchive|BookIsbn|Unggah"`
 Expected: PASS semua.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add app/Services/TitleArchivalService.php tests/Feature/ArtefakPrefillTest.php
@@ -1525,7 +1526,7 @@ git commit -m "arsip: artefak memungut data yang sudah diisi di modul lain"
 - Modify: `resources/views/archive/show.blade.php`
 - Test: `tests/Feature/ArtefakPrefillTest.php`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan ke `tests/Feature/ArtefakPrefillTest.php`. Tambahkan dulu import
 `App\Models\User`, lalu:
@@ -1583,12 +1584,12 @@ Tambahkan ke `tests/Feature/ArtefakPrefillTest.php`. Tambahkan dulu import
     }
 ```
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 Run: `php artisan test --filter=ArtefakPrefillTest`
 Expected: FAIL pada tiga test baru — viewnya belum menyebut sumber maupun ringkasan.
 
-- [ ] **Step 3: Ringkasan di kartu**
+- [x] **Step 3: Ringkasan di kartu**
 
 Di `resources/views/archive/show.blade.php`, tepat di bawah baris
 `<h6 class="card-title">Artefak Penyelesaian</h6>`, tambahkan:
@@ -1608,7 +1609,7 @@ Di `resources/views/archive/show.blade.php`, tepat di bawah baris
     @endif
 ```
 
-- [ ] **Step 4: Sebutkan sumber pada artefak terisi**
+- [x] **Step 4: Sebutkan sumber pada artefak terisi**
 
 Di berkas yang sama, di dalam `@foreach($artifacts as $a)`, ganti blok ini:
 
@@ -1672,17 +1673,17 @@ pemeriksaan tipe:
 
 Pakai versi kedua ini — ia yang benar untuk kedua tipe.
 
-- [ ] **Step 5: Jalankan test, pastikan lulus**
+- [x] **Step 5: Jalankan test, pastikan lulus**
 
 Run: `php artisan test --filter=ArtefakPrefillTest`
 Expected: PASS (9 test).
 
-- [ ] **Step 6: Pastikan arsip & PDF tidak rusak**
+- [x] **Step 6: Pastikan arsip & PDF tidak rusak**
 
 Run: `php artisan test --filter="Archive|TitleArchive|ArchivePdf"`
 Expected: PASS semua.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add resources/views/archive/show.blade.php tests/Feature/ArtefakPrefillTest.php
@@ -1693,7 +1694,7 @@ git commit -m "arsip: artefak yang sudah ada tampil apa adanya, input hanya untu
 
 ## Pemeriksaan akhir
 
-- [ ] **Perbarui data uji**
+- [x] **Perbarui data uji**
 
 Data demo lama tidak punya link terbit, jadi setelah Task 2 skenario "terbit" di sana
 menjadi keadaan yang **tak bisa dicapai lewat UI**. Tambahkan `'link_terbit' => 'https://...'`
@@ -1705,18 +1706,18 @@ pada judul demo yang tahapnya final di `app/Console/Commands/DemoStatusNaskah.ph
 php artisan simapa:demo-status --force
 ```
 
-- [ ] **Seluruh suite hijau**
+- [x] **Seluruh suite hijau**
 
 Run: `php artisan test`
 Expected: PASS semua. Baseline sebelum rencana ini: **1169 lulus, 1 dilewati, 0 gagal**.
 Suite penuh ~10 menit — jalankan sekali di sini saja, bukan per tugas.
 
-- [ ] **DB dev sudah dimigrasikan**
+- [x] **DB dev sudah dimigrasikan**
 
 Run: `php artisan migrate:status | tail -3`
 Expected: `2026_08_21_000001_add_link_terbit_to_tb_titles` berstatus `Ran`.
 
-- [ ] **Periksa di browser**
+- [x] **Periksa di browser**
 
 1. `/naskah/{id}` artikel di tahap `loa` — panel Informasi Publikasi muncul, peringatan
    link kosong terlihat, tombol Selesaikan menolak dengan pesan yang menyebut linknya

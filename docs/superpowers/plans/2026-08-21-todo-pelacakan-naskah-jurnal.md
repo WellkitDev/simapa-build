@@ -1,8 +1,7 @@
 # TODO — Tambahan Pelacakan Naskah & Arsip
 
 **Dibuat:** 2026-08-21 · **Diperbarui:** 2026-08-21 (poin 3–5 ditambahkan)
-**Status:** Keputusan lengkap (§6). Poin 2 dan 5 SELESAI; poin 1 separuh (backend + halaman judul);
-poin 3 dan 4 belum. Rencana pelaksananya: `2026-08-21-pelacakan-naskah-jurnal.md`.
+**Status:** SELESAI — kelima poin terjawab lewat `2026-08-21-pelacakan-naskah-jurnal.md`.
 **Konteks:** lanjutan dari branch `feat/sinkronisasi-status-order-naskah`
 
 Dokumen ini **menangkap** permintaan dan keputusannya. Seluruh keputusan di §6 sudah
@@ -21,15 +20,15 @@ Jurnal, Link Template Artikel, APC, Catatan, dan Opsi Jurnal Lain. Formnya POST 
 Yang diminta: informasi yang sama **tampil dan bisa langsung diperbarui** di `/naskah/{id}`
 (`naskah.show`), tanpa pindah halaman.
 
-- [ ] `DetailNaskahController::show()` sudah memuat `orderDetail.titleRef` sebagai `$book` —
+- [x] `DetailNaskahController::show()` sudah memuat `orderDetail.titleRef` sebagai `$book` —
       Title-nya sudah di tangan, tak perlu query baru
 - [x] Pakai ulang `title.info.update`; **jangan buat jalur tulis kedua** supaya aturannya
       tak bercabang dua versi
-- [ ] Panel baru di `resources/views/naskah/detail.blade.php`
+- [x] Panel baru di `resources/views/naskah/detail.blade.php`
 - [x] Redirect harus kembali ke `naskah.show`, bukan ke halaman judul — butuh `_redirect`
       tersembunyi atau `back()`
 - [x] Gerbang izin (§6.C): `@can('title.info')` — admin sudah memilikinya, production read-only
-- [ ] Untuk buku kolaborasi panel ini **level judul**, bukan per-order — sebutkan di UI
+- [x] Untuk buku kolaborasi panel ini **level judul**, bukan per-order — sebutkan di UI
 
 ---
 
@@ -46,7 +45,7 @@ Keadaan sekarang:
 | Jurnal | `tb_journal_submissions.link_publish` | **Tidak sama sekali** — Direktori Jurnal tak tersambung ke tahap naskah (temuan A1) |
 
 - [x] Tempat penyimpanan diputuskan (§6.A): `tb_titles.link_terbit` + cermin ke direktori
-- [ ] Field "Link Artikel Terbit" di `/naskah/{id}`, muncul saat `nextStage()` final
+- [x] Field "Link Artikel Terbit" di `/naskah/{id}`, muncul saat `nextStage()` final
 - [x] Gerbang di `TitleProgressService::advance()`, sejajar `assertLayoutUnlocked()`
 - [x] Gerbang **wajib** ikut menutup `ChapterManuscriptService::advanceBookToStage()`
       (jalur ISBN `cetak` → `terbit`) — kalau tidak, bocor persis seperti temuan Task 3
@@ -78,9 +77,9 @@ Task 11 menambahkan kolom **Pekerjaan** di sebelahnya (`Berjalan` / `Selesai` / 
 terbaca berulang dan bisa tampak bertentangan ("Diproses" + "Selesai" di satu baris).
 
 - [x] Bentuk diputuskan (§6.E): dua kolom dipertahankan, kolom lama jadi **Pembayaran**
-- [ ] Apa pun pilihannya, **jangan** menambah nilai baru ke `tb_orders.status`; itu
+- [x] Apa pun pilihannya, **jangan** menambah nilai baru ke `tb_orders.status`; itu
       melanggar K3 dan merusak Laporan Keuangan + Piutang. Ini murni soal tampilan
-- [ ] Lima nilai: `Menunggu` / `DP` / `Lunas` / `Dibatalkan` / `Refund` — lihat §6.E
+- [x] Lima nilai: `Menunggu` / `DP` / `Lunas` / `Dibatalkan` / `Refund` — lihat §6.E
       untuk urutan menang dan jebakan `isLunas()`
 
 ---
@@ -112,18 +111,18 @@ Peta sumber yang sebenarnya tersedia:
 | `apc_bukti` | `JournalSubmission.bukti_bayar_url` | ✅ sudah |
 | `final_naskah` | `ManuscriptFile` slot `final` | ❌ belum |
 
-- [ ] Perluas `defaultArtifacts()` supaya membaca `ManuscriptFile` (slot berkas naskah dan
+- [x] Perluas `defaultArtifacts()` supaya membaca `ManuscriptFile` (slot berkas naskah dan
       slot ISBN) serta `BookIsbn.link_terbit`
-- [ ] Baca berkas dalam **satu query** untuk seluruh slot — `BookIsbn::berkas()` sudah
+- [x] Baca berkas dalam **satu query** untuk seluruh slot — `BookIsbn::berkas()` sudah
       memperingatkan jangan dipanggil di dalam perulangan
-- [ ] Hanya hitung `ManuscriptFile` berstatus `selesai`; yang `antre`/`gagal` belum ada
+- [x] Hanya hitung `ManuscriptFile` berstatus `selesai`; yang `antre`/`gagal` belum ada
       URL-nya dan menampilkannya sebagai "sudah lengkap" itu bohong
-- [ ] UI: artefak terisi tampil sebagai baris informasi + **sebutkan sumbernya**
+- [x] UI: artefak terisi tampil sebagai baris informasi + **sebutkan sumbernya**
       ("dari Direktori ISBN", "dari Detail Naskah") supaya orang tahu mengubahnya di mana;
       input hanya untuk yang kurang, plus tombol "ganti" untuk yang terisi
-- [ ] Ringkasan "kurang N dari M artefak" di kartu, sejalan dengan gaya peringatan
+- [x] Ringkasan "kurang N dari M artefak" di kartu, sejalan dengan gaya peringatan
       kekurangan bayar yang sudah ada
-- [ ] Jangan menimpa nilai yang sudah pernah disimpan manual di `TitleArchiveArtifact` —
+- [x] Jangan menimpa nilai yang sudah pernah disimpan manual di `TitleArchiveArtifact` —
       `defaultArtifacts()` sekarang sudah memprioritaskan baris tersimpan di atas prefill;
       pertahankan urutan itu
 
@@ -136,7 +135,7 @@ Penegasan poin 2 khusus jalur artikel: di `/naskah/{id}`, tombol menuju `publish
 "Naskah sudah berada di tahap akhir".
 
 - [x] Pesan `ValidationException` berbahasa Indonesia yang menyebut field-nya
-- [ ] Formnya muncul di layar yang sama, bukan menyuruh pindah ke Direktori Jurnal
+- [x] Formnya muncul di layar yang sama, bukan menyuruh pindah ke Direktori Jurnal
 - [x] Test: `advance()` ke `publish` gagal tanpa link, berhasil dengan link
 
 ---
