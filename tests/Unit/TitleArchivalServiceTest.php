@@ -52,6 +52,9 @@ class TitleArchivalServiceTest extends TestCase
     {
         $book = $this->eligibleBook();
         $actor = User::factory()->create();
+        // `pic_user_id` sengaja tetap DIKIRIM di sini meski formulirnya tak lagi
+        // memilikinya: kiriman lama (tab yang belum di-refresh, permintaan yang
+        // diulang) tak boleh diam-diam menghidupkan kembali kolom yang sudah pensiun.
         $this->service()->saveArtifacts($book, [
             'isbn'         => ['value' => '978-1', 'pic_user_id' => $actor->id, 'note' => 'ok'],
             'barcode_file' => ['file' => UploadedFile::fake()->create('bc.pdf', 5), 'pic_user_id' => $actor->id],
@@ -61,7 +64,11 @@ class TitleArchivalServiceTest extends TestCase
 
         $isbn = TitleArchiveArtifact::where('title_id', $book->id)->where('key', 'isbn')->first();
         $this->assertSame('978-1', $isbn->value);
-        $this->assertSame($actor->id, $isbn->pic_user_id);
+        $this->assertSame('ok', $isbn->note, 'catatan per artefak tetap disimpan');
+        $this->assertNull(
+            $isbn->pic_user_id,
+            'PIC tak lagi ditulis — penanggung jawab dibaca dari naskahnya lewat riwayatLengkap()'
+        );
         $barcode = TitleArchiveArtifact::where('title_id', $book->id)->where('key', 'barcode_file')->first();
         $this->assertSame('http://drive/f.pdf', $barcode->value);
         $this->assertSame(1, TitleArchiveArtifact::where('title_id', $book->id)->where('is_custom', true)->count());
