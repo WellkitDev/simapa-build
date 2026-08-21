@@ -242,6 +242,7 @@ class TitleService
             'code' => 'Kode', 'target_terbit' => 'Target terbit', 'jurnal_target' => 'Jurnal target',
             'jurnal_link' => 'Link jurnal', 'template_link' => 'Template', 'apc_info' => 'APC',
             'catatan_publikasi' => 'Catatan',
+            'link_terbit' => 'Link terbit',
         ];
         $next = [
             'code'              => $code,
@@ -251,6 +252,7 @@ class TitleService
             'template_link'     => $data['template_link'] ?? null,
             'apc_info'          => $data['apc_info'] ?? null,
             'catatan_publikasi' => $data['catatan_publikasi'] ?? null,
+            'link_terbit'       => ($data['link_terbit'] ?? '') ?: null, // string kosong → null, supaya butuhLinkTerbit() tak tertipu
         ];
 
         $changed = [];
@@ -290,6 +292,8 @@ class TitleService
             }
         });
 
+        $this->cerminkanLinkKeDirektori($title->fresh());
+
         $after = $title->journalOptions()->orderBy('urutan')->get()
             ->map(fn ($o) => $o->nama_jurnal . '|' . $o->link . '|' . $o->apc)->implode(';;');
         if ($before !== $after) {
@@ -307,5 +311,29 @@ class TitleService
         ]);
 
         app(Notifier::class)->titleInfoUpdated($title->fresh(), $actor);
+    }
+
+    /**
+     * Salin link terbit judul ke Direktori Jurnal, bila barisnya SUDAH ada.
+     *
+     * Sengaja tidak membuat baris baru: `tb_journal_submissions.journal_id` NOT NULL dan
+     * ber-FK ke direktori, jadi membuatnya menuntut pemilihan jurnal terdaftar — dan
+     * jurnal yang belum terdaftar akan mengunci naskahnya dari publish. Judul tetap jadi
+     * sumber kanonik; direktori menyusul lewat modulnya sendiri.
+     *
+     * Buku tak ikut dicerminkan: cadangannya `tb_book_isbns.link_terbit`, milik modul
+     * ISBN yang punya alur pengisiannya sendiri.
+     */
+    private function cerminkanLinkKeDirektori(Title $title): void
+    {
+        $link = trim((string) $title->link_terbit);
+        if ($link === '' || $title->jenis === 'buku') {
+            return;
+        }
+
+        // latest('id'), sama seperti Title::linkTerbit(): created_at yang kembar di detik
+        // yang sama tidak memberi urutan yang pasti, id selalu memberi.
+        \App\Models\JournalSubmission::where('title_id', $title->id)
+            ->latest('id')->first()?->update(['link_publish' => $link]);
     }
 }

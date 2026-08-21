@@ -150,6 +150,14 @@
         <dt class="col-sm-4 text-muted small">Template Artikel</dt><dd class="col-sm-8">@if($title->template_link)<a href="{{ $title->template_link }}" target="_blank" rel="noopener">{{ $title->template_link }}</a>@else — @endif</dd>
         <dt class="col-sm-4 text-muted small">APC</dt><dd class="col-sm-8">{{ $title->apc_info ?? '—' }}</dd>
         <dt class="col-sm-4 text-muted small">Catatan</dt><dd class="col-sm-8">{{ $title->catatan_publikasi ?? '—' }}</dd>
+        {{-- Label menyebut jenisnya dengan sengaja: kartu ISBN di halaman yang sama sudah
+             punya baris "Link Terbit" polos yang membaca $isbn->link_terbit, dan dua baris
+             berjudul sama akan terbaca sebagai satu kolom yang sama. --}}
+        <dt class="col-sm-4 text-muted small">{{ $title->jenis === 'buku' ? 'Link Buku Terbit' : 'Link Artikel Terbit' }}</dt>
+        <dd class="col-sm-8">
+            @php $lt = $title->linkTerbit(); @endphp
+            @if($lt)<a href="{{ $lt }}" target="_blank" rel="noopener">{{ $lt }}</a>@else <span class="text-danger">belum diisi</span> @endif
+        </dd>
     </dl>
 
     <h6 class="text-muted small mt-2">Opsi Jurnal Lain</h6>
@@ -199,6 +207,17 @@
             <div class="mb-2">
                 <label class="form-label">Link Template Artikel</label>
                 <input type="text" name="template_link" class="form-control" value="{{ old('template_link', $title->template_link) }}">
+            </div>
+            {{-- value memakai $title->link_terbit MENTAH, bukan linkTerbit(): form ini
+                 menulis kolom milik judul sendiri, jadi yang ditampilkan harus isi kolom
+                 itu. Memuat nilai cadangan (dari Direktori ISBN/Jurnal) ke dalam input
+                 akan diam-diam menyalinnya jadi milik judul pada simpan berikutnya. --}}
+            <div class="mb-2">
+                <label class="form-label">{{ $title->jenis === 'buku' ? 'Link Buku Terbit' : 'Link Artikel Terbit' }}</label>
+                <input type="url" name="link_terbit" class="form-control @error('link_terbit') is-invalid @enderror"
+                       value="{{ old('link_terbit', $title->link_terbit) }}" placeholder="https://...">
+                @error('link_terbit')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                <small class="text-muted">Wajib diisi sebelum naskah bisa ditandai terbit/publish.</small>
             </div>
             <div class="mb-2">
                 <label class="form-label">Catatan</label>

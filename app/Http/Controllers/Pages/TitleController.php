@@ -277,6 +277,8 @@ class TitleController extends Controller
             'template_link'                 => 'nullable|string|max:255',
             'apc_info'                      => 'nullable|string|max:255',
             'catatan_publikasi'             => 'nullable|string',
+            'link_terbit'                   => 'nullable|url|max:500',
+            '_redirect'                     => 'nullable|string|max:255',
             'journal_options'                  => 'nullable|array',
             'journal_options.*.journal_id'     => 'nullable|integer|exists:tb_journals,id',
             'journal_options.*.nama_jurnal'    => 'nullable|string|max:255',
@@ -285,6 +287,21 @@ class TitleController extends Controller
         ]);
 
         $this->service->updateInfo($title, $data, $request->input('journal_options', []), Auth::user());
+
+        // Form ini dipakai dari halaman judul DAN dari layar naskah. Tanpa ini,
+        // menyimpan dari layar naskah melempar orang ke halaman judul dan konteks
+        // kerjanya hilang. Hanya menerima alamat di dalam aplikasi sendiri — supaya
+        // form ini tak bisa dipakai sebagai batu loncatan ke situs luar.
+        //
+        // Pembandingnya SENGAJA `url('/') . '/'`, bukan `url('/')` telanjang: url('/')
+        // pulang tanpa garis miring penutup ("https://simapa.avidpedia.com"), jadi
+        // pencocokan awalan telanjang juga meloloskan host yang cuma berawalan sama
+        // ("https://simapa.avidpedia.com.situs-jahat.test") — domain yang bisa
+        // didaftarkan siapa saja. Garis miring itu yang mengunci batas host-nya.
+        $kembali = (string) $request->input('_redirect', '');
+        if ($kembali !== '' && str_starts_with($kembali, rtrim(url('/'), '/') . '/')) {
+            return redirect()->to($kembali)->with('success', 'Informasi publikasi diperbarui.');
+        }
 
         return redirect()->route('title.show', $title->id)->with('success', 'Informasi publikasi diperbarui.');
     }
