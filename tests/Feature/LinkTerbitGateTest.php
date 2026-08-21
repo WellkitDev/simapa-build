@@ -10,6 +10,7 @@ use App\Models\OrderDetail;
 use App\Models\Title;
 use App\Models\TitleProgress;
 use App\Models\User;
+use App\Services\ChapterManuscriptService;
 use App\Services\GoogleDriveService;
 use App\Services\TitleProgressService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -291,8 +292,11 @@ class LinkTerbitGateTest extends TestCase
         $this->assertSame('cetak', $progress->fresh()->status);
     }
 
-    /** Gerbang HANYA di tahap akhir — tahap tengah tak boleh ikut terkunci. */
-    /** @test */
+    /**
+     * Gerbang HANYA di tahap akhir — tahap tengah tak boleh ikut terkunci.
+     *
+     * @test
+     */
     public function tahap_tengah_tidak_menuntut_link(): void
     {
         $title    = Title::create(['title' => 'Artikel I', 'jenis' => 'artikel',
@@ -320,5 +324,37 @@ class LinkTerbitGateTest extends TestCase
             ->correct($progress, 'publish', $this->superadmin(), 'Naskah lama, link menyusul');
 
         $this->assertSame('publish', $progress->fresh()->status);
+    }
+
+    /**
+     * Jalur ISBN menulis tahap secara langsung, jadi gerbang di advance() tak
+     * menjangkaunya sama sekali — penjagaannya harus ada di ChapterManuscriptService
+     * sendiri. Tanpa test ini penjagaan itu bisa dihapus tanpa satu pun test memerah.
+     *
+     * Dua babak dalam satu test dengan sengaja: babak kedua membuktikan yang menahan
+     * memang LINK-nya, bukan hal lain (tahap tak urut, bab belum selesai, dsb).
+     *
+     * @test
+     */
+    public function sinkron_isbn_tak_menerbitkan_buku_tanpa_link(): void
+    {
+        $title    = Title::create(['title' => 'Buku K', 'jenis' => 'buku',
+                                   'tipe_naskah' => 'mandiri', 'status' => 'disetujui']);
+        $progress = $this->naskah($title, 'cetak', 'bk_mandiri');
+        $book     = $progress->orderDetail->titleRef;
+
+        app(ChapterManuscriptService::class)
+            ->advanceBookToStage($book, 'terbit', $this->superadmin());
+
+        $this->assertSame('cetak', $progress->fresh()->status,
+            'Sinkron ISBN harus melewati buku yang belum punya alamat terbit.');
+
+        $title->update(['link_terbit' => 'https://isbn.test/k']);
+
+        app(ChapterManuscriptService::class)
+            ->advanceBookToStage($book->fresh(), 'terbit', $this->superadmin());
+
+        $this->assertSame('terbit', $progress->fresh()->status,
+            'Begitu linknya ada, sinkron yang sama harus berjalan — jadi yang menahan tadi memang linknya.');
     }
 }

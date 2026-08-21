@@ -244,7 +244,11 @@ class TitleProgressService
         }
 
         $title = $progress->orderDetail?->titleRef;
-        if ($title === null || ! $title->butuhLinkTerbit()) {
+        if ($title === null) {
+            return; // detail tanpa Title — tak ada klaim terbit yang bisa diperiksa
+        }
+
+        if (! $title->butuhLinkTerbit()) {
             return;
         }
 
@@ -435,6 +439,23 @@ class TitleProgressService
      * Buat TitleProgress untuk detail baru. Jika sudah ada order lain berjudul sama (grup)
      * yang sedang diproses, warisi status + penugasan grup agar tetap sinkron; jika tidak,
      * mulai dari 'menunggu_proses'.
+     *
+     * MEWARISI STATUS FINAL SENGAJA MELEWATI assertLinkTerbit(). Order baru pada judul
+     * yang sudah terbit memang pekerjaan yang sudah selesai; menurunkannya ke
+     * 'menunggu_proses'/'proofreading' cuma demi lolos gerbang akan salah menggambarkan
+     * keadaan lebih parah daripada link yang hilang. Jadi jangan tambahkan cadangan di
+     * sini.
+     *
+     * Asumsinya: link judul TIDAK dikosongkan setelah judulnya terbit. Asumsi itu bisa
+     * dilanggar — `JournalSubmission.link_publish` boleh dikosongkan/dihapus lewat
+     * Direktori Jurnal, dan BookIsbn.link_terbit ikut lepas kalau status ISBN diturunkan
+     * di bawah 'cetak'. Bila itu terjadi lalu order baru masuk, order itu lahir final,
+     * lalu OrderFulfillmentService menstempelnya 'selesai' + completed_at tanpa alamat
+     * terbit sama sekali.
+     *
+     * Anomalinya ada di SISI TULIS, bukan di sini: mengosongkan link pada judul yang
+     * sudah terbit itulah yang harus dijaga (updateInfo pada halaman judul, dan
+     * JournalSubmissionController). Perbaiki di sana, jangan di jalur warisan ini.
      */
     public function createForDetail(OrderDetail $detail, ?int $actorId = null): TitleProgress
     {
