@@ -67,4 +67,96 @@ class ArchivePdfTest extends TestCase
         $book = $this->book('disetujui');
         $this->actingAs($this->user('marketing'))->get(route('archive.pdf', $book->id))->assertForbidden();
     }
+
+    /**
+     * Isi PDF diuji lewat render Blade-nya, bukan lewat binary hasil stream — assert
+     * pada PDF jadi hanya bisa memeriksa content-type, dan itulah sebabnya seluruh
+     * penataan ulang laporan ini nyaris tak terjaga apa pun.
+     */
+    private function render(Title $book): string
+    {
+        $book = $book->fresh()->load([
+            'chapters', 'scope', 'bookIsbn', 'archive.approver', 'archive.submitter',
+            'archiveArtifacts.pic', 'orderDetails.order.user', 'orderDetails.titleProgress',
+        ]);
+        $svc = app(\App\Services\TitleArchivalService::class);
+
+        return view('archive.pdf', [
+            'title'     => $book,
+            'artifacts' => $svc->defaultArtifacts($book),
+            'custom'    => $book->archiveArtifacts->where('is_custom', true)->values(),
+            'isPaidOff' => $book->isPaidOff(),
+            'isFinal'   => $book->manuscriptIsFinal(),
+            'riwayat'   => $svc->riwayatLengkap($book),
+        ])->render();
+    }
+
+    /** @test */
+    public function laporan_memuat_klausul_tanggung_jawab(): void
+    {
+        $html = $this->render($this->book('disetujui'));
+
+        $this->assertStringContainsString('Keterangan', $html);
+        $this->assertStringContainsString('menjadi tanggung', $html);
+        $this->assertStringContainsString('Penanggung Jawab naskah (admin)', $html);
+        $this->assertStringContainsString('Pelaksana pembuatan naskah', $html);
+    }
+
+    /** @test */
+    public function laporan_memuat_blok_mengetahui(): void
+    {
+        $html = $this->render($this->book('disetujui'));
+
+        $this->assertStringContainsString('Mengetahui,', $html);
+        $this->assertStringContainsString('Penanggung Jawab Naskah,', $html);
+        $this->assertStringContainsString('PT AVID MEDIA INDONESIA', $html);
+    }
+
+    /**
+     * Nama di klausul tanggung jawab diambil dari naskahnya, bukan diketik ulang —
+     * dokumen ini tak boleh menyebut orang yang berbeda dari yang tercatat memegangnya.
+     *
+     * @test
+     */
+    public function nama_pj_dan_pelaksana_diambil_dari_naskah(): void
+    {
+        $book = $this->book('disetujui');
+        $pj   = $this->user('admin');
+        $pel  = $this->user('production');
+        TitleProgress::where('order_detail_id', $book->orderDetails->first()->id)
+            ->update(['pj_user_id' => $pj->id, 'pelaksana_user_id' => $pel->id]);
+
+        $html = $this->render($book);
+
+        $this->assertStringContainsString($pj->name, $html);
+        $this->assertStringContainsString($pel->name, $html);
+    }
+
+    /** @test */
+    public function laporan_memuat_seluruh_bagian_berurutan(): void
+    {
+        $html = $this->render($this->book('disetujui'));
+
+        // Dicocokkan pada markup judulnya, bukan teks polos: komentar CSS di dalam
+        // <style> ikut terkirim ke output, dan strpos('Keterangan') menemukannya lebih
+        // dulu di kepala dokumen — urutan yang benar pun terbaca salah.
+        $urutan = ['<h2>Info Judul</h2>', '<h2>Info Order</h2>', '<h2>Info Manuskrip</h2>',
+                   '<h2>Penanggung Jawab &amp; Pelaksana</h2>', '<h2>Artefak Penyelesaian</h2>',
+                   '<h2>Riwayat Perubahan</h2>', '<h4>Keterangan</h4>'];
+
+        $posisi = -1;
+        foreach ($urutan as $bagian) {
+            $kini = strpos($html, $bagian);
+            $this->assertNotFalse($kini, "bagian '{$bagian}' tidak ada di laporan");
+            $this->assertGreaterThan($posisi, $kini, "bagian '{$bagian}' keluar dari urutan A-Z");
+            $posisi = $kini;
+        }
+    }
+
+    /** Kolom PIC sudah dicabut — tak boleh muncul lagi di laporan. */
+    /** @test */
+    public function laporan_tak_lagi_punya_kolom_pic(): void
+    {
+        $this->assertStringNotContainsString('>PIC<', $this->render($this->book('disetujui')));
+    }
 }
