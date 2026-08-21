@@ -216,4 +216,72 @@ class ArtefakPrefillTest extends TestCase
 
         $this->assertSame(1, $manuscript, 'berkas seluruh slot harus dibaca sekali jalan');
     }
+
+    private function user(string $role): \App\Models\User
+    {
+        $u = \App\Models\User::factory()->create();
+        $u->assignRole($role);
+
+        return $u->fresh();
+    }
+
+    /** @test */
+    public function artefak_terisi_menyebut_sumbernya_di_layar(): void
+    {
+        $t = $this->buku();
+        BookIsbn::create(['title_id' => $t->id, 'status' => 'cetak', 'no_isbn' => '978-111']);
+
+        $this->actingAs($this->user('admin'))->get(route('archive.show', $t->id))
+            ->assertOk()
+            ->assertSee('978-111')
+            ->assertSee('dari Direktori ISBN');
+    }
+
+    /** @test */
+    public function kartu_menyebut_berapa_artefak_yang_kurang(): void
+    {
+        $t = $this->buku();
+        BookIsbn::create(['title_id' => $t->id, 'status' => 'cetak', 'no_isbn' => '978-222']);
+
+        // Buku punya 6 artefak baku; ISBN mengisi 2 (no_isbn + publish_link kosong? tidak)
+        $this->actingAs($this->user('admin'))->get(route('archive.show', $t->id))
+            ->assertOk()
+            ->assertSee('Masih kurang 5 dari 6');
+    }
+
+    /** @test */
+    public function artefak_lengkap_tidak_menampilkan_peringatan_kurang(): void
+    {
+        $t = $this->buku();
+        BookIsbn::create(['title_id' => $t->id, 'status' => 'cetak',
+                          'no_isbn' => '978-333', 'link_terbit' => 'https://toko.test/b']);
+        $this->berkas($t, 'barcode_isbn', 'https://drive.test/barcode');
+        $this->berkas($t, 'sertifikat_hki', 'https://drive.test/hki');
+        $this->berkas($t, 'ebook', 'https://drive.test/ebook');
+        TitleArchiveArtifact::create([
+            'title_id' => $t->id, 'key' => 'scholar_link', 'label' => 'Link Scholar',
+            'type' => 'link', 'value' => 'https://scholar.test/b', 'is_custom' => false,
+        ]);
+
+        $this->actingAs($this->user('admin'))->get(route('archive.show', $t->id))
+            ->assertOk()
+            ->assertSee('Artefak lengkap')
+            ->assertDontSee('Masih kurang');
+    }
+
+    /**
+     * Artefak bertipe `text` (hanya `isbn`) nilainya BUKAN URL — memasang tautan
+     * padanya menghasilkan href rusak.
+     *
+     * @test
+     */
+    public function artefak_teks_tidak_dijadikan_tautan(): void
+    {
+        $t = $this->buku();
+        BookIsbn::create(['title_id' => $t->id, 'status' => 'cetak', 'no_isbn' => '978-444']);
+
+        $this->actingAs($this->user('admin'))->get(route('archive.show', $t->id))
+            ->assertOk()
+            ->assertDontSee('href="978-444"', false);
+    }
 }

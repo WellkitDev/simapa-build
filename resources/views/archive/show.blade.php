@@ -102,20 +102,52 @@
 {{-- Artefak Penyelesaian --}}
 <div class="row"><div class="col-md-9 col-12 grid-margin stretch-card"><div class="card"><div class="card-body">
     <h6 class="card-title">Artefak Penyelesaian</h6>
+    @php
+        $terisi = collect($artifacts)->filter(fn ($a) => ($a['value'] ?? null) !== null)->count();
+        $total  = count($artifacts);
+    @endphp
+    @if ($terisi >= $total)
+        <p class="small text-success mb-2">Artefak lengkap ({{ $total }} dari {{ $total }}).</p>
+    @else
+        <p class="small text-warning mb-2">
+            Masih kurang {{ $total - $terisi }} dari {{ $total }} artefak.
+            Yang sudah terisi diambil otomatis dari modul asalnya.
+        </p>
+    @endif
     @if($canManage)
     @can('archive.artifacts')
     <form method="POST" action="{{ route('archive.artifacts', $title->id) }}" enctype="multipart/form-data">
         @csrf @method('PUT')
         @foreach($artifacts as $a)
             <div class="border rounded p-2 mb-2">
-                <div class="fw-semibold small mb-1">{{ $a['label'] }}</div>
+                <div class="fw-semibold small mb-1">
+                    {{ $a['label'] }}
+                    {{-- Sumbernya disebut supaya orang tahu harus mengubahnya DI MANA;
+                         tanpa itu mereka mengetik ulang di sini dan dua tempat diam-diam
+                         berbeda isi. --}}
+                    @if(! empty($a['dari_luar']) && ! empty($a['sumber']))
+                        <span class="badge bg-light text-dark border" style="font-size:9px">dari {{ $a['sumber'] }}</span>
+                    @elseif(! $a['value'])
+                        <span class="badge bg-warning text-dark" style="font-size:9px">belum ada</span>
+                    @endif
+                </div>
                 <div class="row g-2">
                     <div class="col-md-5">
                         @if($a['type'] === 'file')
                             @if($a['value'])<a href="{{ $a['value'] }}" target="_blank" rel="noopener" class="d-block text-truncate small">📎 {{ $a['file_name'] ?: 'file' }}</a>@endif
                             <input type="file" name="fixed[{{ $a['key'] }}][file]" class="form-control form-control-sm">
                         @else
-                            <input type="text" name="fixed[{{ $a['key'] }}][value]" value="{{ $a['value'] }}" class="form-control form-control-sm" placeholder="{{ $a['type'] === 'link' ? 'https://…' : 'Nilai' }}">
+                            {{-- Artefak bertipe `text` (hanya No. ISBN) nilainya BUKAN URL —
+                                 memasang href padanya menghasilkan tautan rusak. --}}
+                            @if($a['value'])
+                                @if($a['type'] === 'link')
+                                    <a href="{{ $a['value'] }}" target="_blank" rel="noopener" class="d-block text-truncate small">{{ $a['value'] }}</a>
+                                @else
+                                    <div class="small fw-semibold">{{ $a['value'] }}</div>
+                                @endif
+                            @endif
+                            <input type="text" name="fixed[{{ $a['key'] }}][value]" value="{{ $a['value'] }}" class="form-control form-control-sm"
+                                   placeholder="{{ $a['value'] ? 'Ganti (opsional)' : ($a['type'] === 'link' ? 'https://…' : 'Nilai') }}">
                         @endif
                     </div>
                     <div class="col-md-4">
