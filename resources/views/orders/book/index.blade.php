@@ -40,7 +40,7 @@
                                         <th>Judul</th>
                                         <th>Penulis</th>
                                         <th>Jenis</th>
-                                        <th>Status Order</th>
+                                        <th>Pembayaran</th>
                                         <th>Pekerjaan</th>
                                         <th>Aksi</th>
                                     </tr>
@@ -73,14 +73,18 @@
                                                         —
                                                 @endswitch
                                             </td>
+                                            {{-- Keadaan UANG. Lima nilai diturunkan saat render, BUKAN kolom —
+                                                 menambah nilai ke tb_orders.status akan merusak Laporan Keuangan
+                                                 dan Piutang yang menyaring `status = 'lunas'`. --}}
                                             <td>
-                                                @if ($order->isCancelled())
-                                                    <span class="badge bg-secondary">Dibatalkan</span>
-                                                @elseif ($order->status == 'pending')
-                                                    <span class="badge bg-warning text-dark">Menunggu</span>
-                                                @else
-                                                    <span class="badge bg-success">Diproses</span>
-                                                @endif
+                                                @php $bayar = $order->labelPembayaran(); @endphp
+                                                <span class="badge {{ [
+                                                    'Lunas'      => 'bg-success',
+                                                    'DP'         => 'bg-warning text-dark',
+                                                    'Menunggu'   => 'bg-light text-dark border',
+                                                    'Refund'     => 'bg-info',
+                                                    'Dibatalkan' => 'bg-secondary',
+                                                ][$bayar] ?? 'bg-light text-dark' }}">{{ $bayar }}</span>
                                             </td>
                                             {{-- Keadaan PEKERJAAN, terpisah dari kolom uang di sebelah kiri.
                                                  Keduanya sengaja berdampingan: order bisa lunas tapi naskahnya

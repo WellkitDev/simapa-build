@@ -167,4 +167,42 @@ class Order extends Model
 
         return $this->paidNet() >= (int) optional($this->details)->cost_amount;
     }
+
+    /**
+     * Label keadaan UANG untuk daftar order — lima nilai turunan, bukan kolom.
+     *
+     * Menggantikan cabang lama "Diproses", yang sebenarnya hanya berarti
+     * `status == 'lunas'` tapi berbunyi seperti status pekerjaan: order yang naskahnya
+     * sudah terbit pun tetap tertulis "Diproses" selamanya. Keadaan pekerjaan kini punya
+     * kolomnya sendiri (`fulfillment_status`), jadi kolom ini bebas jujur soal uang.
+     *
+     * SENGAJA TIDAK memakai isLunas(): jalan pintas invoice di sana membuat satu DP
+     * terbaca lunas — PaymentBookController::approve() mencap invoice 'lunas' untuk
+     * SETIAP payment yang disetujui, termasuk DP. Kalau label ini memakainya, nilai 'DP'
+     * tak akan pernah muncul sama sekali.
+     *
+     * Urutan menang: Dibatalkan > Refund > Lunas > DP > Menunggu.
+     */
+    public function labelPembayaran(): string
+    {
+        if ($this->isCancelled()) {
+            return 'Dibatalkan';
+        }
+
+        // Pakai koleksi yang sudah di-eager load bila ada: daftar order memanggil ini
+        // sekali per baris, dan query baru per baris akan mengembalikan N+1.
+        $payments = $this->relationLoaded('payments') ? $this->payments : $this->payments()->get();
+        $masukPaid = $payments->where('status', 'paid');
+
+        if ($masukPaid->where('payment_type', 'refund')->isNotEmpty()) {
+            return 'Refund';
+        }
+
+        $masuk = (int) $masukPaid->where('payment_type', '!=', 'refund')->sum('amount');
+        if ($masuk <= 0) {
+            return 'Menunggu';
+        }
+
+        return $masuk >= (int) optional($this->details)->cost_amount ? 'Lunas' : 'DP';
+    }
 }
