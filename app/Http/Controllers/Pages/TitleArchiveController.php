@@ -50,6 +50,7 @@ class TitleArchiveController extends Controller
         return view('archive.show', [
             'title'           => $title,
             'artifacts'       => $this->service->defaultArtifacts($title),
+            'riwayat'         => $this->service->riwayatLengkap($title),
             'customArtifacts' => $title->archiveArtifacts->where('is_custom', true)->values(),
             'eligible'        => $title->archiveEligible(),
             'isPaidOff'       => $title->isPaidOff(),
@@ -77,6 +78,7 @@ class TitleArchiveController extends Controller
         return \Barryvdh\DomPDF\Facade\Pdf::loadView('archive.pdf', [
             'title'     => $title,
             'artifacts' => $this->service->defaultArtifacts($title),
+            'riwayat'   => $this->service->riwayatLengkap($title),
             'custom'    => $title->archiveArtifacts->where('is_custom', true)->values(),
             'isPaidOff' => $title->isPaidOff(),
             'isFinal'   => $title->manuscriptIsFinal(),

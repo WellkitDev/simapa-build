@@ -99,6 +99,52 @@
     @endif
 </div></div></div></div>
 
+{{-- Penanggung Jawab & Riwayat --}}
+<div class="row"><div class="col-md-9 col-12 grid-margin stretch-card"><div class="card"><div class="card-body">
+    <h6 class="card-title">Penanggung Jawab &amp; Riwayat</h6>
+    <p class="text-muted small mb-2">
+        Diturunkan dari naskahnya, bukan diisi tangan — sumbernya satu, jadi tak bisa berbeda.
+    </p>
+
+    <div class="table-responsive mb-3"><table class="table table-sm">
+        <thead><tr><th>Kode Order</th><th>Penanggung Jawab</th><th>Pelaksana</th><th>Tahap Akhir</th><th>Diarsipkan</th></tr></thead>
+        <tbody>
+        @forelse($riwayat['orang'] as $o)
+            <tr class="{{ $o['ditarik'] ? 'text-muted' : '' }}">
+                <td>{{ $o['kode'] }} @if($o['ditarik'])<span class="badge bg-secondary">Ditarik</span>@endif</td>
+                <td>{{ $o['pj'] }}</td>
+                <td>{{ $o['pelaksana'] }}</td>
+                <td>{{ $o['tahap'] }}</td>
+                <td>{{ optional($o['diarsipkan'])->translatedFormat('j M Y') ?? '—' }}</td>
+            </tr>
+        @empty
+            <tr><td colspan="5" class="text-muted">Belum ada order.</td></tr>
+        @endforelse
+        </tbody>
+    </table></div>
+
+    <h6 class="text-muted small fw-bold">Riwayat Perubahan ({{ $riwayat['riwayat']->count() }})</h6>
+    <div class="table-responsive" style="max-height:320px;overflow-y:auto">
+        <table class="table table-sm small">
+            <thead><tr><th>Waktu</th><th>Sumber</th><th>Aksi</th><th>Perubahan</th><th>Oleh</th><th>Catatan</th></tr></thead>
+            <tbody>
+            @forelse($riwayat['riwayat'] as $r)
+                <tr>
+                    <td class="text-nowrap">{{ optional($r['waktu'])->translatedFormat('j M Y H:i') ?? '—' }}</td>
+                    <td>{{ $r['sumber'] }}</td>
+                    <td>{{ $r['aksi'] }}</td>
+                    <td>@if($r['dari'] || $r['ke']){{ $r['dari'] ?? '—' }} → {{ $r['ke'] ?? '—' }}@else—@endif</td>
+                    <td>{{ $r['oleh'] }}</td>
+                    <td class="dt-judul">{{ $r['note'] ?? '—' }}</td>
+                </tr>
+            @empty
+                <tr><td colspan="6" class="text-muted">Belum ada riwayat.</td></tr>
+            @endforelse
+            </tbody>
+        </table>
+    </div>
+</div></div></div></div>
+
 {{-- Artefak Penyelesaian --}}
 <div class="row"><div class="col-md-9 col-12 grid-margin stretch-card"><div class="card"><div class="card-body">
     <h6 class="card-title">Artefak Penyelesaian</h6>
@@ -150,13 +196,7 @@
                                    placeholder="{{ $a['value'] ? 'Ganti (opsional)' : ($a['type'] === 'link' ? 'https://…' : 'Nilai') }}">
                         @endif
                     </div>
-                    <div class="col-md-4">
-                        <select name="fixed[{{ $a['key'] }}][pic_user_id]" class="form-select form-select-sm">
-                            <option value="">— PIC —</option>
-                            @foreach($staff as $u)<option value="{{ $u->id }}" {{ (int) $a['pic_user_id'] === $u->id ? 'selected' : '' }}>{{ $u->name }}</option>@endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-3"><input type="text" name="fixed[{{ $a['key'] }}][note]" value="{{ $a['note'] }}" class="form-control form-control-sm" placeholder="Catatan"></div>
+                    <div class="col-md-7"><input type="text" name="fixed[{{ $a['key'] }}][note]" value="{{ $a['note'] }}" class="form-control form-control-sm" placeholder="Catatan (opsional)"></div>
                 </div>
             </div>
         @endforeach
@@ -168,7 +208,7 @@
                     <div class="col-md-3"><input name="custom[][label]" value="{{ $c->label }}" class="form-control form-control-sm" placeholder="Label"></div>
                     <div class="col-md-2"><select name="custom[][type]" class="form-select form-select-sm"><option value="link" {{ $c->type === 'link' ? 'selected' : '' }}>Link</option><option value="text" {{ $c->type === 'text' ? 'selected' : '' }}>Teks</option></select></div>
                     <div class="col-md-3"><input name="custom[][value]" value="{{ $c->value }}" class="form-control form-control-sm" placeholder="Nilai"></div>
-                    <div class="col-md-3"><select name="custom[][pic_user_id]" class="form-select form-select-sm"><option value="">— PIC —</option>@foreach($staff as $u)<option value="{{ $u->id }}" {{ $c->pic_user_id === $u->id ? 'selected' : '' }}>{{ $u->name }}</option>@endforeach</select></div>
+                    
                     <div class="col-md-1"><button type="button" class="btn btn-sm btn-outline-danger" data-remove-custom>×</button></div>
                 </div>
             @endforeach
@@ -178,7 +218,7 @@
                 <div class="col-md-3"><input name="custom[][label]" class="form-control form-control-sm" placeholder="Label"></div>
                 <div class="col-md-2"><select name="custom[][type]" class="form-select form-select-sm"><option value="link">Link</option><option value="text">Teks</option></select></div>
                 <div class="col-md-3"><input name="custom[][value]" class="form-control form-control-sm" placeholder="Nilai"></div>
-                <div class="col-md-3"><select name="custom[][pic_user_id]" class="form-select form-select-sm"><option value="">— PIC —</option>@foreach($staff as $u)<option value="{{ $u->id }}">{{ $u->name }}</option>@endforeach</select></div>
+                
                 <div class="col-md-1"><button type="button" class="btn btn-sm btn-outline-danger" data-remove-custom>×</button></div>
             </div>
         </template>

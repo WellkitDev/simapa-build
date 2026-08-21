@@ -65,13 +65,12 @@
 
     <h2>Artefak Penyelesaian</h2>
     <table>
-        <thead><tr><th width="22%">Item</th><th>Nilai</th><th width="20%">PIC</th><th width="22%">Catatan</th></tr></thead>
+        <thead><tr><th width="26%">Item</th><th>Nilai</th><th width="26%">Catatan</th></tr></thead>
         <tbody>
         @foreach($artifacts as $a)
             <tr>
                 <td>{{ $a['label'] }}</td>
                 <td>{{ $a['value'] ?: '-' }}{{ $a['type'] === 'file' && $a['file_name'] ? ' (' . $a['file_name'] . ')' : '' }}</td>
-                <td>{{ $a['pic_name'] ?? '-' }}</td>
                 <td>{{ $a['note'] ?? '-' }}</td>
             </tr>
         @endforeach
@@ -79,10 +78,44 @@
             <tr>
                 <td>{{ $c->label }}</td>
                 <td>{{ $c->value ?: '-' }}</td>
-                <td>{{ optional($c->pic)->name ?? '-' }}</td>
                 <td>{{ $c->note ?? '-' }}</td>
             </tr>
         @endforeach
+        </tbody>
+    </table>
+
+    <h2>Penanggung Jawab &amp; Pelaksana</h2>
+    <table>
+        <thead><tr><th width="22%">Kode Order</th><th>Penanggung Jawab</th><th>Pelaksana</th><th width="18%">Tahap Akhir</th></tr></thead>
+        <tbody>
+        @forelse($riwayat['orang'] as $o)
+            <tr>
+                <td>{{ $o['kode'] }}{{ $o['ditarik'] ? ' (ditarik)' : '' }}</td>
+                <td>{{ $o['pj'] }}</td>
+                <td>{{ $o['pelaksana'] }}</td>
+                <td>{{ $o['tahap'] }}</td>
+            </tr>
+        @empty
+            <tr><td colspan="4">Belum ada order.</td></tr>
+        @endforelse
+        </tbody>
+    </table>
+
+    <h2>Riwayat Perubahan</h2>
+    <table>
+        <thead><tr><th width="16%">Waktu</th><th width="16%">Sumber</th><th>Aksi</th><th width="16%">Oleh</th><th width="24%">Catatan</th></tr></thead>
+        <tbody>
+        @forelse($riwayat['riwayat'] as $r)
+            <tr>
+                <td>{{ optional($r['waktu'])->format('d/m/y H:i') ?? '-' }}</td>
+                <td>{{ $r['sumber'] }}</td>
+                <td>{{ $r['aksi'] }}@if($r['dari'] || $r['ke']) ({{ $r['dari'] ?? '-' }} &rarr; {{ $r['ke'] ?? '-' }})@endif</td>
+                <td>{{ $r['oleh'] }}</td>
+                <td>{{ $r['note'] ?? '-' }}</td>
+            </tr>
+        @empty
+            <tr><td colspan="5">Belum ada riwayat.</td></tr>
+        @endforelse
         </tbody>
     </table>
 

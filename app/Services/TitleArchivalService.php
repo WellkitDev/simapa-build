@@ -76,6 +76,66 @@ class TitleArchivalService
     }
 
     /**
+     * Siapa mengerjakan apa, dan seluruh jejak perubahannya.
+     *
+     * Menggantikan kolom PIC per-artefak yang dulu diisi manual: siapa bertanggung jawab
+     * sudah tercatat di naskahnya (PJ dan pelaksana), dan siapa mengubah apa sudah
+     * tercatat di riwayatnya. Meminta orang mengetiknya ulang per artefak hanya
+     * menghasilkan salinan yang bisa berbeda dari sumbernya.
+     *
+     * Order yang ditarik IKUT ditampilkan, diberi penanda — arsip adalah laporan
+     * sejarah, dan penulis yang mundur di tengah jalan bagian dari sejarah itu.
+     *
+     * @return array{orang: array<int,array<string,mixed>>, riwayat: \Illuminate\Support\Collection}
+     */
+    public function riwayatLengkap(Title $title): array
+    {
+        $details = $title->orderDetails()->with([
+            'order', 'titleProgress.pj', 'titleProgress.pelaksana',
+            'titleProgress.logs.changedBy',
+        ])->get();
+
+        $orang = $details->map(function ($d) {
+            $p = $d->titleProgress;
+
+            return [
+                'kode'       => $d->order?->code_order ?? '—',
+                'pj'         => $p?->pj?->name ?? '—',
+                'pelaksana'  => $p?->pelaksana?->name ?? '—',
+                'tahap'      => $p?->stageLabelId() ?? '—',
+                'diarsipkan' => $p?->archived_at,
+                'ditarik'    => $p?->withdrawn_at !== null,
+            ];
+        })->all();
+
+        // Riwayat naskah (per order) digabung dengan riwayat judul, lalu diurutkan
+        // sebagai satu garis waktu — laporan arsip dibaca dari A ke Z, bukan per tabel.
+        $riwayat = $details
+            ->flatMap(fn ($d) => ($d->titleProgress?->logs ?? collect())->map(fn ($l) => [
+                'waktu'  => $l->created_at,
+                'sumber' => $d->order?->code_order ?? 'Naskah',
+                'aksi'   => $l->eventLabel(),
+                'dari'   => $l->from_value,
+                'ke'     => $l->to_value,
+                'oleh'   => $l->changedBy?->name ?? '—',
+                'note'   => $l->note,
+            ]))
+            ->concat($title->logs()->with('changedBy')->get()->map(fn ($l) => [
+                'waktu'  => $l->created_at,
+                'sumber' => 'Judul',
+                'aksi'   => \Illuminate\Support\Str::title(str_replace('_', ' ', (string) $l->event)),
+                'dari'   => null,
+                'ke'     => null,
+                'oleh'   => $l->changedBy?->name ?? '—',
+                'note'   => $l->note,
+            ]))
+            ->sortBy('waktu')
+            ->values();
+
+        return ['orang' => $orang, 'riwayat' => $riwayat];
+    }
+
+    /**
      * URL Drive versi terbaru per slot, untuk SELURUH slot sekaligus.
      *
      * Satu query — BookIsbn::berkas() sudah memperingatkan jangan dipanggil di dalam
@@ -104,12 +164,13 @@ class TitleArchivalService
     {
         foreach (TitleArchive::artifactsFor($title->jenis) as $key => $def) {
             $item = $fixed[$key] ?? [];
+            // `pic_user_id` sengaja TIDAK ditulis lagi: penanggung jawab kini dibaca
+            // dari naskahnya lewat riwayatLengkap(), bukan diketik ulang per artefak.
             $attrs = [
-                'label'       => $def['label'],
-                'type'        => $def['type'],
-                'pic_user_id' => ($item['pic_user_id'] ?? '') ?: null,
-                'note'        => $item['note'] ?? null,
-                'is_custom'   => false,
+                'label'     => $def['label'],
+                'type'      => $def['type'],
+                'note'      => $item['note'] ?? null,
+                'is_custom' => false,
             ];
             if ($def['type'] === 'file') {
                 if (! empty($item['file'])) {
@@ -137,7 +198,6 @@ class TitleArchivalService
                 'label'       => $label,
                 'type'        => in_array($c['type'] ?? '', ['link', 'text'], true) ? $c['type'] : 'text',
                 'value'       => ($c['value'] ?? '') ?: null,
-                'pic_user_id' => ($c['pic_user_id'] ?? '') ?: null,
                 'note'        => $c['note'] ?? null,
                 'is_custom'   => true,
                 'position'    => $pos++,

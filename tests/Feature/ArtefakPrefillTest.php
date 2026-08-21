@@ -284,4 +284,97 @@ class ArtefakPrefillTest extends TestCase
             ->assertOk()
             ->assertDontSee('href="978-444"', false);
     }
+
+    /** @return array{0: Title, 1: \App\Models\TitleProgress} */
+    private function naskahBerRiwayat(): array
+    {
+        $t     = $this->buku();
+        $pj    = $this->user('admin');
+        $pel   = $this->user('production');
+        $order = \App\Models\Order::factory()->create();
+        $d     = \App\Models\OrderDetail::factory()->create([
+            'order_id' => $order->id, 'type' => 'bk_mandiri',
+            'title' => $t->title, 'title_id' => $t->id,
+        ]);
+        $p = \App\Models\TitleProgress::create([
+            'order_detail_id' => $d->id, 'status' => 'terbit', 'bidang' => 'buku',
+            'started_at' => now(), 'archived_at' => now(),
+            'pj_user_id' => $pj->id, 'pelaksana_user_id' => $pel->id,
+        ]);
+        \App\Models\TitleProgressLog::create([
+            'title_progress_id' => $p->id, 'event' => 'status_advanced',
+            'from_value' => 'Cetak', 'to_value' => 'Terbit',
+            'changed_by' => $pj->id, 'note' => 'Naik ke terbit',
+        ]);
+
+        return [$t->fresh(), $p];
+    }
+
+    /**
+     * PIC tak lagi diketik per artefak: siapa bertanggung jawab sudah tercatat di
+     * naskahnya, dan mengetiknya ulang hanya menghasilkan salinan yang bisa berbeda.
+     *
+     * @test
+     */
+    public function penanggung_jawab_diturunkan_dari_naskah(): void
+    {
+        [$t] = $this->naskahBerRiwayat();
+
+        $r = app(TitleArchivalService::class)->riwayatLengkap($t);
+
+        $this->assertCount(1, $r['orang']);
+        $this->assertNotSame('—', $r['orang'][0]['pj']);
+        $this->assertNotSame('—', $r['orang'][0]['pelaksana']);
+        $this->assertSame('Terbit', $r['orang'][0]['tahap']);
+    }
+
+    /** @test */
+    public function riwayat_naskah_ikut_terkumpul(): void
+    {
+        [$t] = $this->naskahBerRiwayat();
+
+        $r = app(TitleArchivalService::class)->riwayatLengkap($t);
+        $baris = $r['riwayat']->firstWhere('aksi', 'Maju tahap');
+
+        $this->assertNotNull($baris, 'log naskah harus ikut terkumpul');
+        $this->assertSame('Cetak', $baris['dari']);
+        $this->assertSame('Terbit', $baris['ke']);
+        $this->assertSame('Naik ke terbit', $baris['note']);
+    }
+
+    /** Order yang ditarik tetap tercatat — arsip adalah laporan sejarah. */
+    /** @test */
+    public function order_ditarik_tetap_muncul_dengan_penanda(): void
+    {
+        [$t, $p] = $this->naskahBerRiwayat();
+        $p->update(['withdrawn_at' => now()]);
+
+        $r = app(TitleArchivalService::class)->riwayatLengkap($t->fresh());
+
+        $this->assertTrue($r['orang'][0]['ditarik']);
+    }
+
+    /** @test */
+    public function layar_arsip_menampilkan_penanggung_jawab_dan_riwayat(): void
+    {
+        [$t] = $this->naskahBerRiwayat();
+
+        $this->actingAs($this->user('admin'))->get(route('archive.show', $t->id))
+            ->assertOk()
+            ->assertSee('Penanggung Jawab')
+            ->assertSee('Riwayat Perubahan')
+            ->assertSee('Naik ke terbit');
+    }
+
+    /** Dropdown PIC dicabut — tak boleh ada lagi input untuknya. */
+    /** @test */
+    public function form_artefak_tak_lagi_punya_dropdown_pic(): void
+    {
+        [$t] = $this->naskahBerRiwayat();
+
+        $this->actingAs($this->user('admin'))->get(route('archive.show', $t->id))
+            ->assertOk()
+            ->assertDontSee('[pic_user_id]', false)
+            ->assertSee('Catatan (opsional)');
+    }
 }
