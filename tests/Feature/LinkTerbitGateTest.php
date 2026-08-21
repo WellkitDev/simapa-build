@@ -357,4 +357,53 @@ class LinkTerbitGateTest extends TestCase
         $this->assertSame('terbit', $progress->fresh()->status,
             'Begitu linknya ada, sinkron yang sama harus berjalan — jadi yang menahan tadi memang linknya.');
     }
+
+    /**
+     * Rantai penalaran yang dipakai untuk MENOLAK gerbang kedua di sisi arsip, dikunci
+     * ujung ke ujung.
+     *
+     * Alasannya: gerbang tahap akhir menahan naskah tanpa link, dan archiveEligible()
+     * menuntut manuscriptIsFinal() — jadi "tidak masuk arsip" terpenuhi dengan
+     * sendirinya, tanpa perlu pemeriksaan link kedua yang bisa berbeda pendapat dengan
+     * yang pertama.
+     *
+     * Rantai itu benar hari ini, tapi ia melintasi tiga berkas. Kalau suatu saat ada
+     * yang melonggarkan gerbangnya, arsip ikut bocor tanpa satu pun test berteriak.
+     *
+     * @test
+     */
+    public function naskah_tanpa_link_tak_pernah_sampai_layak_arsip(): void
+    {
+        $title    = Title::create(['title' => 'Artikel Rantai', 'jenis' => 'artikel',
+                                   'tipe_naskah' => 'mandiri', 'status' => 'disetujui']);
+        $progress = $this->naskah($title, 'loa');
+
+        // Lunas, supaya satu-satunya yang menghalangi arsip adalah tahap naskahnya.
+        \App\Models\Payment::create([
+            'order_id'     => $progress->orderDetail->order_id,
+            'payment_type' => 'lunas',
+            'amount'       => $progress->orderDetail->cost_amount,
+            'status'       => 'paid',
+            'paid_at'      => now(),
+        ]);
+
+        try {
+            app(TitleProgressService::class)->advance($progress, $this->superadmin());
+            $this->fail('Seharusnya ditolak karena link terbit kosong.');
+        } catch (ValidationException $e) {
+            // memang ditolak
+        }
+
+        $segar = $title->fresh()->load('orderDetails.titleProgress', 'orderDetails.order.payments');
+        $this->assertFalse($segar->manuscriptIsFinal(), 'tahapnya tertahan');
+        $this->assertFalse($segar->archiveEligible(), 'dan karena itu arsipnya ikut tertutup');
+
+        // Begitu linknya diisi, rantainya membuka seluruhnya.
+        $title->update(['link_terbit' => 'https://jurnal.test/rantai']);
+        app(TitleProgressService::class)->advance($progress->fresh(), $this->superadmin());
+
+        $segar = $title->fresh()->load('orderDetails.titleProgress', 'orderDetails.order.payments');
+        $this->assertTrue($segar->manuscriptIsFinal());
+        $this->assertTrue($segar->archiveEligible());
+    }
 }

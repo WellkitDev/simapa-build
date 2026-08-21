@@ -1,7 +1,8 @@
 # TODO — Tambahan Pelacakan Naskah & Arsip
 
 **Dibuat:** 2026-08-21 · **Diperbarui:** 2026-08-21 (poin 3–5 ditambahkan)
-**Status:** Keputusan LENGKAP (§6) — siap dijadikan rencana implementasi
+**Status:** Keputusan lengkap (§6). Poin 2 dan 5 SELESAI; poin 1 separuh (backend + halaman judul);
+poin 3 dan 4 belum. Rencana pelaksananya: `2026-08-21-pelacakan-naskah-jurnal.md`.
 **Konteks:** lanjutan dari branch `feat/sinkronisasi-status-order-naskah`
 
 Dokumen ini **menangkap** permintaan dan keputusannya. Seluruh keputusan di §6 sudah
@@ -22,10 +23,10 @@ Yang diminta: informasi yang sama **tampil dan bisa langsung diperbarui** di `/n
 
 - [ ] `DetailNaskahController::show()` sudah memuat `orderDetail.titleRef` sebagai `$book` —
       Title-nya sudah di tangan, tak perlu query baru
-- [ ] Pakai ulang `title.info.update`; **jangan buat jalur tulis kedua** supaya aturannya
+- [x] Pakai ulang `title.info.update`; **jangan buat jalur tulis kedua** supaya aturannya
       tak bercabang dua versi
 - [ ] Panel baru di `resources/views/naskah/detail.blade.php`
-- [ ] Redirect harus kembali ke `naskah.show`, bukan ke halaman judul — butuh `_redirect`
+- [x] Redirect harus kembali ke `naskah.show`, bukan ke halaman judul — butuh `_redirect`
       tersembunyi atau `back()`
 - [x] Gerbang izin (§6.C): `@can('title.info')` — admin sudah memilikinya, production read-only
 - [ ] Untuk buku kolaborasi panel ini **level judul**, bukan per-order — sebutkan di UI
@@ -46,14 +47,14 @@ Keadaan sekarang:
 
 - [x] Tempat penyimpanan diputuskan (§6.A): `tb_titles.link_terbit` + cermin ke direktori
 - [ ] Field "Link Artikel Terbit" di `/naskah/{id}`, muncul saat `nextStage()` final
-- [ ] Gerbang di `TitleProgressService::advance()`, sejajar `assertLayoutUnlocked()`
-- [ ] Gerbang **wajib** ikut menutup `ChapterManuscriptService::advanceBookToStage()`
+- [x] Gerbang di `TitleProgressService::advance()`, sejajar `assertLayoutUnlocked()`
+- [x] Gerbang **wajib** ikut menutup `ChapterManuscriptService::advanceBookToStage()`
       (jalur ISBN `cetak` → `terbit`) — kalau tidak, bocor persis seperti temuan Task 3
-- [ ] `correct()` superadmin **dikecualikan** — koreksi memang wewenang membetulkan keadaan
-- [ ] Arsip: `archiveEligible()` sudah menuntut `manuscriptIsFinal()`, jadi syarat "tidak
+- [x] `correct()` superadmin **dikecualikan** — koreksi memang wewenang membetulkan keadaan
+- [x] Arsip: `archiveEligible()` sudah menuntut `manuscriptIsFinal()`, jadi syarat "tidak
       masuk arsip" **terpenuhi sendiri**. Kunci dengan test; jangan tambah gerbang kedua
-- [ ] Prefill dari `BookIsbn::link_terbit` / `JournalSubmission::link_publish` bila ada
-- [ ] Validasi `url|max:500`
+- [x] Prefill dari `BookIsbn::link_terbit` / `JournalSubmission::link_publish` bila ada
+- [x] Validasi `url|max:500`
 
 ---
 
@@ -134,9 +135,9 @@ Penegasan poin 2 khusus jalur artikel: di `/naskah/{id}`, tombol menuju `publish
 **menolak** selama link kosong, dengan pesan yang menyebut apa yang kurang — bukan sekadar
 "Naskah sudah berada di tahap akhir".
 
-- [ ] Pesan `ValidationException` berbahasa Indonesia yang menyebut field-nya
+- [x] Pesan `ValidationException` berbahasa Indonesia yang menyebut field-nya
 - [ ] Formnya muncul di layar yang sama, bukan menyuruh pindah ke Direktori Jurnal
-- [ ] Test: `advance()` ke `publish` gagal tanpa link, berhasil dengan link
+- [x] Test: `advance()` ke `publish` gagal tanpa link, berhasil dengan link
 
 ---
 

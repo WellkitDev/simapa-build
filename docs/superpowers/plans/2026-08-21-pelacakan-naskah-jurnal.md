@@ -10,6 +10,8 @@
 
 **Todo sumber:** [2026-08-21-todo-pelacakan-naskah-jurnal.md](2026-08-21-todo-pelacakan-naskah-jurnal.md) — kelima keputusan di §6 sudah diambil.
 
+**Status:** Task 1-3 selesai (`579d6da`, `c1931f4`, `5625ce2`). Task 4-7 belum.
+
 **Branch:** lanjutkan di `feat/sinkronisasi-status-order-naskah` (sudah berisi 24 commit batch sebelumnya).
 
 ---
@@ -68,7 +70,7 @@ Keuangan + Piutang.
 - Modify: `app/Models/Title.php`
 - Test: `tests/Feature/LinkTerbitGateTest.php`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `tests/Feature/LinkTerbitGateTest.php`:
 
@@ -157,12 +159,12 @@ class LinkTerbitGateTest extends TestCase
 }
 ```
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 Run: `php artisan test --filter=LinkTerbitGateTest`
 Expected: FAIL — `Unknown column 'link_terbit'`.
 
-- [ ] **Step 3: Buat migrasi**
+- [x] **Step 3: Buat migrasi**
 
 Buat `database/migrations/2026_08_21_000001_add_link_terbit_to_tb_titles.php`:
 
@@ -202,7 +204,7 @@ return new class extends Migration
 };
 ```
 
-- [ ] **Step 4: Tambah resolver di `Title`**
+- [x] **Step 4: Tambah resolver di `Title`**
 
 Di `app/Models/Title.php`, tambahkan `'link_terbit',` ke `$fillable` (setelah
 `'catatan_publikasi',`), lalu tambahkan dua method tepat di bawah `isbnEligible()`:
@@ -242,12 +244,12 @@ Di `app/Models/Title.php`, tambahkan `'link_terbit',` ke `$fillable` (setelah
     }
 ```
 
-- [ ] **Step 5: Jalankan test, pastikan lulus**
+- [x] **Step 5: Jalankan test, pastikan lulus**
 
 Run: `php artisan test --filter=LinkTerbitGateTest`
 Expected: PASS (5 test).
 
-- [ ] **Step 6: Jalankan migrasi di DB dev**
+- [x] **Step 6: Jalankan migrasi di DB dev**
 
 ```bash
 php artisan migrate
@@ -255,7 +257,7 @@ php artisan migrate
 
 Tests memakai DB terpisah; tanpa langkah ini aplikasi live 500 di kolom yang belum ada.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add database/migrations/2026_08_21_000001_add_link_terbit_to_tb_titles.php app/Models/Title.php tests/Feature/LinkTerbitGateTest.php
@@ -273,7 +275,7 @@ git commit -m "judul: link terbit punya satu rumah, dengan cadangan ke modul asa
 - Modify: `app/Services/ChapterManuscriptService.php`
 - Test: `tests/Feature/LinkTerbitGateTest.php`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Tambahkan ke `tests/Feature/LinkTerbitGateTest.php`. Tambahkan dulu import
 `App\Models\Order`, `App\Models\OrderDetail`, `App\Models\TitleProgress`,
@@ -387,13 +389,13 @@ Tambahkan ke `tests/Feature/LinkTerbitGateTest.php`. Tambahkan dulu import
     }
 ```
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 Run: `php artisan test --filter=LinkTerbitGateTest`
 Expected: FAIL pada `artikel_tanpa_link...` dan `buku_tanpa_link...` — tahapnya naik padahal
 seharusnya ditolak.
 
-- [ ] **Step 3: Pasang gerbang di `advance()`**
+- [x] **Step 3: Pasang gerbang di `advance()`**
 
 Di `app/Services/TitleProgressService.php`, method `advance()`, sisipkan tepat setelah
 `$this->assertLayoutUnlocked($progress, $next);`:
@@ -435,7 +437,7 @@ Lalu tambahkan method ini tepat di bawah `assertLayoutUnlocked()`:
     }
 ```
 
-- [ ] **Step 4: Tutup jalur ISBN**
+- [x] **Step 4: Tutup jalur ISBN**
 
 Di `app/Services/ChapterManuscriptService.php`, method `advanceBookToStage()`, sisipkan
 tepat setelah pemeriksaan `if ($targetIdx === false) { return; }`:
@@ -458,19 +460,19 @@ tepat setelah pemeriksaan `if ($targetIdx === false) { return; }`:
         }
 ```
 
-- [ ] **Step 5: Jalankan test, pastikan lulus**
+- [x] **Step 5: Jalankan test, pastikan lulus**
 
 Run: `php artisan test --filter=LinkTerbitGateTest`
 Expected: PASS (10 test).
 
-- [ ] **Step 6: Pastikan modul naskah & ISBN tidak rusak**
+- [x] **Step 6: Pastikan modul naskah & ISBN tidak rusak**
 
 Run: `php artisan test --filter="Naskah|TitleProgress|BookIsbn|ChapterManuscript|ChapterRollup|OrderFulfillment|WithdrawnExclusion|Archive"`
 Expected: PASS semua. **Kalau ada yang merah**, kemungkinan besar test lama membangun
 naskah sampai tahap akhir tanpa link — itu bukan test yang salah, tapi fixture-nya perlu
 `'link_terbit' => 'https://...'`. Perbaiki fixture-nya, jangan melonggarkan gerbang.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add app/Services/TitleProgressService.php app/Services/ChapterManuscriptService.php tests/Feature/LinkTerbitGateTest.php
@@ -486,7 +488,7 @@ git commit -m "naskah: tak bisa mengaku terbit tanpa alamat terbitnya"
 - Modify: `app/Services/TitleService.php` (`updateInfo`, ~baris 235)
 - Test: `tests/Feature/NaskahInfoPublikasiTest.php`
 
-- [ ] **Step 1: Tulis test yang gagal**
+- [x] **Step 1: Tulis test yang gagal**
 
 Buat `tests/Feature/NaskahInfoPublikasiTest.php`:
 
@@ -629,12 +631,12 @@ class NaskahInfoPublikasiTest extends TestCase
 }
 ```
 
-- [ ] **Step 2: Jalankan, pastikan gagal**
+- [x] **Step 2: Jalankan, pastikan gagal**
 
 Run: `php artisan test --filter=NaskahInfoPublikasiTest`
 Expected: FAIL — `link_terbit` tidak tersimpan (belum divalidasi, jadi tak diteruskan).
 
-- [ ] **Step 3: Terima `link_terbit` + redirect di controller**
+- [x] **Step 3: Terima `link_terbit` + redirect di controller**
 
 Di `app/Http/Controllers/Pages/TitleController.php`, method `updateInfo()`:
 
@@ -660,7 +662,7 @@ Ganti baris `return redirect()->route(...)` di akhir method dengan:
         return redirect()->route('title.show', $title->id)->with('success', 'Informasi publikasi diperbarui.');
 ```
 
-- [ ] **Step 4: Tulis kolom + cermin di service**
+- [x] **Step 4: Tulis kolom + cermin di service**
 
 Di `app/Services/TitleService.php`, method `updateInfo()`:
 
@@ -706,7 +708,7 @@ Dan tambahkan method ini ke kelas yang sama:
     }
 ```
 
-- [ ] **Step 4b: Munculkan field di halaman judul juga**
+- [x] **Step 4b: Munculkan field di halaman judul juga**
 
 Task 3 sampai di sini baru membuat backend-nya menerima `link_terbit`; belum ada satu pun
 layar yang bisa mengisinya. Task 4 memberi input itu di `/naskah/{id}`, tapi keputusan
@@ -761,17 +763,17 @@ Tambahkan satu test ke `tests/Feature/NaskahInfoPublikasiTest.php`:
     }
 ```
 
-- [ ] **Step 5: Jalankan test, pastikan lulus**
+- [x] **Step 5: Jalankan test, pastikan lulus**
 
 Run: `php artisan test --filter=NaskahInfoPublikasiTest`
 Expected: PASS (6 test).
 
-- [ ] **Step 6: Pastikan halaman judul tidak rusak**
+- [x] **Step 6: Pastikan halaman judul tidak rusak**
 
 Run: `php artisan test --filter="Title|JournalSubmission|Journal"`
 Expected: PASS semua.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add app/Http/Controllers/Pages/TitleController.php app/Services/TitleService.php tests/Feature/NaskahInfoPublikasiTest.php
