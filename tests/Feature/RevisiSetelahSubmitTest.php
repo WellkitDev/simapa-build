@@ -10,6 +10,7 @@ use App\Services\GoogleDriveService;
 use App\Services\TitleProgressService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -158,6 +159,43 @@ class RevisiSetelahSubmitTest extends TestCase
             $kolom,
             'Kolom papan harus mengikuti ARTICLE_STAGES, bukan salinan yang ditulis tangan.'
         );
+    }
+
+    /**
+     * Migrasi backfill diuji lewat logikanya, bukan dengan mengandalkan jalannya
+     * migrasi: RefreshDatabase sudah menjalankan semuanya sebelum tes dimulai, jadi
+     * datanya belum ada saat migrasi lewat. Yang dikunci di sini adalah aturannya.
+     *
+     * @test
+     */
+    public function aturan_backfill_membedakan_yang_pernah_submit(): void
+    {
+        $sudah = $this->naskah('revisi');
+        $belum = $this->naskah('revisi');
+
+        DB::table('tb_title_progress_logs')->insert([
+            'title_progress_id' => $sudah->id,
+            'event'             => 'status_advanced',
+            'from_value'        => 'editing',
+            'to_value'          => 'submit',
+            'is_correction'     => 0,
+            'created_at'        => now(),
+        ]);
+
+        $migrasi = include database_path('migrations/2026_08_22_000003_pindahkan_tahap_revisi_lama.php');
+        $migrasi->up();
+
+        $this->assertSame('revisi', $sudah->fresh()->status,
+            'Sudah pernah submit — posisinya di urutan baru sudah benar.');
+        $this->assertSame('editing', $belum->fresh()->status,
+            'Belum pernah submit — di urutan baru `revisi` berarti sudah submit, jadi harus mundur.');
+
+        $this->assertDatabaseHas('tb_title_progress_logs', [
+            'title_progress_id' => $belum->id,
+            'from_value'        => 'revisi',
+            'to_value'          => 'editing',
+            'is_correction'     => 1,
+        ]);
     }
 
     /** @test */
