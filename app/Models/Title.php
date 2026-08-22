@@ -23,7 +23,7 @@ class Title extends Model
     ];
 
     protected $fillable = [
-        'title', 'code', 'jenis', 'indeksasi', 'tipe_naskah', 'scope_id', 'assigned_to', 'status', 'asal', 'slug',
+        'title', 'code', 'jenis', 'indeksasi', 'tipe_naskah', 'scope_id', 'assigned_to', 'status', 'asal', 'slug', 'drive_folder_id',
         'created_by', 'approved_by', 'approved_at', 'reject_note',
         'target_terbit', 'jurnal_target', 'jurnal_link', 'template_link', 'apc_info', 'catatan_publikasi',
         'link_terbit',

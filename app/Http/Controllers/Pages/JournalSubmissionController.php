@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Pages;
 use App\Http\Controllers\Controller;
 use App\Models\Journal;
 use App\Models\JournalSubmission;
+use App\Models\Title;
+use App\Services\DriveJudulFolderService;
 use App\Services\GoogleDriveService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -74,11 +76,19 @@ class JournalSubmissionController extends Controller
             'bukti_bayar'  => 'nullable|file|max:5120',
         ]);
 
+        // Berkas jurnal mendarat di folder Jurnal milik judulnya. Judul bisa tak
+        // terbaca (submission lama tanpa title_id) — folder null lalu jatuh ke folder
+        // aplikasi seperti perilaku lama, bukan menggagalkan unggahan.
+        $judul  = isset($data['title_id']) ? Title::find($data['title_id']) : null;
+        $folder = $judul
+            ? app(DriveJudulFolderService::class)->folderKategori($judul, DriveJudulFolderService::JURNAL)
+            : null;
+
         if ($request->hasFile('loa')) {
-            $data['loa_url'] = $this->drive->uploadFile($request->file('loa'), null, true)['url'] ?? null;
+            $data['loa_url'] = $this->drive->uploadFile($request->file('loa'), $folder, true)['url'] ?? null;
         }
         if ($request->hasFile('bukti_bayar')) {
-            $data['bukti_bayar_url'] = $this->drive->uploadFile($request->file('bukti_bayar'), null, true)['url'] ?? null;
+            $data['bukti_bayar_url'] = $this->drive->uploadFile($request->file('bukti_bayar'), $folder, true)['url'] ?? null;
         }
         unset($data['loa'], $data['bukti_bayar']);
 

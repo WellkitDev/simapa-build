@@ -174,7 +174,9 @@ class TitleArchivalService
             ];
             if ($def['type'] === 'file') {
                 if (! empty($item['file'])) {
-                    $attrs['value']     = $this->drive->uploadFile($item['file'], null, false)['url'] ?? null;
+                    $folder = app(DriveJudulFolderService::class)
+                        ->folderKategori($title, DriveJudulFolderService::ARSIP);
+                    $attrs['value']     = $this->drive->uploadFile($item['file'], $folder, false)['url'] ?? null;
                     $attrs['file_name'] = $item['file']->getClientOriginalName();
                 }
                 // tanpa file baru: value/file_name tak diikutkan → dipertahankan
