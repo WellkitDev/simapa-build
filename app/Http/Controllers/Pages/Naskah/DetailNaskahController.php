@@ -11,6 +11,7 @@ use App\Models\TitleProgress;
 use App\Models\User;
 use App\Services\AssignmentService;
 use App\Services\ChapterRollupService;
+use App\Services\GoogleDriveService;
 use App\Services\ManuscriptFileService;
 use App\Services\ManuscriptRevisionService;
 use App\Services\Notifier;
@@ -564,6 +565,41 @@ class DetailNaskahController extends Controller
     }
 
     // ─── Helper ───
+
+    /**
+     * Salurkan satu berkas naskah dari Drive, setelah izinnya diperiksa di sini.
+     *
+     * Berkas naskah diunggah TANPA izin publik di Drive, jadi `drive_url` yang tersimpan
+     * selalu ditolak Google. Ini satu-satunya pintu bacanya — dan itulah gunanya: naskah
+     * klien yang belum terbit tak pernah punya tautan yang bisa dibuka orang luar,
+     * bahkan bila tautannya bocor.
+     *
+     * `?unduh=1` memaksa unduhan; tanpa itu berkas ditampilkan di peramban bila bisa.
+     */
+    public function berkas(Request $request, int $berkas, GoogleDriveService $drive)
+    {
+        // Nama parameter WAJIB sama dengan segmen route `{berkas}` — Laravel
+        // mencocokkannya berdasarkan nama, bukan urutan.
+        $file = ManuscriptFile::findOrFail($berkas);
+
+        if ($file->status !== 'selesai' || ! $file->drive_file_id) {
+            abort(404, 'Berkas belum selesai diunggah.');
+        }
+
+        try {
+            return $drive->streamFile(
+                $file->drive_file_id,
+                $file->original_name,
+                $request->boolean('unduh')
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning(
+                "Gagal menyalurkan berkas naskah {$file->id}: " . $e->getMessage()
+            );
+
+            abort(404, 'Berkas tak bisa dibaca dari Google Drive.');
+        }
+    }
 
     /**
      * Bab buku beserta SELURUH relasi yang dipakai tabelnya — termasuk yang tersembunyi.

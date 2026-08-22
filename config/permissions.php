@@ -172,7 +172,7 @@ return [
             'label'   => 'Penugasan Naskah',
             'actions' => [
                 // Pelacakan + detail + arsip: semua role (marketing read-only, tanpa blok aksi).
-                'view'     => ['naskah.pelacakan', 'naskah.show', 'naskah.arsip'],
+                'view'     => ['naskah.pelacakan', 'naskah.show', 'naskah.arsip', 'naskah.berkas'],
                 // Meja Kerja Saya: production/admin (marketing TIDAK — tak punya tugas naskah).
                 'workdesk' => ['naskah.workdesk'],
                 // Set target publish/terbit: marketing (request klien, tercatat) + admin.

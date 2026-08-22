@@ -23,7 +23,7 @@
                 @endif
             </span>
             @if ($versi->isNotEmpty() && $versi->first()->drive_url)
-                <a href="{{ $versi->first()->drive_url }}" target="_blank" rel="noopener">Unduh</a>
+                <a href="{{ route('naskah.berkas', $versi->first()->id) }}?unduh=1" target="_blank" rel="noopener">Unduh</a>
             @endif
         </div>
     @endforeach

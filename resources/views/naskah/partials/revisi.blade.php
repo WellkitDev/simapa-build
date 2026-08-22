@@ -55,7 +55,7 @@
                         <div class="small d-flex justify-content-between">
                             <span class="text-truncate me-2">{{ $b->original_name }}</span>
                             @if ($b->status === 'selesai' && $b->drive_url)
-                                <a href="{{ $b->drive_url }}" target="_blank" rel="noopener">buka</a>
+                                <a href="{{ route('naskah.berkas', $b->id) }}" target="_blank" rel="noopener">buka</a>
                             @elseif ($b->status === 'antre')
                                 <span class="text-muted text-nowrap">antre …</span>
                             @else

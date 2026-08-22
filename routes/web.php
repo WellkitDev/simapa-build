@@ -122,6 +122,11 @@ Route::middleware(['auth', 'access'])->group(function () {
         Route::post('{id}/bab/pelaksana-semua', [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'babPelaksanaSemua'])->name('bab.pelaksanaSemua')->whereNumber('id');
         Route::post('{id}/bab/struktur',        [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'babStruktur'])->name('bab.struktur')->whereNumber('id');
 
+        // Berkas naskah disalurkan lewat SiMAPA, bukan tautan Drive langsung: berkasnya
+        // sengaja tak punya izin publik supaya naskah klien tak bisa dibuka lewat tautan
+        // yang bocor. Ditaruh SEBELUM {id} supaya tak tertangkap sebagai order_detail_id.
+        Route::get('berkas/{berkas}', [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'berkas'])->name('berkas')->whereNumber('berkas');
+
         Route::get('{id}',             [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'show'])->name('show')->whereNumber('id');
         Route::post('{id}/selesaikan', [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'selesaikan'])->name('selesaikan')->whereNumber('id');
         Route::post('{id}/kembalikan',   [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'kembalikan'])->name('kembalikan')->whereNumber('id');

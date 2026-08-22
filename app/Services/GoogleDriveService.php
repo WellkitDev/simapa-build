@@ -328,6 +328,39 @@ class GoogleDriveService
     }
 
     /**
+     * Salurkan isi berkas Drive ke peramban, lewat SiMAPA.
+     *
+     * Berkas naskah SENGAJA diunggah tanpa izin publik (`makePublic = false`), berbeda
+     * dari struk dan invoice. Naskah klien yang belum terbit tak boleh punya tautan yang
+     * bisa dibuka siapa pun yang memegangnya — cukup satu forward email untuk membocorkan
+     * karya yang belum diterbitkan.
+     *
+     * Konsekuensinya `drive_url` yang tersimpan selalu ditolak Google, dan berkasnya
+     * harus disalurkan dari sini setelah pemanggil memeriksa izinnya sendiri.
+     *
+     * BERBEDA dari getImageStream(): tak ada fallback ke gambar avatar, dan `Content-
+     * Disposition` bisa attachment. Melempar 404 bila berkasnya tak terbaca — memberi
+     * gambar default sebagai ganti naskah yang hilang cuma menyembunyikan masalahnya.
+     */
+    public function streamFile(string $fileId, ?string $namaAsli = null, bool $unduh = false)
+    {
+        $isi  = $this->service()->files->get($fileId, ['alt' => 'media', 'supportsAllDrives' => true]);
+        $meta = $this->service()->files->get($fileId, ['fields' => 'mimeType, name', 'supportsAllDrives' => true]);
+
+        $nama = $namaAsli ?: $meta->name;
+
+        return response($isi->getBody(), 200)
+            ->header('Content-Type', $meta->mimeType ?: 'application/octet-stream')
+            // Tak di-cache peramban: berkasnya di balik gerbang izin, dan salinan yang
+            // tertinggal di cache bisa terbuka setelah izinnya dicabut.
+            ->header('Cache-Control', 'private, no-store')
+            ->header(
+                'Content-Disposition',
+                ($unduh ? 'attachment' : 'inline') . '; filename="' . addslashes($nama) . '"'
+            );
+    }
+
+    /**
      * Pindahkan berkas ke folder lain dengan MENGGANTI INDUKNYA, bukan mengunggah ulang.
      *
      * Bedanya menentukan: id dan URL berkas tak berubah, sehingga seluruh tautan Drive

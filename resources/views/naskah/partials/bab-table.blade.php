@@ -330,7 +330,13 @@
                                             : '→ Majukan ke ' . \App\Models\ChapterProgress::labelFor($majuKe) }}
                                     </button>
                                 </form>
-                            @elseif ($izin['upload'])
+                            {{-- Berkas final bab hanya boleh diunggah PJ (yang bertanggung
+                                 jawab atas naskahnya) dan pelaksana bab ini sendiri.
+                                 Sebelumnya cukup `$izin['upload']`, yang terbuka untuk
+                                 SEMUA role produksi — jadi siapa pun bisa menimpa berkas
+                                 bab milik orang lain, dan tak ada jejak siapa yang
+                                 seharusnya bertanggung jawab atasnya. --}}
+                            @elseif ($izin['upload'] && ($izin['advance'] || (int) $cp->pelaksana_user_id === (int) auth()->id()))
                                 <form method="POST" action="{{ route('naskah.bab.file', $cp->id) }}"
                                       enctype="multipart/form-data" class="d-flex gap-1">
                                     @csrf
@@ -346,9 +352,21 @@
                             @if ($b->manuscriptFiles->isNotEmpty())
                                 <div class="small mt-1">
                                     @foreach ($b->manuscriptFiles as $f)
-                                        <a href="{{ $f->drive_url }}" target="_blank" rel="noopener">
-                                            {{ $f->slotLabel() }} v{{ $f->version }}
-                                        </a>@if (! $loop->last) · @endif
+                                        {{-- Hanya berkas yang benar-benar mendarat yang
+                                             ditautkan. Yang masih antre belum punya
+                                             drive_file_id, dan tautannya cuma memuat ulang
+                                             halaman yang sama. --}}
+                                        @if ($f->status === 'selesai')
+                                            <a href="{{ route('naskah.berkas', $f->id) }}" target="_blank" rel="noopener">
+                                                {{ $f->slotLabel() }} v{{ $f->version }}
+                                            </a>
+                                        @else
+                                            <span class="text-muted">
+                                                {{ $f->slotLabel() }} v{{ $f->version }}
+                                                ({{ $f->status === 'antre' ? 'antre' : 'gagal' }})
+                                            </span>
+                                        @endif
+                                        @if (! $loop->last) · @endif
                                     @endforeach
                                 </div>
                             @endif
