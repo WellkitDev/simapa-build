@@ -61,11 +61,34 @@ class TitleController extends Controller
                 });
         }
 
+        $titles = $query->get();
+
+        /*
+         | Filter "sudah terbit / belum".
+         |
+         | Disaring di KOLEKSI, bukan SQL, dan itu disengaja: jawabannya berasal dari
+         | manuscriptStatus(), turunan yang sudah tahu mengabaikan order yang ditarik
+         | karena refund. Menuliskannya ulang sebagai predikat SQL berarti dua definisi
+         | "sudah terbit" yang bisa berselisih — persis alasan A8 memutuskan TIDAK
+         | menyimpan penanda terbit sebagai kolom.
+         |
+         | Relasinya sudah di-eager load di atas, jadi ini tak memulangkan N+1.
+         */
+        $terbit = $request->input('terbit');
+        if (in_array($terbit, ['sudah', 'belum'], true)) {
+            $titles = $titles->filter(function ($t) use ($terbit) {
+                $final = in_array($t->manuscriptStatus(), \App\Models\TitleProgress::FINAL_STAGES, true);
+
+                return $terbit === 'sudah' ? $final : ! $final;
+            })->values();
+        }
+
         return view('titles.index', [
-            'titles' => $query->get(),
+            'titles' => $titles,
             'canManage' => $this->canManage(),
             'isApprover' => $this->isApprover(),
             'showInactive' => $showInactive,
+            'terbit' => $terbit,
             'canEditApproved' => $this->canEditApproved(),
         ]);
     }

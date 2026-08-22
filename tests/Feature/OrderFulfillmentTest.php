@@ -195,34 +195,47 @@ class OrderFulfillmentTest extends TestCase
 
     /**
      * @test
-     * Laporan lunas tak lagi MEMBACA completed_at. Sengaja tidak diberi nama "tanggal
-     * lunas lepas dari tanggal terbit": kebocoran lewat updated_at masih ada — order
-     * disimpan tepat saat naskah terbit — dan tes ini tidak memagarinya. Yang dipagari
-     * cuma hilangnya cabang `completed_at ?? updated_at`.
+     * Kolom "Tanggal Lunas" adalah tanggal UANG — tak boleh berasal dari tanggal
+     * pekerjaan maupun dari jejak penyimpanan baris.
+     *
+     * Dulu tes ini bernama `tanggal_lunas_tidak_lagi_membaca_completed_at` dan sengaja
+     * dinamai sempit: yang dipagari hanya hilangnya cabang `completed_at ?? updated_at`,
+     * sementara kebocoran lewat `updated_at` masih ada dan diterima untuk sementara —
+     * OrderFulfillmentService menyimpan ordernya tepat saat naskah terbit, sehingga
+     * updated_at ikut tercap momen terbit.
+     *
+     * Kebocoran itu kini ditutup: tanggalnya diturunkan dari paid_at pembayaran yang
+     * DISETUJUI. Karena itu tesnya diperluas — ia sekarang memagari ketiga sumber palsu
+     * sekaligus, bukan cuma satu.
      */
-    public function tanggal_lunas_tidak_lagi_membaca_completed_at(): void
+    public function tanggal_lunas_berasal_dari_pembayaran_bukan_dari_tanggal_terbit(): void
     {
         $progress = $this->naskah('loa');
         $order    = $progress->orderDetail->order;
+
+        // Uang masuk jauh sebelum naskahnya terbit.
+        $bayar = \App\Models\Payment::create([
+            'order_id' => $order->id, 'amount' => 100, 'payment_type' => 'lunas',
+            'status' => 'paid', 'paid_at' => now()->subMonths(3),
+        ]);
+        \App\Models\PaymentApproval::create(['payment_id' => $bayar->id, 'status' => 'approved']);
         $order->update(['status' => 'lunas']);
 
+        // Naskah terbit HARI INI: completed_at dan updated_at sama-sama tercap sekarang.
         app(TitleProgressService::class)->advance($progress, $this->superadmin());
 
-        // Naskah terbit sebulan lalu, ordernya baru disentuh hari ini. Tanpa jarak ini
-        // completed_at dan updated_at ditulis pada save() yang sama dan tes tak bisa
-        // membedakan keduanya — assertion-nya lulus semu.
-        $order->fresh()->update(['completed_at' => now()->subMonth()]);
-
         $baris = app(FinancialReportService::class)->orderSelesai(null)['detail']->first();
-
-        // Dibaca ulang lepas dari $baris: membandingkan $baris->updated_at dengan
-        // $baris->tanggal_lunas berarti membandingkan objek dengan dirinya sendiri.
-        $updatedAt = Order::findOrFail($order->id)->updated_at;
+        $segar = Order::findOrFail($order->id);
 
         $this->assertNotNull($baris);
         $this->assertInstanceOf(Carbon::class, $baris->tanggal_lunas);
-        $this->assertTrue($updatedAt->equalTo($baris->tanggal_lunas));
-        $this->assertFalse($baris->completed_at->equalTo($baris->tanggal_lunas));
+
+        // Tanggal uang, bukan tanggal pekerjaan, bukan jejak penyimpanan.
+        $this->assertSame($bayar->paid_at->format('Y-m-d'), $baris->tanggal_lunas->format('Y-m-d'));
+        $this->assertFalse($segar->updated_at->isSameDay($baris->tanggal_lunas),
+            'Tanggal Lunas tak boleh mengikuti updated_at, yang tercap saat naskah terbit.');
+        $this->assertFalse($segar->completed_at->isSameDay($baris->tanggal_lunas),
+            'Tanggal Lunas tak boleh mengikuti completed_at, yang berarti tanggal terbit.');
     }
 
     /**

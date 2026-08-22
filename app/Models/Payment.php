@@ -11,6 +11,23 @@ class Payment extends Model
 
     protected $table = 'tb_payments';
 
+    /**
+     * Nilai yang sah untuk kolom status & payment_type.
+     *
+     * 'pending' adalah nilai yang diperkenalkan A3: pembayaran lahir belum
+     * terverifikasi, dan baru menjadi 'paid' saat approve(). scopeIncome() menyaring
+     * 'paid', jadi daftar ini sekaligus menyatakan uang mana yang dihitung.
+     *
+     * 'refund' sengaja TIDAK termasuk tipe yang boleh dipilih di formulir pembayaran —
+     * ia lahir dari alur refund tersendiri, tanpa PaymentApproval.
+     */
+    public const STATUSES = ['pending', 'paid', 'rejected'];
+
+    public const TYPES = ['dp', 'lunas', 'pelunasan', 'refund'];
+
+    /** Tipe yang boleh dipilih orang saat mencatat pembayaran masuk. */
+    public const TYPES_MASUK = ['dp', 'lunas', 'pelunasan'];
+
     protected $fillable = [
         'order_id', 'payment_type',
         'amount', 'paid_at',
@@ -18,7 +35,18 @@ class Payment extends Model
         'refund_reason', 'refund_method', 'refund_account', 'refunded_by',
     ];
 
-    protected $dates = ['paid_at'];
+    /**
+     * JANGAN kembalikan ke `protected $dates` — properti itu TIDAK berfungsi lagi sejak
+     * Laravel 10 (getDates() hanya mengembalikan created_at/updated_at), dan gagalnya
+     * senyap: paid_at kembali sebagai string, lalu pola `optional($p->paid_at)->format()`
+     * yang dipakai di mana-mana memulangkan null tanpa melempar galat. Hasilnya kolom
+     * Tanggal menampilkan "-" di seluruh laporan pemasukan sementara angkanya tetap
+     * benar (KPI memakai SQL, bukan cast) — laporan yang hampir benar jauh lebih sulit
+     * dicurigai daripada yang jelas rusak.
+     */
+    protected $casts = [
+        'paid_at' => 'datetime',
+    ];
 
     public function order()
     {

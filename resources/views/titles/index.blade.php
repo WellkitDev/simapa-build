@@ -34,6 +34,18 @@
         @else
             <a href="{{ route('title.index', ['inactive' => 1]) }}" class="btn btn-sm btn-outline-secondary">Tampilkan judul nonaktif</a>
         @endif
+        {{-- Filter terbit. Jawabannya turunan dari manuscriptStatus(), bukan kolom
+             simpanan: judul punya banyak order, order bisa ditarik karena refund, dan
+             tahap bisa dikoreksi mundur — penanda tersimpan pasti basi. --}}
+        @php $qTerbit = fn ($v) => array_filter(['inactive' => $showInactive ? 1 : null, 'terbit' => $v]); @endphp
+        <div class="btn-group btn-group-sm ms-1" role="group" aria-label="Saring terbit">
+            <a href="{{ route('title.index', $qTerbit(null)) }}"
+               class="btn btn-outline-secondary {{ ($terbit ?? null) === null ? 'active' : '' }}">Semua</a>
+            <a href="{{ route('title.index', $qTerbit('sudah')) }}"
+               class="btn btn-outline-success {{ ($terbit ?? null) === 'sudah' ? 'active' : '' }}">Sudah terbit</a>
+            <a href="{{ route('title.index', $qTerbit('belum')) }}"
+               class="btn btn-outline-secondary {{ ($terbit ?? null) === 'belum' ? 'active' : '' }}">Belum terbit</a>
+        </div>
         @if($canManage)
             @can('title.create')
             <a href="{{ route('title.create') }}" class="btn btn-sm btn-primary">Buat Judul</a>

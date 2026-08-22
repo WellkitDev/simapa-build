@@ -522,6 +522,30 @@ class Notifier
         ]);
     }
 
+    /**
+     * Invoice lewat jatuh tempo, ditandai otomatis tiap pagi.
+     *
+     * Penerimanya pemilik order (marketing) — dialah yang menagih. Sengaja BUKAN
+     * klien: mengirim email otomatis ke klien adalah keputusan bisnis yang belum
+     * diambil siapa pun.
+     */
+    public function invoiceJatuhTempo(\App\Models\Invoice $invoice): void
+    {
+        $invoice->loadMissing('order.user');
+        $pemilik = $invoice->order?->user;
+        if (! $pemilik) {
+            return;
+        }
+
+        $this->send(collect([$pemilik]), [
+            'category' => 'invoice',
+            'title'    => 'Invoice lewat jatuh tempo',
+            'message'  => $invoice->invoice_no . ' jatuh tempo ' . $invoice->due_at->format('d M Y'),
+            'url'      => route('invoice.show', $invoice->id),
+            'icon'     => 'alert-circle',
+        ]);
+    }
+
     private function toOwner(?User $owner, User $actor, array $payload): void
     {
         if (! $owner || $owner->id === $actor->id) {

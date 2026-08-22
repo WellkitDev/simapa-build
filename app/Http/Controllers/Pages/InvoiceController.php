@@ -75,7 +75,7 @@ class InvoiceController extends Controller
         ];
         if ($effectivePaymentId) {
             $rules['amount']       = 'required|numeric|min:1';
-            $rules['payment_type'] = 'required|in:dp,lunas,pelunasan';
+            $rules['payment_type'] = 'required|in:' . implode(',', \App\Models\Payment::TYPES_MASUK);
         }
         $data = $request->validate($rules);
 

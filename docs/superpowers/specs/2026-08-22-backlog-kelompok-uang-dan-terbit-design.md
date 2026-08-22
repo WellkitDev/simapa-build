@@ -7,6 +7,11 @@
 >
 > Semua temuan di bawah diverifikasi ulang terhadap kode pada 2026-08-22, bukan
 > disalin dari dokumen audit. Nomor baris menunjuk keadaan hari itu.
+>
+> **STATUS 2026-08-22 (sesi lanjutan): urutan 1–7 SELESAI.** A13, A3, A4, A10,
+> kebocoran tanggal, A5, dan A8 sudah dikerjakan dan hijau di suite penuh
+> (1347 lolos). Hanya **A9** yang tersisa — dan ia memang ditandai "jangan langsung
+> dikerjakan". Catatan hasil verifikasi ada di masing-masing bagian di bawah.
 
 ---
 
@@ -195,6 +200,15 @@ itu keputusan pemilik. Harus ditanyakan sebelum ditulis, bukan sesudah.
 Backfill wajib memakai `DB::table()`, bukan model — pelajaran yang sudah tiga kali
 kena di repo ini.
 
+> **HASIL 2026-08-22: backfill TIDAK diperlukan — diverifikasi ke data, bukan
+> diasumsikan.** Di `avidpedi_simapa128`: 220 pembayaran `paid` semuanya ber-approval
+> `approved`; **nol** pembayaran `paid` dengan approval `pending`. Satu-satunya baris
+> `paid` tanpa approval adalah **refund** (id 190), yang memang lahir tanpa
+> PaymentApproval by design. Total pemasukan "sekarang" dan "kalau hanya yang
+> approved" identik: Rp 207.850.000. Jadi tak ada angka historis yang bergerak, dan
+> keputusan pemilik yang dikhawatirkan di atas ternyata tak punya isi. Tak ada
+> migrasi backfill yang ditulis.
+
 ### Seharusnya
 
 Status uang sebuah order adalah **fungsi murni** dari pembayaran yang **disetujui**
@@ -324,6 +338,16 @@ Tes `tanggal_lunas_tidak_lagi_membaca_completed_at` sengaja dinamai sempit karen
 hanya memagari pembacaan eksplisitnya. Setelah item ini selesai, tesnya boleh diperluas
 dan namanya diperbaiki.
 
+> **HASIL 2026-08-22: selesai, dan tesnya sudah diperluas.** Ia kini bernama
+> `tanggal_lunas_berasal_dari_pembayaran_bukan_dari_tanggal_terbit` dan memagari TIGA
+> sumber palsu sekaligus: bukan `completed_at`, bukan `updated_at`, harus `paid_at`
+> pembayaran yang disetujui. Fixture-nya diberi jarak waktu nyata (uang masuk tiga
+> bulan sebelum naskah terbit) — tanpa itu ketiga tanggal jatuh di hari yang sama dan
+> assertion-nya lulus semu, jebakan yang tes lama sudah antisipasi untuk `completed_at`.
+>
+> Urutan laporan ikut pindah ke `withMax(payments income, paid_at)`, jadi order yang
+> baru terbit tak lagi naik ke puncak laporan pelunasan.
+
 ### Seharusnya
 
 Tanggal Lunas = `paid_at` pembayaran terakhir yang melunasi. Tak ada kolom uang yang
@@ -447,6 +471,18 @@ Kalau lambat, jawabannya scope SQL untuk **penyaringan**, tetap tanpa kolom simp
 A8 ditutup di dokumen audit sebagai **keputusan yang diambil** ("tidak ditambahkan,
 sengaja — sudah ada turunannya"), bukan sebagai fitur yang menunggu. Yang masuk daftar
 kerja hanya lencana dan filternya.
+
+> **HASIL 2026-08-22: A8 DITUTUP. Cakupannya ternyata lebih kecil lagi.**
+> Lencana "Terbit" **sudah ada** di `resources/views/titles/index.blade.php:61`
+> (hijau saat tahap final), dan kekhawatiran N+1 juga sudah tak berlaku —
+> `manuscriptStatus()` membaca koleksi yang sudah di-eager load, dengan komentar yang
+> menjelaskan kenapa. Yang benar-benar kurang cuma **filternya**, dan itu sudah
+> dibangun (`?terbit=sudah|belum`).
+>
+> Filternya disaring di **koleksi, bukan SQL**, dan itu disengaja: menulis ulang
+> "sudah terbit" sebagai predikat SQL akan melahirkan definisi kedua yang bisa
+> berselisih dengan turunannya — persis alasan A8 memutuskan tidak menyimpannya
+> sebagai kolom. Nol migrasi, nol kolom baru, sesuai rekomendasi.
 
 ---
 

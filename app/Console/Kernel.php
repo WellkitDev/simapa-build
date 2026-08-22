@@ -47,6 +47,14 @@ class Kernel extends ConsoleKernel
             ->weekly()
             ->appendOutputTo(storage_path('logs/unggahan-prune.log'));
 
+        // Keterlambatan naskah sudah ketahuan sendiri tiap pagi; tagihan lewat tempo
+        // tak punya padanannya sampai sekarang. Jam yang sama supaya keduanya terbaca
+        // dalam satu duduk.
+        $schedule->command('invoice:check-overdue')
+            ->dailyAt('07:00')
+            ->withoutOverlapping()
+            ->appendOutputTo(storage_path('logs/invoice-overdue.log'));
+
         // Drive = titik gagal tunggal untuk SELURUH unggahan berkas. Token yang mati
         // tak menjatuhkan apa pun; unggahan cuma berhenti bekerja. Sekali sehari cukup
         // untuk menemukannya lebih dulu daripada pengguna, tanpa jadi kebisingan.

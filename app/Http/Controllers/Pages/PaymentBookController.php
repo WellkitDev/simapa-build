@@ -94,7 +94,7 @@ class PaymentBookController extends Controller
         $validate = $request->validate([
             'issued_at'      => 'required|date',
             'dued_at'        => 'required|date|after_or_equal:issued_at',
-            'status'         => 'required|in:dp,lunas,pelunasan',
+            'status'         => 'required|in:' . implode(',', Payment::TYPES_MASUK),
             'pay_amount'     => 'required|numeric|min:1',
             'proof_url'      => 'required|file|mimes:jpg,jpeg,png,pdf|max:' . \App\Support\BatasUnggah::kb(10240),
         ]);
@@ -138,7 +138,11 @@ class PaymentBookController extends Controller
                     'amount'       => $validate['pay_amount'],
                     'proof_url'    => $strukUrl,
                     'paid_at'      => $validate['issued_at'],
-                    'status'       => 'paid',
+                    // Lahir 'pending', bukan 'paid'. scopeIncome() menyaring status
+                    // 'paid', jadi menulis 'paid' di sini membuat uang yang belum
+                    // diverifikasi siapa pun langsung masuk Laporan Pemasukan, paidNet(),
+                    // dan Target Marketing — approve() jadi sekadar hiasan.
+                    'status'       => 'pending',
                 ]);
 
                 // INVOICE
@@ -167,11 +171,10 @@ class PaymentBookController extends Controller
                     'status'     => 'pending',
                 ]);
 
-                 if ($payment->payment_type === 'lunas' || $payment->payment_type === 'pelunasan') {
-                    $order->update([
-                        'status' => 'lunas',
-                    ]);
-                 }
+                // Status uang dihitung, tidak ditebak dari nama tipe pembayaran. Cabang
+                // lama melunasi order begitu payment_type kebetulan bernama 'lunas',
+                // tanpa pernah melihat nominalnya.
+                $order->recalcStatus();
 
                 return $invoice->id;
             });
@@ -232,7 +235,7 @@ class PaymentBookController extends Controller
 
         $validate = $request->validate([
             'amount'       => 'required|numeric|min:1',
-            'payment_type' => 'required|in:dp,lunas,pelunasan',
+            'payment_type' => 'required|in:' . implode(',', Payment::TYPES_MASUK),
             'paid_at'      => 'required|date',
             'proof_url'    => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:' . \App\Support\BatasUnggah::kb(10240),
         ]);
@@ -261,10 +264,9 @@ class PaymentBookController extends Controller
                 'proof_url'    => $strukUrl,
             ]);
 
-            $order = $payment->order;
-            $cost  = $order->details->cost_amount ?? 0;
-            $paid  = $order->paidNet();
-            $order->update(['status' => ($cost - $paid) <= 0 ? 'lunas' : 'pending']);
+            // Rumus yang sama, tapi lewat satu pintu. Versi lama menganggap order
+            // tanpa harga (cost 0) sebagai lunas, karena 0 - 0 <= 0.
+            $payment->order?->recalcStatus();
         });
 
         return back()->with('success', 'Pembayaran berhasil diperbarui.');
@@ -282,6 +284,8 @@ class PaymentBookController extends Controller
             $invoiceToEmail = null;
 
             DB::transaction(function () use ($payment, &$invoiceToEmail) {
+                // Di sinilah 'paid' ditulis untuk PERTAMA kalinya — inilah yang membuat
+                // approval punya arti bagi angka uang.
                 $payment->update(['status' => 'paid']);
 
                 $payment->approval()->update([
@@ -307,10 +311,10 @@ class PaymentBookController extends Controller
                     }
                 }
 
-                if ($payment->payment_type === 'lunas' || $payment->payment_type === 'pelunasan') {
-                    $payment->load('order');
-                    $payment->order->update(['status' => 'lunas']);
-                }
+                // Sama seperti di store(): dihitung dari nominal yang sudah disetujui,
+                // bukan ditebak dari nama tipe pembayaran.
+                $payment->load('order');
+                $payment->order?->recalcStatus();
             });
 
             if (!empty($invoiceToEmail)) {
@@ -341,9 +345,10 @@ class PaymentBookController extends Controller
                     'approved_at' => now(),
                 ]);
 
-                if ($payment->order) {
-                    $payment->order->update(['status' => 'pending']);
-                }
+                // Dihitung ulang, bukan disapu ke 'pending': order yang sudah lunas dari
+                // pembayaran LAIN tak boleh ikut jatuh hanya karena satu pembayaran
+                // tambahan ditolak.
+                $payment->order?->recalcStatus();
             });
 
             app(Notifier::class)->paymentRejected($payment, Auth::user());
@@ -365,7 +370,10 @@ class PaymentBookController extends Controller
         // Cegah hapus jika sudah approved (Opsional, tergantung kebijakan Anda)
         if($payment->status == 'paid') return back()->with('error', 'Pembayaran yang sudah diapprove tidak boleh dihapus.');
 
+        $order = $payment->order;
         $payment->delete();
+        $order?->recalcStatus();
+
         return back()->with('success', 'Data pembayaran berhasil dihapus.');
     }
 }
