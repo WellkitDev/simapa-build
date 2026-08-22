@@ -403,17 +403,29 @@ class TitleProgressService
      */
     private function syncArchiveFlag(TitleProgress $progress, string $target, User $actor): void
     {
+        /*
+         | `archived_at` TIDAK lagi disetel saat tahap jadi final.
+         |
+         | Dulu kolom ini berarti "sudah terbit", padahal namanya menjanjikan "sudah
+         | diarsipkan" — dua hal berbeda. Akibatnya naskah lenyap dari papan Pelacakan
+         | pada detik ia terbit, sebelum ada yang mengajukan arsipnya, apalagi
+         | menyetujuinya. Di produksi 24 naskah menghilang begitu, dan tb_title_archives
+         | KOSONG: tak satu pun pengajuan pernah dibuat.
+         |
+         | Kini yang menyetelnya hanya TitleArchivalService::approve(). Sampai arsipnya
+         | disetujui, naskah terbit tetap duduk di papan dengan lencana keadaan arsipnya
+         | — di situlah orang melihatnya dan teringat mengurusnya.
+         */
         if (TitleProgress::isFinal($target)) {
-            if ($progress->archived_at === null) {
-                $progress->update(['archived_at' => now()]);
-                $this->log($progress, 'diarsipkan', TitleProgress::labelFor($target), 'Arsip', $actor);
-            }
-
             return;
         }
 
+        // Mundur dari tahap final mengembalikan naskah ke papan, termasuk yang arsipnya
+        // sudah disetujui — koreksi superadmin memang berhak membatalkan itu.
         if ($progress->archived_at !== null) {
             $progress->update(['archived_at' => null]);
+            $this->log($progress, 'diarsipkan', 'Arsip', TitleProgress::labelFor($target), $actor,
+                'Dikembalikan ke papan karena tahapnya dimundurkan.');
         }
     }
 

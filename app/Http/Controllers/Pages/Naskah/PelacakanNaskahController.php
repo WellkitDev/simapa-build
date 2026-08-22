@@ -161,9 +161,15 @@ class PelacakanNaskahController extends Controller
             ->groupBy('title_id')
             ->pluck('jml', 'title_id');
 
+        // Keadaan arsip per judul, satu query — dipakai kartu naskah yang sudah terbit.
+        $statusArsip = \App\Models\TitleArchive::whereIn(
+            'title_id',
+            $progresses->pluck('orderDetail.title_id')->filter()->unique()
+        )->pluck('status', 'title_id');
+
         return $progresses
             ->groupBy(fn (TitleProgress $p) => $p->orderDetail?->group_key ?? 'tp:' . $p->id)
-            ->map(function (Collection $varian) use ($rollup, $putaranTerbuka) {
+            ->map(function (Collection $varian) use ($rollup, $putaranTerbuka, $statusArsip) {
                 $stages = $varian->first()->getStages();
                 $utama  = $varian->sortBy(fn ($p) => array_search($p->status, $stages, true))->first();
                 $book   = $utama->orderDetail?->titleRef;
@@ -182,6 +188,12 @@ class PelacakanNaskahController extends Controller
                     // setelah kartunya dibuka — di papan inilah orang memutuskan mana
                     // yang harus dikerjakan lebih dulu.
                     'putaranTerbuka' => (int) ($putaranTerbuka[$book?->id] ?? 0),
+                    // Naskah terbit kini bertahan di papan sampai arsipnya disetujui,
+                    // jadi kartunya harus menyebut sedang menunggu apa. Tanpa ini ia
+                    // hanya duduk di kolom terakhir tanpa alasan yang terbaca.
+                    'arsip' => \App\Models\TitleProgress::isFinal($utama->status)
+                        ? ($statusArsip[$book?->id] ?? 'belum')
+                        : null,
                 ];
             })
             ->values()

@@ -220,12 +220,26 @@ class TitleArchivalService
         return $archive;
     }
 
+    /**
+     * Menyetujui arsip — DAN inilah satu-satunya tempat `archived_at` disetel.
+     *
+     * Sampai 2026-08-23 kolom itu disetel begitu tahap jadi final, sehingga naskah
+     * lenyap dari papan Pelacakan pada detik ia terbit — sebelum ada yang mengajukan
+     * arsipnya. Di produksi 24 naskah menghilang begitu, dan tb_title_archives kosong:
+     * modul arsipnya praktis tak pernah dipakai karena pintu masuknya tak terlihat.
+     *
+     * Kini naskah terbit bertahan di papan sampai persetujuan ini turun.
+     */
     public function approve(Title $title, User $actor, ?string $note): TitleArchive
     {
-        return TitleArchive::updateOrCreate(
+        $archive = TitleArchive::updateOrCreate(
             ['title_id' => $title->id],
             ['status' => 'disetujui', 'approved_by' => $actor->id, 'approved_at' => now(), 'approval_note' => $note]
         );
+
+        $this->tandaiTerarsip($title, $actor);
+
+        return $archive;
     }
 
     public function reject(Title $title, User $actor, string $note): TitleArchive
@@ -234,5 +248,38 @@ class TitleArchivalService
             ['title_id' => $title->id],
             ['status' => 'ditolak', 'reject_note' => $note]
         );
+    }
+
+    /**
+     * Pindahkan SELURUH order sejudul ke arsip.
+     *
+     * Order yang ditarik atau dibatalkan sengaja dilewati: mereka sudah punya
+     * penandanya sendiri, dan `archived_at` di atasnya akan membuat mereka muncul di
+     * dua daftar arsip sekaligus.
+     */
+    private function tandaiTerarsip(Title $title, User $actor): void
+    {
+        $progresses = \App\Models\TitleProgress::whereHas(
+            'orderDetail',
+            fn ($q) => $q->where('title_id', $title->id)
+        )
+            ->whereNull('withdrawn_at')
+            ->whereNull('cancelled_at')
+            ->whereNull('archived_at')
+            ->get();
+
+        foreach ($progresses as $p) {
+            $p->update(['archived_at' => now()]);
+
+            \App\Models\TitleProgressLog::create([
+                'title_progress_id' => $p->id,
+                'event'             => 'diarsipkan',
+                'from_value'        => \App\Models\TitleProgress::labelFor($p->status),
+                'to_value'          => 'Arsip',
+                'changed_by'        => $actor->id,
+                'note'              => 'Arsip judul disetujui.',
+                'is_correction'     => false,
+            ]);
+        }
     }
 }
