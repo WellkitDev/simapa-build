@@ -248,7 +248,9 @@ class NaskahDetailTest extends TestCase
         $this->actingAs($this->user('admin', 'buku'))
             ->get(route('naskah.show', $p->order_detail_id))
             ->assertOk()
-            ->assertSee('Author (naskah dari siapa)')
+            // Judul kolom dipadatkan jadi "Author" supaya lebar berpindah ke kolom Aksi;
+            // yang dijaga tes ini adalah kolomnya ADA, bukan bunyi persisnya.
+            ->assertSee('<th>Author</th>', false)
             ->assertSee('Author belum dipetakan')
             ->assertSee('Petakan Author');
     }

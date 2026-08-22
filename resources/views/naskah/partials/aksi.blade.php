@@ -192,7 +192,12 @@
     <hr class="my-3">
 
     <div class="row g-2">
-        @if ($izin['assign'])
+        {{-- Buku kolaborasi dikerjakan PER BAB: pelaksananya tersimpan di
+             tb_chapter_progress, dan selektor ini menulis ke tb_title_progress — tabel
+             yang berbeda, tanpa sinkronisasi. Menyediakan keduanya berarti dua nama
+             "Pelaksana" bisa tampil berdampingan di satu layar dan saling membantah.
+             Untuk buku kolaborasi, yang benar adalah tabel bab. --}}
+        @if ($izin['assign'] && ! $isKolab)
             <div class="col-md-6">
                 <form method="POST" action="{{ route('naskah.distribusi', $progress->order_detail_id) }}">
                     @csrf

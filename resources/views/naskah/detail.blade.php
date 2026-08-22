@@ -60,8 +60,15 @@
                     'Jenis naskah'            => ($d?->naskahTypeLabel() ?? '—')
                         . ($jenisNaskahGrup === 'campuran' ? ' (order ini)' : ''),
                     'Penanggung Jawab (PJ)'   => $progress->pj?->name ?? 'Belum ditentukan',
-                    'Pelaksana pembuatan'     => $progress->pelaksana?->name
-                        ?? ($naskahMandiri ? 'Tidak ada — naskah dikirim author' : 'Belum ditentukan'),
+                    // Buku kolaborasi dikerjakan PER BAB, dan pelaksananya tersimpan di
+                    // tb_chapter_progress — tabel yang berbeda dari yang dibaca baris ini.
+                    // Menampilkan satu nama level order di sini berarti mengklaim sesuatu
+                    // yang bisa bertentangan dengan tabel bab tepat di bawahnya.
+                    'Pelaksana pembuatan'     => $isKolab
+                        ? 'Per bab — ' . ($bab->map->progress->filter()->pluck('pelaksana_user_id')->filter()->unique()->count() ?: 'belum ada')
+                          . ' pelaksana · lihat tabel bab'
+                        : ($progress->pelaksana?->name
+                            ?? ($naskahMandiri ? 'Tidak ada — naskah dikirim author' : 'Belum ditentukan')),
                     'Bidang'                  => $progress->bidang ? ucfirst($progress->bidang) : '—',
                     'Target ' . ($buku ? 'terbit' : 'publish')
                                               => $progress->target_date?->translatedFormat('j M Y') ?? 'Belum diset',
@@ -166,7 +173,7 @@
              satu ujung layar dan tempat menjawabnya di ujung yang lain. --}}
         @include('naskah.partials.revisi', compact('progress', 'putaran', 'izin'))
 
-        @include('naskah.partials.aksi', compact('progress', 'grup', 'stages', 'next', 'izin', 'pelaksanaOptions', 'adminOptions', 'buku'))
+        @include('naskah.partials.aksi', compact('progress', 'grup', 'stages', 'next', 'izin', 'pelaksanaOptions', 'adminOptions', 'buku', 'isKolab'))
 
         @include('naskah.partials.file-naskah', compact('progress', 'berkas', 'izin', 'isKolab', 'buku'))
 

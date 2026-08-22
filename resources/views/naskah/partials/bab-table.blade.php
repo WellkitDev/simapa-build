@@ -100,13 +100,17 @@
         <table class="table table-sm align-middle mb-0">
             <thead>
                 <tr class="text-uppercase text-muted small">
+                    {{-- Judul kolom dipadatkan supaya lebar berpindah ke Aksi, yang untuk
+                         bab bernaskah mandiri harus memuat input berkas DAN tombol maju
+                         sekaligus. "Judul Bab" dan "Author (naskah dari siapa)" memakan
+                         ruang yang tak sebanding dengan isinya. --}}
                     <th style="width:40px">No</th>
-                    <th>Judul Bab</th>
-                    <th>Author (naskah dari siapa)</th>
-                    <th>Pelaksana</th>
+                    <th>Bab</th>
+                    <th>Author</th>
+                    <th style="width:210px">Pelaksana</th>
                     <th>Status</th>
                     <th>Lama</th>
-                    <th style="width:230px">Aksi</th>
+                    <th style="width:290px">Aksi</th>
                 </tr>
             </thead>
             <tbody>
@@ -132,16 +136,60 @@
                             @endif
                         </td>
                         <td>
+                            {{--
+                                Penugasan pelaksana hidup DI KOLOM INI, bukan di kolom Aksi.
+
+                                Dua sebab. Pertama, di sinilah tempatnya secara makna —
+                                kolom Aksi untuk gerakan alur kerja (unggah, majukan, ambil).
+                                Kedua, dan ini yang jadi bug: formulir lama hanya dirender
+                                saat `status === 'menunggu'`, padahal memasang pelaksana
+                                langsung memindahkan bab ke `pembuatan`. Begitu terpasang,
+                                formulirnya lenyap dan pelaksana bab TAK BISA DIUBAH LAGI —
+                                bukan karena dilarang (AssignmentService::distribute()
+                                mengizinkannya), melainkan karena UI tak pernah menawarkannya.
+                            --}}
                             @if ($sumber === 'mandiri')
                                 {{-- Naskahnya dikirim author sendiri (dari order bab ini),
                                      jadi memang tak akan pernah ada pelaksana. --}}
                                 <span class="badge bg-info-subtle text-info border">Naskah Mandiri</span>
-                            @elseif ($cp?->pelaksana)
-                                {{ $cp->pelaksana->name }}
-                            @elseif ($sumber === 'dibuatkan')
-                                <span class="text-muted">Belum ditugaskan</span>
+                            @elseif (! $cp || ! $adaAuthor)
+                                <span class="text-muted small">—</span>
                             @else
-                                <span class="text-warning">Bab belum dipesan</span>
+                                @if ($cp->pelaksana)
+                                    <div class="d-flex align-items-center gap-1">
+                                        <span>{{ $cp->pelaksana->name }}</span>
+                                        @if ($izin['assign'] && $cp->status !== 'selesai')
+                                            <button type="button" class="btn btn-link btn-sm p-0 text-muted"
+                                                    data-bs-toggle="collapse"
+                                                    data-bs-target="#gantiPelaksana{{ $cp->id }}"
+                                                    title="Ganti pelaksana bab ini">ubah</button>
+                                        @endif
+                                    </div>
+                                @elseif ($sumber === 'dibuatkan')
+                                    <span class="text-muted">Belum ditugaskan</span>
+                                @else
+                                    <span class="text-warning">Bab belum dipesan</span>
+                                @endif
+
+                                @if ($izin['assign'] && $cp->status !== 'selesai')
+                                    <div class="{{ $cp->pelaksana ? 'collapse' : '' }} mt-1"
+                                         id="gantiPelaksana{{ $cp->id }}">
+                                        <form method="POST" action="{{ route('naskah.bab.distribusi', $cp->id) }}"
+                                              class="d-flex gap-1">
+                                            @csrf
+                                            <select name="pelaksana_user_id" class="form-select form-select-sm" required>
+                                                <option value="">— pelaksana —</option>
+                                                @foreach ($pelaksanaOptions as $u)
+                                                    <option value="{{ $u->id }}"
+                                                        @selected((int) $cp->pelaksana_user_id === (int) $u->id)>{{ $u->name }}</option>
+                                                @endforeach
+                                            </select>
+                                            <button class="btn btn-sm btn-outline-primary text-nowrap">
+                                                {{ $cp->pelaksana ? 'Ganti' : 'Tugaskan' }}
+                                            </button>
+                                        </form>
+                                    </div>
+                                @endif
                             @endif
                         </td>
                         <td>
@@ -199,17 +247,9 @@
                                 @if (! $izin['upload'] && ! $izin['advance'])
                                     <span class="text-muted small">Menunggu naskah dari author</span>
                                 @endif
-                            @elseif ($cp->status === 'menunggu' && $izin['assign'])
-                                <form method="POST" action="{{ route('naskah.bab.distribusi', $cp->id) }}" class="d-flex gap-1">
-                                    @csrf
-                                    <select name="pelaksana_user_id" class="form-select form-select-sm" required>
-                                        <option value="">— pelaksana —</option>
-                                        @foreach ($pelaksanaOptions as $u)
-                                            <option value="{{ $u->id }}">{{ $u->name }}</option>
-                                        @endforeach
-                                    </select>
-                                    <button class="btn btn-sm btn-outline-primary">Distribusikan</button>
-                                </form>
+                            {{-- Penugasan pelaksana PINDAH ke kolom Pelaksana. Kolom ini
+                                 hanya untuk gerakan alur kerja, dan dua pintu ke aksi yang
+                                 sama hanya membuat orang bertanya mana yang benar. --}}
                             @elseif ($cp->pelaksana_user_id === null && $cp->status !== 'selesai' && $izin['claim'])
                                 {{-- Model campuran: admin boleh menugaskan, produksi boleh
                                      mengambil sendiri. Tanpa tombol ini produksi tak punya

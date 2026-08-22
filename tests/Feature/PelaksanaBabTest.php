@@ -1,0 +1,223 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Author;
+use App\Models\ChapterProgress;
+use App\Models\Order;
+use App\Models\OrderDetail;
+use App\Models\Title;
+use App\Models\TitleProgress;
+use App\Models\User;
+use App\Services\GoogleDriveService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Role;
+use Tests\TestCase;
+
+/**
+ * Pelaksana bab: penugasan, penugasan ULANG, dan pemisahan dari pelaksana level order.
+ *
+ * Dua tingkat menulis ke tabel berbeda tanpa sinkronisasi — `tb_title_progress` untuk
+ * order, `tb_chapter_progress` untuk bab. Untuk buku kolaborasi yang benar-benar
+ * mengerjakan adalah pelaksana BAB, jadi layar tak boleh mengklaim satu nama level order.
+ */
+class PelaksanaBabTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->mock(GoogleDriveService::class);
+        foreach (['marketing', 'production', 'admin', 'manager', 'superadmin'] as $r) {
+            Role::firstOrCreate(['name' => $r, 'guard_name' => 'web']);
+        }
+    }
+
+    private function superadmin(): User
+    {
+        $u = User::factory()->create();
+        $u->assignRole('superadmin');
+
+        return $u;
+    }
+
+    private function produksi(string $nama): User
+    {
+        $u = User::factory()->create(['name' => $nama]);
+        $u->assignRole('production');
+
+        return $u;
+    }
+
+    /**
+     * Buku kolaborasi: satu order per bab, tiap order punya authornya, tiap bab punya
+     * ChapterProgress.
+     *
+     * @return array{0: Title, 1: TitleProgress}
+     */
+    private function bukuKolab(int $jumlahBab = 3): array
+    {
+        $book = Title::create([
+            'title' => 'Buku Kolab ' . fake()->unique()->words(2, true),
+            'jenis' => 'buku', 'tipe_naskah' => 'kolaborasi', 'status' => 'disetujui',
+        ]);
+
+        $pertama = null;
+        for ($i = 1; $i <= $jumlahBab; $i++) {
+            $bab = $book->chapters()->create(['judul' => "Bab {$i}", 'urutan' => $i]);
+            $bab->progress()->create(['status' => 'menunggu', 'started_at' => now()]);
+
+            $order  = Order::factory()->create();
+            $detail = OrderDetail::factory()->create([
+                'order_id' => $order->id, 'type' => 'bk_kolab',
+                'title' => $book->title, 'title_id' => $book->id,
+                'chapters' => $i, 'naskah_type' => 'dibuatkan',
+            ]);
+            $author = Author::create([
+                'name' => "Penulis {$i}", 'email' => "p{$i}-" . uniqid() . '@uji.test',
+            ]);
+            $detail->authors()->attach($author->id, ['position' => 1]);
+            $bab->authors()->attach($author->id, ['position' => 1]);
+
+            $p = TitleProgress::create([
+                'order_detail_id' => $detail->id, 'status' => 'pembuatan',
+                'assigned_role' => 'production', 'bidang' => 'buku', 'started_at' => now(),
+            ]);
+            $pertama ??= $p;
+        }
+
+        return [$book->fresh(), $pertama];
+    }
+
+    private function halaman(TitleProgress $p): string
+    {
+        return $this->actingAs($this->superadmin())
+            ->get(route('naskah.show', $p->order_detail_id))
+            ->assertOk()->getContent();
+    }
+
+    // ─── penugasan ulang ───
+
+    /**
+     * Bug: `applyChapterAssignment()` memindahkan bab `menunggu → pembuatan` saat
+     * pelaksana dipasang, sementara formulirnya hanya dirender saat status masih
+     * `menunggu`. Begitu terpasang, formulirnya lenyap dan pelaksana bab tak bisa
+     * diubah lagi — padahal servicenya mengizinkan.
+     *
+     * @test
+     */
+    public function pelaksana_bab_yang_sudah_terpasang_masih_bisa_diganti_lewat_layar(): void
+    {
+        [$book, $p] = $this->bukuKolab(2);
+        $budi  = $this->produksi('Budi');
+        $citra = $this->produksi('Citra');
+
+        $cp = ChapterProgress::first();
+        $cp->update(['pelaksana_user_id' => $budi->id, 'status' => 'pembuatan']);
+
+        $isi = $this->halaman($p);
+
+        $this->assertStringContainsString('gantiPelaksana' . $cp->id, $isi,
+            'Harus ada jalan mengubah pelaksana bab yang sudah terpasang.');
+        $this->assertStringContainsString('Ganti', $isi);
+    }
+
+    /** @test */
+    public function mengganti_pelaksana_bab_benar_benar_tersimpan(): void
+    {
+        [$book, $p] = $this->bukuKolab(2);
+        $budi  = $this->produksi('Budi');
+        $citra = $this->produksi('Citra');
+
+        $cp = ChapterProgress::first();
+        $cp->update(['pelaksana_user_id' => $budi->id, 'status' => 'pembuatan']);
+
+        $this->actingAs($this->superadmin())
+            ->post(route('naskah.bab.distribusi', $cp->id), ['pelaksana_user_id' => $citra->id])
+            ->assertRedirect()->assertSessionHas('success');
+
+        $this->assertSame($citra->id, $cp->fresh()->pelaksana_user_id);
+    }
+
+    /** @test */
+    public function bab_selesai_tak_lagi_menawarkan_penggantian(): void
+    {
+        [$book, $p] = $this->bukuKolab(2);
+        $cp = ChapterProgress::first();
+        $cp->update(['pelaksana_user_id' => $this->produksi('Budi')->id, 'status' => 'selesai']);
+
+        $this->assertStringNotContainsString('gantiPelaksana' . $cp->id, $this->halaman($p),
+            'Bab yang sudah selesai tak perlu ditugaskan ulang.');
+    }
+
+    // ─── dua tingkat tak boleh saling membantah ───
+
+    /**
+     * Kartu Informasi membaca `tb_title_progress.pelaksana_user_id`, tabel bab membaca
+     * `tb_chapter_progress.pelaksana_user_id`. Untuk buku kolaborasi keduanya bisa
+     * berbeda, dan menampilkan satu nama level order berarti mengklaim sesuatu yang
+     * dibantah tabel tepat di bawahnya.
+     *
+     * @test
+     */
+    public function buku_kolaborasi_tidak_mengklaim_satu_pelaksana_di_kartu_informasi(): void
+    {
+        [$book, $p] = $this->bukuKolab(3);
+
+        $andi = $this->produksi('Andi');
+        $budi = $this->produksi('Budi');
+
+        // Level ORDER: Andi. Level BAB: Budi. Persis keadaan yang membingungkan.
+        TitleProgress::query()->update(['pelaksana_user_id' => $andi->id]);
+        ChapterProgress::query()->update(['pelaksana_user_id' => $budi->id, 'status' => 'pembuatan']);
+
+        $isi = $this->halaman($p->fresh());
+
+        $this->assertStringContainsString('Per bab', $isi);
+        $this->assertStringContainsString('lihat tabel bab', $isi);
+    }
+
+    /** @test */
+    public function selektor_pelaksana_level_order_disembunyikan_untuk_buku_kolaborasi(): void
+    {
+        [$book, $p] = $this->bukuKolab(2);
+
+        $this->assertStringNotContainsString('naskah/' . $p->order_detail_id . '/distribusi',
+            $this->halaman($p),
+            'Untuk buku kolaborasi, penugasan yang benar ada di tabel bab.');
+    }
+
+    /** @test */
+    public function artikel_tetap_punya_selektor_pelaksana_level_order(): void
+    {
+        $t = Title::create([
+            'title' => 'Artikel Biasa', 'jenis' => 'artikel',
+            'tipe_naskah' => 'mandiri', 'status' => 'disetujui',
+        ]);
+        $detail = OrderDetail::factory()->create([
+            'type' => 'at_mandiri', 'title' => $t->title, 'title_id' => $t->id,
+        ]);
+        $p = TitleProgress::create([
+            'order_detail_id' => $detail->id, 'status' => 'pembuatan',
+            'assigned_role' => 'production', 'started_at' => now(),
+        ]);
+
+        $this->assertStringContainsString('/distribusi', $this->halaman($p),
+            'Artikel dan buku mandiri tak dipecah per bab — selektornya harus tetap ada.');
+    }
+
+    // ─── kolom tabel ───
+
+    /** @test */
+    public function judul_kolom_tabel_bab_dipadatkan(): void
+    {
+        [$book, $p] = $this->bukuKolab(2);
+        $isi = $this->halaman($p);
+
+        $this->assertStringContainsString('<th>Bab</th>', $isi);
+        $this->assertStringContainsString('<th>Author</th>', $isi);
+        $this->assertStringNotContainsString('Judul Bab', $isi);
+        $this->assertStringNotContainsString('Author (naskah dari siapa)', $isi);
+    }
+}
