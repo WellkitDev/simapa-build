@@ -14,16 +14,34 @@ class TaskController extends Controller
 {
     public function __construct(private TaskService $service) {}
 
+    /**
+     * Manager/superadmin: boleh MENYUNTING dan MENGHAPUS tugas milik siapa pun.
+     *
+     * Menugaskan tak lagi lewat sini \u2014 sejak 2026-08-23 setiap pengguna boleh memberi
+     * tugas ke siapa pun. Dulu gerbangnya `manager|superadmin`, dan di produksi TAK ADA
+     * satu pun akun manager (admin 6 \u00b7 marketing 2 \u00b7 production 4 \u00b7 superadmin 1),
+     * sehingga praktis hanya satu orang di seluruh kantor yang bisa membagi pekerjaan.
+     */
     private function isManager(): bool
     {
         return Auth::user()->hasAnyRole(['manager', 'superadmin']);
     }
 
+    /**
+     * Boleh menyentuh tugas ini: manager/superadmin, pemiliknya, ATAU yang membuatnya.
+     *
+     * Pembuat ikut karena kini siapa pun boleh menugaskan \u2014 tanpa ini, orang yang salah
+     * ketik saat memberi tugas tak punya cara memperbaikinya sendiri.
+     */
     private function authorizeTask(Task $task): void
     {
-        if (! $this->isManager() && $task->user_id !== Auth::id()) {
-            abort(403);
+        if ($this->isManager()
+            || $task->user_id === Auth::id()
+            || (int) $task->created_by === Auth::id()) {
+            return;
         }
+
+        abort(403);
     }
 
     private function abortIfLocked(Task $task): void
@@ -36,15 +54,18 @@ class TaskController extends Controller
     /** User yang board/list-nya dilihat (manager boleh ?user_id=); selain itu diri sendiri. */
     private function targetUser(Request $request): User
     {
-        if ($this->isManager() && $request->filled('user_id')) {
+        // Terbuka untuk semua: memberi tugas tanpa bisa melihat hasilnya adalah setengah
+        // fitur. Papan tugas di kantor 13 orang bukan rahasia.
+        if ($request->filled('user_id')) {
             return User::findOrFail((int) $request->input('user_id'));
         }
         return Auth::user();
     }
 
+    /** Setiap pengguna boleh memberi tugas ke siapa pun. */
     private function assignableUsers()
     {
-        return $this->isManager() ? User::orderBy('name')->get(['id', 'name']) : collect();
+        return User::orderBy('name')->get(['id', 'name']);
     }
 
     public function index(Request $request)
@@ -206,7 +227,7 @@ class TaskController extends Controller
     /** Hanya manager/superadmin boleh assign ke orang lain; selain itu paksa diri sendiri / pemilik lama. */
     private function resolveAssignee(Request $request, ?int $fallback = null): int
     {
-        if ($this->isManager() && $request->filled('assignee')) {
+        if ($request->filled('assignee')) {
             return (int) $request->input('assignee');
         }
         return $fallback ?? Auth::id();

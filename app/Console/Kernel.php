@@ -66,6 +66,17 @@ class Kernel extends ConsoleKernel
             ->withoutOverlapping()
             ->appendOutputTo(storage_path('logs/drive-kesehatan.log'));
 
+        // Berbarengan dengan naskah:check-overdue: satu sapuan tenggang di pagi hari
+        // kerja, sebelum orang membuka papannya.
+        //
+        // TaskService::notifyDueSoon() sudah ada sejak modul tugas dibuat tapi tak pernah
+        // dipanggil siapa pun — pengingat tenggang karena itu tak pernah sekali pun
+        // berbunyi. Baris inilah yang menghidupkannya.
+        $schedule->command('tasks:check-deadline')
+            ->dailyAt('07:05')
+            ->withoutOverlapping()
+            ->appendOutputTo(storage_path('logs/tasks-deadline.log'));
+
         $schedule->command('queue:work --stop-when-empty --max-time=50 --tries=3')
             ->everyMinute()
             ->withoutOverlapping()

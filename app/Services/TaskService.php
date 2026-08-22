@@ -135,17 +135,67 @@ class TaskService
             ->with('user')->orderBy('due_date')->get();
     }
 
-    /** Kirim notifikasi deadline sekali per tugas (anti-spam via deadline_notified_at). */
-    public function notifyDueSoon(Notifier $notifier): void
+    /**
+     * Tangga pengingat tenggang: mendekati → hari-H → lewat.
+     *
+     * Versi lama hanya punya SATU pengingat ("dalam 7 hari"), dan sekali
+     * `deadline_notified_at` terisi tugas itu tak pernah diingatkan lagi — termasuk saat
+     * tenggangnya benar-benar lewat. Yang paling perlu didengar justru yang paling
+     * senyap.
+     *
+     * `deadline_stage` menyimpan tahap terakhir yang dikirim, sehingga tiap tahap
+     * berbunyi TEPAT SEKALI meski perintahnya jalan tiap hari.
+     *
+     * @return int jumlah pengingat yang dikirim
+     */
+    public function notifyDueSoon(Notifier $notifier): int
     {
-        $tasks = Task::query()->where('status', '!=', 'done')->whereNotNull('due_date')
-            ->whereBetween('due_date', [today()->toDateString(), today()->addDays(7)->toDateString()])
-            ->whereNull('deadline_notified_at')->get();
+        $tasks = Task::query()
+            ->where('status', '!=', 'done')
+            ->whereNotNull('due_date')
+            ->where('due_date', '<=', today()->addDays(7)->toDateString())
+            ->with('user')
+            ->get();
+
+        $terkirim = 0;
 
         foreach ($tasks as $task) {
-            $notifier->deadlineReminder($task);
-            $task->update(['deadline_notified_at' => now()]);
+            $tahap = self::tahapTenggang($task);
+
+            // Tahap yang sama tak diulang. Perbandingan urutan menjaga tugas yang
+            // terlanjur lewat tak "mundur" ke pengingat mendekati tenggang.
+            if ($tahap === null || $tahap === $task->deadline_stage) {
+                continue;
+            }
+
+            $notifier->deadlineReminder($task, $tahap);
+            $task->update(['deadline_stage' => $tahap, 'deadline_notified_at' => now()]);
+            $terkirim++;
         }
+
+        return $terkirim;
+    }
+
+    /**
+     * Tahap tenggang sebuah tugas hari ini.
+     *
+     * `lewat` sengaja tak dibatasi umur: tugas yang tenggangnya lewat sebulan lalu tetap
+     * pantas diingatkan sekali — dan hanya sekali, karena `deadline_stage` menahannya.
+     */
+    public static function tahapTenggang(Task $task): ?string
+    {
+        if (! $task->due_date) {
+            return null;
+        }
+
+        $selisih = today()->diffInDays($task->due_date, false);
+
+        return match (true) {
+            $selisih <  0 => 'lewat',
+            $selisih === 0 => 'hari_ini',
+            $selisih <= 3 => 'mendekati',
+            default        => null,     // masih jauh — belum waktunya mengganggu
+        };
     }
 
     private static function priorityColor(string $priority): string

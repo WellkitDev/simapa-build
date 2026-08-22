@@ -196,21 +196,37 @@ class Notifier
         ]);
     }
 
-    public function deadlineReminder(Task $task): void
+    /**
+     * Pengingat tenggang bertahap.
+     *
+     * `mendekati` → `hari_ini` → `lewat`. Tahap yang terakhir dikirim disimpan di
+     * `tasks.deadline_stage`, jadi tiap tahap berbunyi tepat sekali meski perintahnya
+     * jalan tiap hari. Sebelumnya hanya ada satu pengingat, dan tugas yang tenggangnya
+     * benar-benar lewat justru tak pernah bersuara lagi.
+     */
+    public function deadlineReminder(Task $task, string $tahap = 'mendekati'): void
     {
         $task->loadMissing('user');
         if (! $task->user) {
             return;
         }
+
+        $judul = [
+            'mendekati' => 'Tugas mendekati tenggang',
+            'hari_ini'  => 'Tugas jatuh tempo hari ini',
+            'lewat'     => '⚠ Tugas LEWAT tenggang',
+        ][$tahap] ?? 'Tugas mendekati tenggang';
+
         $recipients = $this->roleUsers(['manager', 'superadmin', 'admin'], $task->user)
             ->push($task->user)->unique('id')->values();
 
         $this->send($recipients, [
             'category' => 'deadline',
-            'title'    => 'Tugas mendekati deadline',
-            'message'  => $task->title . ' • ' . ($task->due_date?->format('d M Y') ?? '?'),
+            'title'    => $judul,
+            'message'  => $task->title . ' • tenggang '
+                          . ($task->due_date?->translatedFormat('j M Y') ?? '?'),
             'url'      => route('task.board'),
-            'icon'     => 'clock',
+            'icon'     => $tahap === 'lewat' ? 'alert-triangle' : 'clock',
             'email'    => true,
             'aksi'     => 'Buka Papan Tugas',
         ]);
