@@ -191,6 +191,8 @@ class Notifier
             'message'  => $task->title,
             'url'      => route('task.board'),
             'icon'     => 'check-square',
+            'email'    => true,
+            'aksi'     => 'Buka Papan Tugas',
         ]);
     }
 
@@ -209,6 +211,8 @@ class Notifier
             'message'  => $task->title . ' • ' . ($task->due_date?->format('d M Y') ?? '?'),
             'url'      => route('task.board'),
             'icon'     => 'clock',
+            'email'    => true,
+            'aksi'     => 'Buka Papan Tugas',
         ]);
     }
 
@@ -225,6 +229,8 @@ class Notifier
                           . ($progress->sla_due_at ? ' • jatuh tempo ' . $progress->sla_due_at->translatedFormat('j M Y') : ''),
             'url'      => $this->naskahUrl($progress),
             'icon'     => 'user-check',
+            'email'    => true,
+            'aksi'     => 'Buka naskahnya',
         ]);
     }
 
@@ -322,6 +328,12 @@ class Notifier
                           . TitleProgress::labelFor($from) . ' oleh ' . $actor->name,
             'url'      => $this->naskahUrl($progress),
             'icon'     => ($isCorrection || $mundur) ? 'rotate-ccw' : 'arrow-right-circle',
+            // Email HANYA untuk perpindahan mundur: naskah yang dikembalikan menuntut
+            // seseorang mengerjakannya ulang. Naskah yang maju cukup jadi kabar — satu
+            // naskah normal melewati tujuh tahap, dan tujuh email per naskah membuat
+            // orang menyaring habis seluruhnya, termasuk yang mendesak.
+            'email'    => $mundur,
+            'aksi'     => 'Lihat naskahnya',
         ]);
     }
 
@@ -345,6 +357,8 @@ class Notifier
                           . ' • diminta ' . $actor->name,
             'url'      => route('naskah.pelacakan'),
             'icon'     => 'edit-3',
+            'email'    => true,
+            'aksi'     => 'Lihat permintaannya',
         ]);
     }
 
@@ -493,6 +507,8 @@ class Notifier
                 $berkas->original_name, $berkas->slotLabel(), \Illuminate\Support\Str::limit($sebab, 120)),
             'url'      => route('title.show', $berkas->title_id),
             'icon'     => 'alert-triangle',
+            'email'    => true,
+            'aksi'     => 'Coba unggah ulang',
         ]);
     }
 
