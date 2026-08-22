@@ -4,6 +4,7 @@
 namespace App\Services;
 
 use App\Models\ChapterProgress;
+use App\Models\ManuscriptRevision;
 use App\Models\OrderDetail;
 use App\Models\User;
 use App\Models\TitleProgress;
@@ -43,8 +44,34 @@ class TitleProgressService
 
         $this->assertLayoutUnlocked($progress, $next);
         $this->assertLinkTerbit($progress, $next);
+        $this->assertPutaranTerjawab($progress);
 
         return $this->applyGroup($progress, $next, $actor, $note, false, 'status_advanced');
+    }
+
+    /**
+     * Naskah tak boleh meninggalkan tahap Revisi selama masih ada putaran terbuka yang
+     * sudah punya permintaan tapi belum ada jawabannya.
+     *
+     * Pesannya menyebut nomor putaran supaya orang tahu yang mana — "tidak bisa maju"
+     * saja membuat orang menebak, lalu menyerah.
+     */
+    private function assertPutaranTerjawab(TitleProgress $progress): void
+    {
+        $title = $progress->orderDetail?->titleRef;
+        if ($title === null) {
+            return;
+        }
+
+        $penahan = app(ManuscriptRevisionService::class)->penahan($title, $progress->status);
+        if ($penahan === null) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'status' => "Putaran revisi ke-{$penahan->round} belum dijawab. "
+                        . 'Unggah hasil revisi, atau tutup putarannya dengan catatan.',
+        ]);
     }
 
     /**
@@ -353,6 +380,17 @@ class TitleProgressService
             // Publish/terbit: marketing pemilik TIAP order yang mengabari kliennya.
             if (TitleProgress::isFinal($target)) {
                 $notifier->naskahPublished($p->fresh(), $actor);
+            }
+        }
+
+        // Putaran di tahap yang baru saja DITINGGALKAN ditutup wajar — close_note
+        // dibiarkan null, dan kosong-atau-tidak itulah yang membedakannya dari
+        // penutupan paksa lewat pintu darurat.
+        if ($changed !== []) {
+            [$pertama, $dari] = $changed[0];
+            $title = $pertama->orderDetail?->titleRef;
+            if ($title && in_array($dari, ManuscriptRevision::STAGES, true)) {
+                app(ManuscriptRevisionService::class)->tutupOtomatis($title, $dari, $actor);
             }
         }
 

@@ -9,7 +9,10 @@ use App\Models\Title;
 use App\Models\TitleProgress;
 use App\Models\User;
 use App\Services\GoogleDriveService;
+use App\Services\ManuscriptRevisionService;
+use App\Services\TitleProgressService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -156,6 +159,104 @@ class PutaranRevisiTest extends TestCase
         $this->assertSame(3, ManuscriptRevision::nomorBerikutnya($judul->id));
         $this->assertSame(2, ManuscriptRevision::nomorBerikutnya($lain->id),
             'Nomor putaran per judul, bukan global.');
+    }
+
+    // ─── gerbang laju ───
+
+    /** @test */
+    public function putaran_dengan_permintaan_belum_dijawab_menahan_laju(): void
+    {
+        [$judul, $progress] = $this->naskahBerjudul('revisi');
+        $p = $this->putaran($judul);
+        $this->berkas($judul, $p, 'revisi_minta');
+
+        try {
+            app(TitleProgressService::class)->advance($progress, $this->superadmin());
+            $this->fail('Naskah dengan putaran belum terjawab mestinya tertahan.');
+        } catch (ValidationException $e) {
+            $this->assertStringContainsString('ke-1', $e->getMessage(),
+                'Pesannya harus menyebut nomor putarannya, bukan sekadar "tidak bisa maju".');
+        }
+
+        $this->assertSame('revisi', $progress->fresh()->status);
+    }
+
+    /** @test */
+    public function putaran_terjawab_tidak_menahan_laju(): void
+    {
+        [$judul, $progress] = $this->naskahBerjudul('revisi');
+        $p = $this->putaran($judul);
+        $this->berkas($judul, $p, 'revisi_minta');
+        $this->berkas($judul, $p, 'revisi_hasil');
+
+        app(TitleProgressService::class)->advance($progress, $this->superadmin());
+
+        $this->assertSame('loa', $progress->fresh()->status);
+    }
+
+    /** @test */
+    public function menutup_putaran_membebaskan_naskah_untuk_maju(): void
+    {
+        [$judul, $progress] = $this->naskahBerjudul('revisi');
+        $p = $this->putaran($judul);
+        $this->berkas($judul, $p, 'revisi_minta');
+
+        app(ManuscriptRevisionService::class)
+            ->tutup($p, $this->superadmin(), 'Reviewer menarik permintaannya');
+
+        app(TitleProgressService::class)->advance($progress, $this->superadmin());
+
+        $this->assertSame('loa', $progress->fresh()->status);
+        $this->assertSame('Reviewer menarik permintaannya', $p->fresh()->close_note);
+    }
+
+    /** @test */
+    public function menutup_putaran_wajib_beralasan(): void
+    {
+        $p = $this->putaran($this->judul());
+
+        $this->expectException(ValidationException::class);
+
+        app(ManuscriptRevisionService::class)->tutup($p, $this->superadmin(), '  ');
+    }
+
+    /** @test */
+    public function putaran_pembuatan_tidak_menahan_laju(): void
+    {
+        [$judul, $progress] = $this->naskahBerjudul('pembuatan');
+        $p = $this->putaran($judul, ['stage' => 'pembuatan', 'from_stage' => 'editing']);
+        $this->berkas($judul, $p, 'revisi_minta');
+
+        app(TitleProgressService::class)->advance($progress, $this->superadmin());
+
+        $this->assertSame('editing', $progress->fresh()->status,
+            'Pengembalian ke Pembuatan dijawab dengan naskahnya, bukan berkas balasan.');
+    }
+
+    /** @test */
+    public function maju_wajar_menutup_putaran_tanpa_catatan(): void
+    {
+        [$judul, $progress] = $this->naskahBerjudul('revisi');
+        $p = $this->putaran($judul);
+        $this->berkas($judul, $p, 'revisi_hasil');
+
+        app(TitleProgressService::class)->advance($progress, $this->superadmin());
+
+        $segar = $p->fresh();
+        $this->assertNotNull($segar->closed_at);
+        $this->assertNull($segar->close_note,
+            'Catatan kosong itulah yang membedakan penutupan wajar dari pintu darurat.');
+    }
+
+    /** @test */
+    public function naskah_tanpa_putaran_lewat_revisi_tanpa_hambatan(): void
+    {
+        [, $progress] = $this->naskahBerjudul('revisi');
+
+        app(TitleProgressService::class)->advance($progress, $this->superadmin());
+
+        $this->assertSame('loa', $progress->fresh()->status,
+            'Tanpa permintaan revisi, tahapnya cukup dilewati.');
     }
 
     /**
