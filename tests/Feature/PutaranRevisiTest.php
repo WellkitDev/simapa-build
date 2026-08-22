@@ -362,6 +362,78 @@ class PutaranRevisiTest extends TestCase
         $this->assertNotNull($p->fresh()->closed_at);
     }
 
+    // ─── tampilan ───
+
+    /** @test */
+    public function kartu_revisi_menampilkan_putaran_lama_saat_mundur_dari_loa(): void
+    {
+        [$judul, $progress] = $this->naskahBerjudul('revisi');
+
+        $lama = $this->putaran($judul, ['closed_at' => now(), 'request_note' => 'Putaran pertama']);
+        $lama->files()->create([
+            'title_id' => $judul->id, 'slot' => 'revisi_minta', 'status' => 'selesai',
+            'version' => 1, 'original_name' => 'putaran-satu.pdf',
+        ]);
+        $this->putaran($judul, ['request_note' => 'Reviewer minta revisi minor']);
+
+        $isi = $this->actingAs($this->superadmin())
+            ->get(route('naskah.show', $progress->order_detail_id))
+            ->assertOk()->getContent();
+
+        $this->assertStringContainsString('Reviewer minta revisi minor', $isi);
+        $this->assertStringContainsString('putaran-satu.pdf', $isi,
+            'Berkas putaran lama harus tetap terlist setelah mundur dari LoA.');
+        $this->assertStringContainsString('putaran 2', $isi);
+    }
+
+    /** @test */
+    public function kartu_pada_buku_tidak_berjudul_revisi(): void
+    {
+        [$judul, $progress] = $this->naskahBerjudul('pembuatan', 'buku');
+        $this->putaran($judul, ['stage' => 'pembuatan', 'from_stage' => 'editing']);
+
+        $isi = $this->actingAs($this->superadmin())
+            ->get(route('naskah.show', $progress->order_detail_id))
+            ->assertOk()->getContent();
+
+        $this->assertStringContainsString('Dikembalikan ke Pembuatan', $isi);
+    }
+
+    /** @test */
+    public function naskah_tanpa_putaran_tak_menampilkan_kartunya(): void
+    {
+        [, $progress] = $this->naskahBerjudul('editing');
+
+        $isi = $this->actingAs($this->superadmin())
+            ->get(route('naskah.show', $progress->order_detail_id))
+            ->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('Putaran Perbaikan', $isi,
+            'Kartu kosong hanya menambah kebisingan di naskah yang tak pernah direvisi.');
+    }
+
+    // ─── pagar ───
+
+    /**
+     * autoAdvanceOnUpload() hanya bereaksi pada slot `masuk`, jadi perilakunya sudah
+     * benar hari ini. Tes ini memagarinya: menambah slot ke daftar pemicu adalah
+     * perubahan satu baris yang akan mendorong naskah ke LoA diam-diam.
+     *
+     * @test
+     */
+    public function mengunggah_hasil_revisi_tidak_memajukan_tahap(): void
+    {
+        [$judul, $progress] = $this->naskahBerjudul('revisi');
+        $p = $this->putaran($judul);
+
+        app(ManuscriptRevisionService::class)->jawab(
+            $p, $this->superadmin(), [UploadedFile::fake()->create('hasil.docx', 20)]
+        );
+
+        $this->assertSame('revisi', $progress->fresh()->status,
+            'Yang memajukan naskah tetap tombol PJ, bukan kedatangan berkas.');
+    }
+
     /**
      * Slot revisi sah untuk diunggah, tapi SENGAJA tak ikut di daftar per-jenis:
      * berkasnya ditampilkan berkelompok per putaran di kartu Revisi, bukan sebagai

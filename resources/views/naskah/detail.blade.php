@@ -141,6 +141,8 @@
         @include('naskah.partials.informasi-publikasi', compact('title', 'canEditInfo', 'progress', 'next', 'buku', 'isKolab'))
 
         @include('naskah.partials.file-naskah', compact('progress', 'berkas', 'izin', 'isKolab', 'buku'))
+
+        @include('naskah.partials.revisi', compact('progress', 'putaran', 'izin'))
     </div>
 
     <div class="col-lg-7">

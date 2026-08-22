@@ -65,6 +65,14 @@ class DetailNaskahController extends Controller
             // menanganinya.
             'title'       => $book,
             'canEditInfo' => $actor->can('title.info'),
+            // Seluruh putaran judul ini, terbaru dulu — termasuk yang sudah ditutup,
+            // supaya berkas putaran lama tetap terbaca sesudah naskah mundur dari LoA.
+            'putaran'     => $book
+                ? ManuscriptRevision::with(['files', 'requestedBy', 'assignedTo', 'closedBy'])
+                    ->where('title_id', $book->id)
+                    ->orderByDesc('round')
+                    ->get()
+                : collect(),
         ]);
     }
 
