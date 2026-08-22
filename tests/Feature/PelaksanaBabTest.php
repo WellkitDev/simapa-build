@@ -188,6 +188,54 @@ class PelaksanaBabTest extends TestCase
             'Untuk buku kolaborasi, penugasan yang benar ada di tabel bab.');
     }
 
+    /**
+     * REGRESI YANG PERNAH TERJADI: Pelaksana dan Penanggung jawab dulu berbagi satu
+     * `@if ($izin['assign'])`, jadi menyembunyikan Pelaksana untuk buku kolaborasi ikut
+     * menyembunyikan PJ — dan buku kolaborasi kehilangan satu-satunya cara menetapkan
+     * penanggung jawabnya.
+     *
+     * PJ berlaku untuk SETIAP jenis naskah: ia yang menerima notifikasi tahap, ditagih
+     * saat lewat SLA, dan namanya tercetak di laporan arsip.
+     *
+     * @test
+     */
+    public function buku_kolaborasi_TETAP_punya_selektor_penanggung_jawab(): void
+    {
+        [$book, $p] = $this->bukuKolab(2);
+        $isi = $this->halaman($p);
+
+        $this->assertStringContainsString('/oper-pj', $isi,
+            'Menyembunyikan Pelaksana tak boleh ikut menyembunyikan PJ.');
+        $this->assertStringContainsString('name="pj_user_id"', $isi);
+    }
+
+    /** @test */
+    public function naskah_tanpa_pj_ditandai_wajib_diisi(): void
+    {
+        [$book, $p] = $this->bukuKolab(2);
+        $isi = $this->halaman($p);
+
+        $this->assertStringContainsString('wajib diisi', $isi);
+        $this->assertStringContainsString('Belum ditetapkan', $isi);
+        $this->assertStringContainsString('Tetapkan', $isi,
+            'Tombolnya berbunyi "Tetapkan" selama PJ masih kosong, bukan "Oper".');
+    }
+
+    /** @test */
+    public function naskah_yang_sudah_ber_pj_tak_lagi_ditandai(): void
+    {
+        [$book, $p] = $this->bukuKolab(2);
+
+        $admin = User::factory()->create(['name' => 'Fitri']);
+        $admin->assignRole('admin');
+        TitleProgress::query()->update(['pj_user_id' => $admin->id]);
+
+        $isi = $this->halaman($p->fresh());
+
+        $this->assertStringContainsString('Fitri', $isi);
+        $this->assertStringNotContainsString('wajib diisi', $isi);
+    }
+
     /** @test */
     public function artikel_tetap_punya_selektor_pelaksana_level_order(): void
     {

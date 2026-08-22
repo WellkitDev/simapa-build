@@ -59,7 +59,10 @@
                     // terbaca sebagai sifat seluruh judul.
                     'Jenis naskah'            => ($d?->naskahTypeLabel() ?? '—')
                         . ($jenisNaskahGrup === 'campuran' ? ' (order ini)' : ''),
-                    'Penanggung Jawab (PJ)'   => $progress->pj?->name ?? 'Belum ditentukan',
+                    // PJ wajib diisi manual dan berlaku untuk SEMUA jenis naskah — ia yang
+                    // menerima notifikasi tahap, ditagih saat lewat SLA, dan namanya
+                    // tercetak di laporan arsip. Kekosongannya ditandai, bukan didiamkan.
+                    'Penanggung Jawab (PJ)'   => $progress->pj?->name ?? '⚠ Belum ditetapkan',
                     // Buku kolaborasi dikerjakan PER BAB, dan pelaksananya tersimpan di
                     // tb_chapter_progress — tabel yang berbeda dari yang dibaca baris ini.
                     // Menampilkan satu nama level order di sini berarti mengklaim sesuatu

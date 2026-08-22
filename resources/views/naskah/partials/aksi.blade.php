@@ -202,6 +202,7 @@
                 <form method="POST" action="{{ route('naskah.distribusi', $progress->order_detail_id) }}">
                     @csrf
                     <label class="form-label small fw-bold mb-1">Pelaksana</label>
+                    @php /* penanda blok Pelaksana — gerbangnya TERPISAH dari PJ di bawah */ @endphp
                     <div class="d-flex gap-1">
                         <select name="pelaksana_user_id" class="form-select form-select-sm" required>
                             <option value="">— pilih akun Produksi —</option>
@@ -219,10 +220,29 @@
                     </form>
                 @endif
             </div>
+        @endif
+
+        {{--
+            Penanggung jawab punya gerbangnya SENDIRI — sengaja tak ikut `! $isKolab`.
+
+            Sebelumnya Pelaksana dan PJ berbagi satu `@if ($izin['assign'])`, jadi
+            menyembunyikan Pelaksana untuk buku kolaborasi ikut menyembunyikan PJ, dan
+            buku kolaborasi kehilangan satu-satunya cara menetapkan penanggung jawabnya.
+
+            PJ berlaku untuk SETIAP jenis naskah: ia yang menerima notifikasi tahap,
+            yang ditagih saat naskah lewat SLA, dan yang namanya tercetak di laporan
+            arsip. Bab boleh dikerjakan banyak orang; yang bertanggung jawab tetap satu.
+        --}}
+        @if ($izin['assign'])
             <div class="col-md-6">
                 <form method="POST" action="{{ route('naskah.operPj', $progress->order_detail_id) }}">
                     @csrf
-                    <label class="form-label small fw-bold mb-1">Penanggung jawab</label>
+                    <label class="form-label small fw-bold mb-1">
+                        Penanggung jawab
+                        @if (! $progress->pj_user_id)
+                            <span class="badge bg-warning text-dark ms-1">wajib diisi</span>
+                        @endif
+                    </label>
                     <div class="d-flex gap-1">
                         <select name="pj_user_id" class="form-select form-select-sm" required>
                             <option value="">— pilih akun Admin —</option>
@@ -230,8 +250,15 @@
                                 <option value="{{ $u->id }}" @selected($progress->pj_user_id == $u->id)>{{ $u->name }}</option>
                             @endforeach
                         </select>
-                        <button class="btn btn-sm btn-outline-primary">Oper</button>
+                        <button class="btn btn-sm {{ $progress->pj_user_id ? 'btn-outline-primary' : 'btn-warning' }}">
+                            {{ $progress->pj_user_id ? 'Oper' : 'Tetapkan' }}
+                        </button>
                     </div>
+                    @if (! $progress->pj_user_id)
+                        <div class="form-text text-warning">
+                            Tanpa PJ, notifikasi tahap dan peringatan lewat SLA tak sampai ke siapa pun.
+                        </div>
+                    @endif
                 </form>
             </div>
         @endif
