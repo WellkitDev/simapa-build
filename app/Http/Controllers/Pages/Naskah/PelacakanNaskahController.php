@@ -25,7 +25,7 @@ class PelacakanNaskahController extends Controller
     private const ZONA = [
         'artikel' => [
             ['label' => 'Antrian',    'catatan' => 'menunggu distribusi', 'warna' => 'z1', 'kolom' => ['menunggu_proses']],
-            ['label' => 'Produksi',   'catatan' => 'admin & pelaksana',   'warna' => 'z2', 'kolom' => ['pembuatan', 'editing', 'revisi', 'submit']],
+            ['label' => 'Produksi',   'catatan' => 'admin & pelaksana',   'warna' => 'z2', 'kolom' => ['pembuatan', 'editing', 'submit', 'revisi']],
             ['label' => 'Finalisasi', 'catatan' => 'admin & superadmin',  'warna' => 'z3', 'kolom' => ['loa', 'publish']],
         ],
         'buku' => [
@@ -47,12 +47,36 @@ class PelacakanNaskahController extends Controller
         return view('naskah.pelacakan', [
             'tipe'    => $tipe,
             'tampil'  => $view,
-            'zona'    => self::ZONA[$tipe],
+            'zona'    => $this->zona($tipe),
             'kartu'   => $kartu,
             'riwayat' => $view === 'riwayat' ? $this->riwayat($tipe) : collect(),
             'filter'  => $request->only(['pj', 'pelaksana', 'prioritas', 'cari']),
             'orang'   => $this->orang(),
         ]);
+    }
+
+    /**
+     * Kolom tiap zona diurutkan ulang menurut ARTICLE_STAGES/BOOK_STAGES, sehingga ZONA
+     * cukup menyatakan tahap mana milik zona mana — bukan urutannya.
+     *
+     * Sebelum ini urutan tahap punya dua salinan, dan yang satu langsung basi begitu
+     * yang lain diubah: memindahkan `revisi` ke belakang `submit` di modelnya
+     * meninggalkan papan ini menampilkan urutan lama tanpa satu pun galat.
+     *
+     * array_intersect mempertahankan urutan argumen PERTAMA, jadi daftar tahaplah yang
+     * menentukan — bukan urutan penulisan di ZONA.
+     */
+    private function zona(string $tipe): array
+    {
+        $urut = $tipe === 'buku'
+            ? TitleProgress::BOOK_STAGES
+            : TitleProgress::ARTICLE_STAGES;
+
+        return array_map(function (array $z) use ($urut) {
+            $z['kolom'] = array_values(array_intersect($urut, $z['kolom']));
+
+            return $z;
+        }, self::ZONA[$tipe]);
     }
 
     /** Arsip — naskah selesai & dibatalkan. Tidak pernah hilang, selalu bisa dicari. */

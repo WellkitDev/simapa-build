@@ -132,6 +132,34 @@ class RevisiSetelahSubmitTest extends TestCase
         $this->assertSame('loa', $p->fresh()->status);
     }
 
+    /**
+     * ZONA di papan Pelacakan dulu menyalin urutan tahap dengan tangan, jadi
+     * memindahkan `revisi` di ARTICLE_STAGES meninggalkan papan menampilkan urutan
+     * lama. Tes ini mengunci keduanya sejalan tanpa peduli isi urutannya — jadi ia
+     * tetap berlaku kalau urutannya berubah lagi kelak.
+     *
+     * Diperiksa lewat data view, bukan posisi teks di HTML: kata "Submit" muncul juga
+     * di tempat lain di halaman, dan tes yang mengandalkan itu akan lulus atau gagal
+     * karena sebab yang salah.
+     *
+     * @test
+     */
+    public function kolom_papan_pelacakan_mengikuti_urutan_tahap(): void
+    {
+        $zona = $this->actingAs($this->admin())
+            ->get(route('naskah.pelacakan', ['tipe' => 'artikel']))
+            ->assertOk()
+            ->viewData('zona');
+
+        $kolom = collect($zona)->pluck('kolom')->flatten()->values()->all();
+
+        $this->assertSame(
+            array_values(array_intersect(TitleProgress::ARTICLE_STAGES, $kolom)),
+            $kolom,
+            'Kolom papan harus mengikuti ARTICLE_STAGES, bukan salinan yang ditulis tangan.'
+        );
+    }
+
     /** @test */
     public function urutan_tahap_buku_tidak_ikut_berubah(): void
     {
