@@ -179,7 +179,7 @@ class TitleProgressServiceTest extends TestCase
         $p = $this->naskah('editing');
 
         $this->assertSame(1, $this->svc->advance($p, $this->user('admin')));
-        $this->assertEquals('revisi', $p->fresh()->status); // ARTICLE_STAGES: editing → revisi
+        $this->assertEquals('submit', $p->fresh()->status); // ARTICLE_STAGES: editing → submit
     }
 
     /** @test */
@@ -232,7 +232,7 @@ class TitleProgressServiceTest extends TestCase
         $group = TitleProgress::whereHas('orderDetail',
             fn ($q) => $q->where('group_key', $p->orderDetail->group_key))->get();
         foreach ($group as $one) {
-            $this->assertEquals('revisi', $one->fresh()->status);
+            $this->assertEquals('submit', $one->fresh()->status);
         }
     }
 

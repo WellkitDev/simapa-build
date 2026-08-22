@@ -136,6 +136,13 @@ class NaskahJurnalTest extends TestCase
             'nama_jurnal' => 'Jurnal Alur Penuh', 'tgl_submit' => '2026-08-01',
         ])->assertRedirect();
 
+        // Revisi kini duduk di antara Submit dan LoA. Tak ada permintaan revisi di alur
+        // ini, jadi tahapnya cukup dilewati — persis yang dilakukan orang saat reviewer
+        // tak meminta apa-apa.
+        $p->refresh();
+        $this->actingAs($super)->post(route('naskah.selesaikan', $p->order_detail_id))
+            ->assertRedirect();
+
         // Publish adalah tahap FINAL, jadi tak pernah "diselesaikan": link terbit
         // direbut saat menyelesaikan LoA, transisi yang MASUK ke publish.
         $p->refresh();

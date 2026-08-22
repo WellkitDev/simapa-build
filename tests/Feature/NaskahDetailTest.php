@@ -77,7 +77,7 @@ class NaskahDetailTest extends TestCase
             ->assertOk()->getContent();
 
         // Satu tombol maju, labelnya menyebut tahap sekarang DAN tahap berikutnya.
-        $this->assertSame(1, substr_count($isi, 'Selesaikan Editing → lanjut ke Revisi'));
+        $this->assertSame(1, substr_count($isi, 'Selesaikan Editing → lanjut ke Submit'));
         // Dropdown semua-tahap hanya boleh ada di form koreksi, yang admin tak lihat.
         $this->assertStringNotContainsString('name="status"', $isi);
     }
@@ -93,7 +93,7 @@ class NaskahDetailTest extends TestCase
             ->assertRedirect()
             ->assertSessionHas('success');
 
-        $this->assertSame('revisi', $p->fresh()->status);
+        $this->assertSame('submit', $p->fresh()->status);
     }
 
     /** @test */
