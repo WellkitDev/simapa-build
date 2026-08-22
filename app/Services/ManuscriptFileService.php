@@ -64,6 +64,18 @@ class ManuscriptFileService
 
         UnggahBerkasKeDrive::dispatch($record->id);
 
+        // Dicatat SEKARANG, saat orangnya menekan tombol — bukan nanti saat berkasnya
+        // mendarat. Unggahan yang gagal pun bagian dari sejarah naskah, dan siapa yang
+        // mencobanya tetap harus terbaca.
+        app(RiwayatNaskahService::class)->catatJudul(
+            $title,
+            'berkas_diunggah',
+            $actor,
+            null,
+            ManuscriptFile::SLOTS[$slot] ?? $slot,
+            trim(($chapter ? $chapter->judul . ' · ' : '') . $record->original_name . ' (v' . $next . ')')
+        );
+
         return $record;
     }
 

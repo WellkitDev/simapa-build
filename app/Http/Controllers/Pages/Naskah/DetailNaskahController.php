@@ -16,6 +16,7 @@ use App\Services\ManuscriptFileService;
 use App\Services\ManuscriptRevisionService;
 use App\Services\Notifier;
 use App\Services\RincianTahapService;
+use App\Services\RiwayatNaskahService;
 use App\Services\TitleProgressService;
 use App\Support\BatasUnggah;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -77,6 +78,9 @@ class DetailNaskahController extends Controller
             // tiap tahap" dari lima sumber adalah logika sungguhan — dan Blade tak bisa
             // diuji tanpa merender HTML.
             'rincian'     => app(RincianTahapService::class)->untuk($progress),
+            // Riwayat digabung se-grup lalu dibuang kembarannya \u2014 lihat
+            // RiwayatNaskahService::untukLayar().
+            'riwayat'     => app(RiwayatNaskahService::class)->untukLayar($progress),
         ]);
     }
 

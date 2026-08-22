@@ -46,6 +46,16 @@ class TitleProgressLog extends Model
         'chapters_done'       => 'Semua bab selesai',
         'penarikan'           => 'Ditarik (refund)',
         'batal_penarikan'     => 'Batalkan penarikan',
+        // Berkas & putaran perbaikan. Sebelum 2026-08-23 tak satu pun tercatat: unggahan
+        // hanya muncul di riwayat bila kebetulan memicu maju tahap, sehingga unggah hasil
+        // editing, LoA, cover, berkas ISBN, dan berkas revisi tak meninggalkan jejak
+        // siapa pun — padahal kartunya berjanji "semua aksi tercatat".
+        'berkas_diunggah'     => 'Unggah berkas',
+        'berkas_mendarat'     => 'Berkas masuk Drive',
+        'berkas_gagal'        => 'Unggahan gagal',
+        'revisi_diminta'      => 'Minta revisi',
+        'revisi_dijawab'      => 'Jawab revisi',
+        'revisi_ditutup'      => 'Tutup putaran revisi',
     ];
 
     public function eventLabel(): string

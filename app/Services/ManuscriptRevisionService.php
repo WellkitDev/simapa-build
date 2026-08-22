@@ -58,6 +58,12 @@ class ManuscriptRevisionService
                     ->update(['manuscript_revision_id' => $putaran->id]);
             }
 
+            app(RiwayatNaskahService::class)->catatJudul(
+                $title, 'revisi_diminta', $actor,
+                null, "putaran ke-{$putaran->round}",
+                trim($catatan . ($untuk ? ' → ' . $untuk->name : ''))
+            );
+
             return $putaran;
         });
     }
@@ -87,6 +93,12 @@ class ManuscriptRevisionService
                 $this->berkas->upload($putaran->title, null, 'revisi_hasil', $file, $actor)
                     ->update(['manuscript_revision_id' => $putaran->id]);
             }
+
+            app(RiwayatNaskahService::class)->catatJudul(
+                $putaran->title, 'revisi_dijawab', $actor,
+                null, "putaran ke-{$putaran->round}",
+                count($lampiran) . ' berkas hasil revisi'
+            );
         });
 
         return $putaran->fresh();
@@ -110,6 +122,12 @@ class ManuscriptRevisionService
             'closed_by'  => $actor->id,
             'close_note' => $catatan,
         ]);
+
+        app(RiwayatNaskahService::class)->catatJudul(
+            $putaran->title, 'revisi_ditutup', $actor,
+            "putaran ke-{$putaran->round}", 'ditutup tanpa berkas',
+            $catatan
+        );
 
         return $putaran->fresh();
     }

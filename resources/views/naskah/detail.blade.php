@@ -180,7 +180,11 @@
 
         @include('naskah.partials.file-naskah', compact('progress', 'berkas', 'izin', 'isKolab', 'buku'))
 
-        @include('naskah.partials.riwayat-naskah', ['logs' => $progress->logs->sortByDesc('created_at')])
+        {{-- Riwayat digabung dari SELURUH order sejudul, bukan hanya order yang sedang
+             dibuka. Berkas dan putaran perbaikan milik JUDUL dan dicatat sekali saja;
+             tanpa penggabungan, membuka order kedua sebuah buku menyembunyikan separuh
+             sejarahnya — sementara kartunya berjanji "semua aksi tercatat". --}}
+        @include('naskah.partials.riwayat-naskah', ['logs' => $riwayat])
     </div>
 </div>
 

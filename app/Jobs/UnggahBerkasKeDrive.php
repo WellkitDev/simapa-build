@@ -96,6 +96,24 @@ class UnggahBerkasKeDrive implements ShouldQueue
             'pesan'              => $e->getMessage(),
         ]);
 
+        // Kegagalan ikut masuk riwayat naskah, bukan hanya notifikasi. Notifikasi
+        // terbaca sekali lalu hilang; riwayat yang menjawab "kenapa berkas ini tak
+        // pernah ada" berbulan-bulan kemudian.
+        //
+        // `uploadedBy` dipakai sebagai pelaku: dialah yang mengirim berkasnya, meski
+        // yang gagal adalah jobnya. Bila akunnya sudah terhapus, pencatatan dilewati —
+        // job yang gagal tak boleh gagal dua kali.
+        if ($berkas->title && $berkas->uploader) {
+            app(\App\Services\RiwayatNaskahService::class)->catatJudul(
+                $berkas->title,
+                'berkas_gagal',
+                $berkas->uploader,
+                null,
+                \App\Models\ManuscriptFile::SLOTS[$berkas->slot] ?? $berkas->slot,
+                $berkas->original_name . ' — ' . substr($e->getMessage(), 0, 200)
+            );
+        }
+
         // Salinan lokal SENGAJA tidak dihapus: selama ia ada, unggahan masih bisa
         // diulang tanpa meminta orang mengirim ulang berkas 20 MB.
         app(Notifier::class)->unggahanGagal($berkas, $e->getMessage());
