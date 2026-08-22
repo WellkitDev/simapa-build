@@ -157,9 +157,18 @@ Dua slot baru di `ManuscriptFile::SLOTS` — kolom `slot` bertipe `string(20)` s
 'revisi_hasil' => 'Hasil Revisi',
 ```
 
-Keduanya masuk `SLOTS_ARTIKEL`. `SLOTS_BUKU` mendapat **hanya** `revisi_minta` dan
-`revisi_hasil` untuk keperluan pengembalian Editing→Pembuatan — buku tak punya tahap
-`revisi`, tapi putaran pengembalian ke Pembuatan memakai slot yang sama.
+**Koreksi saat implementasi (2026-08-22).** Rancangan awal memasukkan kedua slot ke
+`SLOTS_ARTIKEL` dan `SLOTS_BUKU`. Itu **tidak dilakukan**, dan sengaja.
+
+Kedua daftar itu menyetir kartu berkas di layar naskah — satu baris tetap per slot.
+Memasukkan slot revisi ke sana berarti setiap naskah yang tak pernah direvisi menampilkan
+"Permintaan Revisi — belum ada" selamanya, dan naskah yang pernah direvisi menampilkan
+berkas yang sama **dua kali**: sekali datar di kartu berkas, sekali berkelompok per
+putaran di kartu Revisi. Berkas revisi milik PUTARAN, bukan tahap, dan kartu datar tak
+bisa mewakilinya.
+
+`ManuscriptFile::slotSah()` membaca `SLOTS`, bukan daftar per-jenis, jadi validasi
+unggahnya tetap lolos tanpa keduanya. Dikunci tes `slot_revisi_sah_tapi_tak_muncul_di_kartu_berkas`.
 
 `version` yang sudah ada tetap mengurus berkas berulang di slot yang sama; putaran
 diurus `manuscript_revision_id`. Banyak berkas per putaran otomatis didukung tanpa
@@ -366,6 +375,14 @@ kelompok `advance` ikut diganti.
 
 `revisi.hasil` masuk kelompok `upload` (bukan `advance`) justru supaya Pelaksana bisa
 menjawab — kelompok `upload` terbuka untuk semua role, `advance` tidak.
+
+**Catatan penolakan.** `EnforcePermission` membalas submit form (non-GET) dengan
+**redirect + flash error**, bukan 403 mentah — hanya request AJAX/JSON yang dapat 403.
+Tes yang memagari penolakan harus meng-assert `assertRedirect()->assertSessionHas('error')`,
+bukan `assertForbidden()`.
+
+Seluruh unggahan putaran memakai aturan mime yang sama dengan jalur unggah naskah yang
+sudah ada: `pdf,doc,docx,zip`, batas lewat `BatasUnggah::kb(20480)`.
 
 ### 7.2 Migrasi data
 

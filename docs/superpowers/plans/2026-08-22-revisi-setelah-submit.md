@@ -22,6 +22,26 @@ migrasi. Jalan mundur memakai `applyGroup()` yang sudah ada, setelah penjaganya 
 
 ---
 
+## Status: SELESAI 2026-08-22
+
+Kedua belas tugas dikerjakan. Enam penyimpangan dari rencana, semuanya disengaja dan
+ditulis di sini supaya tak dikira terlewat:
+
+| # | Penyimpangan | Sebab |
+|---|---|---|
+| 1 | **Tujuh** tes lama disesuaikan, bukan enam | `NaskahLayarTest:170` menyimpan asumsi yang sama pada teks tombol; baru ketahuan saat dijalankan |
+| 2 | Slot revisi **tidak** dimasukkan ke `SLOTS_ARTIKEL`/`SLOTS_BUKU` | Akan membuat kartu berkas menyebut "belum ada" pada tiap naskah, lalu menampilkan berkas yang sama dua kali. Lihat koreksi §4.3 spec |
+| 3 | Tes penolakan izin meng-assert redirect+flash, bukan `assertForbidden()` | `EnforcePermission` sengaja membalas submit form dengan pesan, bukan 403 mentah |
+| 4 | Unggahan putaran dibatasi mime `pdf,doc,docx,zip` | Menyamakan dengan jalur unggah naskah yang sudah ada; rencana lupa menyebutnya |
+| 5 | Tugas 9 (notifikasi) dikerjakan sebelum tugas 8 (controller) | `revisiMinta()` memanggil notifier, jadi notifikasinya harus ada lebih dulu |
+| 6 | Tes papan Pelacakan memeriksa data view, bukan posisi teks HTML | Kata "Submit" muncul juga di tempat lain di halaman; tes posisi teks akan lulus/gagal karena sebab yang salah |
+
+Satu jebakan yang rencananya benar meramalkan: mock `GoogleDriveService` telanjang
+membuat setiap unggahan berakhir **500**, karena `UnggahBerkasKeDrive` melempar bila
+`uploadFile()` mengembalikan null. Mock-nya wajib mengembalikan nilai.
+
+---
+
 ## Aturan yang berlaku sepanjang rencana ini
 
 - Tes memakai `avidpedi_simapa_test` lewat `.env.testing`. **Jangan** jalankan suite penuh
