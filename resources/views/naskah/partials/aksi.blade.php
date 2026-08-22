@@ -53,15 +53,41 @@
                     @endif
                     <input type="text" name="nama_jurnal" class="form-control form-control-sm mb-2"
                            value="{{ old('nama_jurnal') }}" placeholder="Nama jurnal (otomatis masuk Direktori Jurnal)">
+
+                    <label class="form-label small fw-bold mb-1 mt-2">Tanggal submit</label>
+                    <input type="date" name="tgl_submit" class="form-control form-control-sm mb-2"
+                           value="{{ old('tgl_submit', now()->toDateString()) }}">
+
+                    {{-- Akun OJS berpasangan dengan kata sandinya. Dulu hanya akunnya yang
+                         punya kolom di sini, padahal backend sudah menyimpan keduanya
+                         (JurnalSubmissionService::aturan) — jadi sandinya cuma bisa diisi
+                         lewat modul Direktori Jurnal, layar yang berbeda dari tempat PJ
+                         benar-benar bekerja. Akun tanpa sandi tak bisa dipakai masuk. --}}
+                    <label class="form-label small fw-bold mb-1 mt-1">Akun OJS <span class="text-muted fw-normal">(opsional)</span></label>
                     <div class="row g-2">
                         <div class="col-6">
-                            <input type="date" name="tgl_submit" class="form-control form-control-sm"
-                                   value="{{ old('tgl_submit', now()->toDateString()) }}">
+                            <input type="text" name="ojs_akun" class="form-control form-control-sm"
+                                   value="{{ old('ojs_akun') }}" placeholder="Nama akun / email"
+                                   autocomplete="off">
                         </div>
                         <div class="col-6">
-                            <input type="text" name="ojs_akun" class="form-control form-control-sm"
-                                   value="{{ old('ojs_akun') }}" placeholder="Akun OJS (opsional)">
+                            <div class="input-group input-group-sm">
+                                {{-- autocomplete="new-password" menahan peramban mengisinya
+                                     dengan sandi SiMAPA milik PJ sendiri — ini kredensial
+                                     jurnal, bukan miliknya. --}}
+                                <input type="password" name="ojs_password" id="ojsPassword"
+                                       class="form-control form-control-sm"
+                                       placeholder="Kata sandi" autocomplete="new-password">
+                                <button class="btn btn-outline-secondary" type="button"
+                                        onclick="const i=document.getElementById('ojsPassword');
+                                                 i.type = i.type === 'password' ? 'text' : 'password';
+                                                 this.textContent = i.type === 'password' ? 'lihat' : 'tutup';">lihat</button>
+                            </div>
                         </div>
+                    </div>
+                    <div class="form-text">
+                        Disimpan terenkripsi dan hanya terbaca di Direktori Jurnal.
+                        Kosongkan bila tak ingin mengubah yang sudah tercatat.
                     </div>
                 </div>
             @endif

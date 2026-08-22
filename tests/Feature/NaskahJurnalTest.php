@@ -248,4 +248,77 @@ class NaskahJurnalTest extends TestCase
         $this->assertStringContainsString(route('title.show', $p->orderDetail->title_id), $isi,
             'Detail Naskah harus menautkan ke Direktori Judul.');
     }
+
+    // ─── kredensial OJS ───
+
+    /**
+     * Akun tanpa kata sandi tak bisa dipakai masuk. Backend sudah menyimpan keduanya
+     * sejak awal, tapi formulir aksinya hanya punya kolom akun — sandinya cuma bisa
+     * diisi lewat Direktori Jurnal, layar yang berbeda dari tempat PJ bekerja.
+     *
+     * @test
+     */
+    public function formulir_submit_meminta_akun_ojs_beserta_sandinya(): void
+    {
+        $isi = $this->actingAs($this->user('superadmin'))
+            ->get(route('naskah.show', $this->naskah('submit')->order_detail_id))
+            ->assertOk()->getContent();
+
+        $this->assertStringContainsString('name="ojs_akun"', $isi);
+        $this->assertStringContainsString('name="ojs_password"', $isi,
+            'Akun OJS tanpa kolom sandi tak ada gunanya.');
+    }
+
+    /** @test */
+    public function sandi_ojs_tersimpan_dan_terenkripsi_di_basis_data(): void
+    {
+        $p = $this->naskah('submit');
+
+        $this->actingAs($this->user('superadmin'))
+            ->post(route('naskah.selesaikan', $p->order_detail_id), [
+                'nama_jurnal'  => 'Jurnal Berkredensial',
+                'tgl_submit'   => '2026-08-22',
+                'ojs_akun'     => 'penulis@example.com',
+                'ojs_password' => 'RahasiaOJS123',
+            ])->assertRedirect();
+
+        $sub = JournalSubmission::first();
+        $this->assertSame('penulis@example.com', $sub->ojs_akun);
+        $this->assertSame('RahasiaOJS123', $sub->ojs_password,
+            'Dibaca lewat model harus kembali apa adanya.');
+
+        // Yang tersimpan di kolomnya TIDAK boleh berupa teks terang.
+        $mentah = \DB::table('tb_journal_submissions')->where('id', $sub->id)->value('ojs_password');
+        $this->assertNotSame('RahasiaOJS123', $mentah,
+            'Kredensial jurnal wajib terenkripsi di basis data, bukan teks terang.');
+    }
+
+    /**
+     * Sandi kosong berarti "jangan sentuh", bukan "hapus". Tanpa ini, menyelesaikan
+     * tahap berikutnya tanpa mengisi ulang sandi akan memusnahkan yang sudah tercatat.
+     *
+     * @test
+     */
+    public function sandi_kosong_tidak_menghapus_yang_sudah_tercatat(): void
+    {
+        $super = $this->user('superadmin');
+        $p     = $this->naskah('submit');
+
+        $this->actingAs($super)->post(route('naskah.selesaikan', $p->order_detail_id), [
+            'nama_jurnal'  => 'Jurnal Tetap',
+            'ojs_akun'     => 'akun@example.com',
+            'ojs_password' => 'SandiAwal',
+        ])->assertRedirect();
+
+        // Putaran revisi dilewati, lalu LoA diselesaikan tanpa menyentuh kredensial.
+        $p->refresh();
+        $this->actingAs($super)->post(route('naskah.selesaikan', $p->order_detail_id))->assertRedirect();
+
+        $p->refresh();
+        $this->actingAs($super)->post(route('naskah.selesaikan', $p->order_detail_id), [
+            'link_publish' => 'https://jurnal.example.com/artikel/9',
+        ])->assertRedirect();
+
+        $this->assertSame('SandiAwal', JournalSubmission::first()->ojs_password);
+    }
 }
