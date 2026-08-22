@@ -12,17 +12,25 @@
     Keduanya aman ditinggalkan karena updateInfo() memperlakukan kunci yang absen sebagai
     "jangan sentuh" — dulu tidak begitu, dan menyimpan dari sini akan memusnahkannya.
 --}}
+{{--
+    Kartu dan judulnya SENGAJA tak ada di sini: partial ini kini dibungkus komponen
+    <x-blok-atur> yang menyediakan kepala seragam (pegangan geser, pin, lipat). Menaruh
+    kartu sendiri di dalamnya menghasilkan kartu di dalam kartu — dua garis tepi, dua
+    lapis bantalan, dan dua judul yang mengatakan hal sama.
+
+    Gerbang `@if ($title)` juga pindah ke pemanggilnya, supaya blok tak pernah muncul
+    sebagai kepala kosong tanpa isi.
+--}}
 @if ($title)
-<div class="card mb-3"><div class="card-body">
-    <div class="d-flex justify-content-between align-items-center mb-2">
-        <h6 class="text-uppercase text-muted small fw-bold mb-0">Informasi Publikasi</h6>
-        @if ($canEditInfo)
+<div>
+    @if ($canEditInfo)
+        <div class="d-flex justify-content-end mb-2">
             <button type="button" class="btn btn-sm btn-outline-primary py-0"
                     data-bs-toggle="collapse" data-bs-target="#infoPublikasiNaskah">
                 Edit Informasi Publikasi
             </button>
-        @endif
-    </div>
+        </div>
+    @endif
 
     @if ($isKolab)
         <p class="text-muted small mb-2">Isian ini berlaku untuk seluruh judul, bukan hanya order ini.</p>
@@ -109,5 +117,5 @@
         </form>
     </div>
     @endif
-</div></div>
+</div>
 @endif
