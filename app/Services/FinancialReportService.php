@@ -74,7 +74,12 @@ class FinancialReportService
         $orders = Order::where('status', 'lunas')
             ->when($scopeUser, fn ($q) => $q->where('user_id', $scopeUser->id))
             ->with(['details', 'contact'])
-            ->orderByDesc('updated_at')
+            // Diurutkan dari tanggal UANG, bukan dari kapan barisnya terakhir disimpan.
+            // updated_at ikut tercap saat naskah terbit (OrderFulfillmentService
+            // menyimpan ordernya di momen itu), sehingga order yang baru TERBIT naik ke
+            // puncak laporan PELUNASAN.
+            ->withMax(['payments as tanggal_lunas' => fn ($q) => $q->income()], 'paid_at')
+            ->orderByDesc('tanggal_lunas')
             ->get()
             ->map(function ($o) {
                 $o->nilai         = (int) (optional($o->details)->cost_amount ?? 0);
@@ -84,15 +89,10 @@ class FinancialReportService
                 // `completed_at ?? updated_at` toh selalu jatuh ke updated_at, jadi ini
                 // mempertahankan perilaku yang selama ini benar-benar tampil.
                 //
-                // JANGAN dibaca sebagai "sudah lepas dari tanggal terbit". Yang hilang
-                // hanya ketergantungan EKSPLISIT. Sisanya masih bocor lewat updated_at:
-                // OrderFulfillmentService menyimpan ordernya tepat saat naskah mencapai
-                // publish/terbit, sehingga updated_at ikut tercap momen terbit — dan
-                // orderByDesc('updated_at') di atas menaikkan order yang baru terbit ke
-                // puncak laporan uang. Diketahui dan diterima untuk sementara.
-                // Perbaikan sebenarnya: tanggal lunas diturunkan dari `paid_at` payment
-                // yang disetujui — Kelompok Uang, bukan pekerjaan ini.
-                $o->tanggal_lunas = $o->updated_at;
+                // Kebocoran updated_at sudah ditutup: tanggalnya kini diturunkan dari
+                // paid_at pembayaran yang DISETUJUI (withMax + scope income di atas),
+                // jadi tak ada kolom uang yang berasal dari jejak penyimpanan baris.
+                $o->tanggal_lunas = $o->tanggal_lunas ? \Illuminate\Support\Carbon::parse($o->tanggal_lunas) : null;
                 return $o;
             });
 

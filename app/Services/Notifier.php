@@ -191,24 +191,44 @@ class Notifier
             'message'  => $task->title,
             'url'      => route('task.board'),
             'icon'     => 'check-square',
+            'email'    => true,
+            'aksi'     => 'Buka Papan Tugas',
         ]);
     }
 
-    public function deadlineReminder(Task $task): void
+    /**
+     * Pengingat tenggang bertahap.
+     *
+     * `mendekati` → `hari_ini` → `lewat`. Tahap yang terakhir dikirim disimpan di
+     * `tasks.deadline_stage`, jadi tiap tahap berbunyi tepat sekali meski perintahnya
+     * jalan tiap hari. Sebelumnya hanya ada satu pengingat, dan tugas yang tenggangnya
+     * benar-benar lewat justru tak pernah bersuara lagi.
+     */
+    public function deadlineReminder(Task $task, string $tahap = 'mendekati'): void
     {
         $task->loadMissing('user');
         if (! $task->user) {
             return;
         }
+
+        $judul = [
+            'mendekati' => 'Tugas mendekati tenggang',
+            'hari_ini'  => 'Tugas jatuh tempo hari ini',
+            'lewat'     => '⚠ Tugas LEWAT tenggang',
+        ][$tahap] ?? 'Tugas mendekati tenggang';
+
         $recipients = $this->roleUsers(['manager', 'superadmin', 'admin'], $task->user)
             ->push($task->user)->unique('id')->values();
 
         $this->send($recipients, [
             'category' => 'deadline',
-            'title'    => 'Tugas mendekati deadline',
-            'message'  => $task->title . ' • ' . ($task->due_date?->format('d M Y') ?? '?'),
+            'title'    => $judul,
+            'message'  => $task->title . ' • tenggang '
+                          . ($task->due_date?->translatedFormat('j M Y') ?? '?'),
             'url'      => route('task.board'),
-            'icon'     => 'clock',
+            'icon'     => $tahap === 'lewat' ? 'alert-triangle' : 'clock',
+            'email'    => true,
+            'aksi'     => 'Buka Papan Tugas',
         ]);
     }
 
@@ -225,6 +245,8 @@ class Notifier
                           . ($progress->sla_due_at ? ' • jatuh tempo ' . $progress->sla_due_at->translatedFormat('j M Y') : ''),
             'url'      => $this->naskahUrl($progress),
             'icon'     => 'user-check',
+            'email'    => true,
+            'aksi'     => 'Buka naskahnya',
         ]);
     }
 
@@ -293,21 +315,66 @@ class Notifier
      */
     public function naskahTahapBerubah(TitleProgress $progress, User $actor, string $from, string $to, bool $isCorrection = false): void
     {
-        $progress->loadMissing(['orderDetail', 'pj']);
+        $progress->loadMissing(['orderDetail', 'pj', 'pelaksana']);
+
+        $stages = $progress->getStages();
+        $mundur = array_search($to, $stages, true) < array_search($from, $stages, true);
 
         $recipients = $this->roleUsers(['superadmin'], $actor);
         if ($progress->pj && $progress->pj->id !== $actor->id) {
-            $recipients = $recipients->push($progress->pj)->unique('id')->values();
+            $recipients = $recipients->push($progress->pj);
         }
+        // Perpindahan mundur ditujukan kepada pelaksana — dialah yang harus mengerjakan
+        // ulang. Sebelum ini ia tak pernah dikabari sama sekali.
+        if ($mundur && $progress->pelaksana && $progress->pelaksana->id !== $actor->id) {
+            $recipients = $recipients->push($progress->pelaksana);
+        }
+        $recipients = $recipients->unique('id')->values();
+
+        $judul = match (true) {
+            $isCorrection => 'Koreksi tahap: ',
+            $mundur       => 'Naskah dikembalikan ke ',
+            default       => 'Naskah maju ke ',
+        };
 
         $this->send($recipients, [
             'category' => 'naskah',
-            'title'    => ($isCorrection ? 'Koreksi tahap: ' : 'Naskah maju ke ')
-                          . TitleProgress::labelFor($to),
+            'title'    => $judul . TitleProgress::labelFor($to),
             'message'  => $this->naskahLabel($progress) . ' • dari '
                           . TitleProgress::labelFor($from) . ' oleh ' . $actor->name,
             'url'      => $this->naskahUrl($progress),
-            'icon'     => $isCorrection ? 'rotate-ccw' : 'arrow-right-circle',
+            'icon'     => ($isCorrection || $mundur) ? 'rotate-ccw' : 'arrow-right-circle',
+            // Email HANYA untuk perpindahan mundur: naskah yang dikembalikan menuntut
+            // seseorang mengerjakannya ulang. Naskah yang maju cukup jadi kabar — satu
+            // naskah normal melewati tujuh tahap, dan tujuh email per naskah membuat
+            // orang menyaring habis seluruhnya, termasuk yang mendesak.
+            'email'    => $mundur,
+            'aksi'     => 'Lihat naskahnya',
+        ]);
+    }
+
+    /**
+     * Permintaan revisi ditujukan ke SATU orang: pelaksana yang harus mengerjakannya.
+     * Tanpa ini, "ditujukan untuk Pelaksana" cuma teks di layar yang tak pernah
+     * benar-benar sampai kepadanya.
+     */
+    public function naskahRevisiDiminta(\App\Models\ManuscriptRevision $putaran, User $actor): void
+    {
+        $putaran->loadMissing(['assignedTo', 'title']);
+
+        if (! $putaran->assignedTo || $putaran->assignedTo->id === $actor->id) {
+            return;
+        }
+
+        $this->send(collect([$putaran->assignedTo]), [
+            'category' => 'naskah',
+            'title'    => "Permintaan revisi putaran ke-{$putaran->round}",
+            'message'  => ($putaran->title?->title ?? 'Naskah') . ' • ' . $putaran->request_note
+                          . ' • diminta ' . $actor->name,
+            'url'      => route('naskah.pelacakan'),
+            'icon'     => 'edit-3',
+            'email'    => true,
+            'aksi'     => 'Lihat permintaannya',
         ]);
     }
 
@@ -456,6 +523,8 @@ class Notifier
                 $berkas->original_name, $berkas->slotLabel(), \Illuminate\Support\Str::limit($sebab, 120)),
             'url'      => route('title.show', $berkas->title_id),
             'icon'     => 'alert-triangle',
+            'email'    => true,
+            'aksi'     => 'Coba unggah ulang',
         ]);
     }
 
@@ -482,6 +551,30 @@ class Notifier
                 \Illuminate\Support\Str::limit($sebab, 160))),
             'url'      => $url ?? route('dashboard'),
             'icon'     => 'alert-octagon',
+        ]);
+    }
+
+    /**
+     * Invoice lewat jatuh tempo, ditandai otomatis tiap pagi.
+     *
+     * Penerimanya pemilik order (marketing) — dialah yang menagih. Sengaja BUKAN
+     * klien: mengirim email otomatis ke klien adalah keputusan bisnis yang belum
+     * diambil siapa pun.
+     */
+    public function invoiceJatuhTempo(\App\Models\Invoice $invoice): void
+    {
+        $invoice->loadMissing('order.user');
+        $pemilik = $invoice->order?->user;
+        if (! $pemilik) {
+            return;
+        }
+
+        $this->send(collect([$pemilik]), [
+            'category' => 'invoice',
+            'title'    => 'Invoice lewat jatuh tempo',
+            'message'  => $invoice->invoice_no . ' jatuh tempo ' . $invoice->due_at->format('d M Y'),
+            'url'      => route('invoice.show', $invoice->id),
+            'icon'     => 'alert-circle',
         ]);
     }
 

@@ -42,9 +42,20 @@ class TitleProgress extends Model
         'withdrawal_snapshot' => 'array',
     ];
 
+    /**
+     * Urutan tahap artikel. `revisi` duduk SESUDAH `submit` karena reviewer baru bisa
+     * meminta revisi setelah naskahnya masuk — sampai 2026-08-22 urutannya terbalik dan
+     * setiap artikel "melewati" revisi dalam perjalanan normalnya.
+     *
+     * Tahap ini boleh dilewati: tanpa permintaan revisi, tekan maju dan naskah lanjut
+     * ke LoA. Lihat docs/superpowers/specs/2026-08-22-revisi-setelah-submit-design.md.
+     *
+     * JANGAN salin urutan ini ke tempat lain — turunkan dari konstanta ini. Papan
+     * Pelacakan dulu menyimpan salinannya sendiri dan langsung basi begitu urutan berubah.
+     */
     const ARTICLE_STAGES = [
         'menunggu_proses', 'pembuatan', 'editing',
-        'revisi', 'submit', 'loa', 'publish',
+        'submit', 'revisi', 'loa', 'publish',
     ];
 
     const BOOK_STAGES = [

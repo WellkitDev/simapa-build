@@ -77,7 +77,7 @@ class NaskahDetailTest extends TestCase
             ->assertOk()->getContent();
 
         // Satu tombol maju, labelnya menyebut tahap sekarang DAN tahap berikutnya.
-        $this->assertSame(1, substr_count($isi, 'Selesaikan Editing → lanjut ke Revisi'));
+        $this->assertSame(1, substr_count($isi, 'Selesaikan Editing → lanjut ke Submit'));
         // Dropdown semua-tahap hanya boleh ada di form koreksi, yang admin tak lihat.
         $this->assertStringNotContainsString('name="status"', $isi);
     }
@@ -93,7 +93,7 @@ class NaskahDetailTest extends TestCase
             ->assertRedirect()
             ->assertSessionHas('success');
 
-        $this->assertSame('revisi', $p->fresh()->status);
+        $this->assertSame('submit', $p->fresh()->status);
     }
 
     /** @test */
@@ -248,7 +248,9 @@ class NaskahDetailTest extends TestCase
         $this->actingAs($this->user('admin', 'buku'))
             ->get(route('naskah.show', $p->order_detail_id))
             ->assertOk()
-            ->assertSee('Author (naskah dari siapa)')
+            // Judul kolom dipadatkan jadi "Author" supaya lebar berpindah ke kolom Aksi;
+            // yang dijaga tes ini adalah kolomnya ADA, bukan bunyi persisnya.
+            ->assertSee('<th>Author</th>', false)
             ->assertSee('Author belum dipetakan')
             ->assertSee('Petakan Author');
     }
@@ -551,7 +553,9 @@ class NaskahDetailTest extends TestCase
         $this->assertStringContainsString('Naskah Mandiri', $isi);
         $this->assertStringContainsString('Belum ditugaskan', $isi);
         // Bab mandiri menawarkan unggahan naskah author, BUKAN distribusi ke pelaksana.
-        $this->assertStringContainsString('Naskah dari Author', $isi);
+        // Labelnya dipadatkan jadi "⬆ Naskah" saat kolom Aksi dirapikan; keterangan di
+        // bawahnyalah yang kini menjelaskan asal naskahnya.
+        $this->assertStringContainsString('Naskah dikirim author sendiri', $isi);
     }
 
     /**

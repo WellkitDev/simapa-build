@@ -4,6 +4,7 @@
 namespace App\Services;
 
 use App\Models\ChapterProgress;
+use App\Models\ManuscriptRevision;
 use App\Models\OrderDetail;
 use App\Models\User;
 use App\Models\TitleProgress;
@@ -43,8 +44,81 @@ class TitleProgressService
 
         $this->assertLayoutUnlocked($progress, $next);
         $this->assertLinkTerbit($progress, $next);
+        $this->assertPutaranTerjawab($progress);
 
         return $this->applyGroup($progress, $next, $actor, $note, false, 'status_advanced');
+    }
+
+    /**
+     * Naskah tak boleh meninggalkan tahap Revisi selama masih ada putaran terbuka yang
+     * sudah punya permintaan tapi belum ada jawabannya.
+     *
+     * Pesannya menyebut nomor putaran supaya orang tahu yang mana — "tidak bisa maju"
+     * saja membuat orang menebak, lalu menyerah.
+     */
+    private function assertPutaranTerjawab(TitleProgress $progress): void
+    {
+        $title = $progress->orderDetail?->titleRef;
+        if ($title === null) {
+            return;
+        }
+
+        $penahan = app(ManuscriptRevisionService::class)->penahan($title, $progress->status);
+        if ($penahan === null) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'status' => "Putaran revisi ke-{$penahan->round} belum dijawab. "
+                        . 'Unggah hasil revisi, atau tutup putarannya dengan catatan.',
+        ]);
+    }
+
+    /**
+     * Pasangan tahap yang boleh dimundurkan lewat alur normal (bukan Koreksi).
+     *
+     * Sengaja daftar tertutup: "mundur satu tahap dari mana saja" butuh lantai pengaman
+     * di banyak tempat dan tak ada yang memintanya. Daftar ini juga yang menentukan
+     * kapan tombol "Kembalikan ke ..." muncul, sehingga tombol dan aturannya tak bisa
+     * berselisih — dan buku tak lagi bisa melompat ke Layout lewat tombol revisi.
+     */
+    public const MUNDUR_SAH = [
+        'loa'     => 'revisi',
+        'editing' => 'pembuatan',
+    ];
+
+    /**
+     * Mengembalikan naskah satu tahap ke belakang sebagai ALUR NORMAL — dicatat dengan
+     * is_correction = false supaya "Koreksi" tetap berarti "ada yang salah" dan tak
+     * tercampur dengan kerja harian PJ.
+     *
+     * @return int jumlah order sejudul yang ikut mundur
+     */
+    public function kembalikan(TitleProgress $progress, string $target, User $actor, string $note): int
+    {
+        $this->requirePermission($actor, 'naskah.advance');
+        $this->requireBidang($actor, $progress->bidang);
+
+        if (trim($note) === '') {
+            throw ValidationException::withMessages([
+                'note' => 'Alasan wajib diisi saat mengembalikan naskah.',
+            ]);
+        }
+
+        if ((self::MUNDUR_SAH[$progress->status] ?? null) !== $target) {
+            throw ValidationException::withMessages([
+                'status' => 'Naskah hanya bisa dikembalikan dari LoA ke Revisi, atau dari Editing ke Pembuatan.',
+            ]);
+        }
+
+        if ($progress->archived_at !== null || $progress->cancelled_at !== null
+            || TitleProgress::isFinal($progress->status)) {
+            throw ValidationException::withMessages([
+                'status' => 'Naskah yang sudah final, diarsipkan, atau dibatalkan hanya bisa dibuka lewat Koreksi superadmin.',
+            ]);
+        }
+
+        return $this->applyGroup($progress, $target, $actor, $note, false, 'status_returned', true);
     }
 
     /**
@@ -270,20 +344,25 @@ class TitleProgressService
         User $actor,
         ?string $note,
         bool $isCorrection,
-        string $event
+        string $event,
+        bool $bolehMundur = false
     ): int {
         $group     = $this->groupOf($progress);
         $stages    = $progress->getStages();
         $targetIdx = array_search($target, $stages, true);
         $changed   = [];
 
-        DB::transaction(function () use ($group, $stages, $target, $targetIdx, $actor, $note, $isCorrection, $event, &$changed) {
+        DB::transaction(function () use ($group, $stages, $target, $targetIdx, $actor, $note, $isCorrection, $event, $bolehMundur, &$changed) {
             foreach ($group as $p) {
                 $idx = array_search($p->status, $stages, true);
                 if ($p->status === $target) {
                     continue;
                 }
-                if (! $isCorrection && $idx !== false && $idx > $targetIdx) {
+                // Penjaga ini dulu mencampur dua pertanyaan: "apakah ini koreksi" dan
+                // "bolehkah bergerak mundur". Untuk perpindahan mundur SETIAP anggota
+                // punya $idx > $targetIdx, jadi tanpa $bolehMundur seluruh grup dilewati
+                // dan fungsinya mengembalikan 0 tanpa suara — gagal senyap.
+                if (! $isCorrection && ! $bolehMundur && $idx !== false && $idx > $targetIdx) {
                     continue; // sudah lebih maju dari target
                 }
 
@@ -304,6 +383,17 @@ class TitleProgressService
             }
         }
 
+        // Putaran di tahap yang baru saja DITINGGALKAN ditutup wajar — close_note
+        // dibiarkan null, dan kosong-atau-tidak itulah yang membedakannya dari
+        // penutupan paksa lewat pintu darurat.
+        if ($changed !== []) {
+            [$pertama, $dari] = $changed[0];
+            $title = $pertama->orderDetail?->titleRef;
+            if ($title && in_array($dari, ManuscriptRevision::STAGES, true)) {
+                app(ManuscriptRevisionService::class)->tutupOtomatis($title, $dari, $actor);
+            }
+        }
+
         return count($changed);
     }
 
@@ -313,17 +403,29 @@ class TitleProgressService
      */
     private function syncArchiveFlag(TitleProgress $progress, string $target, User $actor): void
     {
+        /*
+         | `archived_at` TIDAK lagi disetel saat tahap jadi final.
+         |
+         | Dulu kolom ini berarti "sudah terbit", padahal namanya menjanjikan "sudah
+         | diarsipkan" — dua hal berbeda. Akibatnya naskah lenyap dari papan Pelacakan
+         | pada detik ia terbit, sebelum ada yang mengajukan arsipnya, apalagi
+         | menyetujuinya. Di produksi 24 naskah menghilang begitu, dan tb_title_archives
+         | KOSONG: tak satu pun pengajuan pernah dibuat.
+         |
+         | Kini yang menyetelnya hanya TitleArchivalService::approve(). Sampai arsipnya
+         | disetujui, naskah terbit tetap duduk di papan dengan lencana keadaan arsipnya
+         | — di situlah orang melihatnya dan teringat mengurusnya.
+         */
         if (TitleProgress::isFinal($target)) {
-            if ($progress->archived_at === null) {
-                $progress->update(['archived_at' => now()]);
-                $this->log($progress, 'diarsipkan', TitleProgress::labelFor($target), 'Arsip', $actor);
-            }
-
             return;
         }
 
+        // Mundur dari tahap final mengembalikan naskah ke papan, termasuk yang arsipnya
+        // sudah disetujui — koreksi superadmin memang berhak membatalkan itu.
         if ($progress->archived_at !== null) {
             $progress->update(['archived_at' => null]);
+            $this->log($progress, 'diarsipkan', 'Arsip', TitleProgress::labelFor($target), $actor,
+                'Dikembalikan ke papan karena tahapnya dimundurkan.');
         }
     }
 

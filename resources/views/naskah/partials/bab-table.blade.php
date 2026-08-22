@@ -100,13 +100,17 @@
         <table class="table table-sm align-middle mb-0">
             <thead>
                 <tr class="text-uppercase text-muted small">
+                    {{-- Judul kolom dipadatkan supaya lebar berpindah ke Aksi, yang untuk
+                         bab bernaskah mandiri harus memuat input berkas DAN tombol maju
+                         sekaligus. "Judul Bab" dan "Author (naskah dari siapa)" memakan
+                         ruang yang tak sebanding dengan isinya. --}}
                     <th style="width:40px">No</th>
-                    <th>Judul Bab</th>
-                    <th>Author (naskah dari siapa)</th>
-                    <th>Pelaksana</th>
+                    <th>Bab</th>
+                    <th>Author</th>
+                    <th style="width:210px">Pelaksana</th>
                     <th>Status</th>
                     <th>Lama</th>
-                    <th style="width:230px">Aksi</th>
+                    <th style="width:290px">Aksi</th>
                 </tr>
             </thead>
             <tbody>
@@ -132,16 +136,60 @@
                             @endif
                         </td>
                         <td>
+                            {{--
+                                Penugasan pelaksana hidup DI KOLOM INI, bukan di kolom Aksi.
+
+                                Dua sebab. Pertama, di sinilah tempatnya secara makna —
+                                kolom Aksi untuk gerakan alur kerja (unggah, majukan, ambil).
+                                Kedua, dan ini yang jadi bug: formulir lama hanya dirender
+                                saat `status === 'menunggu'`, padahal memasang pelaksana
+                                langsung memindahkan bab ke `pembuatan`. Begitu terpasang,
+                                formulirnya lenyap dan pelaksana bab TAK BISA DIUBAH LAGI —
+                                bukan karena dilarang (AssignmentService::distribute()
+                                mengizinkannya), melainkan karena UI tak pernah menawarkannya.
+                            --}}
                             @if ($sumber === 'mandiri')
                                 {{-- Naskahnya dikirim author sendiri (dari order bab ini),
                                      jadi memang tak akan pernah ada pelaksana. --}}
                                 <span class="badge bg-info-subtle text-info border">Naskah Mandiri</span>
-                            @elseif ($cp?->pelaksana)
-                                {{ $cp->pelaksana->name }}
-                            @elseif ($sumber === 'dibuatkan')
-                                <span class="text-muted">Belum ditugaskan</span>
+                            @elseif (! $cp || ! $adaAuthor)
+                                <span class="text-muted small">—</span>
                             @else
-                                <span class="text-warning">Bab belum dipesan</span>
+                                @if ($cp->pelaksana)
+                                    <div class="d-flex align-items-center gap-1">
+                                        <span>{{ $cp->pelaksana->name }}</span>
+                                        @if ($izin['assign'] && $cp->status !== 'selesai')
+                                            <button type="button" class="btn btn-link btn-sm p-0 text-muted"
+                                                    data-bs-toggle="collapse"
+                                                    data-bs-target="#gantiPelaksana{{ $cp->id }}"
+                                                    title="Ganti pelaksana bab ini">ubah</button>
+                                        @endif
+                                    </div>
+                                @elseif ($sumber === 'dibuatkan')
+                                    <span class="text-muted">Belum ditugaskan</span>
+                                @else
+                                    <span class="text-warning">Bab belum dipesan</span>
+                                @endif
+
+                                @if ($izin['assign'] && $cp->status !== 'selesai')
+                                    <div class="{{ $cp->pelaksana ? 'collapse' : '' }} mt-1"
+                                         id="gantiPelaksana{{ $cp->id }}">
+                                        <form method="POST" action="{{ route('naskah.bab.distribusi', $cp->id) }}"
+                                              class="d-flex gap-1">
+                                            @csrf
+                                            <select name="pelaksana_user_id" class="form-select form-select-sm" required>
+                                                <option value="">— pelaksana —</option>
+                                                @foreach ($pelaksanaOptions as $u)
+                                                    <option value="{{ $u->id }}"
+                                                        @selected((int) $cp->pelaksana_user_id === (int) $u->id)>{{ $u->name }}</option>
+                                                @endforeach
+                                            </select>
+                                            <button class="btn btn-sm btn-outline-primary text-nowrap">
+                                                {{ $cp->pelaksana ? 'Ganti' : 'Tugaskan' }}
+                                            </button>
+                                        </form>
+                                    </div>
+                                @endif
                             @endif
                         </td>
                         <td>
@@ -173,43 +221,81 @@
                                     <span class="text-muted small">Menunggu pemetaan author</span>
                                 @endif
                             @elseif ($sumber === 'mandiri' && $cp->status !== 'selesai')
-                                {{-- Bab bernaskah mandiri: naskahnya datang dari author, jadi
-                                     yang dibutuhkan unggahan — bukan pelaksana. Unggahan dan
-                                     tombol maju TIDAK saling meniadakan: rantai @elseif yang
-                                     lama menelan tombol maju, sehingga bab mandiri tak punya
-                                     jalan ke Selesai sama sekali. --}}
-                                @if ($izin['upload'])
-                                    <form method="POST" action="{{ route('naskah.bab.file', $cp->id) }}"
-                                          enctype="multipart/form-data" class="d-flex gap-1">
-                                        @csrf
-                                        <input type="hidden" name="slot" value="masuk">
-                                        <input type="file" name="file" class="form-control form-control-sm"
-                                               accept=".pdf,.doc,.docx,.zip" required>
-                                        <button class="btn btn-sm btn-primary text-nowrap">⬆ Naskah dari Author</button>
-                                    </form>
-                                @endif
-                                @if ($izin['advance'] && $majuKe)
-                                    <form method="POST" action="{{ route('naskah.bab.selesaikan', $cp->id) }}" class="mt-1">
-                                        @csrf
-                                        <button class="btn btn-sm {{ $majuKe === 'selesai' ? 'btn-primary' : 'btn-outline-primary' }} text-nowrap">
-                                            {{ $majuKe === 'selesai' ? '✓ Selesaikan Bab' : '→ Naskah sudah ada, mulai Editing' }}
+                                {{--
+                                    Bab bernaskah mandiri: naskahnya datang dari author, jadi
+                                    yang dibutuhkan unggahan — bukan pelaksana.
+
+                                    SATU aksi utama pada satu waktu. Versi sebelumnya selalu
+                                    menumpuk formulir unggah DAN tombol maju sekaligus, karena
+                                    cabang ini melayani dua keadaan (menunggu dan editing)
+                                    dengan tampilan yang sama. Dua kotak berjejal di sel
+                                    selebar 290px, dan pembacanya harus menebak mana yang
+                                    dimaksudkan untuknya.
+
+                                    Keadaannya sebenarnya sederhana: selama naskahnya belum
+                                    masuk, satu-satunya yang berarti adalah mengunggah —
+                                    memajukan bab tanpa naskah tak berarti apa-apa. Begitu
+                                    naskahnya ada, giliran tombol maju yang jadi utama, dan
+                                    unggahan turun jadi tautan kecil untuk menggantinya.
+                                --}}
+                                @php
+                                    // 'gagal' tidak dihitung: berkasnya memang tak sampai.
+                                    $naskahMasuk = $b->manuscriptFiles
+                                        ->where('slot', 'masuk')
+                                        ->whereIn('status', ['selesai', 'antre'])
+                                        ->isNotEmpty();
+                                @endphp
+
+                                @if (! $naskahMasuk)
+                                    @if ($izin['upload'])
+                                        <form method="POST" action="{{ route('naskah.bab.file', $cp->id) }}"
+                                              enctype="multipart/form-data" class="d-flex gap-1">
+                                            @csrf
+                                            <input type="hidden" name="slot" value="masuk">
+                                            <input type="file" name="file" class="form-control form-control-sm"
+                                                   accept=".pdf,.doc,.docx,.zip" required>
+                                            <button class="btn btn-sm btn-primary text-nowrap">⬆ Naskah</button>
+                                        </form>
+                                        <div class="form-text mt-1">Naskah dikirim author sendiri.</div>
+                                    @else
+                                        <span class="text-muted small">Menunggu naskah dari author</span>
+                                    @endif
+                                @else
+                                    @if ($izin['advance'] && $majuKe)
+                                        <form method="POST" action="{{ route('naskah.bab.selesaikan', $cp->id) }}">
+                                            @csrf
+                                            <button class="btn btn-sm {{ $majuKe === 'selesai' ? 'btn-primary' : 'btn-outline-primary' }} text-nowrap">
+                                                {{ $majuKe === 'selesai'
+                                                    ? '✓ Selesaikan Bab'
+                                                    : '→ Majukan ke ' . \App\Models\ChapterProgress::labelFor($majuKe) }}
+                                            </button>
+                                        </form>
+                                    @endif
+                                    @if ($izin['upload'])
+                                        {{-- Turun jadi tautan: mengganti naskah itu perkecualian,
+                                             bukan pekerjaan sehari-hari. --}}
+                                        <button type="button" class="btn btn-link btn-sm p-0 text-muted mt-1"
+                                                data-bs-toggle="collapse" data-bs-target="#gantiNaskah{{ $cp->id }}">
+                                            ganti naskah
                                         </button>
-                                    </form>
+                                        <div class="collapse mt-1" id="gantiNaskah{{ $cp->id }}">
+                                            <form method="POST" action="{{ route('naskah.bab.file', $cp->id) }}"
+                                                  enctype="multipart/form-data" class="d-flex gap-1">
+                                                @csrf
+                                                <input type="hidden" name="slot" value="masuk">
+                                                <input type="file" name="file" class="form-control form-control-sm"
+                                                       accept=".pdf,.doc,.docx,.zip" required>
+                                                <button class="btn btn-sm btn-outline-primary text-nowrap">⬆</button>
+                                            </form>
+                                        </div>
+                                    @endif
+                                    @if (! $izin['advance'] && ! $izin['upload'])
+                                        <span class="text-muted small">Naskah sudah masuk</span>
+                                    @endif
                                 @endif
-                                @if (! $izin['upload'] && ! $izin['advance'])
-                                    <span class="text-muted small">Menunggu naskah dari author</span>
-                                @endif
-                            @elseif ($cp->status === 'menunggu' && $izin['assign'])
-                                <form method="POST" action="{{ route('naskah.bab.distribusi', $cp->id) }}" class="d-flex gap-1">
-                                    @csrf
-                                    <select name="pelaksana_user_id" class="form-select form-select-sm" required>
-                                        <option value="">— pelaksana —</option>
-                                        @foreach ($pelaksanaOptions as $u)
-                                            <option value="{{ $u->id }}">{{ $u->name }}</option>
-                                        @endforeach
-                                    </select>
-                                    <button class="btn btn-sm btn-outline-primary">Distribusikan</button>
-                                </form>
+                            {{-- Penugasan pelaksana PINDAH ke kolom Pelaksana. Kolom ini
+                                 hanya untuk gerakan alur kerja, dan dua pintu ke aksi yang
+                                 sama hanya membuat orang bertanya mana yang benar. --}}
                             @elseif ($cp->pelaksana_user_id === null && $cp->status !== 'selesai' && $izin['claim'])
                                 {{-- Model campuran: admin boleh menugaskan, produksi boleh
                                      mengambil sendiri. Tanpa tombol ini produksi tak punya
@@ -229,12 +315,28 @@
                                            accept=".pdf,.doc,.docx,.zip" required>
                                     <button class="btn btn-sm btn-primary text-nowrap">⬆ Upload Naskah</button>
                                 </form>
-                            @elseif ($cp->status !== 'selesai' && $izin['advance'])
+                            @elseif ($cp->status !== 'selesai' && $izin['advance'] && $majuKe)
+                                {{-- Label diturunkan dari tahap TUJUAN, bukan dipatok
+                                     "Selesaikan Bab". CHAPTER_STAGES = menunggu →
+                                     pembuatan → editing → selesai, jadi tombol ini sering
+                                     bukan menyelesaikan apa pun — ia memajukan satu
+                                     langkah. Cabang bab mandiri di atas sudah jujur soal
+                                     ini sejak awal; cabang inilah yang tertinggal. --}}
                                 <form method="POST" action="{{ route('naskah.bab.selesaikan', $cp->id) }}">
                                     @csrf
-                                    <button class="btn btn-sm btn-primary">✓ Selesaikan Bab</button>
+                                    <button class="btn btn-sm {{ $majuKe === 'selesai' ? 'btn-primary' : 'btn-outline-primary' }} text-nowrap">
+                                        {{ $majuKe === 'selesai'
+                                            ? '✓ Selesaikan Bab'
+                                            : '→ Majukan ke ' . \App\Models\ChapterProgress::labelFor($majuKe) }}
+                                    </button>
                                 </form>
-                            @elseif ($izin['upload'])
+                            {{-- Berkas final bab hanya boleh diunggah PJ (yang bertanggung
+                                 jawab atas naskahnya) dan pelaksana bab ini sendiri.
+                                 Sebelumnya cukup `$izin['upload']`, yang terbuka untuk
+                                 SEMUA role produksi — jadi siapa pun bisa menimpa berkas
+                                 bab milik orang lain, dan tak ada jejak siapa yang
+                                 seharusnya bertanggung jawab atasnya. --}}
+                            @elseif ($izin['upload'] && ($izin['advance'] || (int) $cp->pelaksana_user_id === (int) auth()->id()))
                                 <form method="POST" action="{{ route('naskah.bab.file', $cp->id) }}"
                                       enctype="multipart/form-data" class="d-flex gap-1">
                                     @csrf
@@ -250,9 +352,21 @@
                             @if ($b->manuscriptFiles->isNotEmpty())
                                 <div class="small mt-1">
                                     @foreach ($b->manuscriptFiles as $f)
-                                        <a href="{{ $f->drive_url }}" target="_blank" rel="noopener">
-                                            {{ $f->slotLabel() }} v{{ $f->version }}
-                                        </a>@if (! $loop->last) · @endif
+                                        {{-- Hanya berkas yang benar-benar mendarat yang
+                                             ditautkan. Yang masih antre belum punya
+                                             drive_file_id, dan tautannya cuma memuat ulang
+                                             halaman yang sama. --}}
+                                        @if ($f->status === 'selesai')
+                                            <a href="{{ route('naskah.berkas', $f->id) }}" target="_blank" rel="noopener">
+                                                {{ $f->slotLabel() }} v{{ $f->version }}
+                                            </a>
+                                        @else
+                                            <span class="text-muted">
+                                                {{ $f->slotLabel() }} v{{ $f->version }}
+                                                ({{ $f->status === 'antre' ? 'antre' : 'gagal' }})
+                                            </span>
+                                        @endif
+                                        @if (! $loop->last) · @endif
                                     @endforeach
                                 </div>
                             @endif

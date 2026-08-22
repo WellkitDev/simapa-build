@@ -167,7 +167,7 @@ class NaskahLayarTest extends TestCase
         $this->actingAs($admin)->get(route('naskah.show', $p->order_detail_id))
             ->assertOk()
             ->assertSee('ORD-2408-021')
-            ->assertSee('Selesaikan Editing → lanjut ke Revisi')
+            ->assertSee('Selesaikan Editing → lanjut ke Submit')
             ->assertSee('Riwayat (semua aksi tercatat)');
     }
 

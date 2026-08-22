@@ -74,7 +74,10 @@
                     @csrf @method('PUT')
                     @foreach($title->chapters as $ch)
                         <div class="mb-2">
-                            <label class="form-label small mb-1">{{ $ch->urutan }}. {{ $ch->judul }}</label>
+                            {{-- `urutan` TIDAK ditampilkan lagi sebagai awalan: `judul`
+                                 sudah menyebut "Bab N", jadi "1. Bab 1" hanya mengulang
+                                 — dan saat data lamanya 0-based, ia menulis "0. Bab 1". --}}
+                            <label class="form-label small mb-1">{{ $ch->judul }}</label>
                             <select name="chapter_authors[{{ $ch->id }}][]" multiple class="form-select form-select-sm select2-authors" data-tags="true">
                                 @foreach($allAuthors as $a)
                                     <option value="{{ $a->id }}" {{ $ch->authors->contains($a->id) ? 'selected' : '' }}>{{ $a->name }}</option>

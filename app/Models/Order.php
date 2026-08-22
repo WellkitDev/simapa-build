@@ -155,6 +155,35 @@ class Order extends Model
              - (int) $this->payments()->refund()->sum('amount');
     }
 
+    /**
+     * Hitung ulang keadaan UANG order dari pembayaran yang sudah disetujui.
+     *
+     * Ini satu-satunya tempat yang boleh menulis 'lunas'. Sebelumnya store()
+     * menuliskannya harfiah begitu payment_type kebetulan bernama 'lunas' — sehingga
+     * DP Rp 500.000 atas order Rp 5.000.000 yang salah ketik tipenya ikut melunasi,
+     * dan uang yang approval-nya masih menggantung sudah menggerakkan Piutang,
+     * laporan Order Lunas, kelayakan arsip, dan target komisi.
+     *
+     * Statusnya kini fungsi murni: paidNet() (yang hanya menghitung payment berstatus
+     * 'paid', dan 'paid' baru ditulis saat approve()) dibanding cost_amount.
+     *
+     * Order yang dibatalkan tak pernah dihitung ulang: 'dibatalkan' adalah keputusan
+     * manusia, bukan kesimpulan dari angka.
+     */
+    public function recalcStatus(): void
+    {
+        if ($this->isCancelled()) {
+            return;
+        }
+
+        $biaya = (int) (optional($this->details)->cost_amount ?? 0);
+
+        // cost_amount 0 berarti harganya belum ditetapkan — bukan "gratis dan lunas".
+        $lunas = $biaya > 0 && $this->paidNet() >= $biaya;
+
+        $this->update(['status' => $lunas ? 'lunas' : 'pending']);
+    }
+
     /** Versi SQL dari paidNet() untuk filter di query (harus setara — dikunci PaidNetTest). */
     public const PAID_NET_SQL = "(SELECT COALESCE(SUM(CASE WHEN payment_type = 'refund' THEN -amount ELSE amount END), 0) FROM tb_payments WHERE tb_payments.order_id = tb_orders.id AND tb_payments.status = 'paid')";
 

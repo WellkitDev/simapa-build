@@ -27,17 +27,31 @@
 
 @include('naskah.partials.detail-header', compact('progress', 'grup', 'd', 'kode', 'buku', 'isKolab', 'jumlahAuthorBab', 'naskahMandiri', 'jenisNaskahGrup'))
 
-@include('naskah.partials.stepper', compact('progress', 'stages', 'isKolab', 'ringkasan'))
+@include('naskah.partials.stepper', compact('progress', 'stages', 'isKolab', 'ringkasan', 'rincian', 'izin'))
 
 @if ($isKolab)
     @include('naskah.partials.bab-table', compact('bab', 'ringkasan', 'izin', 'pelaksanaOptions', 'progress', 'naskahMandiri'))
 @endif
 
 <div class="row g-3 mt-1">
+    {{--
+        Kolom kiri = konteks yang dibaca. Tiap bloknya bisa disusun ulang, dilipat, dan
+        ditempelkan menurut cara kerja masing-masing orang; preferensinya di peramban.
+
+        Kolom kanan = pekerjaan yang dilakukan. SENGAJA tidak bisa disusun ulang:
+        urutannya bermakna — blok opsional yang menahan laju harus terbaca sebelum
+        tombol Aksi yang tertahan, dan membiarkannya digeser berarti pengguna bisa
+        merusak sebab-akibat itu sendiri.
+    --}}
     <div class="col-lg-5">
-        {{-- Informasi & penanggung jawab --}}
-        <div class="card mb-3"><div class="card-body">
-            <h6 class="text-uppercase text-muted small fw-bold mb-3">Informasi &amp; Penanggung Jawab</h6>
+        <div class="d-flex justify-content-end mb-2">
+            <button type="button" id="blokAturReset" class="btn btn-sm btn-link text-muted p-0 small">
+                Kembalikan susunan bawaan
+            </button>
+        </div>
+
+        <div id="blokAturKiri">
+        <x-blok-atur id="informasi" judul="Informasi &amp; Penanggung Jawab">
             @php
                 $baris = [
                     // Kartu ini memang tentang ORDER yang sedang dibuka. Bila order
@@ -45,9 +59,19 @@
                     // terbaca sebagai sifat seluruh judul.
                     'Jenis naskah'            => ($d?->naskahTypeLabel() ?? '—')
                         . ($jenisNaskahGrup === 'campuran' ? ' (order ini)' : ''),
-                    'Penanggung Jawab (PJ)'   => $progress->pj?->name ?? 'Belum ditentukan',
-                    'Pelaksana pembuatan'     => $progress->pelaksana?->name
-                        ?? ($naskahMandiri ? 'Tidak ada — naskah dikirim author' : 'Belum ditentukan'),
+                    // PJ wajib diisi manual dan berlaku untuk SEMUA jenis naskah — ia yang
+                    // menerima notifikasi tahap, ditagih saat lewat SLA, dan namanya
+                    // tercetak di laporan arsip. Kekosongannya ditandai, bukan didiamkan.
+                    'Penanggung Jawab (PJ)'   => $progress->pj?->name ?? '⚠ Belum ditetapkan',
+                    // Buku kolaborasi dikerjakan PER BAB, dan pelaksananya tersimpan di
+                    // tb_chapter_progress — tabel yang berbeda dari yang dibaca baris ini.
+                    // Menampilkan satu nama level order di sini berarti mengklaim sesuatu
+                    // yang bisa bertentangan dengan tabel bab tepat di bawahnya.
+                    'Pelaksana pembuatan'     => $isKolab
+                        ? 'Per bab — ' . ($bab->map->progress->filter()->pluck('pelaksana_user_id')->filter()->unique()->count() ?: 'belum ada')
+                          . ' pelaksana · lihat tabel bab'
+                        : ($progress->pelaksana?->name
+                            ?? ($naskahMandiri ? 'Tidak ada — naskah dikirim author' : 'Belum ditentukan')),
                     'Bidang'                  => $progress->bidang ? ucfirst($progress->bidang) : '—',
                     'Target ' . ($buku ? 'terbit' : 'publish')
                                               => $progress->target_date?->translatedFormat('j M Y') ?? 'Belum diset',
@@ -77,7 +101,7 @@
                     {{ $progress->cancel_reason ?? 'tanpa alasan tercatat' }}
                 </div>
             @endif
-        </div></div>
+        </x-blok-atur>
 
         {{-- Jurnal (artikel saja) --}}
         @if (! $buku)
@@ -85,13 +109,12 @@
                 $judulRef = $d?->titleRef;
                 $sub      = $judulRef?->journalSubmissions()->orderByDesc('id')->first();
             @endphp
-            <div class="card mb-3"><div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h6 class="text-uppercase text-muted small fw-bold mb-0">Jurnal</h6>
-                    @if ($judulRef)
+            <x-blok-atur id="jurnal" judul="Jurnal">
+                @if ($judulRef)
+                    <div class="mb-2">
                         <a href="{{ route('title.show', $judulRef->id) }}" class="btn btn-xs btn-outline-secondary">Direktori Judul</a>
-                    @endif
-                </div>
+                    </div>
+                @endif
 
                 @if ($sub)
                     <div class="d-flex justify-content-between border-bottom border-dashed py-2 small">
@@ -129,23 +152,39 @@
                         Catatan jurnal terbentuk saat tahap <strong>Submit</strong> diselesaikan.
                     </p>
                 @endif
-            </div></div>
+            </x-blok-atur>
         @endif
 
-        {{-- Brief dari marketing --}}
-        <div class="card mb-3"><div class="card-body">
-            <h6 class="text-uppercase text-muted small fw-bold mb-2">Brief dari Marketing</h6>
+        <x-blok-atur id="brief" judul="Brief dari Marketing">
             <p class="small text-muted mb-0">{{ $d?->order?->note ?: 'Belum ada brief dari marketing.' }}</p>
-        </div></div>
+        </x-blok-atur>
 
-        @include('naskah.partials.informasi-publikasi', compact('title', 'canEditInfo', 'progress', 'next', 'buku', 'isKolab'))
+        @if ($title)
+            <x-blok-atur id="info-publikasi" judul="Informasi Publikasi">
+                @include('naskah.partials.informasi-publikasi', compact('title', 'canEditInfo', 'progress', 'next', 'buku', 'isKolab'))
+            </x-blok-atur>
+        @endif
+        </div>
 
-        @include('naskah.partials.file-naskah', compact('progress', 'berkas', 'izin', 'isKolab', 'buku'))
+        @include('naskah.partials.blok-atur-aset')
     </div>
 
     <div class="col-lg-7">
-        @include('naskah.partials.aksi', compact('progress', 'grup', 'stages', 'next', 'izin', 'pelaksanaOptions', 'adminOptions', 'buku'))
-        @include('naskah.partials.riwayat-naskah', ['logs' => $progress->logs->sortByDesc('created_at')])
+        {{-- Blok opsional: hanya muncul bila naskah ini memang punya putaran perbaikan.
+             Letaknya TEPAT DI ATAS Aksi karena kartu inilah yang menahan tombol
+             "Selesaikan tahap" di bawahnya; saat dipisahkan, pesan penolakan muncul di
+             satu ujung layar dan tempat menjawabnya di ujung yang lain. --}}
+        @include('naskah.partials.revisi', compact('progress', 'putaran', 'izin'))
+
+        @include('naskah.partials.aksi', compact('progress', 'grup', 'stages', 'next', 'izin', 'pelaksanaOptions', 'adminOptions', 'buku', 'isKolab'))
+
+        @include('naskah.partials.file-naskah', compact('progress', 'berkas', 'izin', 'isKolab', 'buku'))
+
+        {{-- Riwayat digabung dari SELURUH order sejudul, bukan hanya order yang sedang
+             dibuka. Berkas dan putaran perbaikan milik JUDUL dan dicatat sekali saja;
+             tanpa penggabungan, membuka order kedua sebuah buku menyembunyikan separuh
+             sejarahnya — sementara kartunya berjanji "semua aksi tercatat". --}}
+        @include('naskah.partials.riwayat-naskah', ['logs' => $riwayat])
     </div>
 </div>
 

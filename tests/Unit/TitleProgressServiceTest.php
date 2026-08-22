@@ -179,7 +179,7 @@ class TitleProgressServiceTest extends TestCase
         $p = $this->naskah('editing');
 
         $this->assertSame(1, $this->svc->advance($p, $this->user('admin')));
-        $this->assertEquals('revisi', $p->fresh()->status); // ARTICLE_STAGES: editing → revisi
+        $this->assertEquals('submit', $p->fresh()->status); // ARTICLE_STAGES: editing → submit
     }
 
     /** @test */
@@ -208,7 +208,21 @@ class TitleProgressServiceTest extends TestCase
     }
 
     /** @test */
-    public function advance_ke_tahap_final_memindahkan_naskah_ke_arsip(): void
+    /**
+     * DIUBAH 2026-08-23: mencapai tahap final TIDAK lagi mengarsipkan naskah.
+     *
+     * `archived_at` dulu disetel begitu tahap jadi final, padahal namanya menjanjikan
+     * "sudah diarsipkan" — dua hal berbeda. Akibatnya naskah lenyap dari papan pada
+     * detik ia terbit, sebelum ada yang mengajukan arsipnya. Di produksi 24 naskah
+     * menghilang begitu dan tb_title_archives KOSONG: modulnya tak pernah dipakai
+     * karena pintu masuknya sudah hilang lebih dulu.
+     *
+     * Kini yang mengarsipkan hanya TitleArchivalService::approve(). Perpindahan ke
+     * arsip diuji di ArsipTetapDiPapanTest.
+     *
+     * @test
+     */
+    public function advance_ke_tahap_final_membiarkan_naskah_di_papan(): void
     {
         $p = $this->naskah('loa'); // ARTICLE_STAGES: loa → publish (final)
 
@@ -216,10 +230,10 @@ class TitleProgressServiceTest extends TestCase
 
         $p->refresh();
         $this->assertEquals('publish', $p->status);
-        $this->assertNotNull($p->archived_at, 'Naskah selesai harus pindah ke arsip, bukan hilang.');
-        $this->assertDatabaseHas('tb_title_progress_logs', [
-            'title_progress_id' => $p->id, 'event' => 'diarsipkan',
-        ]);
+        $this->assertNull($p->archived_at,
+            'Terbit bukan berarti terarsip — arsipnya belum diajukan siapa pun.');
+        $this->assertSame(1, TitleProgress::active()->count(),
+            'Naskah terbit harus tetap terlihat sampai arsipnya disetujui.');
     }
 
     /** @test */
@@ -232,7 +246,7 @@ class TitleProgressServiceTest extends TestCase
         $group = TitleProgress::whereHas('orderDetail',
             fn ($q) => $q->where('group_key', $p->orderDetail->group_key))->get();
         foreach ($group as $one) {
-            $this->assertEquals('revisi', $one->fresh()->status);
+            $this->assertEquals('submit', $one->fresh()->status);
         }
     }
 

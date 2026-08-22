@@ -33,7 +33,9 @@ class DocChecklistService
             ];
             $file = $item['file'] ?? null;
             if ($file) {
-                $attrs['file_url']  = $this->drive->uploadFile($file, null, false)['url'] ?? null;
+                $folder = app(DriveJudulFolderService::class)
+                    ->folderKategori($title, DriveJudulFolderService::KELENGKAPAN);
+                $attrs['file_url']  = $this->drive->uploadFile($file, $folder, false)['url'] ?? null;
                 $attrs['file_name'] = $file->getClientOriginalName();
             }
             // Tanpa file baru: file_url/file_name tak diikutkan → nilai lama dipertahankan.

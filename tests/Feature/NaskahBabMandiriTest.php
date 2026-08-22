@@ -133,17 +133,42 @@ class NaskahBabMandiriTest extends TestCase
             'Bab dibuatkan tetap butuh pelaksana; tidak boleh ikut maju.');
     }
 
-    /** @test */
-    public function baris_bab_mandiri_menawarkan_unggahan_dan_tombol_maju(): void
+    /**
+     * Bab mandiri HARUS punya jalan ke Selesai — dulu rantai `@elseif` menelan tombol
+     * majunya sehingga tak ada jalan sama sekali. Itu yang dijaga tes ini.
+     *
+     * Cara menampilkannya berubah 2026-08-22: kini SATU aksi utama per keadaan, bukan
+     * formulir unggah dan tombol maju yang selalu bertumpuk di sel sempit. Selama naskah
+     * belum masuk yang berarti hanya mengunggah; sesudah masuk, giliran tombol maju —
+     * dan mengganti naskah turun jadi tautan.
+     *
+     * @test
+     */
+    public function baris_bab_mandiri_selalu_punya_jalan_maju(): void
     {
         $book = $this->buku([1 => ['mandiri', 'editing'], 2 => ['dibuatkan', 'menunggu']], bukuStatus: 'editing');
 
-        $isi = $this->actingAs($this->user('admin', 'buku'))
+        $lihat = fn () => $this->actingAs($this->user('admin', 'buku'))
             ->get(route('naskah.show', $this->detailBab($book, 1)->id))
             ->assertOk()->getContent();
 
-        $this->assertStringContainsString('Naskah dari Author', $isi);
-        $this->assertStringContainsString('Selesaikan Bab', $isi);
+        // Belum ada naskah → yang ditawarkan unggahan, bukan tombol maju yang hampa.
+        $isi = $lihat();
+        $this->assertStringContainsString('Naskah dikirim author sendiri', $isi);
+        $this->assertStringNotContainsString('Selesaikan Bab', $isi);
+
+        // Naskah author mendarat → tombol maju jadi aksi utamanya.
+        $bab = $book->chapters()->where('urutan', 1)->first();
+        \App\Models\ManuscriptFile::create([
+            'title_id' => $book->id, 'title_chapter_id' => $bab->id,
+            'slot' => 'masuk', 'status' => 'selesai', 'version' => 1,
+            'original_name' => 'naskah-author.docx', 'drive_url' => 'https://drive/x',
+        ]);
+
+        $isi = $lihat();
+        $this->assertStringContainsString('Selesaikan Bab', $isi,
+            'Bab mandiri wajib punya jalan ke Selesai.');
+        $this->assertStringContainsString('ganti naskah', $isi);
     }
 
     /** @test */

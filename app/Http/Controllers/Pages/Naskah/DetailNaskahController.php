@@ -6,12 +6,19 @@ use App\Http\Controllers\Controller;
 use App\Models\Author;
 use App\Models\ChapterProgress;
 use App\Models\ManuscriptFile;
+use App\Models\ManuscriptRevision;
 use App\Models\TitleProgress;
 use App\Models\User;
 use App\Services\AssignmentService;
 use App\Services\ChapterRollupService;
+use App\Services\GoogleDriveService;
 use App\Services\ManuscriptFileService;
+use App\Services\ManuscriptRevisionService;
+use App\Services\Notifier;
+use App\Services\RincianTahapService;
+use App\Services\RiwayatNaskahService;
 use App\Services\TitleProgressService;
+use App\Support\BatasUnggah;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -49,9 +56,7 @@ class DetailNaskahController extends Controller
             'next'       => $progress->nextStage(),
             'berkas'     => $this->files($progress),
             'isKolab'    => $isKolab,
-            'bab'        => $isKolab
-                ? $book->chapters()->with(['progress.pelaksana', 'authors', 'manuscriptFiles'])->orderBy('urutan')->get()
-                : collect(),
+            'bab'        => $isKolab ? $this->babSiapPakai($book) : collect(),
             'ringkasan'  => $isKolab ? $rollup->summary($book) : null,
             'pelaksanaOptions' => $this->usersWithRole('production'),
             'adminOptions'     => $this->usersWithRole('admin'),
@@ -61,6 +66,21 @@ class DetailNaskahController extends Controller
             // menanganinya.
             'title'       => $book,
             'canEditInfo' => $actor->can('title.info'),
+            // Seluruh putaran judul ini, terbaru dulu — termasuk yang sudah ditutup,
+            // supaya berkas putaran lama tetap terbaca sesudah naskah mundur dari LoA.
+            'putaran'     => $book
+                ? ManuscriptRevision::with(['files', 'requestedBy', 'assignedTo', 'closedBy'])
+                    ->where('title_id', $book->id)
+                    ->orderByDesc('round')
+                    ->get()
+                : collect(),
+            // Isi panel stepper. Dirakit di service karena menyusun "apa yang terjadi di
+            // tiap tahap" dari lima sumber adalah logika sungguhan — dan Blade tak bisa
+            // diuji tanpa merender HTML.
+            'rincian'     => app(RincianTahapService::class)->untuk($progress),
+            // Riwayat digabung se-grup lalu dibuang kembarannya \u2014 lihat
+            // RiwayatNaskahService::untukLayar().
+            'riwayat'     => app(RiwayatNaskahService::class)->untukLayar($progress),
         ]);
     }
 
@@ -99,15 +119,122 @@ class DetailNaskahController extends Controller
     }
 
     /** "Perlu Revisi": maju khusus dari Editing ke Revisi dengan alasan baku wajib. */
-    public function revisi(Request $request, int $id, TitleProgressService $stages)
+    /**
+     * Mengembalikan naskah satu tahap ke belakang (LoA→Revisi, Editing→Pembuatan).
+     *
+     * Menggantikan `revisi()` lama yang isinya `advance()` biasa — ia mendarat di
+     * `revisi` semata karena kebetulan tahap berikutnya sesudah `editing`, dan pada
+     * BUKU ia memajukan naskah ke Layout. Targetnya kini diturunkan dari MUNDUR_SAH,
+     * sehingga tombol dan aturannya tak bisa berselisih.
+     */
+    public function kembalikan(Request $request, int $id, TitleProgressService $stages)
     {
-        $request->validate(['alasan' => 'required|string|max:255']);
+        $request->validate([
+            'alasan'   => 'required|string|max:255',
+            'berkas.*' => 'nullable|file|mimes:pdf,doc,docx,zip|max:' . BatasUnggah::kb(20480),
+        ]);
         $progress = $this->progress($id);
 
         return $this->run($request, function () use ($stages, $progress, $request) {
-            $stages->advance($progress, $request->user(), 'Perlu revisi: ' . $request->input('alasan'));
+            $target = TitleProgressService::MUNDUR_SAH[$progress->status] ?? null;
+            if ($target === null) {
+                throw ValidationException::withMessages([
+                    'status' => 'Naskah di tahap ini tak bisa dikembalikan lewat alur normal.',
+                ]);
+            }
 
-            return 'Naskah ditandai perlu revisi.';
+            // Ditangkap SEBELUM tahapnya bergerak: sesudah itu $progress bisa basi
+            // maupun sudah tertimpa, dan keduanya membuat asal putaran salah catat.
+            $dari = $progress->status;
+
+            // Tahap digerakkan LEBIH DULU: kalau gerbangnya menolak (naskah terarsip,
+            // pasangan tahap tak sah), tak ada putaran yatim yang tertinggal.
+            $stages->kembalikan($progress, $target, $request->user(), $request->input('alasan'));
+
+            $title = $progress->orderDetail?->titleRef;
+            if ($title) {
+                $putaran = app(ManuscriptRevisionService::class)->buka(
+                    $title, $target, $dari,
+                    $request->user(), $request->input('alasan'),
+                    $progress->pelaksana, $request->file('berkas', [])
+                );
+
+                app(Notifier::class)->naskahRevisiDiminta($putaran, $request->user());
+            }
+
+            return 'Naskah dikembalikan ke ' . TitleProgress::labelFor($target) . '.';
+        });
+    }
+
+    /** Membuka putaran revisi baru di tahap Revisi — permintaan dari reviewer. */
+    public function revisiMinta(Request $request, int $id)
+    {
+        $request->validate([
+            'request_note' => 'required|string|max:2000',
+            'assigned_to'  => 'nullable|integer|exists:users,id',
+            'berkas.*'     => 'nullable|file|mimes:pdf,doc,docx,zip|max:' . BatasUnggah::kb(20480),
+        ]);
+        $progress = $this->progress($id);
+
+        return $this->run($request, function () use ($progress, $request) {
+            $title = $progress->orderDetail?->titleRef;
+            if ($title === null) {
+                throw ValidationException::withMessages([
+                    'title' => 'Naskah ini belum tersambung ke judul.',
+                ]);
+            }
+
+            $untuk = $request->filled('assigned_to')
+                ? User::find($request->input('assigned_to'))
+                : $progress->pelaksana;
+
+            $putaran = app(ManuscriptRevisionService::class)->buka(
+                $title, $progress->status, $progress->status, $request->user(),
+                $request->input('request_note'), $untuk, $request->file('berkas', [])
+            );
+
+            app(Notifier::class)->naskahRevisiDiminta($putaran, $request->user());
+
+            return "Permintaan revisi putaran ke-{$putaran->round} dikirim.";
+        });
+    }
+
+    /** Menjawab putaran — boleh Pelaksana maupun PJ. */
+    public function revisiHasil(Request $request, int $id)
+    {
+        $request->validate([
+            'revision_id' => 'required|integer|exists:tb_manuscript_revisions,id',
+            'berkas'      => 'required|array|min:1',
+            'berkas.*'    => 'file|mimes:pdf,doc,docx,zip|max:' . BatasUnggah::kb(20480),
+        ]);
+        $this->progress($id);
+
+        return $this->run($request, function () use ($request) {
+            $putaran = ManuscriptRevision::findOrFail($request->input('revision_id'));
+
+            app(ManuscriptRevisionService::class)
+                ->jawab($putaran, $request->user(), $request->file('berkas'));
+
+            return 'Hasil revisi diunggah.';
+        });
+    }
+
+    /** Pintu darurat: menutup putaran tanpa berkas, wajib beralasan. */
+    public function revisiTutup(Request $request, int $id)
+    {
+        $request->validate([
+            'revision_id' => 'required|integer|exists:tb_manuscript_revisions,id',
+            'close_note'  => 'required|string|max:1000',
+        ]);
+        $this->progress($id);
+
+        return $this->run($request, function () use ($request) {
+            $putaran = ManuscriptRevision::findOrFail($request->input('revision_id'));
+
+            app(ManuscriptRevisionService::class)
+                ->tutup($putaran, $request->user(), $request->input('close_note'));
+
+            return "Putaran ke-{$putaran->round} ditutup.";
         });
     }
 
@@ -442,6 +569,71 @@ class DetailNaskahController extends Controller
     }
 
     // ─── Helper ───
+
+    /**
+     * Salurkan satu berkas naskah dari Drive, setelah izinnya diperiksa di sini.
+     *
+     * Berkas naskah diunggah TANPA izin publik di Drive, jadi `drive_url` yang tersimpan
+     * selalu ditolak Google. Ini satu-satunya pintu bacanya — dan itulah gunanya: naskah
+     * klien yang belum terbit tak pernah punya tautan yang bisa dibuka orang luar,
+     * bahkan bila tautannya bocor.
+     *
+     * `?unduh=1` memaksa unduhan; tanpa itu berkas ditampilkan di peramban bila bisa.
+     */
+    public function berkas(Request $request, int $berkas, GoogleDriveService $drive)
+    {
+        // Nama parameter WAJIB sama dengan segmen route `{berkas}` — Laravel
+        // mencocokkannya berdasarkan nama, bukan urutan.
+        $file = ManuscriptFile::findOrFail($berkas);
+
+        if ($file->status !== 'selesai' || ! $file->drive_file_id) {
+            abort(404, 'Berkas belum selesai diunggah.');
+        }
+
+        try {
+            return $drive->streamFile(
+                $file->drive_file_id,
+                $file->original_name,
+                $request->boolean('unduh')
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning(
+                "Gagal menyalurkan berkas naskah {$file->id}: " . $e->getMessage()
+            );
+
+            abort(404, 'Berkas tak bisa dibaca dari Google Drive.');
+        }
+    }
+
+    /**
+     * Bab buku beserta SELURUH relasi yang dipakai tabelnya — termasuk yang tersembunyi.
+     *
+     * `ChapterProgress::sumberNaskah()` dipanggil sekali per bab dan menempuh rantai
+     * `$this->chapter->title->orderForChapter()`. Tanpa penyiapan di bawah, tiap bab
+     * memuat ulang chapter-nya, memuat Title-nya sebagai INSTANCE BARU, lalu menanyakan
+     * seluruh orderDetails judul itu dari nol — karena cache `relationLoaded` milik
+     * instance sebelumnya tak pernah terpakai.
+     *
+     * Halaman buku 10 bab menghabiskan 128 query sebelum ini.
+     *
+     * Kuncinya menyuntikkan $book YANG SAMA ke tiap bab: satu instance, satu kali muat
+     * orderDetails, dipakai bersama sepuluh pemanggil.
+     */
+    private function babSiapPakai(\App\Models\Title $book)
+    {
+        $book->loadMissing('orderDetails.titleProgress');
+
+        $bab = $book->chapters()
+            ->with(['progress.pelaksana', 'authors', 'manuscriptFiles'])
+            ->orderBy('urutan')->get();
+
+        foreach ($bab as $b) {
+            $b->setRelation('title', $book);
+            $b->progress?->setRelation('chapter', $b);
+        }
+
+        return $bab;
+    }
 
     private function progress(int $orderDetailId): TitleProgress
     {

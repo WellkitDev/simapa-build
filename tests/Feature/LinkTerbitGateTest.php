@@ -305,7 +305,9 @@ class LinkTerbitGateTest extends TestCase
 
         app(TitleProgressService::class)->advance($progress, $this->superadmin());
 
-        $this->assertSame('loa', $progress->fresh()->status);
+        // Submit kini mendarat di Revisi, bukan langsung LoA. Yang diuji tetap sama:
+        // tahap tengah tak menuntut link terbit.
+        $this->assertSame('revisi', $progress->fresh()->status);
     }
 
     /**

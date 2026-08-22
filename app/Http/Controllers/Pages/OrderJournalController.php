@@ -341,6 +341,12 @@ class OrderJournalController extends Controller
                     $detail->scopes()->sync([$scopeId]);
                 }
 
+                // A4: harga berubah -> keadaan uang dihitung ulang di transaksi yang sama.
+                // Tanpa ini, order yang biayanya dinaikkan tetap 'lunas' padahal kurang
+                // bayar (selisihnya tak pernah muncul di Piutang), dan order yang
+                // biayanya diturunkan tetap 'pending' padahal uangnya sudah cukup.
+                $order->refresh()->recalcStatus();
+
                 $order->contact()->update([
                     'cp_phone' => $request->contact_phone,
                     'cp_email' => $request->contact_email,

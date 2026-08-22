@@ -53,15 +53,41 @@
                     @endif
                     <input type="text" name="nama_jurnal" class="form-control form-control-sm mb-2"
                            value="{{ old('nama_jurnal') }}" placeholder="Nama jurnal (otomatis masuk Direktori Jurnal)">
+
+                    <label class="form-label small fw-bold mb-1 mt-2">Tanggal submit</label>
+                    <input type="date" name="tgl_submit" class="form-control form-control-sm mb-2"
+                           value="{{ old('tgl_submit', now()->toDateString()) }}">
+
+                    {{-- Akun OJS berpasangan dengan kata sandinya. Dulu hanya akunnya yang
+                         punya kolom di sini, padahal backend sudah menyimpan keduanya
+                         (JurnalSubmissionService::aturan) — jadi sandinya cuma bisa diisi
+                         lewat modul Direktori Jurnal, layar yang berbeda dari tempat PJ
+                         benar-benar bekerja. Akun tanpa sandi tak bisa dipakai masuk. --}}
+                    <label class="form-label small fw-bold mb-1 mt-1">Akun OJS <span class="text-muted fw-normal">(opsional)</span></label>
                     <div class="row g-2">
                         <div class="col-6">
-                            <input type="date" name="tgl_submit" class="form-control form-control-sm"
-                                   value="{{ old('tgl_submit', now()->toDateString()) }}">
+                            <input type="text" name="ojs_akun" class="form-control form-control-sm"
+                                   value="{{ old('ojs_akun') }}" placeholder="Nama akun / email"
+                                   autocomplete="off">
                         </div>
                         <div class="col-6">
-                            <input type="text" name="ojs_akun" class="form-control form-control-sm"
-                                   value="{{ old('ojs_akun') }}" placeholder="Akun OJS (opsional)">
+                            <div class="input-group input-group-sm">
+                                {{-- autocomplete="new-password" menahan peramban mengisinya
+                                     dengan sandi SiMAPA milik PJ sendiri — ini kredensial
+                                     jurnal, bukan miliknya. --}}
+                                <input type="password" name="ojs_password" id="ojsPassword"
+                                       class="form-control form-control-sm"
+                                       placeholder="Kata sandi" autocomplete="new-password">
+                                <button class="btn btn-outline-secondary" type="button"
+                                        onclick="const i=document.getElementById('ojsPassword');
+                                                 i.type = i.type === 'password' ? 'text' : 'password';
+                                                 this.textContent = i.type === 'password' ? 'lihat' : 'tutup';">lihat</button>
+                            </div>
                         </div>
+                    </div>
+                    <div class="form-text">
+                        Disimpan terenkripsi dan hanya terbaca di Direktori Jurnal.
+                        Kosongkan bila tak ingin mengubah yang sudah tercatat.
                     </div>
                 </div>
             @endif
@@ -101,9 +127,13 @@
     @endif
 
     <div class="d-flex flex-wrap gap-2 mt-3">
-        @if ($izin['advance'] && $progress->status === 'editing')
-            <button class="btn btn-outline-primary btn-sm" data-bs-toggle="collapse" data-bs-target="#formRevisi">
-                ↩ Perlu Revisi (wajib pilih alasan)
+        {{-- Targetnya diturunkan dari MUNDUR_SAH, bukan ditulis di sini: tombol lama
+             hanya memeriksa `status === 'editing'` tanpa melihat jenis naskah, dan pada
+             BUKU ia memajukan naskah ke Layout — karena buku tak punya tahap revisi. --}}
+        @php $targetMundur = \App\Services\TitleProgressService::MUNDUR_SAH[$progress->status] ?? null; @endphp
+        @if ($izin['advance'] && $targetMundur)
+            <button class="btn btn-outline-primary btn-sm" data-bs-toggle="collapse" data-bs-target="#formKembalikan">
+                ↩ Kembalikan ke {{ \App\Models\TitleProgress::labelFor($targetMundur) }}
             </button>
         @endif
         @if ($izin['correct'])
@@ -119,19 +149,23 @@
         @endif
     </div>
 
-    @if ($izin['advance'] && $progress->status === 'editing')
-        <div class="collapse mt-3" id="formRevisi">
-            <form method="POST" action="{{ route('naskah.revisi', $progress->order_detail_id) }}" class="border rounded p-3">
+    @if ($izin['advance'] && $targetMundur)
+        <div class="collapse mt-3" id="formKembalikan">
+            <form method="POST" action="{{ route('naskah.kembalikan', $progress->order_detail_id) }}"
+                  enctype="multipart/form-data" class="border rounded p-3">
                 @csrf
-                <label class="form-label small fw-bold">Alasan revisi</label>
-                <select name="alasan" class="form-select form-select-sm mb-2" required>
-                    <option value="">— pilih alasan —</option>
-                    <option value="Permintaan reviewer jurnal">Permintaan reviewer jurnal</option>
-                    <option value="Permintaan klien">Permintaan klien</option>
-                    <option value="Perbaikan kualitas internal">Perbaikan kualitas internal</option>
-                    <option value="Kelengkapan data belum cukup">Kelengkapan data belum cukup</option>
-                </select>
-                <button class="btn btn-sm btn-primary">Tandai perlu revisi</button>
+                <label class="form-label small fw-bold">
+                    Alasan mengembalikan ke {{ \App\Models\TitleProgress::labelFor($targetMundur) }}
+                </label>
+                <textarea name="alasan" rows="2" required class="form-control form-control-sm mb-2"
+                          placeholder="Apa yang perlu diperbaiki? (wajib — dibaca pelaksana)"></textarea>
+                <input type="file" name="berkas[]" multiple class="form-control form-control-sm mb-2"
+                       accept=".pdf,.doc,.docx,.zip">
+                <div class="form-text mb-2">
+                    Berkas dan catatan ini ditujukan ke
+                    <strong>{{ $progress->pelaksana?->name ?? 'pelaksana naskah' }}</strong>.
+                </div>
+                <button class="btn btn-sm btn-primary">Kembalikan naskah</button>
             </form>
         </div>
     @endif
@@ -158,11 +192,17 @@
     <hr class="my-3">
 
     <div class="row g-2">
-        @if ($izin['assign'])
+        {{-- Buku kolaborasi dikerjakan PER BAB: pelaksananya tersimpan di
+             tb_chapter_progress, dan selektor ini menulis ke tb_title_progress — tabel
+             yang berbeda, tanpa sinkronisasi. Menyediakan keduanya berarti dua nama
+             "Pelaksana" bisa tampil berdampingan di satu layar dan saling membantah.
+             Untuk buku kolaborasi, yang benar adalah tabel bab. --}}
+        @if ($izin['assign'] && ! $isKolab)
             <div class="col-md-6">
                 <form method="POST" action="{{ route('naskah.distribusi', $progress->order_detail_id) }}">
                     @csrf
                     <label class="form-label small fw-bold mb-1">Pelaksana</label>
+                    @php /* penanda blok Pelaksana — gerbangnya TERPISAH dari PJ di bawah */ @endphp
                     <div class="d-flex gap-1">
                         <select name="pelaksana_user_id" class="form-select form-select-sm" required>
                             <option value="">— pilih akun Produksi —</option>
@@ -180,10 +220,29 @@
                     </form>
                 @endif
             </div>
+        @endif
+
+        {{--
+            Penanggung jawab punya gerbangnya SENDIRI — sengaja tak ikut `! $isKolab`.
+
+            Sebelumnya Pelaksana dan PJ berbagi satu `@if ($izin['assign'])`, jadi
+            menyembunyikan Pelaksana untuk buku kolaborasi ikut menyembunyikan PJ, dan
+            buku kolaborasi kehilangan satu-satunya cara menetapkan penanggung jawabnya.
+
+            PJ berlaku untuk SETIAP jenis naskah: ia yang menerima notifikasi tahap,
+            yang ditagih saat naskah lewat SLA, dan yang namanya tercetak di laporan
+            arsip. Bab boleh dikerjakan banyak orang; yang bertanggung jawab tetap satu.
+        --}}
+        @if ($izin['assign'])
             <div class="col-md-6">
                 <form method="POST" action="{{ route('naskah.operPj', $progress->order_detail_id) }}">
                     @csrf
-                    <label class="form-label small fw-bold mb-1">Penanggung jawab</label>
+                    <label class="form-label small fw-bold mb-1">
+                        Penanggung jawab
+                        @if (! $progress->pj_user_id)
+                            <span class="badge bg-warning text-dark ms-1">wajib diisi</span>
+                        @endif
+                    </label>
                     <div class="d-flex gap-1">
                         <select name="pj_user_id" class="form-select form-select-sm" required>
                             <option value="">— pilih akun Admin —</option>
@@ -191,8 +250,15 @@
                                 <option value="{{ $u->id }}" @selected($progress->pj_user_id == $u->id)>{{ $u->name }}</option>
                             @endforeach
                         </select>
-                        <button class="btn btn-sm btn-outline-primary">Oper</button>
+                        <button class="btn btn-sm {{ $progress->pj_user_id ? 'btn-outline-primary' : 'btn-warning' }}">
+                            {{ $progress->pj_user_id ? 'Oper' : 'Tetapkan' }}
+                        </button>
                     </div>
+                    @if (! $progress->pj_user_id)
+                        <div class="form-text text-warning">
+                            Tanpa PJ, notifikasi tahap dan peringatan lewat SLA tak sampai ke siapa pun.
+                        </div>
+                    @endif
                 </form>
             </div>
         @endif

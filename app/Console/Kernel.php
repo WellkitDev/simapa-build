@@ -47,6 +47,14 @@ class Kernel extends ConsoleKernel
             ->weekly()
             ->appendOutputTo(storage_path('logs/unggahan-prune.log'));
 
+        // Keterlambatan naskah sudah ketahuan sendiri tiap pagi; tagihan lewat tempo
+        // tak punya padanannya sampai sekarang. Jam yang sama supaya keduanya terbaca
+        // dalam satu duduk.
+        $schedule->command('invoice:check-overdue')
+            ->dailyAt('07:00')
+            ->withoutOverlapping()
+            ->appendOutputTo(storage_path('logs/invoice-overdue.log'));
+
         // Drive = titik gagal tunggal untuk SELURUH unggahan berkas. Token yang mati
         // tak menjatuhkan apa pun; unggahan cuma berhenti bekerja. Sekali sehari cukup
         // untuk menemukannya lebih dulu daripada pengguna, tanpa jadi kebisingan.
@@ -57,6 +65,17 @@ class Kernel extends ConsoleKernel
             ->dailyAt('08:00')
             ->withoutOverlapping()
             ->appendOutputTo(storage_path('logs/drive-kesehatan.log'));
+
+        // Berbarengan dengan naskah:check-overdue: satu sapuan tenggang di pagi hari
+        // kerja, sebelum orang membuka papannya.
+        //
+        // TaskService::notifyDueSoon() sudah ada sejak modul tugas dibuat tapi tak pernah
+        // dipanggil siapa pun — pengingat tenggang karena itu tak pernah sekali pun
+        // berbunyi. Baris inilah yang menghidupkannya.
+        $schedule->command('tasks:check-deadline')
+            ->dailyAt('07:05')
+            ->withoutOverlapping()
+            ->appendOutputTo(storage_path('logs/tasks-deadline.log'));
 
         $schedule->command('queue:work --stop-when-empty --max-time=50 --tries=3')
             ->everyMinute()

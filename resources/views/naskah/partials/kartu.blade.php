@@ -22,6 +22,31 @@
     @if ($k['kolab'])
         <span class="badge bg-primary-subtle text-primary" style="font-size:.65rem">Kolab</span>
     @endif
+    @if (! empty($k['arsip']))
+        {{-- Naskah terbit bertahan di papan sampai arsipnya disetujui. Lencana ini yang
+             menjawab "kenapa masih di sini?" — tanpanya ia cuma duduk di kolom terakhir
+             tanpa alasan yang terbaca. --}}
+        @php
+            $labelArsip = [
+                'belum'     => ['⚠ arsip belum diajukan', 'bg-warning text-dark'],
+                'draft'     => ['arsip masih draft',      'bg-light text-dark border'],
+                'diajukan'  => ['⏳ arsip menunggu ACC',   'bg-info-subtle text-info border'],
+                'ditolak'   => ['✕ arsip ditolak',        'bg-danger-subtle text-danger border'],
+            ][$k['arsip']] ?? null;
+        @endphp
+        @if ($labelArsip)
+            <span class="badge {{ $labelArsip[1] }}" style="font-size:.65rem">{{ $labelArsip[0] }}</span>
+        @endif
+    @endif
+    @if (($k['putaranTerbuka'] ?? 0) > 0)
+        {{-- Naskah yang menunggu jawaban revisi tertahan lajunya. Di papan inilah orang
+             memutuskan mana yang dikerjakan lebih dulu, jadi ia harus terlihat di sini
+             — bukan baru ketahuan sesudah kartunya dibuka. --}}
+        <span class="badge bg-warning text-dark" style="font-size:.65rem"
+              title="Putaran perbaikan yang belum ditutup">
+            ↩ {{ $k['putaranTerbuka'] }} revisi
+        </span>
+    @endif
 
     <div class="fw-semibold my-1">{{ \Illuminate\Support\Str::limit($detail?->title ?? '—', 40) }}</div>
 

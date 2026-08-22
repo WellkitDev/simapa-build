@@ -301,10 +301,18 @@ class GoogleDriveService
      * Dapatkan atau buat folder berdasarkan path
      * Contoh: Application/profile/123
      */
-    public function getOrCreateFolderByPath(string $path): ?string
+    /**
+     * @param  string|null  $rootId  Induk tempat penelusuran dimulai. Null = root Google
+     *                               Drive, PERSIS seperti sebelumnya — delapan pemanggil
+     *                               lama (struk, refund, slip gaji, invoice, laporan)
+     *                               bergantung pada perilaku itu dan folder mereka sudah
+     *                               berdiri di sana. Parameter ini menambah kemampuan,
+     *                               bukan mengubah arti.
+     */
+    public function getOrCreateFolderByPath(string $path, ?string $rootId = null): ?string
     {
         $parts = array_filter(explode('/', $path));
-        $parentId = null; // Mulai dari root
+        $parentId = $rootId;
 
         foreach ($parts as $folderName) {
             $folderId = $this->findFolderByName($folderName, $parentId);
@@ -317,6 +325,70 @@ class GoogleDriveService
         }
 
         return $parentId;
+    }
+
+    /**
+     * Salurkan isi berkas Drive ke peramban, lewat SiMAPA.
+     *
+     * Berkas naskah SENGAJA diunggah tanpa izin publik (`makePublic = false`), berbeda
+     * dari struk dan invoice. Naskah klien yang belum terbit tak boleh punya tautan yang
+     * bisa dibuka siapa pun yang memegangnya — cukup satu forward email untuk membocorkan
+     * karya yang belum diterbitkan.
+     *
+     * Konsekuensinya `drive_url` yang tersimpan selalu ditolak Google, dan berkasnya
+     * harus disalurkan dari sini setelah pemanggil memeriksa izinnya sendiri.
+     *
+     * BERBEDA dari getImageStream(): tak ada fallback ke gambar avatar, dan `Content-
+     * Disposition` bisa attachment. Melempar 404 bila berkasnya tak terbaca — memberi
+     * gambar default sebagai ganti naskah yang hilang cuma menyembunyikan masalahnya.
+     */
+    public function streamFile(string $fileId, ?string $namaAsli = null, bool $unduh = false)
+    {
+        $isi  = $this->service()->files->get($fileId, ['alt' => 'media', 'supportsAllDrives' => true]);
+        $meta = $this->service()->files->get($fileId, ['fields' => 'mimeType, name', 'supportsAllDrives' => true]);
+
+        $nama = $namaAsli ?: $meta->name;
+
+        return response($isi->getBody(), 200)
+            ->header('Content-Type', $meta->mimeType ?: 'application/octet-stream')
+            // Tak di-cache peramban: berkasnya di balik gerbang izin, dan salinan yang
+            // tertinggal di cache bisa terbuka setelah izinnya dicabut.
+            ->header('Cache-Control', 'private, no-store')
+            ->header(
+                'Content-Disposition',
+                ($unduh ? 'attachment' : 'inline') . '; filename="' . addslashes($nama) . '"'
+            );
+    }
+
+    /**
+     * Pindahkan berkas ke folder lain dengan MENGGANTI INDUKNYA, bukan mengunggah ulang.
+     *
+     * Bedanya menentukan: id dan URL berkas tak berubah, sehingga seluruh tautan Drive
+     * yang sudah tersimpan di basis data tetap hidup sesudah perapian. Mengunggah ulang
+     * akan mematikan semuanya sekaligus.
+     */
+    public function moveFile(string $fileId, string $folderTujuan): bool
+    {
+        try {
+            $berkas = $this->service()->files->get($fileId, ['fields' => 'parents']);
+            $indukLama = implode(',', $berkas->getParents() ?? []);
+
+            if ($indukLama === $folderTujuan) {
+                return true;    // sudah di tempatnya
+            }
+
+            $this->service()->files->update($fileId, new DriveFile(), [
+                'addParents'    => $folderTujuan,
+                'removeParents' => $indukLama,
+                'fields'        => 'id, parents',
+            ]);
+
+            return true;
+        } catch (\Throwable $e) {
+            Log::warning("Gagal memindahkan berkas Drive {$fileId}: " . $e->getMessage());
+
+            return false;
+        }
     }
 
     /**

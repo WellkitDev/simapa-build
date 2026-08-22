@@ -110,16 +110,65 @@ class TitleService
         return Scope::firstOrCreate(['scope' => $value])->id;
     }
 
+    /**
+     * Selaraskan daftar bab dengan yang dikirim formulir — TANPA menghapus lalu membuat
+     * ulang.
+     *
+     * Versi lama melakukan `$title->chapters()->delete()` di setiap penyimpanan judul.
+     * `tb_title_chapters` punya tiga anak ber-cascade, jadi satu baris itu memusnahkan:
+     *
+     *   - `tb_chapter_progress`        → tahap per bab, pelaksana, dan SLA-nya
+     *   - `tb_title_chapter_authors`   → author bab yang dipasang tangan
+     *   - `tb_manuscript_files.title_chapter_id` → berkas kehilangan babnya
+     *
+     * Semuanya lenyap hanya karena seseorang mengubah satu huruf di judul.
+     *
+     * `urutan` juga MULAI DARI 1, bukan 0. ChapterManuscriptService::ensureChapters()
+     * sudah 1-based, dan `order_details.chapters` menyimpan NOMOR bab yang 1-based.
+     * Selisih satu itulah yang membuat ChapterAuthorService::seedFromOrders() mencari
+     * "order bab 0" yang tak pernah ada, lalu menggeser seluruh peta author satu langkah
+     * dan menandai bab pertama "belum dipesan".
+     *
+     * Pencocokan memakai `id` yang dikirim formulir bila ada, dan jatuh ke posisi untuk
+     * baris baru. Tanpa id, menghapus bab di TENGAH akan membuat sisa bab mewarisi judul
+     * tetangganya — kemajuan bab 4 mendarat di bawah label "Bab 5".
+     */
     private function syncChapters(Title $title, array $chapters): void
     {
-        $title->chapters()->delete();
-        $i = 0;
+        $lama = $title->chapters()->get()->keyBy('id');
+        $tetap = [];
+        $urutan = 1;
+
         foreach ($chapters as $ch) {
-            $judul = is_array($ch) ? ($ch['judul'] ?? '') : $ch;
-            if (trim((string) $judul) === '') {
+            $judul = trim((string) (is_array($ch) ? ($ch['judul'] ?? '') : $ch));
+            if ($judul === '') {
                 continue;
             }
-            $title->chapters()->create(['judul' => $judul, 'urutan' => $i++]);
+
+            $id  = is_array($ch) ? ($ch['id'] ?? null) : null;
+            $bab = $id !== null ? $lama->get((int) $id) : null;
+
+            if ($bab) {
+                // fill+isDirty: penyimpanan judul yang tak mengubah bab tak perlu
+                // menyentuh satu baris pun.
+                $bab->fill(['judul' => $judul, 'urutan' => $urutan]);
+                if ($bab->isDirty()) {
+                    $bab->save();
+                }
+                $tetap[] = $bab->id;
+            } else {
+                $tetap[] = $title->chapters()->create([
+                    'judul' => $judul, 'urutan' => $urutan,
+                ])->id;
+            }
+
+            $urutan++;
+        }
+
+        // Hanya bab yang benar-benar dibuang dari formulir yang dihapus.
+        $dibuang = $lama->keys()->diff($tetap);
+        if ($dibuang->isNotEmpty()) {
+            $title->chapters()->whereIn('id', $dibuang)->delete();
         }
     }
 

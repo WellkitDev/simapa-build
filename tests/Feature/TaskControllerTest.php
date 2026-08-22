@@ -51,14 +51,23 @@ class TaskControllerTest extends TestCase
         $this->assertDatabaseHas('tb_tasks', ['title' => 'Langsung kerja', 'user_id' => $u->id, 'status' => 'in_progress']);
     }
 
-    /** @test */
-    public function employee_cannot_assign_to_others(): void
+    /**
+     * DIBUKA 2026-08-23: setiap pengguna boleh memberi tugas ke siapa pun.
+     *
+     * Gerbangnya dulu `manager|superadmin`, sementara di produksi TAK ADA satu pun akun
+     * manager \u2014 praktis hanya satu orang di seluruh kantor yang bisa membagi pekerjaan.
+     *
+     * @test
+     */
+    public function employee_can_assign_to_others(): void
     {
         $u = $this->user('production');
         $other = $this->user('production');
         $this->actingAs($u)->post(route('task.store'), ['title' => 'X', 'priority' => 'normal', 'assignee' => $other->id])->assertRedirect();
-        // assignee diabaikan untuk non-manager → jadi milik pembuat
-        $this->assertDatabaseHas('tb_tasks', ['title' => 'X', 'user_id' => $u->id]);
+
+        $this->assertDatabaseHas('tb_tasks', [
+            'title' => 'X', 'user_id' => $other->id, 'created_by' => $u->id,
+        ]);
     }
 
     /** @test */
@@ -88,15 +97,22 @@ class TaskControllerTest extends TestCase
         $this->assertSame(0, $a->notifications()->count());
     }
 
-    /** @test */
-    public function non_manager_cannot_read_other_users_events(): void
+    /**
+     * DIBUKA 2026-08-23 bersama penugasan: memberi tugas tanpa bisa melihat hasilnya
+     * adalah setengah fitur. Papan tugas di kantor 13 orang bukan rahasia.
+     *
+     * Menyunting tugas orang lain TETAP tertutup \u2014 lihat employee_cannot_modify_others_task.
+     *
+     * @test
+     */
+    public function anyone_can_read_other_users_events(): void
     {
         $a = $this->user('production');
         $b = $this->user('production');
         $this->task($b, ['title' => 'EventB', 'due_date' => today()->toDateString()]);
 
         $this->actingAs($a)->get(route('task.events', ['user_id' => $b->id]))->assertOk()
-            ->assertJsonMissing(['title' => 'EventB']);
+            ->assertJsonFragment(['title' => 'EventB']);
     }
 
     /** @test */
