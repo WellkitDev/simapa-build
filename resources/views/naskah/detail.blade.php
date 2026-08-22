@@ -27,7 +27,7 @@
 
 @include('naskah.partials.detail-header', compact('progress', 'grup', 'd', 'kode', 'buku', 'isKolab', 'jumlahAuthorBab', 'naskahMandiri', 'jenisNaskahGrup'))
 
-@include('naskah.partials.stepper', compact('progress', 'stages', 'isKolab', 'ringkasan'))
+@include('naskah.partials.stepper', compact('progress', 'stages', 'isKolab', 'ringkasan', 'rincian', 'izin'))
 
 @if ($isKolab)
     @include('naskah.partials.bab-table', compact('bab', 'ringkasan', 'izin', 'pelaksanaOptions', 'progress', 'naskahMandiri'))
@@ -141,11 +141,15 @@
         @include('naskah.partials.informasi-publikasi', compact('title', 'canEditInfo', 'progress', 'next', 'buku', 'isKolab'))
 
         @include('naskah.partials.file-naskah', compact('progress', 'berkas', 'izin', 'isKolab', 'buku'))
-
-        @include('naskah.partials.revisi', compact('progress', 'putaran', 'izin'))
     </div>
 
     <div class="col-lg-7">
+        {{-- Putaran Perbaikan berada TEPAT DI ATAS Aksi, bukan di dasar kolom kiri.
+             Kartu inilah yang menahan tombol "Selesaikan tahap" di bawahnya; saat
+             dipisahkan, pesan penolakan muncul di satu ujung layar dan tempat
+             menjawabnya di ujung yang lain. --}}
+        @include('naskah.partials.revisi', compact('progress', 'putaran', 'izin'))
+
         @include('naskah.partials.aksi', compact('progress', 'grup', 'stages', 'next', 'izin', 'pelaksanaOptions', 'adminOptions', 'buku'))
         @include('naskah.partials.riwayat-naskah', ['logs' => $progress->logs->sortByDesc('created_at')])
     </div>

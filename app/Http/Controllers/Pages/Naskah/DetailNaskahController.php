@@ -14,6 +14,7 @@ use App\Services\ChapterRollupService;
 use App\Services\ManuscriptFileService;
 use App\Services\ManuscriptRevisionService;
 use App\Services\Notifier;
+use App\Services\RincianTahapService;
 use App\Services\TitleProgressService;
 use App\Support\BatasUnggah;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -73,6 +74,10 @@ class DetailNaskahController extends Controller
                     ->orderByDesc('round')
                     ->get()
                 : collect(),
+            // Isi panel stepper. Dirakit di service karena menyusun "apa yang terjadi di
+            // tiap tahap" dari lima sumber adalah logika sungguhan — dan Blade tak bisa
+            // diuji tanpa merender HTML.
+            'rincian'     => app(RincianTahapService::class)->untuk($progress),
         ]);
     }
 
