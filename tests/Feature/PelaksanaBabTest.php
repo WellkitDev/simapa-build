@@ -257,6 +257,40 @@ class PelaksanaBabTest extends TestCase
 
     // ─── kolom tabel ───
 
+    /**
+     * CHAPTER_STAGES = menunggu → pembuatan → editing → selesai. Tombol maju di bab
+     * karena itu sering BUKAN menyelesaikan apa pun — ia memajukan satu langkah.
+     * Labelnya harus menyebut tahap tujuannya.
+     *
+     * Terlihat setelah formulir penugasan pindah keluar dari kolom Aksi: bab `menunggu`
+     * yang dulu tertangkap cabang penugasan kini jatuh ke cabang maju, dan labelnya
+     * yang dipatok "Selesaikan Bab" jadi berbohong.
+     *
+     * @test
+     */
+    public function tombol_maju_bab_menyebut_tahap_tujuannya(): void
+    {
+        [$book, $p] = $this->bukuKolab(2);
+        $cp = ChapterProgress::first();
+        $cp->update(['status' => 'menunggu', 'pelaksana_user_id' => $this->produksi('Budi')->id]);
+
+        $isi = $this->halaman($p);
+
+        $this->assertStringContainsString('Majukan ke Pembuatan', $isi,
+            'Dari menunggu, tombolnya memajukan ke Pembuatan — bukan menyelesaikan bab.');
+        $this->assertStringNotContainsString('✓ Selesaikan Bab', $isi);
+    }
+
+    /** @test */
+    public function tombol_selesaikan_muncul_hanya_saat_tahap_berikutnya_memang_selesai(): void
+    {
+        [$book, $p] = $this->bukuKolab(2);
+        $cp = ChapterProgress::first();
+        $cp->update(['status' => 'editing', 'pelaksana_user_id' => $this->produksi('Budi')->id]);
+
+        $this->assertStringContainsString('✓ Selesaikan Bab', $this->halaman($p));
+    }
+
     /** @test */
     public function judul_kolom_tabel_bab_dipadatkan(): void
     {

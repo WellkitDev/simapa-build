@@ -269,10 +269,20 @@
                                            accept=".pdf,.doc,.docx,.zip" required>
                                     <button class="btn btn-sm btn-primary text-nowrap">⬆ Upload Naskah</button>
                                 </form>
-                            @elseif ($cp->status !== 'selesai' && $izin['advance'])
+                            @elseif ($cp->status !== 'selesai' && $izin['advance'] && $majuKe)
+                                {{-- Label diturunkan dari tahap TUJUAN, bukan dipatok
+                                     "Selesaikan Bab". CHAPTER_STAGES = menunggu →
+                                     pembuatan → editing → selesai, jadi tombol ini sering
+                                     bukan menyelesaikan apa pun — ia memajukan satu
+                                     langkah. Cabang bab mandiri di atas sudah jujur soal
+                                     ini sejak awal; cabang inilah yang tertinggal. --}}
                                 <form method="POST" action="{{ route('naskah.bab.selesaikan', $cp->id) }}">
                                     @csrf
-                                    <button class="btn btn-sm btn-primary">✓ Selesaikan Bab</button>
+                                    <button class="btn btn-sm {{ $majuKe === 'selesai' ? 'btn-primary' : 'btn-outline-primary' }} text-nowrap">
+                                        {{ $majuKe === 'selesai'
+                                            ? '✓ Selesaikan Bab'
+                                            : '→ Majukan ke ' . \App\Models\ChapterProgress::labelFor($majuKe) }}
+                                    </button>
                                 </form>
                             @elseif ($izin['upload'])
                                 <form method="POST" action="{{ route('naskah.bab.file', $cp->id) }}"
