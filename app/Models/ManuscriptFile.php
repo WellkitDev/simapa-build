@@ -22,6 +22,8 @@ class ManuscriptFile extends Model
         'hasil_proofread' => 'Hasil Proofread',
         'cover'           => 'Cover',
         'loa'             => 'LoA (Letter of Acceptance)',
+        'revisi_minta'    => 'Permintaan Revisi',
+        'revisi_hasil'    => 'Hasil Revisi',
         'final'           => 'Naskah Final',
     ];
 
@@ -29,6 +31,14 @@ class ManuscriptFile extends Model
      * Slot yang relevan per jenis naskah. Artikel tidak pernah punya layout/proofread/
      * cover, dan buku tidak pernah punya LoA — menampilkan semuanya di kedua jenis
      * hanya membuat daftar file penuh baris "belum ada" yang tak akan pernah terisi.
+     */
+    /**
+     * `revisi_minta`/`revisi_hasil` SENGAJA tidak ada di kedua daftar ini meski sah
+     * sebagai slot (lihat SLOTS). Keduanya milik PUTARAN, bukan tahap: berkasnya
+     * ditampilkan berkelompok per putaran di kartu Revisi. Menaruhnya di sini akan
+     * membuat kartu berkas menyebut "Permintaan Revisi — belum ada" pada setiap naskah
+     * yang tak pernah direvisi, lalu menampilkan berkas yang sama dua kali pada yang
+     * pernah. slotSah() membaca SLOTS, jadi validasi unggahnya tetap lolos.
      */
     public const SLOTS_ARTIKEL = ['masuk', 'hasil_editing', 'loa', 'final'];
 
@@ -135,10 +145,16 @@ class ManuscriptFile extends Model
     }
 
     protected $fillable = [
-        'title_id', 'title_chapter_id', 'slot', 'status', 'version',
+        'title_id', 'title_chapter_id', 'manuscript_revision_id', 'slot', 'status', 'version',
         'original_name', 'drive_file_id', 'drive_url', 'local_path', 'upload_error',
         'file_size', 'uploaded_by',
     ];
+
+    /** Putaran perbaikan pemilik berkas ini — null untuk berkas tahap biasa. */
+    public function revision(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(ManuscriptRevision::class, 'manuscript_revision_id');
+    }
 
     /** Sudah benar-benar mendarat di Drive — satu-satunya keadaan yang boleh dihitung "ada". */
     public function selesai(): bool
