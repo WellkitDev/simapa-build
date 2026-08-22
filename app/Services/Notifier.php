@@ -293,21 +293,58 @@ class Notifier
      */
     public function naskahTahapBerubah(TitleProgress $progress, User $actor, string $from, string $to, bool $isCorrection = false): void
     {
-        $progress->loadMissing(['orderDetail', 'pj']);
+        $progress->loadMissing(['orderDetail', 'pj', 'pelaksana']);
+
+        $stages = $progress->getStages();
+        $mundur = array_search($to, $stages, true) < array_search($from, $stages, true);
 
         $recipients = $this->roleUsers(['superadmin'], $actor);
         if ($progress->pj && $progress->pj->id !== $actor->id) {
-            $recipients = $recipients->push($progress->pj)->unique('id')->values();
+            $recipients = $recipients->push($progress->pj);
         }
+        // Perpindahan mundur ditujukan kepada pelaksana — dialah yang harus mengerjakan
+        // ulang. Sebelum ini ia tak pernah dikabari sama sekali.
+        if ($mundur && $progress->pelaksana && $progress->pelaksana->id !== $actor->id) {
+            $recipients = $recipients->push($progress->pelaksana);
+        }
+        $recipients = $recipients->unique('id')->values();
+
+        $judul = match (true) {
+            $isCorrection => 'Koreksi tahap: ',
+            $mundur       => 'Naskah dikembalikan ke ',
+            default       => 'Naskah maju ke ',
+        };
 
         $this->send($recipients, [
             'category' => 'naskah',
-            'title'    => ($isCorrection ? 'Koreksi tahap: ' : 'Naskah maju ke ')
-                          . TitleProgress::labelFor($to),
+            'title'    => $judul . TitleProgress::labelFor($to),
             'message'  => $this->naskahLabel($progress) . ' • dari '
                           . TitleProgress::labelFor($from) . ' oleh ' . $actor->name,
             'url'      => $this->naskahUrl($progress),
-            'icon'     => $isCorrection ? 'rotate-ccw' : 'arrow-right-circle',
+            'icon'     => ($isCorrection || $mundur) ? 'rotate-ccw' : 'arrow-right-circle',
+        ]);
+    }
+
+    /**
+     * Permintaan revisi ditujukan ke SATU orang: pelaksana yang harus mengerjakannya.
+     * Tanpa ini, "ditujukan untuk Pelaksana" cuma teks di layar yang tak pernah
+     * benar-benar sampai kepadanya.
+     */
+    public function naskahRevisiDiminta(\App\Models\ManuscriptRevision $putaran, User $actor): void
+    {
+        $putaran->loadMissing(['assignedTo', 'title']);
+
+        if (! $putaran->assignedTo || $putaran->assignedTo->id === $actor->id) {
+            return;
+        }
+
+        $this->send(collect([$putaran->assignedTo]), [
+            'category' => 'naskah',
+            'title'    => "Permintaan revisi putaran ke-{$putaran->round}",
+            'message'  => ($putaran->title?->title ?? 'Naskah') . ' • ' . $putaran->request_note
+                          . ' • diminta ' . $actor->name,
+            'url'      => route('naskah.pelacakan'),
+            'icon'     => 'edit-3',
         ]);
     }
 

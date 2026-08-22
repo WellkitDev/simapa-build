@@ -101,9 +101,13 @@
     @endif
 
     <div class="d-flex flex-wrap gap-2 mt-3">
-        @if ($izin['advance'] && $progress->status === 'editing')
-            <button class="btn btn-outline-primary btn-sm" data-bs-toggle="collapse" data-bs-target="#formRevisi">
-                ↩ Perlu Revisi (wajib pilih alasan)
+        {{-- Targetnya diturunkan dari MUNDUR_SAH, bukan ditulis di sini: tombol lama
+             hanya memeriksa `status === 'editing'` tanpa melihat jenis naskah, dan pada
+             BUKU ia memajukan naskah ke Layout — karena buku tak punya tahap revisi. --}}
+        @php $targetMundur = \App\Services\TitleProgressService::MUNDUR_SAH[$progress->status] ?? null; @endphp
+        @if ($izin['advance'] && $targetMundur)
+            <button class="btn btn-outline-primary btn-sm" data-bs-toggle="collapse" data-bs-target="#formKembalikan">
+                ↩ Kembalikan ke {{ \App\Models\TitleProgress::labelFor($targetMundur) }}
             </button>
         @endif
         @if ($izin['correct'])
@@ -119,19 +123,23 @@
         @endif
     </div>
 
-    @if ($izin['advance'] && $progress->status === 'editing')
-        <div class="collapse mt-3" id="formRevisi">
-            <form method="POST" action="{{ route('naskah.revisi', $progress->order_detail_id) }}" class="border rounded p-3">
+    @if ($izin['advance'] && $targetMundur)
+        <div class="collapse mt-3" id="formKembalikan">
+            <form method="POST" action="{{ route('naskah.kembalikan', $progress->order_detail_id) }}"
+                  enctype="multipart/form-data" class="border rounded p-3">
                 @csrf
-                <label class="form-label small fw-bold">Alasan revisi</label>
-                <select name="alasan" class="form-select form-select-sm mb-2" required>
-                    <option value="">— pilih alasan —</option>
-                    <option value="Permintaan reviewer jurnal">Permintaan reviewer jurnal</option>
-                    <option value="Permintaan klien">Permintaan klien</option>
-                    <option value="Perbaikan kualitas internal">Perbaikan kualitas internal</option>
-                    <option value="Kelengkapan data belum cukup">Kelengkapan data belum cukup</option>
-                </select>
-                <button class="btn btn-sm btn-primary">Tandai perlu revisi</button>
+                <label class="form-label small fw-bold">
+                    Alasan mengembalikan ke {{ \App\Models\TitleProgress::labelFor($targetMundur) }}
+                </label>
+                <textarea name="alasan" rows="2" required class="form-control form-control-sm mb-2"
+                          placeholder="Apa yang perlu diperbaiki? (wajib — dibaca pelaksana)"></textarea>
+                <input type="file" name="berkas[]" multiple class="form-control form-control-sm mb-2"
+                       accept=".pdf,.doc,.docx,.zip">
+                <div class="form-text mb-2">
+                    Berkas dan catatan ini ditujukan ke
+                    <strong>{{ $progress->pelaksana?->name ?? 'pelaksana naskah' }}</strong>.
+                </div>
+                <button class="btn btn-sm btn-primary">Kembalikan naskah</button>
             </form>
         </div>
     @endif

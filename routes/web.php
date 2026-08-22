@@ -124,7 +124,10 @@ Route::middleware(['auth', 'access'])->group(function () {
 
         Route::get('{id}',             [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'show'])->name('show')->whereNumber('id');
         Route::post('{id}/selesaikan', [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'selesaikan'])->name('selesaikan')->whereNumber('id');
-        Route::post('{id}/revisi',     [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'revisi'])->name('revisi')->whereNumber('id');
+        Route::post('{id}/kembalikan',   [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'kembalikan'])->name('kembalikan')->whereNumber('id');
+        Route::post('{id}/revisi/minta', [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'revisiMinta'])->name('revisi.minta')->whereNumber('id');
+        Route::post('{id}/revisi/hasil', [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'revisiHasil'])->name('revisi.hasil')->whereNumber('id');
+        Route::post('{id}/revisi/tutup', [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'revisiTutup'])->name('revisi.tutup')->whereNumber('id');
         Route::post('{id}/koreksi',    [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'koreksi'])->name('koreksi')->whereNumber('id');
         Route::post('{id}/distribusi', [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'distribusi'])->name('distribusi')->whereNumber('id');
         Route::post('{id}/ambil',      [\App\Http\Controllers\Pages\Naskah\DetailNaskahController::class, 'claim'])->name('claim')->whereNumber('id');

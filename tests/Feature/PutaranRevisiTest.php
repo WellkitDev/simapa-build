@@ -12,6 +12,7 @@ use App\Services\GoogleDriveService;
 use App\Services\ManuscriptRevisionService;
 use App\Services\TitleProgressService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -27,7 +28,12 @@ class PutaranRevisiTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->mock(GoogleDriveService::class);
+        // Mock WAJIB lewat container, dan uploadFile WAJIB mengembalikan nilai:
+        // UnggahBerkasKeDrive melempar bila hasilnya null, jadi mock telanjang membuat
+        // setiap unggahan berakhir 500 — gejala yang menyesatkan ke arah yang salah.
+        $this->mock(GoogleDriveService::class, function ($m) {
+            $m->shouldReceive('uploadFile')->andReturn(['id' => 'drive-1', 'url' => 'https://drive/1']);
+        });
         foreach (['marketing', 'production', 'admin', 'manager', 'superadmin'] as $r) {
             Role::firstOrCreate(['name' => $r, 'guard_name' => 'web']);
         }
@@ -257,6 +263,103 @@ class PutaranRevisiTest extends TestCase
 
         $this->assertSame('loa', $progress->fresh()->status,
             'Tanpa permintaan revisi, tahapnya cukup dilewati.');
+    }
+
+    // ─── route & izin ───
+
+    /** @test */
+    public function pj_membuka_putaran_lewat_http_dan_pelaksana_dikabari(): void
+    {
+        [, $progress] = $this->naskahBerjudul('revisi');
+
+        $pelaksana = User::factory()->create();
+        $pelaksana->assignRole('production');
+        $progress->update(['pelaksana_user_id' => $pelaksana->id]);
+
+        $this->actingAs($this->superadmin())
+            ->post(route('naskah.revisi.minta', $progress->order_detail_id), [
+                'request_note' => 'Metodologi bab 3 diminta diperjelas',
+                'berkas'       => [UploadedFile::fake()->create('reviewer.pdf', 20)],
+            ])->assertRedirect()->assertSessionHas('success');
+
+        $putaran = ManuscriptRevision::first();
+        $this->assertNotNull($putaran);
+        $this->assertSame($pelaksana->id, $putaran->assigned_to,
+            'Permintaan otomatis ditujukan ke pelaksana naskah.');
+        $this->assertSame(1, $putaran->berkasMinta()->count());
+
+        $this->assertDatabaseHas('notifications', ['notifiable_id' => $pelaksana->id]);
+    }
+
+    /** @test */
+    public function pelaksana_boleh_mengunggah_hasil_revisi(): void
+    {
+        [$judul, $progress] = $this->naskahBerjudul('revisi');
+        $p = $this->putaran($judul);
+
+        $pelaksana = User::factory()->create();
+        $pelaksana->assignRole('production');
+        $progress->update(['pelaksana_user_id' => $pelaksana->id]);
+
+        $this->actingAs($pelaksana)
+            ->post(route('naskah.revisi.hasil', $progress->order_detail_id), [
+                'revision_id' => $p->id,
+                'berkas'      => [UploadedFile::fake()->create('hasil.docx', 20)],
+            ])->assertRedirect()->assertSessionHas('success');
+
+        $this->assertTrue($p->fresh()->terjawab());
+    }
+
+    /** @test */
+    public function marketing_tidak_boleh_membuka_putaran(): void
+    {
+        [, $progress] = $this->naskahBerjudul('revisi');
+
+        $mkt = User::factory()->create();
+        $mkt->assignRole('marketing');
+
+        // EnforcePermission membalas submit form dengan redirect + flash error, bukan
+        // 403 mentah — supaya penolakannya tampil sebagai pesan, bukan halaman galat.
+        $this->actingAs($mkt)
+            ->post(route('naskah.revisi.minta', $progress->order_detail_id), [
+                'request_note' => 'coba buka',
+            ])->assertRedirect()->assertSessionHas('error');
+
+        $this->assertSame(0, ManuscriptRevision::count());
+    }
+
+    /** @test */
+    public function mengembalikan_naskah_lewat_http_membuka_putaran(): void
+    {
+        [, $progress] = $this->naskahBerjudul('loa');
+
+        $this->actingAs($this->superadmin())
+            ->post(route('naskah.kembalikan', $progress->order_detail_id), [
+                'alasan' => 'Reviewer minta revisi minor',
+            ])->assertRedirect()->assertSessionHas('success');
+
+        $this->assertSame('revisi', $progress->fresh()->status);
+
+        $putaran = ManuscriptRevision::first();
+        $this->assertSame('revisi', $putaran->stage);
+        $this->assertSame('loa', $putaran->from_stage,
+            'Asal putaran ditangkap sebelum tahapnya bergerak.');
+    }
+
+    /** @test */
+    public function menutup_putaran_lewat_http(): void
+    {
+        [$judul, $progress] = $this->naskahBerjudul('revisi');
+        $p = $this->putaran($judul);
+        $this->berkas($judul, $p, 'revisi_minta');
+
+        $this->actingAs($this->superadmin())
+            ->post(route('naskah.revisi.tutup', $progress->order_detail_id), [
+                'revision_id' => $p->id,
+                'close_note'  => 'Reviewer menarik permintaannya',
+            ])->assertRedirect()->assertSessionHas('success');
+
+        $this->assertNotNull($p->fresh()->closed_at);
     }
 
     /**

@@ -179,14 +179,17 @@ return [
                 'target'   => ['naskah.target'],
                 // Upload file naskah: semua role (marketing = naskah masuk dari klien;
                 // pelaksana = bukti kerja pemicu auto-advance; admin = hasil per tahap).
-                'upload'   => ['naskah.file', 'naskah.bab.file'],
+                // `revisi.hasil` sengaja di kelompok ini, bukan `advance`: jawaban revisi
+                // boleh datang dari Pelaksana, dan `advance` tertutup untuknya.
+                'upload'   => ['naskah.file', 'naskah.bab.file', 'naskah.revisi.hasil'],
                 // Ambil tugas dari antrian tanpa pelaksana: production.
                 'claim'    => ['naskah.claim', 'naskah.bab.claim'],
                 // Distribusi/tarik pelaksana + oper PJ antar admin sebidang: admin (bidangnya).
                 'assign'   => ['naskah.distribusi', 'naskah.tarik', 'naskah.operPj',
                                'naskah.bab.distribusi', 'naskah.bab.pelaksanaSemua'],
                 // Satu tombol "Selesaikan tahap →" (maju 1 langkah) + "Perlu Revisi": admin.
-                'advance'  => ['naskah.selesaikan', 'naskah.revisi', 'naskah.bab.selesaikan'],
+                'advance'  => ['naskah.selesaikan', 'naskah.kembalikan', 'naskah.bab.selesaikan',
+                               'naskah.revisi.minta', 'naskah.revisi.tutup'],
                 'priority' => ['naskah.prioritas'],
                 'hold'     => ['naskah.hold'],
                 'cancel'   => ['naskah.batal'],

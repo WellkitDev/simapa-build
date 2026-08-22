@@ -6,12 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Models\Author;
 use App\Models\ChapterProgress;
 use App\Models\ManuscriptFile;
+use App\Models\ManuscriptRevision;
 use App\Models\TitleProgress;
 use App\Models\User;
 use App\Services\AssignmentService;
 use App\Services\ChapterRollupService;
 use App\Services\ManuscriptFileService;
+use App\Services\ManuscriptRevisionService;
+use App\Services\Notifier;
 use App\Services\TitleProgressService;
+use App\Support\BatasUnggah;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -99,15 +103,122 @@ class DetailNaskahController extends Controller
     }
 
     /** "Perlu Revisi": maju khusus dari Editing ke Revisi dengan alasan baku wajib. */
-    public function revisi(Request $request, int $id, TitleProgressService $stages)
+    /**
+     * Mengembalikan naskah satu tahap ke belakang (LoA→Revisi, Editing→Pembuatan).
+     *
+     * Menggantikan `revisi()` lama yang isinya `advance()` biasa — ia mendarat di
+     * `revisi` semata karena kebetulan tahap berikutnya sesudah `editing`, dan pada
+     * BUKU ia memajukan naskah ke Layout. Targetnya kini diturunkan dari MUNDUR_SAH,
+     * sehingga tombol dan aturannya tak bisa berselisih.
+     */
+    public function kembalikan(Request $request, int $id, TitleProgressService $stages)
     {
-        $request->validate(['alasan' => 'required|string|max:255']);
+        $request->validate([
+            'alasan'   => 'required|string|max:255',
+            'berkas.*' => 'nullable|file|mimes:pdf,doc,docx,zip|max:' . BatasUnggah::kb(20480),
+        ]);
         $progress = $this->progress($id);
 
         return $this->run($request, function () use ($stages, $progress, $request) {
-            $stages->advance($progress, $request->user(), 'Perlu revisi: ' . $request->input('alasan'));
+            $target = TitleProgressService::MUNDUR_SAH[$progress->status] ?? null;
+            if ($target === null) {
+                throw ValidationException::withMessages([
+                    'status' => 'Naskah di tahap ini tak bisa dikembalikan lewat alur normal.',
+                ]);
+            }
 
-            return 'Naskah ditandai perlu revisi.';
+            // Ditangkap SEBELUM tahapnya bergerak: sesudah itu $progress bisa basi
+            // maupun sudah tertimpa, dan keduanya membuat asal putaran salah catat.
+            $dari = $progress->status;
+
+            // Tahap digerakkan LEBIH DULU: kalau gerbangnya menolak (naskah terarsip,
+            // pasangan tahap tak sah), tak ada putaran yatim yang tertinggal.
+            $stages->kembalikan($progress, $target, $request->user(), $request->input('alasan'));
+
+            $title = $progress->orderDetail?->titleRef;
+            if ($title) {
+                $putaran = app(ManuscriptRevisionService::class)->buka(
+                    $title, $target, $dari,
+                    $request->user(), $request->input('alasan'),
+                    $progress->pelaksana, $request->file('berkas', [])
+                );
+
+                app(Notifier::class)->naskahRevisiDiminta($putaran, $request->user());
+            }
+
+            return 'Naskah dikembalikan ke ' . TitleProgress::labelFor($target) . '.';
+        });
+    }
+
+    /** Membuka putaran revisi baru di tahap Revisi — permintaan dari reviewer. */
+    public function revisiMinta(Request $request, int $id)
+    {
+        $request->validate([
+            'request_note' => 'required|string|max:2000',
+            'assigned_to'  => 'nullable|integer|exists:users,id',
+            'berkas.*'     => 'nullable|file|mimes:pdf,doc,docx,zip|max:' . BatasUnggah::kb(20480),
+        ]);
+        $progress = $this->progress($id);
+
+        return $this->run($request, function () use ($progress, $request) {
+            $title = $progress->orderDetail?->titleRef;
+            if ($title === null) {
+                throw ValidationException::withMessages([
+                    'title' => 'Naskah ini belum tersambung ke judul.',
+                ]);
+            }
+
+            $untuk = $request->filled('assigned_to')
+                ? User::find($request->input('assigned_to'))
+                : $progress->pelaksana;
+
+            $putaran = app(ManuscriptRevisionService::class)->buka(
+                $title, $progress->status, $progress->status, $request->user(),
+                $request->input('request_note'), $untuk, $request->file('berkas', [])
+            );
+
+            app(Notifier::class)->naskahRevisiDiminta($putaran, $request->user());
+
+            return "Permintaan revisi putaran ke-{$putaran->round} dikirim.";
+        });
+    }
+
+    /** Menjawab putaran — boleh Pelaksana maupun PJ. */
+    public function revisiHasil(Request $request, int $id)
+    {
+        $request->validate([
+            'revision_id' => 'required|integer|exists:tb_manuscript_revisions,id',
+            'berkas'      => 'required|array|min:1',
+            'berkas.*'    => 'file|mimes:pdf,doc,docx,zip|max:' . BatasUnggah::kb(20480),
+        ]);
+        $this->progress($id);
+
+        return $this->run($request, function () use ($request) {
+            $putaran = ManuscriptRevision::findOrFail($request->input('revision_id'));
+
+            app(ManuscriptRevisionService::class)
+                ->jawab($putaran, $request->user(), $request->file('berkas'));
+
+            return 'Hasil revisi diunggah.';
+        });
+    }
+
+    /** Pintu darurat: menutup putaran tanpa berkas, wajib beralasan. */
+    public function revisiTutup(Request $request, int $id)
+    {
+        $request->validate([
+            'revision_id' => 'required|integer|exists:tb_manuscript_revisions,id',
+            'close_note'  => 'required|string|max:1000',
+        ]);
+        $this->progress($id);
+
+        return $this->run($request, function () use ($request) {
+            $putaran = ManuscriptRevision::findOrFail($request->input('revision_id'));
+
+            app(ManuscriptRevisionService::class)
+                ->tutup($putaran, $request->user(), $request->input('close_note'));
+
+            return "Putaran ke-{$putaran->round} ditutup.";
         });
     }
 

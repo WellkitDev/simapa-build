@@ -294,6 +294,43 @@ class RevisiSetelahSubmitTest extends TestCase
     }
 
     /** @test */
+    public function tombol_kembalikan_muncul_di_editing_dan_loa(): void
+    {
+        $admin = $this->admin();
+
+        $isi = $this->actingAs($admin)
+            ->get(route('naskah.show', $this->naskah('editing')->order_detail_id))
+            ->assertOk()->getContent();
+        $this->assertStringContainsString('Kembalikan ke Pembuatan Naskah', $isi);
+
+        $isi = $this->actingAs($admin)
+            ->get(route('naskah.show', $this->naskah('loa')->order_detail_id))
+            ->assertOk()->getContent();
+        $this->assertStringContainsString('Kembalikan ke Revisi', $isi);
+    }
+
+    /** @test */
+    public function tombol_kembalikan_tidak_muncul_di_tahap_yang_tak_mendukung(): void
+    {
+        $isi = $this->actingAs($this->admin())
+            ->get(route('naskah.show', $this->naskah('submit')->order_detail_id))
+            ->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('Kembalikan ke', $isi);
+    }
+
+    /** @test */
+    public function buku_di_editing_menawarkan_kembali_ke_pembuatan_bukan_layout(): void
+    {
+        $isi = $this->actingAs($this->admin())
+            ->get(route('naskah.show', $this->naskah('editing', 'bk_mandiri')->order_detail_id))
+            ->assertOk()->getContent();
+
+        $this->assertStringContainsString('Kembalikan ke Pembuatan Naskah', $isi);
+        $this->assertStringNotContainsString('Kembalikan ke Layout', $isi);
+    }
+
+    /** @test */
     public function urutan_tahap_buku_tidak_ikut_berubah(): void
     {
         $this->assertSame(
