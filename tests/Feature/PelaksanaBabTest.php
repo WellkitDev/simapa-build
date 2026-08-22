@@ -291,6 +291,94 @@ class PelaksanaBabTest extends TestCase
         $this->assertStringContainsString('✓ Selesaikan Bab', $this->halaman($p));
     }
 
+    // ─── aksi bab mandiri: satu aksi utama per keadaan ───
+
+    /** @return array{0: Title, 1: TitleProgress, 2: \App\Models\TitleChapter} */
+    private function bukuMandiri(): array
+    {
+        $book = Title::create([
+            'title' => 'Buku Mandiri ' . fake()->unique()->words(2, true),
+            'jenis' => 'buku', 'tipe_naskah' => 'kolaborasi', 'status' => 'disetujui',
+        ]);
+
+        $bab = $book->chapters()->create(['judul' => 'Bab 1', 'urutan' => 1]);
+        $bab->progress()->create(['status' => 'menunggu', 'started_at' => now()]);
+
+        $order  = Order::factory()->create();
+        $detail = OrderDetail::factory()->create([
+            'order_id' => $order->id, 'type' => 'bk_kolab',
+            'title' => $book->title, 'title_id' => $book->id,
+            'chapters' => 1, 'naskah_type' => 'mandiri',
+        ]);
+        $author = Author::create(['name' => 'Penulis Sendiri', 'email' => uniqid() . '@uji.test']);
+        $detail->authors()->attach($author->id, ['position' => 1]);
+        $bab->authors()->attach($author->id, ['position' => 1]);
+
+        $p = TitleProgress::create([
+            'order_detail_id' => $detail->id, 'status' => 'pembuatan',
+            'assigned_role' => 'production', 'bidang' => 'buku', 'started_at' => now(),
+        ]);
+
+        return [$book->fresh(), $p, $bab];
+    }
+
+    /**
+     * Selama naskahnya belum masuk, satu-satunya aksi yang berarti adalah mengunggah —
+     * memajukan bab tanpa naskah tak berarti apa-apa. Sebelumnya kedua formulir selalu
+     * bertumpuk di sel selebar 290px.
+     *
+     * @test
+     */
+    public function bab_mandiri_tanpa_naskah_hanya_menawarkan_unggah(): void
+    {
+        [$book, $p, $bab] = $this->bukuMandiri();
+        $isi = $this->halaman($p);
+
+        $this->assertStringContainsString('⬆ Naskah', $isi);
+        $this->assertStringContainsString('Naskah dikirim author sendiri', $isi);
+        $this->assertStringNotContainsString('Majukan ke', $isi,
+            'Tak ada gunanya memajukan bab yang naskahnya belum ada.');
+    }
+
+    /** @test */
+    public function bab_mandiri_bernaskah_menawarkan_maju_dan_ganti_naskah_sebagai_tautan(): void
+    {
+        [$book, $p, $bab] = $this->bukuMandiri();
+
+        \App\Models\ManuscriptFile::create([
+            'title_id' => $book->id, 'title_chapter_id' => $bab->id,
+            'slot' => 'masuk', 'status' => 'selesai', 'version' => 1,
+            'original_name' => 'naskah-author.docx', 'drive_url' => 'https://drive/x',
+        ]);
+
+        $isi = $this->halaman($p);
+
+        $this->assertStringContainsString('Majukan ke Editing', $isi,
+            'Naskah sudah masuk — giliran tombol maju yang jadi utama.');
+        $this->assertStringContainsString('ganti naskah', $isi,
+            'Mengganti naskah turun jadi tautan, bukan formulir yang selalu terbuka.');
+    }
+
+    /**
+     * Berkas yang GAGAL diunggah tak boleh dihitung sebagai "naskah sudah masuk" —
+     * berkasnya memang tak pernah sampai.
+     *
+     * @test
+     */
+    public function berkas_gagal_tidak_dihitung_sebagai_naskah_masuk(): void
+    {
+        [$book, $p, $bab] = $this->bukuMandiri();
+
+        \App\Models\ManuscriptFile::create([
+            'title_id' => $book->id, 'title_chapter_id' => $bab->id,
+            'slot' => 'masuk', 'status' => 'gagal', 'version' => 1,
+            'original_name' => 'gagal.docx',
+        ]);
+
+        $this->assertStringContainsString('⬆ Naskah', $this->halaman($p),
+            'Unggahan yang gagal harus tetap menawarkan unggah ulang.');
+    }
+
     /** @test */
     public function judul_kolom_tabel_bab_dipadatkan(): void
     {

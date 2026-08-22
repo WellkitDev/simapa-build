@@ -56,6 +56,20 @@ class RincianTahapService
         $logs   = $progress->logs()->with('changedBy')->orderBy('created_at')->orderBy('id')->get();
         $berkas = $title ? $this->berkasJudul($title) : collect();
 
+        /*
+         | Submission jurnal, ISBN, dan putaran diambil SEKALI untuk seluruh tahap.
+         |
+         | Versi pertama menanyakannya di dalam perulangan tahap — dan karena data()
+         | serta tautan() sama-sama membutuhkannya, satu halaman buku menembakkan 16
+         | query tb_journal_submissions dan 9 query tb_book_isbns untuk menjawab
+         | pertanyaan yang jawabannya sama persis setiap kali.
+         */
+        $sub     = $title?->journalSubmissions()->with('journal')->orderByDesc('id')->first();
+        $isbn    = $title?->bookIsbn()->first();
+        $putaran = $title
+            ? ManuscriptRevision::where('title_id', $title->id)->orderBy('round')->get()->groupBy('stage')
+            : collect();
+
         $out = [];
         foreach ($stages as $stage) {
             $kunjungan = $this->kunjungan($progress, $logs, $stage);
@@ -65,8 +79,8 @@ class RincianTahapService
                 'berjalan'  => $progress->status === $stage,
                 'kunjungan' => $kunjungan,
                 'berkas'    => $berkas->whereIn('slot', self::BERKAS_TAHAP[$stage] ?? [])->values(),
-                'data'      => $title ? $this->data($title, $stage) : [],
-                'tautan'    => $title ? $this->tautan($title, $stage) : null,
+                'data'      => $title ? $this->data($stage, $sub, $isbn, $putaran) : [],
+                'tautan'    => $title ? $this->tautan($title, $stage, $sub) : null,
             ];
         }
 
@@ -154,11 +168,8 @@ class RincianTahapService
      *
      * @return array<string,string>
      */
-    private function data(Title $title, string $stage): array
+    private function data(string $stage, $sub, $isbn, $putaran): array
     {
-        $sub  = $title->journalSubmissions()->with('journal')->orderByDesc('id')->first();
-        $isbn = $title->relationLoaded('bookIsbn') ? $title->bookIsbn : $title->bookIsbn()->first();
-
         return match ($stage) {
             'submit' => array_filter([
                 'Jurnal tujuan'  => $sub?->journal?->nama,
@@ -173,18 +184,15 @@ class RincianTahapService
                 'Nomor ISBN' => $isbn?->no_isbn,
                 'Penerbit'   => $isbn?->penerbit,
             ]),
-            'revisi', 'pembuatan' => $this->dataPutaran($title, $stage),
+            'revisi', 'pembuatan' => $this->dataPutaran($putaran->get($stage)),
             default => [],
         };
     }
 
     /** @return array<string,string> */
-    private function dataPutaran(Title $title, string $stage): array
+    private function dataPutaran($putaran): array
     {
-        $putaran = ManuscriptRevision::where('title_id', $title->id)
-            ->where('stage', $stage)->orderBy('round')->get();
-
-        if ($putaran->isEmpty()) {
+        if (! $putaran || $putaran->isEmpty()) {
             return [];
         }
 
@@ -201,10 +209,8 @@ class RincianTahapService
      *
      * @return array{label: string, url: string}|null
      */
-    private function tautan(Title $title, string $stage): ?array
+    private function tautan(Title $title, string $stage, $sub): ?array
     {
-        $sub = $title->journalSubmissions()->orderByDesc('id')->first();
-
         return match (true) {
             in_array($stage, ['submit', 'loa'], true) && $sub?->journal_id !== null => [
                 'label' => 'Ubah di Direktori Jurnal',

@@ -54,9 +54,7 @@ class DetailNaskahController extends Controller
             'next'       => $progress->nextStage(),
             'berkas'     => $this->files($progress),
             'isKolab'    => $isKolab,
-            'bab'        => $isKolab
-                ? $book->chapters()->with(['progress.pelaksana', 'authors', 'manuscriptFiles'])->orderBy('urutan')->get()
-                : collect(),
+            'bab'        => $isKolab ? $this->babSiapPakai($book) : collect(),
             'ringkasan'  => $isKolab ? $rollup->summary($book) : null,
             'pelaksanaOptions' => $this->usersWithRole('production'),
             'adminOptions'     => $this->usersWithRole('admin'),
@@ -566,6 +564,36 @@ class DetailNaskahController extends Controller
     }
 
     // ─── Helper ───
+
+    /**
+     * Bab buku beserta SELURUH relasi yang dipakai tabelnya — termasuk yang tersembunyi.
+     *
+     * `ChapterProgress::sumberNaskah()` dipanggil sekali per bab dan menempuh rantai
+     * `$this->chapter->title->orderForChapter()`. Tanpa penyiapan di bawah, tiap bab
+     * memuat ulang chapter-nya, memuat Title-nya sebagai INSTANCE BARU, lalu menanyakan
+     * seluruh orderDetails judul itu dari nol — karena cache `relationLoaded` milik
+     * instance sebelumnya tak pernah terpakai.
+     *
+     * Halaman buku 10 bab menghabiskan 128 query sebelum ini.
+     *
+     * Kuncinya menyuntikkan $book YANG SAMA ke tiap bab: satu instance, satu kali muat
+     * orderDetails, dipakai bersama sepuluh pemanggil.
+     */
+    private function babSiapPakai(\App\Models\Title $book)
+    {
+        $book->loadMissing('orderDetails.titleProgress');
+
+        $bab = $book->chapters()
+            ->with(['progress.pelaksana', 'authors', 'manuscriptFiles'])
+            ->orderBy('urutan')->get();
+
+        foreach ($bab as $b) {
+            $b->setRelation('title', $book);
+            $b->progress?->setRelation('chapter', $b);
+        }
+
+        return $bab;
+    }
 
     private function progress(int $orderDetailId): TitleProgress
     {

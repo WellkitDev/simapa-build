@@ -553,7 +553,9 @@ class NaskahDetailTest extends TestCase
         $this->assertStringContainsString('Naskah Mandiri', $isi);
         $this->assertStringContainsString('Belum ditugaskan', $isi);
         // Bab mandiri menawarkan unggahan naskah author, BUKAN distribusi ke pelaksana.
-        $this->assertStringContainsString('Naskah dari Author', $isi);
+        // Labelnya dipadatkan jadi "⬆ Naskah" saat kolom Aksi dirapikan; keterangan di
+        // bawahnyalah yang kini menjelaskan asal naskahnya.
+        $this->assertStringContainsString('Naskah dikirim author sendiri', $isi);
     }
 
     /**

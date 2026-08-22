@@ -221,31 +221,77 @@
                                     <span class="text-muted small">Menunggu pemetaan author</span>
                                 @endif
                             @elseif ($sumber === 'mandiri' && $cp->status !== 'selesai')
-                                {{-- Bab bernaskah mandiri: naskahnya datang dari author, jadi
-                                     yang dibutuhkan unggahan — bukan pelaksana. Unggahan dan
-                                     tombol maju TIDAK saling meniadakan: rantai @elseif yang
-                                     lama menelan tombol maju, sehingga bab mandiri tak punya
-                                     jalan ke Selesai sama sekali. --}}
-                                @if ($izin['upload'])
-                                    <form method="POST" action="{{ route('naskah.bab.file', $cp->id) }}"
-                                          enctype="multipart/form-data" class="d-flex gap-1">
-                                        @csrf
-                                        <input type="hidden" name="slot" value="masuk">
-                                        <input type="file" name="file" class="form-control form-control-sm"
-                                               accept=".pdf,.doc,.docx,.zip" required>
-                                        <button class="btn btn-sm btn-primary text-nowrap">⬆ Naskah dari Author</button>
-                                    </form>
-                                @endif
-                                @if ($izin['advance'] && $majuKe)
-                                    <form method="POST" action="{{ route('naskah.bab.selesaikan', $cp->id) }}" class="mt-1">
-                                        @csrf
-                                        <button class="btn btn-sm {{ $majuKe === 'selesai' ? 'btn-primary' : 'btn-outline-primary' }} text-nowrap">
-                                            {{ $majuKe === 'selesai' ? '✓ Selesaikan Bab' : '→ Naskah sudah ada, mulai Editing' }}
+                                {{--
+                                    Bab bernaskah mandiri: naskahnya datang dari author, jadi
+                                    yang dibutuhkan unggahan — bukan pelaksana.
+
+                                    SATU aksi utama pada satu waktu. Versi sebelumnya selalu
+                                    menumpuk formulir unggah DAN tombol maju sekaligus, karena
+                                    cabang ini melayani dua keadaan (menunggu dan editing)
+                                    dengan tampilan yang sama. Dua kotak berjejal di sel
+                                    selebar 290px, dan pembacanya harus menebak mana yang
+                                    dimaksudkan untuknya.
+
+                                    Keadaannya sebenarnya sederhana: selama naskahnya belum
+                                    masuk, satu-satunya yang berarti adalah mengunggah —
+                                    memajukan bab tanpa naskah tak berarti apa-apa. Begitu
+                                    naskahnya ada, giliran tombol maju yang jadi utama, dan
+                                    unggahan turun jadi tautan kecil untuk menggantinya.
+                                --}}
+                                @php
+                                    // 'gagal' tidak dihitung: berkasnya memang tak sampai.
+                                    $naskahMasuk = $b->manuscriptFiles
+                                        ->where('slot', 'masuk')
+                                        ->whereIn('status', ['selesai', 'antre'])
+                                        ->isNotEmpty();
+                                @endphp
+
+                                @if (! $naskahMasuk)
+                                    @if ($izin['upload'])
+                                        <form method="POST" action="{{ route('naskah.bab.file', $cp->id) }}"
+                                              enctype="multipart/form-data" class="d-flex gap-1">
+                                            @csrf
+                                            <input type="hidden" name="slot" value="masuk">
+                                            <input type="file" name="file" class="form-control form-control-sm"
+                                                   accept=".pdf,.doc,.docx,.zip" required>
+                                            <button class="btn btn-sm btn-primary text-nowrap">⬆ Naskah</button>
+                                        </form>
+                                        <div class="form-text mt-1">Naskah dikirim author sendiri.</div>
+                                    @else
+                                        <span class="text-muted small">Menunggu naskah dari author</span>
+                                    @endif
+                                @else
+                                    @if ($izin['advance'] && $majuKe)
+                                        <form method="POST" action="{{ route('naskah.bab.selesaikan', $cp->id) }}">
+                                            @csrf
+                                            <button class="btn btn-sm {{ $majuKe === 'selesai' ? 'btn-primary' : 'btn-outline-primary' }} text-nowrap">
+                                                {{ $majuKe === 'selesai'
+                                                    ? '✓ Selesaikan Bab'
+                                                    : '→ Majukan ke ' . \App\Models\ChapterProgress::labelFor($majuKe) }}
+                                            </button>
+                                        </form>
+                                    @endif
+                                    @if ($izin['upload'])
+                                        {{-- Turun jadi tautan: mengganti naskah itu perkecualian,
+                                             bukan pekerjaan sehari-hari. --}}
+                                        <button type="button" class="btn btn-link btn-sm p-0 text-muted mt-1"
+                                                data-bs-toggle="collapse" data-bs-target="#gantiNaskah{{ $cp->id }}">
+                                            ganti naskah
                                         </button>
-                                    </form>
-                                @endif
-                                @if (! $izin['upload'] && ! $izin['advance'])
-                                    <span class="text-muted small">Menunggu naskah dari author</span>
+                                        <div class="collapse mt-1" id="gantiNaskah{{ $cp->id }}">
+                                            <form method="POST" action="{{ route('naskah.bab.file', $cp->id) }}"
+                                                  enctype="multipart/form-data" class="d-flex gap-1">
+                                                @csrf
+                                                <input type="hidden" name="slot" value="masuk">
+                                                <input type="file" name="file" class="form-control form-control-sm"
+                                                       accept=".pdf,.doc,.docx,.zip" required>
+                                                <button class="btn btn-sm btn-outline-primary text-nowrap">⬆</button>
+                                            </form>
+                                        </div>
+                                    @endif
+                                    @if (! $izin['advance'] && ! $izin['upload'])
+                                        <span class="text-muted small">Naskah sudah masuk</span>
+                                    @endif
                                 @endif
                             {{-- Penugasan pelaksana PINDAH ke kolom Pelaksana. Kolom ini
                                  hanya untuk gerakan alur kerja, dan dua pintu ke aksi yang
