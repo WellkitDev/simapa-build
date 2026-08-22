@@ -366,6 +366,7 @@ class TitleController extends Controller
             'scope_id'         => 'nullable|string|max:255',
             'assigned_to'      => 'nullable|integer|exists:users,id',
             'chapters'         => 'nullable|array',
+            'chapters.*.id'    => 'nullable|integer',
             'chapters.*.judul' => 'nullable|string|max:255',
         ]);
     }

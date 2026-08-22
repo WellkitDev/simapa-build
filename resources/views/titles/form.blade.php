@@ -91,10 +91,17 @@
                         </div>
                         <p class="text-muted small mb-3">Rincikan judul tiap bab hingga selesai (khusus buku).</p>
                         <div id="chaptersList">
-                            @php $existing = old('chapters', $title->exists ? $title->chapters->map(fn($c) => ['judul' => $c->judul])->all() : []); @endphp
+                            {{-- `id` ikut dikirim supaya bab dicocokkan berdasarkan
+                                 identitasnya, bukan posisinya. Tanpa itu, menghapus bab
+                                 di TENGAH membuat sisa bab mewarisi judul tetangganya —
+                                 dan kemajuan bab 4 mendarat di bawah label "Bab 5". --}}
+                            @php $existing = old('chapters', $title->exists ? $title->chapters->map(fn($c) => ['id' => $c->id, 'judul' => $c->judul])->all() : []); @endphp
                             @forelse($existing as $i => $ch)
                                 <div class="input-group mb-2" data-chapter-row>
                                     <span class="input-group-text">Bab</span>
+                                    @if (! empty($ch['id']))
+                                        <input type="hidden" name="chapters[{{ $i }}][id]" value="{{ $ch['id'] }}">
+                                    @endif
                                     <input type="text" name="chapters[{{ $i }}][judul]" class="form-control" value="{{ $ch['judul'] ?? '' }}" placeholder="Judul bab">
                                     <button type="button" class="btn btn-outline-danger" data-remove-chapter>Hapus</button>
                                 </div>
