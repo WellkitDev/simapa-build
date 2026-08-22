@@ -22,6 +22,15 @@
     @if ($k['kolab'])
         <span class="badge bg-primary-subtle text-primary" style="font-size:.65rem">Kolab</span>
     @endif
+    @if (($k['putaranTerbuka'] ?? 0) > 0)
+        {{-- Naskah yang menunggu jawaban revisi tertahan lajunya. Di papan inilah orang
+             memutuskan mana yang dikerjakan lebih dulu, jadi ia harus terlihat di sini
+             — bukan baru ketahuan sesudah kartunya dibuka. --}}
+        <span class="badge bg-warning text-dark" style="font-size:.65rem"
+              title="Putaran perbaikan yang belum ditutup">
+            ↩ {{ $k['putaranTerbuka'] }} revisi
+        </span>
+    @endif
 
     <div class="fw-semibold my-1">{{ \Illuminate\Support\Str::limit($detail?->title ?? '—', 40) }}</div>
 

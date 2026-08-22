@@ -435,6 +435,39 @@ class PutaranRevisiTest extends TestCase
     }
 
     /**
+     * Papan Pelacakan adalah tempat orang memutuskan mana yang dikerjakan lebih dulu.
+     * Naskah yang tertahan menunggu jawaban revisi harus terlihat di situ, bukan baru
+     * ketahuan sesudah kartunya dibuka satu per satu.
+     *
+     * @test
+     */
+    public function papan_pelacakan_menandai_kartu_yang_punya_putaran_terbuka(): void
+    {
+        [$judul, $progress] = $this->naskahBerjudul('revisi');
+        $this->putaran($judul);
+
+        $isi = $this->actingAs($this->superadmin())
+            ->get(route('naskah.pelacakan', ['tipe' => 'artikel']))
+            ->assertOk()->getContent();
+
+        $this->assertStringContainsString('1 revisi', $isi);
+    }
+
+    /** @test */
+    public function putaran_yang_sudah_ditutup_tidak_menandai_kartu(): void
+    {
+        [$judul, $progress] = $this->naskahBerjudul('revisi');
+        $this->putaran($judul, ['closed_at' => now()]);
+
+        $isi = $this->actingAs($this->superadmin())
+            ->get(route('naskah.pelacakan', ['tipe' => 'artikel']))
+            ->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('revisi</span>', $isi,
+            'Putaran yang sudah selesai bukan lagi hal yang menahan siapa pun.');
+    }
+
+    /**
      * Slot revisi sah untuk diunggah, tapi SENGAJA tak ikut di daftar per-jenis:
      * berkasnya ditampilkan berkelompok per putaran di kartu Revisi, bukan sebagai
      * baris tetap di kartu berkas.

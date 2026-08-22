@@ -151,9 +151,19 @@ class PelacakanNaskahController extends Controller
     {
         $rollup = app(ChapterRollupService::class);
 
+        // Jumlah putaran perbaikan yang masih terbuka, SATU query untuk seluruh papan.
+        // Menghitungnya di dalam perulangan kartu berarti satu query per judul — papan
+        // ini rutin menampilkan puluhan kartu sekaligus.
+        $putaranTerbuka = \App\Models\ManuscriptRevision::query()
+            ->whereIn('title_id', $progresses->pluck('orderDetail.title_id')->filter()->unique())
+            ->whereNull('closed_at')
+            ->selectRaw('title_id, COUNT(*) as jml')
+            ->groupBy('title_id')
+            ->pluck('jml', 'title_id');
+
         return $progresses
             ->groupBy(fn (TitleProgress $p) => $p->orderDetail?->group_key ?? 'tp:' . $p->id)
-            ->map(function (Collection $varian) use ($rollup) {
+            ->map(function (Collection $varian) use ($rollup, $putaranTerbuka) {
                 $stages = $varian->first()->getStages();
                 $utama  = $varian->sortBy(fn ($p) => array_search($p->status, $stages, true))->first();
                 $book   = $utama->orderDetail?->titleRef;
@@ -168,6 +178,10 @@ class PelacakanNaskahController extends Controller
                     // Dihitung dari SELURUH order sejudul, bukan dari order perwakilan —
                     // satu judul bisa dicakup order "dibuatkan" dan "mandiri" sekaligus.
                     'jenisNaskah' => OrderDetail::jenisNaskahGrup($varian->map->orderDetail),
+                    // Naskah yang menunggu jawaban revisi tak boleh hanya ketahuan
+                    // setelah kartunya dibuka — di papan inilah orang memutuskan mana
+                    // yang harus dikerjakan lebih dulu.
+                    'putaranTerbuka' => (int) ($putaranTerbuka[$book?->id] ?? 0),
                 ];
             })
             ->values()

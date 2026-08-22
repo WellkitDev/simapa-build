@@ -459,8 +459,8 @@ proses yang berbagi satu DB uji sudah pernah menghabiskan waktu di repo ini.
 - **Mundur dari tahap mana pun.** Hanya dua pasangan yang dibolehkan (§5.3). Mekanisme
   umum "mundur satu tahap di mana saja" dipertimbangkan dan ditolak: ia butuh lantai
   pengaman di banyak tempat dan tak ada yang memintanya.
-- **Perapian folder Google Drive.** Spec terpisah. Berkas `revisi_minta`/`revisi_hasil`
-  yang lahir di sini akan mendarat di folder root yang sama berantakannya dengan berkas
-  naskah lain sampai pekerjaan itu dikerjakan — diketahui, bukan terlewat.
+- ~~**Perapian folder Google Drive.**~~ **SELESAI 2026-08-22** — lihat
+  `2026-08-22-drive-folder-per-judul-design.md`. Berkas `revisi_minta`/`revisi_hasil`
+  kini mendarat di `<KODE>-<id>/Naskah/Revisi`, bukan menumpuk rata di folder aplikasi.
 - **Putaran revisi per bab untuk buku.** `title_chapter_id` disediakan di skema supaya
   tak perlu migrasi kedua, tapi tak ada UI yang mengisinya di pekerjaan ini.
