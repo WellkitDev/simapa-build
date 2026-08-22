@@ -48,6 +48,53 @@ class TitleProgressService
     }
 
     /**
+     * Pasangan tahap yang boleh dimundurkan lewat alur normal (bukan Koreksi).
+     *
+     * Sengaja daftar tertutup: "mundur satu tahap dari mana saja" butuh lantai pengaman
+     * di banyak tempat dan tak ada yang memintanya. Daftar ini juga yang menentukan
+     * kapan tombol "Kembalikan ke ..." muncul, sehingga tombol dan aturannya tak bisa
+     * berselisih — dan buku tak lagi bisa melompat ke Layout lewat tombol revisi.
+     */
+    public const MUNDUR_SAH = [
+        'loa'     => 'revisi',
+        'editing' => 'pembuatan',
+    ];
+
+    /**
+     * Mengembalikan naskah satu tahap ke belakang sebagai ALUR NORMAL — dicatat dengan
+     * is_correction = false supaya "Koreksi" tetap berarti "ada yang salah" dan tak
+     * tercampur dengan kerja harian PJ.
+     *
+     * @return int jumlah order sejudul yang ikut mundur
+     */
+    public function kembalikan(TitleProgress $progress, string $target, User $actor, string $note): int
+    {
+        $this->requirePermission($actor, 'naskah.advance');
+        $this->requireBidang($actor, $progress->bidang);
+
+        if (trim($note) === '') {
+            throw ValidationException::withMessages([
+                'note' => 'Alasan wajib diisi saat mengembalikan naskah.',
+            ]);
+        }
+
+        if ((self::MUNDUR_SAH[$progress->status] ?? null) !== $target) {
+            throw ValidationException::withMessages([
+                'status' => 'Naskah hanya bisa dikembalikan dari LoA ke Revisi, atau dari Editing ke Pembuatan.',
+            ]);
+        }
+
+        if ($progress->archived_at !== null || $progress->cancelled_at !== null
+            || TitleProgress::isFinal($progress->status)) {
+            throw ValidationException::withMessages([
+                'status' => 'Naskah yang sudah final, diarsipkan, atau dibatalkan hanya bisa dibuka lewat Koreksi superadmin.',
+            ]);
+        }
+
+        return $this->applyGroup($progress, $target, $actor, $note, false, 'status_returned', true);
+    }
+
+    /**
      * Koreksi tahap (mundur atau lompat), termasuk membuka naskah yang sudah final.
      * Hanya superadmin — `naskah.correct` tidak dihibahkan ke role mana pun dan
      * superadmin lolos lewat Gate::before. Catatan WAJIB.
@@ -270,20 +317,25 @@ class TitleProgressService
         User $actor,
         ?string $note,
         bool $isCorrection,
-        string $event
+        string $event,
+        bool $bolehMundur = false
     ): int {
         $group     = $this->groupOf($progress);
         $stages    = $progress->getStages();
         $targetIdx = array_search($target, $stages, true);
         $changed   = [];
 
-        DB::transaction(function () use ($group, $stages, $target, $targetIdx, $actor, $note, $isCorrection, $event, &$changed) {
+        DB::transaction(function () use ($group, $stages, $target, $targetIdx, $actor, $note, $isCorrection, $event, $bolehMundur, &$changed) {
             foreach ($group as $p) {
                 $idx = array_search($p->status, $stages, true);
                 if ($p->status === $target) {
                     continue;
                 }
-                if (! $isCorrection && $idx !== false && $idx > $targetIdx) {
+                // Penjaga ini dulu mencampur dua pertanyaan: "apakah ini koreksi" dan
+                // "bolehkah bergerak mundur". Untuk perpindahan mundur SETIAP anggota
+                // punya $idx > $targetIdx, jadi tanpa $bolehMundur seluruh grup dilewati
+                // dan fungsinya mengembalikan 0 tanpa suara — gagal senyap.
+                if (! $isCorrection && ! $bolehMundur && $idx !== false && $idx > $targetIdx) {
                     continue; // sudah lebih maju dari target
                 }
 

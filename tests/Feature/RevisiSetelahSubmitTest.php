@@ -198,6 +198,101 @@ class RevisiSetelahSubmitTest extends TestCase
         ]);
     }
 
+    // ─── jalan mundur ───
+
+    /**
+     * applyGroup() punya penjaga `$idx > $targetIdx → continue` yang dimaksudkan untuk
+     * "jangan tarik mundur anggota grup yang sudah lebih maju". Untuk perpindahan mundur
+     * SETIAP anggota memenuhi syarat itu, jadi tanpa penanganan khusus fungsinya
+     * mengembalikan 0 dan tak menggerakkan apa pun — sambil terlihat berhasil.
+     *
+     * Assertion-nya sengaja pada status tiap baris, bukan pada nilai kembalian.
+     *
+     * @test
+     */
+    public function mundur_dari_loa_benar_benar_memindahkan_seluruh_grup(): void
+    {
+        $anggota = $this->grupArtikel('loa', 3);
+
+        app(TitleProgressService::class)
+            ->kembalikan($anggota->first(), 'revisi', $this->admin(), 'Reviewer minta revisi minor');
+
+        foreach ($anggota as $p) {
+            $this->assertSame('revisi', $p->fresh()->status,
+                'Seluruh order sejudul harus ikut mundur, bukan hanya yang ditekan.');
+        }
+    }
+
+    /** @test */
+    public function mundur_tercatat_sebagai_alur_normal_bukan_koreksi(): void
+    {
+        $p = $this->naskah('loa');
+
+        app(TitleProgressService::class)
+            ->kembalikan($p, 'revisi', $this->admin(), 'Reviewer minta revisi');
+
+        $this->assertDatabaseHas('tb_title_progress_logs', [
+            'title_progress_id' => $p->id,
+            'from_value'        => 'loa',
+            'to_value'          => 'revisi',
+            'is_correction'     => 0,
+        ]);
+    }
+
+    /** @test */
+    public function maju_tetap_menolak_menarik_mundur_anggota_yang_lebih_depan(): void
+    {
+        $anggota = $this->grupArtikel('editing', 2);
+        $depan   = $anggota->last();
+        $depan->update(['status' => 'loa']);
+
+        app(TitleProgressService::class)->advance($anggota->first(), $this->admin());
+
+        $this->assertSame('loa', $depan->fresh()->status,
+            'Penjaga lama harus tetap berlaku untuk perpindahan maju.');
+    }
+
+    /** @test */
+    public function buku_dikembalikan_ke_pembuatan_bukan_melompat_ke_layout(): void
+    {
+        $p = $this->naskah('editing', 'bk_mandiri');
+
+        app(TitleProgressService::class)
+            ->kembalikan($p, 'pembuatan', $this->admin(), 'Sitasi bab 2 belum lengkap');
+
+        $this->assertSame('pembuatan', $p->fresh()->status);
+    }
+
+    /** @test */
+    public function mundur_ditolak_bila_naskah_sudah_diarsipkan(): void
+    {
+        $p = $this->naskah('loa');
+        $p->update(['archived_at' => now()]);
+
+        $this->expectException(\Illuminate\Validation\ValidationException::class);
+
+        app(TitleProgressService::class)
+            ->kembalikan($p, 'revisi', $this->admin(), 'coba tarik mundur');
+    }
+
+    /** @test */
+    public function mundur_menolak_pasangan_tahap_yang_tidak_dibolehkan(): void
+    {
+        $this->expectException(\Illuminate\Validation\ValidationException::class);
+
+        app(TitleProgressService::class)
+            ->kembalikan($this->naskah('loa'), 'editing', $this->admin(), 'lompat jauh');
+    }
+
+    /** @test */
+    public function mundur_wajib_beralasan(): void
+    {
+        $this->expectException(\Illuminate\Validation\ValidationException::class);
+
+        app(TitleProgressService::class)
+            ->kembalikan($this->naskah('loa'), 'revisi', $this->admin(), '   ');
+    }
+
     /** @test */
     public function urutan_tahap_buku_tidak_ikut_berubah(): void
     {
