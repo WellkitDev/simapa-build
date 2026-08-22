@@ -51,6 +51,13 @@ class DriveJudulFolderService
         'ebook'           => self::BERKAS_ISBN,
         'barcode_isbn'    => self::BERKAS_ISBN,
         'sertifikat_hki'  => self::BERKAS_ISBN,
+
+        // Slot pensiunan. Tak ada lagi kode yang MENULIS `sertifikat_isbn` — ia dibuang
+        // saat slot ISBN diringkas jadi tiga — tapi satu berkas lama di produksi masih
+        // memakainya. Tanpa baris ini berkas itu mendarat di akar folder judulnya,
+        // terpisah dari saudara-saudaranya di Berkas ISBN. Memetakan slot mati lebih
+        // murah daripada menyunting data historis.
+        'sertifikat_isbn' => self::BERKAS_ISBN,
     ];
 
     public function __construct(private GoogleDriveService $drive) {}

@@ -104,6 +104,25 @@ class DriveFolderJudulTest extends TestCase
     }
 
     /**
+     * `sertifikat_isbn` tak lagi ditulis kode mana pun — slot ISBN diringkas jadi tiga —
+     * tapi berkas lama di produksi masih memakainya. Tanpa pemetaan ini berkas itu
+     * mendarat di akar folder judulnya, terpisah dari saudaranya di Berkas ISBN.
+     *
+     * Tes ini ada supaya baris yang "kelihatan mati" itu tak dibersihkan orang yang
+     * mencari slot tak terpakai dan tak tahu ada data lama yang bergantung padanya.
+     *
+     * @test
+     */
+    public function slot_pensiunan_tetap_mendarat_di_berkas_isbn(): void
+    {
+        $this->assertSame(
+            'Berkas ISBN',
+            DriveJudulFolderService::jalurSlot('sertifikat_isbn'),
+            'Slot pensiunan masih dipakai berkas lama; pemetaannya tak boleh dicabut.'
+        );
+    }
+
+    /**
      * Slot yang belum terpetakan mendarat di folder judul, bukan melempar. Berkas yang
      * salah tempat masih jauh lebih baik daripada berkas yang tak terunggah.
      *
