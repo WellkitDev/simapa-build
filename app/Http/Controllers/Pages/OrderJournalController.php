@@ -327,7 +327,13 @@ class OrderJournalController extends Controller
                     'indeksasi'  => $request->indexation,
                 ], Auth::user());
 
-                $order->details()->update([
+                // Lewat MODEL, bukan `$order->details()->update()`. Update query-builder
+                // menulis langsung ke basis data dan melewati seluruh event Eloquent —
+                // termasuk hook `saving` di OrderDetail yang menjaga `group_key` tetap
+                // menunjuk judul yang benar. Sebelum ini, mengganti judul order membuat
+                // `group_key` tertinggal di judul lama, dan papan Pelacakan memecah satu
+                // buku jadi dua kartu. Ditemukan di data produksi 2026-08-23.
+                $detail->update([
                     'title_id'         => $title->id,
                     'title'            => $title->title,
                     'type'             => $request->type,
