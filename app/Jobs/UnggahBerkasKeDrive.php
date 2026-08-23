@@ -33,6 +33,16 @@ class UnggahBerkasKeDrive implements ShouldQueue
 
     public array $backoff = [30, 120];
 
+    /**
+     * Berkas naskah bisa 20 MB dan hosting bersama tidak cepat. Bawaan worker 60 detik
+     * membunuh unggahan yang sebenarnya baik-baik saja, dan yang terlihat pengguna
+     * cuma "sedang diunggah…" yang tak pernah berubah.
+     *
+     * Ditulis di sini, bukan cuma di baris scheduler, supaya job ini tetap punya
+     * ruang meski kelak dijalankan worker lain dengan batas bawaan.
+     */
+    public $timeout = 280;
+
     public function __construct(protected int $manuscriptFileId) {}
 
     public function handle(GoogleDriveService $drive): void

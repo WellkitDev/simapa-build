@@ -77,10 +77,30 @@ class Kernel extends ConsoleKernel
             ->withoutOverlapping()
             ->appendOutputTo(storage_path('logs/tasks-deadline.log'));
 
-        $schedule->command('queue:work --stop-when-empty --max-time=50 --tries=3')
+        // --timeout=300 (bukan bawaan 60 detik): mengirim berkas 20 MB ke Google Drive
+        // dari hosting bersama lazim melewati satu menit, dan worker yang membunuh
+        // jobnya sendiri terlihat persis seperti unggahan yang menggantung selamanya.
+        // Nilainya WAJIB lebih kecil dari `retry_after` di config/queue.php, kalau
+        // tidak job yang masih berjalan dianggap terbengkalai dan diambil worker kedua.
+        //
+        // withoutOverlapping(10) — BUKAN tanpa argumen. Bawaannya 1.440 menit alias
+        // DUA PULUH EMPAT JAM: satu worker yang mati tanpa sempat melepas kuncinya
+        // (proses dibunuh hosting, unggahan menggantung, deploy di tengah jalan)
+        // membekukan seluruh antrean sehari penuh, dengan cron tetap berbunyi tiap
+        // menit dan tetap dilewati diam-diam. Sepuluh menit cukup panjang untuk
+        // menampung unggahan terlama, cukup pendek untuk sembuh sendiri.
+        $schedule->command('queue:work --stop-when-empty --max-time=50 --timeout=300 --tries=3')
             ->everyMinute()
-            ->withoutOverlapping()
+            ->withoutOverlapping(10)
             ->appendOutputTo(storage_path('logs/queue-work.log'));
+
+        // Jaring pengaman terakhir: job yang HILANG tanpa pernah gagal secara resmi
+        // meninggalkan barisnya di `antre` selamanya, dan di server tanpa terminal tak
+        // ada seorang pun yang bisa membangunkannya. Lihat UnggahanBangkitkan.
+        $schedule->command('unggahan:bangkitkan')
+            ->everyTenMinutes()
+            ->withoutOverlapping(10)
+            ->appendOutputTo(storage_path('logs/unggahan-bangkitkan.log'));
     }
 
     /**

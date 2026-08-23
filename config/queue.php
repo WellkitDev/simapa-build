@@ -38,7 +38,14 @@ return [
             'driver' => 'database',
             'table' => 'jobs',
             'queue' => 'default',
-            'retry_after' => 90,
+
+            // WAJIB lebih besar dari `--timeout` worker di app/Console/Kernel.php
+            // (kini 300). retry_after adalah berapa lama sebuah job dianggap masih
+            // dikerjakan; bila ia lebih pendek dari batas waktu worker, unggahan yang
+            // masih berjalan dianggap terbengkalai dan diambil worker kedua — berkas
+            // yang sama terunggah dua kali. Dulu 90 detik, terlalu pendek sejak
+            // unggahan Drive pindah ke antrean.
+            'retry_after' => 360,
             'after_commit' => false,
         ],
 
