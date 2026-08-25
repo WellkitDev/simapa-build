@@ -46,8 +46,10 @@
                     @if($task->status !== 'done')
                         <button class="btn btn-xs btn-outline-success" data-complete data-id="{{ $task->id }}">Selesai</button>
                     @endif
+                    @if($task->bolehDikelola(auth()->user()))
                     <button class="btn btn-xs btn-outline-primary" data-edit-task data-id="{{ $task->id }}" data-title="{{ $task->title }}" data-description="{{ $task->description }}" data-priority="{{ $task->priority }}" data-due="{{ optional($task->due_date)->toDateString() }}" data-assignee="{{ $task->user_id }}">Edit</button>
                     <form action="{{ route('task.destroy', $task->id) }}" method="POST" class="d-inline" data-confirm="Hapus tugas ini?">@csrf @method('DELETE')<button class="btn btn-xs btn-outline-danger">Hapus</button></form>
+                    @endif
                 </td>
             </tr>
             @endforeach

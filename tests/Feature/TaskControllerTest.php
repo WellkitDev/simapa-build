@@ -55,7 +55,7 @@ class TaskControllerTest extends TestCase
      * DIBUKA 2026-08-23: setiap pengguna boleh memberi tugas ke siapa pun.
      *
      * Gerbangnya dulu `manager|superadmin`, sementara di produksi TAK ADA satu pun akun
-     * manager \u2014 praktis hanya satu orang di seluruh kantor yang bisa membagi pekerjaan.
+     * manager — praktis hanya satu orang di seluruh kantor yang bisa membagi pekerjaan.
      *
      * @test
      */
@@ -101,7 +101,7 @@ class TaskControllerTest extends TestCase
      * DIBUKA 2026-08-23 bersama penugasan: memberi tugas tanpa bisa melihat hasilnya
      * adalah setengah fitur. Papan tugas di kantor 13 orang bukan rahasia.
      *
-     * Menyunting tugas orang lain TETAP tertutup \u2014 lihat employee_cannot_modify_others_task.
+     * Menyunting tugas orang lain TETAP tertutup — lihat employee_cannot_modify_others_task.
      *
      * @test
      */

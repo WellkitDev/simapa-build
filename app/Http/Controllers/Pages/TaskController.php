@@ -19,9 +19,9 @@ class TaskController extends Controller
     /**
      * Manager/superadmin: boleh MENYUNTING dan MENGHAPUS tugas milik siapa pun.
      *
-     * Menugaskan tak lagi lewat sini \u2014 sejak 2026-08-23 setiap pengguna boleh memberi
+     * Menugaskan tak lagi lewat sini — sejak 2026-08-23 setiap pengguna boleh memberi
      * tugas ke siapa pun. Dulu gerbangnya `manager|superadmin`, dan di produksi TAK ADA
-     * satu pun akun manager (admin 6 \u00b7 marketing 2 \u00b7 production 4 \u00b7 superadmin 1),
+     * satu pun akun manager (admin 6 · marketing 2 · production 4 · superadmin 1),
      * sehingga praktis hanya satu orang di seluruh kantor yang bisa membagi pekerjaan.
      */
     private function isManager(): bool
@@ -30,20 +30,30 @@ class TaskController extends Controller
     }
 
     /**
-     * Boleh menyentuh tugas ini: manager/superadmin, pemiliknya, ATAU yang membuatnya.
+     * Gerbang MEMBACA & MENGERJAKAN: pelaksana, pemberi tugas, atau manager.
      *
-     * Pembuat ikut karena kini siapa pun boleh menugaskan \u2014 tanpa ini, orang yang salah
-     * ketik saat memberi tugas tak punya cara memperbaikinya sendiri.
+     * Dipakai untuk detail, laporan, dan perpindahan status — semuanya bagian dari
+     * mengerjakan tugas, bukan mengubah syaratnya.
      */
     private function authorizeTask(Task $task): void
     {
-        if ($this->isManager()
-            || $task->user_id === Auth::id()
-            || (int) $task->created_by === Auth::id()) {
-            return;
+        if (! $task->bolehDibaca(Auth::user())) {
+            abort(403);
         }
+    }
 
-        abort(403);
+    /**
+     * Gerbang MENGUBAH SYARAT: sunting, geser tenggat, hapus.
+     *
+     * Pelaksana sengaja tak lolos di sini. Aturannya tinggal di Task::bolehDikelola()
+     * supaya layar dan server membaca satu sumber yang sama — gerbang yang hanya ada di
+     * server menghasilkan tombol yang memberi harapan lalu memunculkan 403.
+     */
+    private function authorizeKelola(Task $task): void
+    {
+        if (! $task->bolehDikelola(Auth::user())) {
+            abort(403);
+        }
     }
 
     private function abortIfLocked(Task $task): void
@@ -132,7 +142,7 @@ class TaskController extends Controller
     public function update(Request $request, int $id, Notifier $notifier)
     {
         $task = Task::findOrFail($id);
-        $this->authorizeTask($task);
+        $this->authorizeKelola($task);
         $this->abortIfLocked($task);
         $data = $this->validateData($request);
         $assignee = $this->resolveAssignee($request, $task->user_id);
@@ -171,7 +181,7 @@ class TaskController extends Controller
     public function destroy(int $id)
     {
         $task = Task::findOrFail($id);
-        $this->authorizeTask($task);
+        $this->authorizeKelola($task);
         $this->abortIfLocked($task);
         $task->delete();
         return back()->with('success', 'Tugas dihapus.');
@@ -203,7 +213,7 @@ class TaskController extends Controller
     public function schedule(Request $request, int $id)
     {
         $task = Task::findOrFail($id);
-        $this->authorizeTask($task);
+        $this->authorizeKelola($task);
         $this->abortIfLocked($task);
         $data = $request->validate(['due_date' => 'required|date']);
         $task->update(['due_date' => $data['due_date']]);

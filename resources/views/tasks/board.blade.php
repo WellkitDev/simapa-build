@@ -20,6 +20,17 @@
     </div>
 </div>
 
+{{-- Pengguna pertama tak menemukan tempat menulis laporan sampai diberi tahu bahwa
+     judulnya harus diklik. Papan karena itu mengatakannya, bukan menyembunyikan
+     pintunya di balik judul yang tak terlihat seperti tautan. --}}
+<div class="alert alert-light border d-flex align-items-center gap-2 py-2 px-3 mb-3" role="note">
+    <i data-feather="info" class="icon-sm text-primary flex-shrink-0"></i>
+    <small class="mb-0">
+        Klik judul tugas atau tombol <strong>Lapor</strong> untuk membuka detailnya —
+        di sana tempat <strong>menulis laporan</strong> dan memperbarui kemajuan.
+    </small>
+</div>
+
 <div class="row g-3">
     @foreach($cols as $key => [$label, $color])
         <div class="col-md-4">
@@ -45,7 +56,7 @@
                                        style="font-size:13px">
                                         @if($locked)<i data-feather="lock" class="icon-xs me-1 text-muted"></i>@endif{{ $task->title }}
                                     </a>
-                                    @unless($locked)
+                                    @unless($locked || ! $task->bolehDikelola(auth()->user()))
                                         <div class="dropdown">
                                             <button class="btn btn-xs p-0 border-0 bg-transparent" data-bs-toggle="dropdown" aria-label="Menu"><i data-feather="more-vertical" class="icon-sm"></i></button>
                                             <ul class="dropdown-menu dropdown-menu-end">
@@ -80,6 +91,14 @@
                                         <div class="progress-bar" style="width:{{ $task->progress }}%"></div>
                                     </div>
                                 @endif
+                                {{-- Selalu terlihat, tak bergantung jumlah laporan: tombol yang
+                                     baru muncul setelah ada laporan tak pernah bisa jadi jalan
+                                     menuju laporan yang pertama. --}}
+                                <a href="{{ route('task.show', $task->id) }}" data-lapor
+                                   class="btn btn-xs btn-outline-secondary w-100 mt-2 d-flex align-items-center justify-content-center gap-1">
+                                    <i data-feather="message-square" class="icon-xs"></i>
+                                    Lapor{{ ($task->laporan_count ?? 0) > 0 ? ' (' . $task->laporan_count . ')' : '' }}
+                                </a>
                             </div>
                         </div>
                     @endforeach

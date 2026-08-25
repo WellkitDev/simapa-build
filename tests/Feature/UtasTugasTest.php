@@ -198,6 +198,155 @@ class UtasTugasTest extends TestCase
         Notification::assertNothingSent();
     }
 
+    // ─── penerima tugas hanya boleh mengerjakan, bukan mengubah syaratnya ───
+
+    /**
+     * Pelaksana tak boleh menyunting tugas yang diberikan kepadanya.
+     *
+     * Judul, deskripsi, prioritas, tenggat, dan penerima adalah SYARAT tugas — milik
+     * yang memberi. Membiarkan penerimanya mengubah syaratnya sendiri membuat penugasan
+     * kehilangan artinya: siapa pun bisa menurunkan prioritas atau menggeser tenggat
+     * pekerjaannya sendiri tanpa siapa pun tahu.
+     *
+     * @test
+     */
+    public function pelaksana_tidak_bisa_menyunting_syarat_tugasnya(): void
+    {
+        $pelaksana = $this->user('production');
+        $pemberi   = $this->user('marketing');
+        $tugas     = $this->tugas($pelaksana, $pemberi);
+
+        $this->actingAs($pelaksana)
+            ->put(route('task.update', $tugas->id), [
+                'title' => 'Judul diubah sendiri', 'priority' => 'low',
+            ])->assertForbidden();
+
+        $this->actingAs($pelaksana)
+            ->patch(route('task.schedule', $tugas->id), ['due_date' => today()->addDays(30)->toDateString()])
+            ->assertForbidden();
+
+        $this->actingAs($pelaksana)
+            ->delete(route('task.destroy', $tugas->id))
+            ->assertForbidden();
+
+        $this->assertSame('Rekap penjualan Agustus', $tugas->fresh()->title);
+    }
+
+    /**
+     * Yang BOLEH dilakukan pelaksana: menggerakkan statusnya dan melapor. Itu
+     * pekerjaannya, bukan syarat tugasnya.
+     *
+     * @test
+     */
+    public function pelaksana_tetap_bisa_menggerakkan_status_dan_melapor(): void
+    {
+        $pelaksana = $this->user('production');
+        $tugas     = $this->tugas($pelaksana, $this->user('marketing'));
+
+        $this->actingAs($pelaksana)
+            ->patch(route('task.status', $tugas->id), ['status' => 'in_progress'])
+            ->assertOk();
+
+        $this->actingAs($pelaksana)
+            ->post(route('task.report', $tugas->id), ['body' => 'Mulai dikerjakan.', 'progress' => 20])
+            ->assertRedirect();
+
+        $tugas->refresh();
+        $this->assertSame('in_progress', $tugas->status);
+        $this->assertSame(20, $tugas->progress);
+    }
+
+    /** Pemberi tugas tetap pemilik syaratnya. */
+    /** @test */
+    public function pemberi_tugas_tetap_bisa_menyunting(): void
+    {
+        $pemberi = $this->user('marketing');
+        $tugas   = $this->tugas($this->user('production'), $pemberi);
+
+        $this->actingAs($pemberi)
+            ->put(route('task.update', $tugas->id), ['title' => 'Judul direvisi', 'priority' => 'high'])
+            ->assertRedirect();
+
+        $this->assertSame('Judul direvisi', $tugas->fresh()->title);
+    }
+
+    /**
+     * Tugas tanpa pembuat — data lama, sebelum `created_by` diisi — tak boleh jadi tugas
+     * yang tak bisa diurus siapa pun. Di produksi tak ada satu pun akun manager, jadi
+     * memerlukannya berarti mengunci tugas itu selamanya.
+     *
+     * @test
+     */
+    public function tugas_tanpa_pembuat_tetap_bisa_diurus_pelaksananya(): void
+    {
+        $pelaksana = $this->user('production');
+        $tugas = Task::create([
+            'user_id' => $pelaksana->id, 'created_by' => null,
+            'title' => 'Tugas warisan', 'status' => 'todo', 'priority' => 'normal',
+        ]);
+
+        $this->actingAs($pelaksana)
+            ->put(route('task.update', $tugas->id), ['title' => 'Tugas warisan (diperbarui)', 'priority' => 'normal'])
+            ->assertRedirect();
+
+        $this->assertSame('Tugas warisan (diperbarui)', $tugas->fresh()->title);
+    }
+
+    /**
+     * Layar ikut jujur: tombol Edit dan Hapus tak boleh dipajang kepada orang yang akan
+     * ditolak servernya. Gerbang yang hanya ada di server menghasilkan tombol yang
+     * memberi harapan lalu memunculkan halaman 403.
+     *
+     * @test
+     */
+    public function papan_tidak_memajang_tombol_sunting_untuk_pelaksana(): void
+    {
+        $pelaksana = $this->user('production');
+        $tugas     = $this->tugas($pelaksana, $this->user('marketing'));
+
+        // Papan bawaan menampilkan tugas MILIK yang membukanya; untuk melihat tugas ini
+        // dari sisi pemberinya, papannya harus dibuka atas nama pelaksananya.
+        $lihat = fn ($aktor) => substr_count(
+            $this->actingAs($aktor)
+                ->get(route('task.board', ['user_id' => $tugas->user_id]))
+                ->assertOk()->getContent(),
+            'data-edit-task'
+        );
+
+        // Halamannya SELALU memuat satu `data-edit-task` di pemilih JS-nya. Yang dihitung
+        // di sini tombolnya, jadi patokannya kemunculan KEDUA — bukan ada-tidaknya teks.
+        $this->assertSame(1, $lihat($pelaksana),
+            'Tombol Edit dipajang ke pelaksana yang justru akan ditolak servernya.');
+
+        $pemberi = $tugas->creator;
+        $this->assertGreaterThan(1, $lihat($pemberi),
+            'Prasyarat: pemberi tugas memang harus melihat tombol Edit-nya.');
+    }
+
+    /**
+     * Pengguna tadi tak menemukan tempat menulis laporan sampai diberi tahu bahwa
+     * judulnya harus diklik. Papan karena itu harus MENGATAKANNYA, bukan menyembunyikan
+     * pintunya di balik judul yang tak terlihat seperti tautan.
+     *
+     * @test
+     */
+    public function papan_menunjukkan_jalan_ke_laporan(): void
+    {
+        $pelaksana = $this->user('production');
+        $tugas     = $this->tugas($pelaksana, $this->user('marketing'));
+
+        $isi = $this->actingAs($pelaksana)->get(route('task.board'))
+            ->assertOk()->getContent();
+
+        // `data-lapor` dipakai, bukan kata "Lapor": menu sidebar "Laporan Harian" akan
+        // membuat asersi teks lolos tanpa satu pun tombol di kartunya.
+        $this->assertStringContainsString('data-lapor', $isi,
+            'Kartu papan harus punya jalan yang terlihat menuju laporan.');
+        $this->assertStringContainsString(route('task.show', $tugas->id), $isi);
+        $this->assertStringContainsString('menulis laporan', $isi,
+            'Papan harus mengatakan di mana laporan ditulis, bukan menyembunyikannya di balik judul.');
+    }
+
     // ─── peristiwa sistem ───
 
     /** @test */
