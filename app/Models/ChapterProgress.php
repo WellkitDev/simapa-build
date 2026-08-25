@@ -50,6 +50,40 @@ class ChapterProgress extends Model
         'publish'         => 'selesai',
     ];
 
+    /**
+     * Status semaian untuk bab yang progressnya belum ada, diturunkan dari tahap BUKUNYA.
+     *
+     * Perlu ada karena tahap buku dan tahap bab memakai KOSAKATA BERBEDA:
+     * BOOK_STAGES punya delapan nilai, CHAPTER_STAGES cuma empat. Menyalin tahap buku
+     * mentah-mentah — yang dulu dilakukan ensureChapters() — bisa menuliskan status
+     * seperti `layout` atau `menunggu_proses` yang tak ada di CHAPTER_STAGES sama
+     * sekali. Akibatnya nextStage() mengembalikan null dan babnya terkunci selamanya,
+     * tanpa satu pun pesan galat.
+     *
+     * BERBEDA dari LEGACY_STAGE_MAP, dan bedanya disengaja: peta itu memindahkan data
+     * era distribusi, tempat `layout` masih berarti "babnya sedang digarap". Yang
+     * ditanya di sini lain — buku yang sudah melewati fase per-bab hanya bisa sampai di
+     * sana bila SELURUH babnya selesai (assertLayoutUnlocked), jadi `selesai` itulah
+     * yang benar. Menyemainya `editing` menuliskan pekerjaan yang sebenarnya tak ada.
+     */
+    public static function semaianDariTahapBuku(?string $tahapBuku): string
+    {
+        if ($tahapBuku === null || $tahapBuku === 'menunggu_proses') {
+            return 'menunggu';
+        }
+
+        if (in_array($tahapBuku, ['pembuatan', 'editing'], true)) {
+            return $tahapBuku;
+        }
+
+        // Tahap yang tak dikenal diperlakukan sebagai belum mulai, bukan selesai:
+        // menandai bab selesai atas tahap yang tak kita pahami adalah kebohongan yang
+        // menutup pekerjaan; menandainya menunggu paling banter meminta orang melihat.
+        return in_array($tahapBuku, \App\Models\TitleProgress::BOOK_STAGES, true)
+            ? 'selesai'
+            : 'menunggu';
+    }
+
     public static function labelFor(?string $status): string
     {
         if ($status === null) {

@@ -170,6 +170,24 @@ class TitleService
         if ($dibuang->isNotEmpty()) {
             $title->chapters()->whereIn('id', $dibuang)->delete();
         }
+
+        /*
+         | Bab yang baru lahir di sini WAJIB langsung punya ChapterProgress.
+         |
+         | Sebelum ini progress cuma dibuat di ChapterManuscriptService::ensureChapters(),
+         | yang dipanggil dari SATU tempat: saat TitleProgress sebuah order dibuat. Bab
+         | yang lahir sesudah ordernya dipesan karena itu tak pernah punya satu pun, dan
+         | tampil sebagai deretan strip di Pelacakan — Pelaksana, Status, Lama, dan Aksi
+         | semuanya dibaca dari baris itu. Tak ada tombol apa pun untuk memperbaikinya.
+         |
+         | Authornya selamat karena ChapterAuthorService::seedFromOrders() berjalan tiap
+         | halaman judul dibuka. Progress tak punya penjaga serupa; inilah penjaganya.
+         |
+         | Memanggil pastikanProgress(), BUKAN ensureChapters(): yang kedua ikut membuat
+         | bab bila daftarnya kosong, jadi menghapus seluruh bab lewat formulir justru
+         | akan menghidupkannya lagi.
+         */
+        app(ChapterManuscriptService::class)->pastikanProgress($title->fresh());
     }
 
     /** Ajukan: admin/production -> menunggu; superadmin/manager -> langsung disetujui. */

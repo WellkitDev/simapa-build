@@ -31,19 +31,50 @@ class ChapterManuscriptService
             $chapters = $book->chapters()->get();
         }
 
-        $seedStatus = optional(
-            $book->orderDetails()->notWithdrawn()->with('titleProgress')->get()
-                ->map->titleProgress->filter()->first()
-        )->status ?? 'menunggu_proses';
-
-        foreach ($chapters as $chapter) {
-            if (! $chapter->progress()->exists()) {
-                $chapter->progress()->create(['status' => $seedStatus, 'started_at' => now()]);
-            }
-        }
+        $this->pastikanProgress($book);
 
         // Pre-fill author bab dari author order (bab kosong saja) → hindari input ulang.
         app(ChapterAuthorService::class)->seedFromOrders($book);
+    }
+
+    /**
+     * Setiap bab wajib punya ChapterProgress. Mengisi yang belum punya, idempoten.
+     *
+     * Kolom Pelaksana, Status, Lama, dan Aksi di tabel bab semuanya dibaca dari baris
+     * itu, jadi bab tanpa progress tampil sebagai deretan strip — dan tak ada satu pun
+     * tombol di layar untuk memperbaikinya.
+     *
+     * TERPISAH dari ensureChapters() supaya bisa dipanggil dari TitleService saat
+     * formulir judul disimpan. ensureChapters() ikut MEMBUAT bab bila daftarnya kosong;
+     * dipanggil sesudah orang sengaja menghapus semua bab, ia akan menghidupkannya lagi.
+     * Yang dibutuhkan di sana cuma bagian progressnya.
+     *
+     * @return int jumlah progress yang baru dibuat
+     */
+    public function pastikanProgress(Title $book): int
+    {
+        if ($book->jenis !== 'buku') {
+            return 0;
+        }
+
+        $tanpaProgress = $book->chapters()->doesntHave('progress')->get();
+        if ($tanpaProgress->isEmpty()) {
+            return 0;
+        }
+
+        $tahapBuku = optional(
+            $book->orderDetails()->notWithdrawn()->with('titleProgress')->get()
+                ->map->titleProgress->filter()->first()
+        )->status;
+
+        // Diterjemahkan, BUKAN disalin: tahap buku dan tahap bab beda kosakata.
+        $status = ChapterProgress::semaianDariTahapBuku($tahapBuku);
+
+        foreach ($tanpaProgress as $chapter) {
+            $chapter->progress()->create(['status' => $status, 'started_at' => now()]);
+        }
+
+        return $tanpaProgress->count();
     }
 
     /**
