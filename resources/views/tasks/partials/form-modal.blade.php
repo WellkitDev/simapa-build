@@ -24,15 +24,19 @@
             <div class="col-6 mb-2"><label class="form-label">Tenggat</label>
               <input type="text" name="due_date" id="taskDue" class="form-control" placeholder="Pilih tanggal"></div>
           </div>
-          @if($isManager ?? false)
+          {{-- Terbuka untuk semua sejak 2026-08-25. Dulu digerbangi peran manager, dan
+               di produksi TAK ADA satu pun akun manager - praktis hanya satu orang di
+               seluruh kantor yang bisa membagi pekerjaan. --}}
           <div class="mb-2"><label class="form-label">Tugaskan ke</label>
             <select name="assignee" id="taskAssignee" class="form-select select2-assignee">
               <option value="{{ auth()->id() }}">Saya sendiri</option>
+              {{-- $assignees berisi SELURUH pengguna, termasuk yang sedang login; tanpa
+                   dilewati namanya muncul dua kali di satu dropdown. --}}
               @foreach(($assignees ?? collect()) as $a)
+                @continue($a->id === auth()->id())
                 <option value="{{ $a->id }}">{{ $a->name }}</option>
               @endforeach
             </select></div>
-          @endif
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Batal</button>
@@ -45,11 +49,11 @@
 
 @push('plugin-styles')
 <link href="{{ asset('assets/plugins/flatpickr/flatpickr.min.css') }}" rel="stylesheet">
-@if($isManager ?? false)<link href="{{ asset('assets/plugins/select2/select2.min.css') }}" rel="stylesheet">@endif
+<link href="{{ asset('assets/plugins/select2/select2.min.css') }}" rel="stylesheet">
 @endpush
 @push('plugin-scripts')
 <script src="{{ asset('assets/plugins/flatpickr/flatpickr.min.js') }}"></script>
-@if($isManager ?? false)<script src="{{ asset('assets/plugins/select2/select2.min.js') }}"></script>@endif
+<script src="{{ asset('assets/plugins/select2/select2.min.js') }}"></script>
 @endpush
 @push('custom-scripts')
 <script>
@@ -58,9 +62,7 @@
     const modal = (modalEl && window.bootstrap) ? new bootstrap.Modal(modalEl) : null;
     const form = document.getElementById('taskForm');
     const fp = window.flatpickr ? flatpickr('#taskDue', { dateFormat: 'Y-m-d' }) : null;
-    @if($isManager ?? false)
     if (window.jQuery && jQuery.fn.select2) { jQuery('.select2-assignee').select2({ dropdownParent: jQuery(modalEl), width: '100%' }); }
-    @endif
 
     window.openTaskModal = function (data) {
         data = data || {};
@@ -72,9 +74,10 @@
         document.getElementById('taskDesc').value = data.description || '';
         document.getElementById('taskPriority').value = data.priority || 'normal';
         if (fp) { data.due ? fp.setDate(data.due) : fp.clear(); }
-        @if($isManager ?? false)
+        // WAJIB berjalan untuk semua orang. Tanpa pra-setel ini, membuka tugas milik
+        // orang lain membuat dropdown diam di pilihan pertama - "Saya sendiri" - dan
+        // menekan Simpan MEMINDAHKAN tugas itu ke diri sendiri tanpa peringatan apa pun.
         if (window.jQuery) jQuery('.select2-assignee').val(String(data.assignee || "{{ auth()->id() }}")).trigger('change');
-        @endif
         if (modal) modal.show();
     };
 })();

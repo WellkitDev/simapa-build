@@ -88,6 +88,71 @@ class PapanTugasTerbukaTest extends TestCase
     }
 
     /**
+     * Datanya sudah terbuka sejak 2026-08-23, tapi FORMULIRNYA masih digerbangi
+     * `@if($isManager)` di lima tempat — jadi selain manager tetap tak punya cara
+     * memilih penerima. Backend terbuka + layar tertutup adalah fitur yang tak ada.
+     *
+     * @test
+     */
+    public function semua_pengguna_melihat_bidang_tugaskan_ke(): void
+    {
+        $this->user('manager');   // supaya daftar penerimanya tak cuma satu orang
+
+        foreach (['production', 'marketing', 'admin'] as $peran) {
+            $this->actingAs($this->user($peran))
+                ->get(route('task.board'))
+                ->assertOk()
+                ->assertSee('Tugaskan ke');
+        }
+    }
+
+    /**
+     * Gerbang yang paling berbahaya dari kelimanya, karena diamnya menulis data salah.
+     *
+     * Blok pra-setel di openTaskModal() ikut digerbangi `$isManager`. Tanpa ia berjalan,
+     * membuka tugas milik orang lain untuk disunting membuat dropdown-nya diam di
+     * pilihan pertama — "Saya sendiri". Menekan Simpan lalu MEMINDAHKAN tugas itu ke
+     * diri sendiri, tanpa satu pun peringatan.
+     *
+     * @test
+     */
+    public function menyunting_tugas_orang_lain_memprasetel_penerimanya(): void
+    {
+        $isi = $this->actingAs($this->user('production'))
+            ->get(route('task.board'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('select2-assignee', $isi);
+        $this->assertStringContainsString("val(String(data.assignee", $isi,
+            'Tanpa pra-setel, menyimpan suntingan memindahkan tugas orang lain ke diri sendiri.');
+    }
+
+    /**
+     * "Saya sendiri" sudah mewakili pengguna yang sedang login, dan `$assignees` berisi
+     * SELURUH pengguna — termasuk dia. Tanpa dilewati, namanya muncul dua kali di satu
+     * dropdown. Tak terlihat selama bidangnya cuma dilihat manager; langsung kentara
+     * begitu semua orang melihatnya.
+     *
+     * @test
+     */
+    public function daftar_penerima_tidak_menggandakan_diri_sendiri(): void
+    {
+        $aku = $this->user('production');
+        $aku->update(['name' => 'Nama Yang Sangat Khas']);
+
+        $isi = $this->actingAs($aku)->get(route('task.board'))->assertOk()->getContent();
+
+        // Dipersempit ke dropdown-nya saja: nama pengguna wajar muncul di navbar,
+        // jadi menghitungnya di seluruh halaman menguji hal yang salah.
+        preg_match('#<select name="assignee".*?</select>#s', $isi, $m);
+        $dropdown = $m[0] ?? '';
+
+        $this->assertNotSame('', $dropdown, 'Dropdown "Tugaskan ke" tidak ter-render.');
+        $this->assertStringContainsString('Saya sendiri', $dropdown);
+        $this->assertStringNotContainsString('Nama Yang Sangat Khas', $dropdown,
+            'Pengguna yang sedang login sudah diwakili "Saya sendiri".');
+    }
+
+    /**
      * Memberi tugas tanpa bisa melihat hasilnya adalah setengah fitur.
      *
      * @test

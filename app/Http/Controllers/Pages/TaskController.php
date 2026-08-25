@@ -224,7 +224,15 @@ class TaskController extends Controller
         ]);
     }
 
-    /** Hanya manager/superadmin boleh assign ke orang lain; selain itu paksa diri sendiri / pemilik lama. */
+    /**
+     * Penerima tugas: yang dipilih di formulir, atau pemilik lama saat menyunting,
+     * atau diri sendiri.
+     *
+     * TAK ADA gerbang peran di sini sejak 2026-08-23 - setiap pengguna boleh memberi
+     * tugas ke siapa pun. Yang menjaga penyalahgunaan bukan siapa boleh menugaskan,
+     * melainkan authorizeTask(): tugas hanya bisa disunting pemilik, pembuatnya, atau
+     * manager.
+     */
     private function resolveAssignee(Request $request, ?int $fallback = null): int
     {
         if ($request->filled('assignee')) {
