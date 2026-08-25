@@ -240,6 +240,11 @@ Route::middleware(['auth', 'access'])->group(function () {
     Route::patch('tasks/{id}/status', [TaskController::class, 'status'])->name('task.status');
     Route::patch('tasks/{id}/schedule', [TaskController::class, 'schedule'])->name('task.schedule');
 
+    // Halaman detail + utas aktivitas. Ditaruh SESUDAH tasks/board & tasks/monitor
+    // supaya `{id}` yang ber-whereNumber tak pernah menelan rute beruas kata.
+    Route::get('tasks/{id}', [TaskController::class, 'show'])->name('task.show')->whereNumber('id');
+    Route::post('tasks/{id}/laporan', [TaskController::class, 'report'])->name('task.report')->whereNumber('id');
+
     Route::get('tasks/monitor', [TaskController::class, 'monitor'])->name('task.monitor');
 
     Route::get('reports/daily', [DailyReportController::class, 'daily'])->name('report.daily');

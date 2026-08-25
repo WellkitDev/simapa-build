@@ -197,6 +197,32 @@ class Notifier
     }
 
     /**
+     * Ada laporan baru di sebuah tugas.
+     *
+     * Dikirim ke pihak SEBERANG saja, bukan ke semua yang terlibat — separuh notifikasi
+     * yang memberi tahu orang tentang tulisannya sendiri adalah separuh notifikasi yang
+     * mengajari orang mengabaikan sisanya.
+     *
+     * Tanpa email: laporan kemajuan datang berkali-kali dalam satu tugas, dan
+     * membanjiri kotak masuk dengan "ada catatan baru" membuat email yang benar-benar
+     * penting — tugas baru, tenggang lewat — ikut tenggelam.
+     */
+    public function taskDilaporkan(Task $task, User $tujuan, User $penulis, string $isi): void
+    {
+        $cuplikan = \Illuminate\Support\Str::limit(strip_tags($isi), 90);
+
+        $this->send(collect([$tujuan]), [
+            'category' => 'task',
+            'title'    => 'Laporan baru: ' . \Illuminate\Support\Str::limit($task->title, 60),
+            'message'  => $penulis->name . ' — ' . $cuplikan,
+            'url'      => route('task.show', $task->id),
+            'icon'     => 'message-square',
+            'email'    => false,
+            'aksi'     => 'Buka Tugas',
+        ]);
+    }
+
+    /**
      * Pengingat tenggang bertahap.
      *
      * `mendekati` → `hari_ini` → `lewat`. Tahap yang terakhir dikirim disimpan di

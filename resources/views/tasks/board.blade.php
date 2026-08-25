@@ -38,9 +38,13 @@
                         <div class="card mb-2 task-card {{ $locked ? 'task-locked' : '' }}" data-id="{{ $task->id }}" style="cursor:{{ $locked ? 'not-allowed' : 'grab' }};{{ $locked ? 'opacity:.75' : '' }}">
                             <div class="card-body p-2">
                                 <div class="d-flex justify-content-between align-items-start">
-                                    <span class="fw-semibold" style="font-size:13px">
+                                    {{-- Judul jadi pintu ke utas aktivitas. Tanpa tautan ini
+                                         halaman detailnya ada tapi tak terjangkau siapa pun. --}}
+                                    <a href="{{ route('task.show', $task->id) }}"
+                                       class="fw-semibold text-body text-decoration-none stretched-link-none"
+                                       style="font-size:13px">
                                         @if($locked)<i data-feather="lock" class="icon-xs me-1 text-muted"></i>@endif{{ $task->title }}
-                                    </span>
+                                    </a>
                                     @unless($locked)
                                         <div class="dropdown">
                                             <button class="btn btn-xs p-0 border-0 bg-transparent" data-bs-toggle="dropdown" aria-label="Menu"><i data-feather="more-vertical" class="icon-sm"></i></button>
@@ -63,7 +67,19 @@
                                     @if($task->due_date)
                                         <span class="badge {{ $task->due_date->isPast() && $task->status !== 'done' ? 'bg-danger' : 'bg-light text-muted' }}">{{ $task->due_date->format('d M') }}</span>
                                     @endif
+                                    @if(($task->laporan_count ?? 0) > 0)
+                                        <span class="badge bg-light text-muted" title="{{ $task->laporan_count }} laporan">
+                                            <i data-feather="message-square" class="icon-xs"></i> {{ $task->laporan_count }}
+                                        </span>
+                                    @endif
                                 </div>
+                                {{-- Kemajuan hanya ditampilkan bila memang dilaporkan; bilah 0%
+                                     di setiap kartu cuma kebisingan yang tak memberi tahu apa pun. --}}
+                                @if(($task->progress ?? 0) > 0 && $task->status !== 'done')
+                                    <div class="progress mt-2" style="height:4px" title="Kemajuan {{ $task->progress }}%">
+                                        <div class="progress-bar" style="width:{{ $task->progress }}%"></div>
+                                    </div>
+                                @endif
                             </div>
                         </div>
                     @endforeach

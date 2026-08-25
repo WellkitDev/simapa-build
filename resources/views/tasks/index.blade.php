@@ -35,7 +35,10 @@
         <tbody>
             @foreach($tasks as $task)
             <tr>
-                <td class="dt-judul">{{ $task->title }}</td>
+                <td class="dt-judul">
+                    {{-- Pintu ke utas aktivitas; tanpa ini halaman detailnya tak terjangkau. --}}
+                    <a href="{{ route('task.show', $task->id) }}" class="text-body">{{ $task->title }}</a>
+                </td>
                 <td><span class="badge {{ $sb[$task->status] }}">{{ $sl[$task->status] }}</span></td>
                 <td><span class="badge {{ $prioBadge[$task->priority] }}">{{ $prioLabel[$task->priority] }}</span></td>
                 <td>@if($task->due_date)<span class="@if($task->due_date->isPast() && $task->status !== 'done') text-danger fw-semibold @endif">{{ $task->due_date->format('d/m/Y') }}</span>@else<span class="text-muted">—</span>@endif</td>

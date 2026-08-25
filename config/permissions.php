@@ -14,6 +14,9 @@ return [
         // task.monitor & report.submissions justru harus berizin.
         'task.index', 'task.board', 'task.calendar', 'task.events', 'task.reorder',
         'task.store', 'task.update', 'task.destroy', 'task.status', 'task.schedule',
+        // Detail + utas aktivitas: yang menjaganya authorizeTask() (pelaksana, pemberi,
+        // atau manager), bukan izin peran — sama seperti sunting dan hapus di atas.
+        'task.show', 'task.report',
         'report.daily', 'report.note', 'report.submit',
         'report.files.store', 'report.files.destroy', 'report.monthly',
         // Slip gaji milik-sendiri (self-service) — terbuka utk semua user login.

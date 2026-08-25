@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Task;
 use App\Models\User;
 use App\Services\Notifier;
+use App\Services\TaskThreadService;
 use App\Services\TaskService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 
 class TaskController extends Controller
@@ -116,8 +118,12 @@ class TaskController extends Controller
             'created_by'  => Auth::id(),
         ]);
 
+        $utas = app(TaskThreadService::class);
+        $utas->catat($task, 'Tugas dibuat.', Auth::user());
+
         if ($assignee !== Auth::id()) {
             $notifier->taskAssigned($task, Auth::user());
+            $utas->catat($task, 'Ditugaskan ke ' . $task->user?->name . '.', Auth::user());
         }
 
         return back()->with('success', 'Tugas dibuat.');
@@ -148,6 +154,17 @@ class TaskController extends Controller
             $notifier->taskAssigned($task, Auth::user());
         }
 
+        // Perpindahan yang tak tercatat membuat utasnya berbohong soal apa yang terjadi.
+        $utas = app(TaskThreadService::class);
+        if ($reassigned) {
+            $utas->catat($task, 'Dialihkan ke ' . $task->fresh()->user?->name . '.', Auth::user());
+        }
+        if ($dueChanged) {
+            $utas->catat($task, $newDue
+                ? 'Tenggat disetel ke ' . Carbon::parse($newDue)->translatedFormat('j M Y') . '.'
+                : 'Tenggat dilepas.', Auth::user());
+        }
+
         return back()->with('success', 'Tugas diperbarui.');
     }
 
@@ -169,7 +186,17 @@ class TaskController extends Controller
             'status'   => 'required|in:todo,in_progress,done',
             'position' => 'nullable|integer|min:0',
         ]);
+        $sebelum = $task->status;
         $this->service->move($task, $data['status'], (int) ($data['position'] ?? 0));
+
+        if ($sebelum !== $data['status']) {
+            app(TaskThreadService::class)->catat(
+                $task,
+                'Status: ' . Task::labelStatus($sebelum) . ' → ' . Task::labelStatus($data['status']) . '.',
+                Auth::user()
+            );
+        }
+
         return response()->json(['ok' => true]);
     }
 
@@ -181,6 +208,48 @@ class TaskController extends Controller
         $data = $request->validate(['due_date' => 'required|date']);
         $task->update(['due_date' => $data['due_date']]);
         return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Halaman detail sebuah tugas: keadaannya di atas, utas aktivitasnya di bawah.
+     *
+     * Utas butuh ruang yang tak dimiliki modal. Modal tetap ada untuk sunting kilat dari
+     * papan; halaman ini untuk membaca dan menulis laporan.
+     */
+    public function show(int $id, TaskThreadService $utas)
+    {
+        $task = Task::with(['user', 'creator', 'updates.author'])->findOrFail($id);
+        $this->authorizeTask($task);
+
+        return view('tasks.show', [
+            'task'      => $task,
+            'ringkasan' => $utas->ringkasan($task),
+            'terkunci'  => $this->service->isLocked($task),
+        ]);
+    }
+
+    /**
+     * Laporan dari orang: pelaksana mengabari kemajuannya, pemberi tugas menambah arahan.
+     *
+     * Gerbangnya authorizeTask() yang sama dengan sunting - satu aturan, bukan dua.
+     */
+    public function report(Request $request, int $id, TaskThreadService $utas)
+    {
+        $task = Task::findOrFail($id);
+        $this->authorizeTask($task);
+
+        // Di-trim lebih dulu supaya spasi saja tak lolos sebagai laporan kosong.
+        $request->merge(['body' => trim((string) $request->input('body'))]);
+
+        $data = $request->validate([
+            'body'     => 'required|string|max:4000',
+            'progress' => 'nullable|integer|min:0|max:100',
+        ]);
+
+        $utas->laporkan($task, Auth::user(), $data['body'],
+            $request->filled('progress') ? (int) $data['progress'] : null);
+
+        return back()->with('success', 'Laporan tercatat.');
     }
 
     public function reorder(Request $request)

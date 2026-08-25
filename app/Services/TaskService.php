@@ -12,7 +12,10 @@ class TaskService
     /** Tugas user per kolom. Kolom done diurut completed_at desc + flag is_locked. */
     public function board(User $user): array
     {
-        $tasks = Task::forUser($user->id)->orderBy('position')->orderBy('id')->get();
+        // withCount, bukan with: kartu hanya perlu ANGKA laporannya, dan memuat seluruh
+        // utas tiap kartu berarti puluhan kueri untuk teks yang tak pernah ditampilkan.
+        $tasks = Task::forUser($user->id)->withCount('laporan')
+            ->orderBy('position')->orderBy('id')->get();
 
         // Tanggal report submitted milik user → menandai tugas selesai yang terkunci.
         $lockedDates = DailyReport::where('user_id', $user->id)->where('status', 'submitted')
