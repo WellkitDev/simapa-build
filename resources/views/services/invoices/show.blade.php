@@ -23,7 +23,12 @@
 @endif
 
 <div class="row">
-    <div class="col-md-8 grid-margin stretch-card">
+    {{-- TANPA `stretch-card`. Kelas itu memasang `display:flex` (arah baris) pada kolom
+         dan memaksa tiap `> .card` jadi `min-width:100%`, jadi ia hanya benar untuk kolom
+         berisi SATU kartu. Kolom ini berisi dua — invoice dan Riwayat Pembayaran — dan
+         keduanya lalu berdiri bersebelahan selebar penuh, meluber menabrak kolom Status
+         Pengerjaan di sebelahnya. --}}
+    <div class="col-md-8 grid-margin">
         <div class="card">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start mb-3">
@@ -202,7 +207,7 @@
         </div>
     </div>
 
-    <div class="col-md-4">
+    <div class="col-md-4 grid-margin">
         @can('service_invoice.status')
         <div class="card mb-3">
             <div class="card-body">
