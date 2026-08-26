@@ -122,20 +122,44 @@ class TaskService
             ->whereDate('report_date', $task->completed_at)->exists();
     }
 
-    /** Tugas user belum selesai dengan due_date dalam 7 hari ke depan. */
+    /**
+     * Tugas yang jadi urusan seseorang: yang DIBERIKAN kepadanya, DAN yang IA BERIKAN.
+     *
+     * Dulu hanya `user_id = dia`. Selama menugaskan masih digerbangi manager/superadmin
+     * itu tak terasa — pemberi tugas selalu pengawas, jadi ia melihat semuanya lewat
+     * jalur lain. Sejak 2026-08-25 setiap orang boleh menugaskan, dan lubangnya jadi
+     * nyata: ada orang yang bisa memberi tugas tapi tak punya satu pun cara melihat
+     * tenggatnya.
+     */
     public function dueSoonFor(User $user): \Illuminate\Support\Collection
     {
-        return Task::forUser($user->id)->where('status', '!=', 'done')->whereNotNull('due_date')
-            ->whereBetween('due_date', [today()->toDateString(), today()->addDays(7)->toDateString()])
-            ->orderBy('due_date')->get();
+        return $this->dueSoonQuery()
+            ->where(fn ($q) => $q->where('user_id', $user->id)->orWhere('created_by', $user->id))
+            ->with('user')->get();
     }
 
     /** Lintas user (untuk pengawas). */
     public function dueSoonAll(): \Illuminate\Support\Collection
     {
-        return Task::query()->where('status', '!=', 'done')->whereNotNull('due_date')
-            ->whereBetween('due_date', [today()->toDateString(), today()->addDays(7)->toDateString()])
-            ->with('user')->orderBy('due_date')->get();
+        return $this->dueSoonQuery()->with('user')->get();
+    }
+
+    /**
+     * Batas waktu kartu deadline: sampai tujuh hari ke depan, TANPA batas bawah.
+     *
+     * Batas bawahnya dulu `today`, jadi tugas yang sudah lewat justru menghilang dari
+     * kartu — padahal ia yang paling mendesak. Akibatnya label "Lewat Nh" di partialnya
+     * jadi kode mati, dan notifikasi berkata "⚠ Tugas LEWAT tenggang" tentang sesuatu
+     * yang tak pernah muncul di layar. `notifyDueSoon()` memang tak pernah memakai batas
+     * bawah; kini keduanya sepakat soal apa yang disebut mendekati tenggang.
+     */
+    private function dueSoonQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return Task::query()
+            ->where('status', '!=', 'done')
+            ->whereNotNull('due_date')
+            ->where('due_date', '<=', today()->addDays(7)->toDateString())
+            ->orderBy('due_date');
     }
 
     /**

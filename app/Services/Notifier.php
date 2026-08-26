@@ -243,8 +243,17 @@ class Notifier
             'lewat'     => '⚠ Tugas LEWAT tenggang',
         ][$tahap] ?? 'Tugas mendekati tenggang';
 
-        $recipients = $this->roleUsers(['manager', 'superadmin', 'admin'], $task->user)
-            ->push($task->user)->unique('id')->values();
+        // `admin` dicabut 2026-08-26 supaya sejalan dengan kartu deadline di dashboard,
+        // yang juga tak lagi menampilkan tugas seluruh kantor kepada admin. Mencabutnya
+        // di satu tempat saja justru meninggalkan saluran yang lebih berisik.
+        //
+        // Pemberi tugas ikut dikabari: sejak semua orang boleh menugaskan, dialah yang
+        // menunggu pekerjaan itu selesai dan perlu tahu kalau tenggatnya mendekat.
+        $recipients = $this->roleUsers(['manager', 'superadmin'], $task->user)
+            ->push($task->user)
+            ->push($task->creator)
+            ->filter()
+            ->unique('id')->values();
 
         $this->send($recipients, [
             'category' => 'deadline',

@@ -63,15 +63,33 @@ class TaskController extends Controller
         }
     }
 
-    /** User yang board/list-nya dilihat (manager boleh ?user_id=); selain itu diri sendiri. */
+    /**
+     * User yang papan/daftar/kalendernya dilihat.
+     *
+     * Papan seseorang adalah daftar kerja PRIBADINYA. Sampai 2026-08-26 `?user_id=`
+     * terbuka untuk siapa saja — bukan cuma bisa dilihat, tapi `reorder` juga memakai
+     * jalur ini, jadi orang lain bisa menggeser urutan papan orang. Itu dibuka dengan
+     * alasan pemberi tugas perlu melihat hasilnya; alasannya benar, jalannya salah.
+     *
+     * Kini hanya pengawas (superadmin/manager) yang boleh membuka papan orang lain.
+     * Pemberi tugas tetap bisa mengikuti pekerjaannya lewat tiga jalan yang tak
+     * membocorkan apa pun di luar tugas itu sendiri: daftar "Saya berikan" di layar
+     * Todo, kartu deadline di dashboard, dan notifikasi tiap ada laporan baru.
+     */
     private function targetUser(Request $request): User
     {
-        // Terbuka untuk semua: memberi tugas tanpa bisa melihat hasilnya adalah setengah
-        // fitur. Papan tugas di kantor 13 orang bukan rahasia.
-        if ($request->filled('user_id')) {
-            return User::findOrFail((int) $request->input('user_id'));
+        if (! $request->filled('user_id')) {
+            return Auth::user();
         }
-        return Auth::user();
+
+        $id = (int) $request->input('user_id');
+
+        // Membuka papan sendiri lewat parameter bukan pelanggaran apa pun.
+        if ($id !== Auth::id() && ! $this->isManager()) {
+            abort(403);
+        }
+
+        return User::findOrFail($id);
     }
 
     /** Setiap pengguna boleh memberi tugas ke siapa pun. */
@@ -80,12 +98,32 @@ class TaskController extends Controller
         return User::orderBy('name')->get(['id', 'name']);
     }
 
+    /**
+     * Daftar Todo, dengan dua mode yang saling terpisah.
+     *
+     * `?dari=saya` menampilkan tugas yang SAYA BERIKAN ke orang lain. Dipisah, bukan
+     * dicampur ke daftar sendiri: tugas orang lain bukan pekerjaan saya, dan
+     * menyatukannya di papan kanban berarti orang bisa menyeret tugas yang bukan
+     * miliknya. Tanpa mode ini, menutup `?user_id=` akan membuat pemberi tugas buta
+     * terhadap apa pun yang tenggatnya lebih dari tujuh hari lagi.
+     */
     public function index(Request $request)
     {
-        $user = $this->targetUser($request);
-        $tasks = Task::forUser($user->id)->orderBy('position')->orderBy('id')->get();
+        $sayaBerikan = $request->query('dari') === 'saya';
+
+        if ($sayaBerikan) {
+            $user  = Auth::user();
+            $tasks = Task::where('created_by', $user->id)
+                ->where('user_id', '!=', $user->id)
+                ->with('user')
+                ->orderBy('due_date')->orderBy('id')->get();
+        } else {
+            $user  = $this->targetUser($request);
+            $tasks = Task::forUser($user->id)->orderBy('position')->orderBy('id')->get();
+        }
+
         return view('tasks.index', [
-            'tasks' => $tasks, 'owner' => $user,
+            'tasks' => $tasks, 'owner' => $user, 'sayaBerikan' => $sayaBerikan,
             'isManager' => $this->isManager(), 'assignees' => $this->assignableUsers(),
         ]);
     }

@@ -98,20 +98,33 @@ class TaskControllerTest extends TestCase
     }
 
     /**
-     * DIBUKA 2026-08-23 bersama penugasan: memberi tugas tanpa bisa melihat hasilnya
-     * adalah setengah fitur. Papan tugas di kantor 13 orang bukan rahasia.
+     * DITUTUP LAGI 2026-08-26 atas permintaan user: daftar kerja seseorang adalah
+     * urusan pribadinya.
      *
-     * Menyunting tugas orang lain TETAP tertutup — lihat employee_cannot_modify_others_task.
+     * Sempat dibuka 2026-08-23 bersama penugasan, dengan alasan pemberi tugas perlu
+     * melihat hasil pekerjaannya. Alasannya benar, jalannya salah: yang terbuka bukan
+     * tugas yang ia berikan, melainkan SELURUH daftar kerja pribadi orang itu — dan
+     * `reorder` memakai jalur yang sama, jadi orang lain bahkan bisa menggeser urutan
+     * papannya.
+     *
+     * Penggantinya ada tiga, dan tak satu pun membocorkan apa pun di luar tugas itu
+     * sendiri: daftar "Saya berikan" di layar Todo, kartu deadline di dashboard, dan
+     * notifikasi tiap ada laporan baru.
      *
      * @test
      */
-    public function anyone_can_read_other_users_events(): void
+    public function kalender_orang_lain_tertutup_untuk_yang_bukan_pengawas(): void
     {
         $a = $this->user('production');
         $b = $this->user('production');
         $this->task($b, ['title' => 'EventB', 'due_date' => today()->toDateString()]);
 
-        $this->actingAs($a)->get(route('task.events', ['user_id' => $b->id]))->assertOk()
+        $this->actingAs($a)->get(route('task.events', ['user_id' => $b->id]))->assertForbidden();
+
+        // Pengawas tetap boleh; itulah gunanya peran itu ada.
+        \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'superadmin', 'guard_name' => 'web']);
+        $this->actingAs($this->user('superadmin'))
+            ->get(route('task.events', ['user_id' => $b->id]))->assertOk()
             ->assertJsonFragment(['title' => 'EventB']);
     }
 

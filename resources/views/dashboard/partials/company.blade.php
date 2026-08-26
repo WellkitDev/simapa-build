@@ -17,6 +17,22 @@
     </form>
 </div>
 
+{{-- URUTAN BLOK — disusun, bukan kebetulan.
+     Keadaan uang lebih dulu (Kas & Laba, Pemasukan, Statistik), lalu yang menuntut
+     tindakan hari ini (naskah mendekati deadline, keadaan produksi), baru tren dan
+     perbandingan sebagai bahan analisa di paling bawah.
+     Dulu Kas & Laba justru paling bawah, di belakang empat grafik - angka terpenting
+     perusahaan hanya terlihat kalau orang mau menggulir sampai habis. --}}
+
+@if($cash)
+    @include('dashboard.partials.cash-block')
+@elseif(auth()->user()->hasRole('superadmin'))
+    <div class="card grid-margin"><div class="card-body">
+        <h6 class="card-title mb-1">Kas</h6>
+        <p class="text-muted mb-0">Data kas tidak tersedia saat ini.</p>
+    </div></div>
+@endif
+
 <h6 class="text-muted mb-2">Ringkasan Pemasukan</h6>
 <div class="row">
     @php
@@ -43,6 +59,46 @@
         </div>
     @endforeach
 </div>
+
+<h6 class="text-muted mb-2 mt-2">Statistik Order &amp; Tagihan</h6>
+<div class="row">
+    <div class="col-md-3 grid-margin stretch-card">
+        <div class="card"><div class="card-body">
+            <h6 class="card-title mb-0">Jumlah Order (bulan ini)</h6>
+            <h4 class="mt-2 mb-0 text-primary">{{ $mkt['jumlah_order_bulan_ini'] }}</h4>
+            @include('dashboard.partials.delta', ['delta' => $mkt['jumlah_order_bulan_ini_delta']])
+        </div></div>
+    </div>
+    <div class="col-md-3 grid-margin stretch-card">
+        <div class="card"><div class="card-body">
+            <h6 class="card-title mb-0">Jumlah Order (tahun ini)</h6>
+            <h4 class="mt-2 mb-0 text-dark">{{ $mkt['jumlah_order_tahun_ini'] }}</h4>
+            @include('dashboard.partials.delta', ['delta' => $mkt['jumlah_order_delta']])
+        </div></div>
+    </div>
+    <div class="col-md-3 grid-margin stretch-card">
+        <div class="card"><div class="card-body">
+            <h6 class="card-title mb-0">Total Piutang</h6>
+            <h4 class="mt-2 mb-0 text-warning">Rp {{ number_format($mkt['total_piutang'], 0, ',', '.') }}</h4>
+            <small class="text-muted mt-2 d-block">Sisa tagihan order belum lunas</small>
+        </div></div>
+    </div>
+    <div class="col-md-3 grid-margin stretch-card">
+        <div class="card"><div class="card-body">
+            <h6 class="card-title mb-0">Rata-rata Nilai Order</h6>
+            <h4 class="mt-2 mb-0 text-dark">Rp {{ number_format($mkt['rata_rata_order'], 0, ',', '.') }}</h4>
+            <small class="text-muted mt-2 d-block">Tahun ini</small>
+        </div></div>
+    </div>
+</div>
+
+<h6 class="text-muted mb-2 mt-2">Naskah Mendekati Deadline</h6>
+<div class="row">
+    @include('dashboard.partials.deadline-table', ['rows' => $mkt['deadline_rows'], 'tableId' => 'coDeadline'])
+</div>
+
+<h6 class="text-muted mb-2 mt-2">Produksi Global</h6>
+@include('dashboard.partials.progress-global')
 
 <h6 class="text-muted mb-2 mt-2">Target Tim</h6>
 <div class="row">
@@ -106,34 +162,12 @@
     </div>
 </div>
 
-<h6 class="text-muted mb-2 mt-2">Statistik Order &amp; Tagihan</h6>
+<h6 class="text-muted mb-2 mt-2">Ketepatan Produksi (30 hari)</h6>
 <div class="row">
-    <div class="col-md-3 grid-margin stretch-card">
+    <div class="col-12 grid-margin stretch-card">
         <div class="card"><div class="card-body">
-            <h6 class="card-title mb-0">Jumlah Order (bulan ini)</h6>
-            <h4 class="mt-2 mb-0 text-primary">{{ $mkt['jumlah_order_bulan_ini'] }}</h4>
-            @include('dashboard.partials.delta', ['delta' => $mkt['jumlah_order_bulan_ini_delta']])
-        </div></div>
-    </div>
-    <div class="col-md-3 grid-margin stretch-card">
-        <div class="card"><div class="card-body">
-            <h6 class="card-title mb-0">Jumlah Order (tahun ini)</h6>
-            <h4 class="mt-2 mb-0 text-dark">{{ $mkt['jumlah_order_tahun_ini'] }}</h4>
-            @include('dashboard.partials.delta', ['delta' => $mkt['jumlah_order_delta']])
-        </div></div>
-    </div>
-    <div class="col-md-3 grid-margin stretch-card">
-        <div class="card"><div class="card-body">
-            <h6 class="card-title mb-0">Total Piutang</h6>
-            <h4 class="mt-2 mb-0 text-warning">Rp {{ number_format($mkt['total_piutang'], 0, ',', '.') }}</h4>
-            <small class="text-muted mt-2 d-block">Sisa tagihan order belum lunas</small>
-        </div></div>
-    </div>
-    <div class="col-md-3 grid-margin stretch-card">
-        <div class="card"><div class="card-body">
-            <h6 class="card-title mb-0">Rata-rata Nilai Order</h6>
-            <h4 class="mt-2 mb-0 text-dark">Rp {{ number_format($mkt['rata_rata_order'], 0, ',', '.') }}</h4>
-            <small class="text-muted mt-2 d-block">Tahun ini</small>
+            <h6 class="card-title">On-time % (atas) · Jumlah Selesai (bawah) per staf produksi</h6>
+            <div id="coProdAccuracy" style="height:420px"></div>
         </div></div>
     </div>
 </div>
@@ -168,33 +202,6 @@
         </div></div>
     </div>
 </div>
-
-<h6 class="text-muted mb-2 mt-2">Produksi Global</h6>
-@include('dashboard.partials.progress-global')
-
-<h6 class="text-muted mb-2 mt-2">Ketepatan Produksi (30 hari)</h6>
-<div class="row">
-    <div class="col-12 grid-margin stretch-card">
-        <div class="card"><div class="card-body">
-            <h6 class="card-title">On-time % (atas) · Jumlah Selesai (bawah) per staf produksi</h6>
-            <div id="coProdAccuracy" style="height:420px"></div>
-        </div></div>
-    </div>
-</div>
-
-<h6 class="text-muted mb-2 mt-2">Naskah Mendekati Deadline</h6>
-<div class="row">
-    @include('dashboard.partials.deadline-table', ['rows' => $mkt['deadline_rows'], 'tableId' => 'coDeadline'])
-</div>
-
-@if($cash)
-    @include('dashboard.partials.cash-block')
-@elseif(auth()->user()->hasRole('superadmin'))
-    <div class="card grid-margin"><div class="card-body">
-        <h6 class="card-title mb-1">Kas</h6>
-        <p class="text-muted mb-0">Data kas tidak tersedia saat ini.</p>
-    </div></div>
-@endif
 
 @push('plugin-scripts')
     <script src="{{ asset('assets/plugins/apexcharts/apexcharts.min.js') }}"></script>

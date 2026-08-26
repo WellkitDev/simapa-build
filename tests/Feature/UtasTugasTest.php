@@ -304,23 +304,23 @@ class UtasTugasTest extends TestCase
         $pelaksana = $this->user('production');
         $tugas     = $this->tugas($pelaksana, $this->user('marketing'));
 
-        // Papan bawaan menampilkan tugas MILIK yang membukanya; untuk melihat tugas ini
-        // dari sisi pemberinya, papannya harus dibuka atas nama pelaksananya.
-        $lihat = fn ($aktor) => substr_count(
-            $this->actingAs($aktor)
-                ->get(route('task.board', ['user_id' => $tugas->user_id]))
-                ->assertOk()->getContent(),
-            'data-edit-task'
-        );
-
         // Halamannya SELALU memuat satu `data-edit-task` di pemilih JS-nya. Yang dihitung
         // di sini tombolnya, jadi patokannya kemunculan KEDUA — bukan ada-tidaknya teks.
-        $this->assertSame(1, $lihat($pelaksana),
-            'Tombol Edit dipajang ke pelaksana yang justru akan ditolak servernya.');
+        $hitung = fn ($isi) => substr_count($isi, 'data-edit-task');
 
-        $pemberi = $tugas->creator;
-        $this->assertGreaterThan(1, $lihat($pemberi),
-            'Prasyarat: pemberi tugas memang harus melihat tombol Edit-nya.');
+        // Pelaksana membuka papannya SENDIRI. Papan orang lain kini tertutup untuk yang
+        // bukan pengawas, jadi tak ada lagi cara memeriksanya dari sisi pemberi tugas.
+        $this->assertSame(1, $hitung(
+            $this->actingAs($pelaksana)->get(route('task.board'))->assertOk()->getContent()
+        ), 'Tombol Edit dipajang ke pelaksana yang justru akan ditolak servernya.');
+
+        // Superadmin boleh membuka papan orang lain DAN boleh mengelola tugasnya —
+        // prasyarat yang membuktikan hitungan di atas memang mengukur tombolnya.
+        $this->assertGreaterThan(1, $hitung(
+            $this->actingAs($this->user('superadmin'))
+                ->get(route('task.board', ['user_id' => $tugas->user_id]))
+                ->assertOk()->getContent()
+        ), 'Prasyarat: pengawas memang harus melihat tombol Edit-nya.');
     }
 
     /**

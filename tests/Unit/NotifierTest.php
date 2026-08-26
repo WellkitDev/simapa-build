@@ -151,24 +151,42 @@ class NotifierTest extends TestCase
     // distribusiChanged() dihapus bersama modul distribusi lama (2026-08-10). Notifikasi
     // modul naskah punya matriks penerimanya sendiri di NaskahNotifikasiTest.
 
-    /** @test */
-    public function deadline_reminder_notifies_owner_and_overseers(): void
+    /**
+     * Penerima pengingat tenggang: pelaksananya, PEMBERI TUGASNYA, manager, superadmin.
+     *
+     * `admin` DICABUT 2026-08-26 atas keputusan user, sejalan dengan kartu deadline di
+     * dashboard yang juga tak lagi menampilkan tugas seluruh kantor kepada admin —
+     * enam akun admin yang diberi tahu setiap tenggat di kantor 13 orang lebih terasa
+     * sebagai kebisingan daripada pengawasan. Mencabutnya di kartunya saja justru
+     * meninggalkan saluran yang lebih berisik.
+     *
+     * Pemberi tugas DITAMBAHKAN: sejak semua orang boleh menugaskan, dialah yang
+     * menunggu pekerjaan itu selesai.
+     *
+     * @test
+     */
+    public function deadline_reminder_notifies_owner_creator_and_overseers(): void
     {
-        foreach (['production', 'manager', 'superadmin', 'admin'] as $r) {
+        foreach (['production', 'marketing', 'manager', 'superadmin', 'admin'] as $r) {
             Role::firstOrCreate(['name' => $r, 'guard_name' => 'web']);
         }
         $owner = User::factory()->create(); $owner->assignRole('production');
+        $pemberi = User::factory()->create(); $pemberi->assignRole('marketing');
         $manager = User::factory()->create(); $manager->assignRole('manager');
         $super = User::factory()->create(); $super->assignRole('superadmin');
         $admin = User::factory()->create(); $admin->assignRole('admin');
 
-        $task = Task::create(['user_id' => $owner->id, 'title' => 'X', 'status' => 'todo', 'priority' => 'normal', 'due_date' => today()->addDays(2)->toDateString()]);
+        $task = Task::create(['user_id' => $owner->id, 'created_by' => $pemberi->id,
+                              'title' => 'X', 'status' => 'todo', 'priority' => 'normal',
+                              'due_date' => today()->addDays(2)->toDateString()]);
 
         (new Notifier())->deadlineReminder($task);
 
-        $this->assertSame(1, $owner->notifications()->count());
+        $this->assertSame(1, $owner->notifications()->count(), 'Pelaksana wajib tahu.');
+        $this->assertSame(1, $pemberi->notifications()->count(), 'Pemberi tugas menunggu pekerjaan ini.');
         $this->assertSame(1, $manager->notifications()->count());
         $this->assertSame(1, $super->notifications()->count());
-        $this->assertSame(1, $admin->notifications()->count());
+        $this->assertSame(0, $admin->notifications()->count(),
+            'Admin tak lagi dikabari tenggat seluruh kantor.');
     }
 }

@@ -16,22 +16,39 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <div>
-        <h5 class="mb-0">Daftar Tugas</h5>
-        <small class="text-muted">{{ $owner->name }}{{ $owner->id === auth()->id() ? ' (saya)' : '' }}</small>
+        <h5 class="mb-0">{{ ($sayaBerikan ?? false) ? 'Tugas yang Saya Berikan' : 'Daftar Tugas' }}</h5>
+        <small class="text-muted">
+            @if($sayaBerikan ?? false)
+                Dikerjakan orang lain — Anda yang menugaskan
+            @else
+                {{ $owner->name }}{{ $owner->id === auth()->id() ? ' (saya)' : '' }}
+            @endif
+        </small>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex gap-2 flex-wrap">
+        {{-- Dua mode yang saling terpisah, bukan satu daftar campur: tugas orang lain
+             bukan pekerjaan saya, dan menyatukannya membuat orang tak tahu mana yang
+             harus ia kerjakan sendiri. --}}
+        <div class="btn-group btn-group-sm">
+            <a href="{{ route('task.index') }}"
+               class="btn {{ ($sayaBerikan ?? false) ? 'btn-outline-secondary' : 'btn-secondary' }}">Untuk saya</a>
+            <a href="{{ route('task.index', ['dari' => 'saya']) }}"
+               class="btn {{ ($sayaBerikan ?? false) ? 'btn-secondary' : 'btn-outline-secondary' }}">Saya berikan</a>
+        </div>
         <div class="btn-group btn-group-sm">
             <a href="{{ route('task.board') }}" class="btn btn-outline-primary">Board</a>
             <a href="{{ route('task.calendar') }}" class="btn btn-outline-primary">Kalender</a>
             <a href="{{ route('task.index') }}" class="btn btn-primary">Todo</a>
         </div>
-        <button class="btn btn-sm btn-primary" data-add-task data-status="todo">+ Tambah</button>
+        @unless($sayaBerikan ?? false)
+            <button class="btn btn-sm btn-primary" data-add-task data-status="todo">+ Tambah</button>
+        @endunless
     </div>
 </div>
 
 <div class="card"><div class="card-body"><div class="table-responsive">
     <table class="table table-hover datatable dt-responsive nowrap" style="width:100%">
-        <thead><tr><th>Judul</th><th>Status</th><th>Prioritas</th><th>Tenggat</th><th>Aksi</th></tr></thead>
+        <thead><tr><th>Judul</th>@if($sayaBerikan ?? false)<th>Untuk</th>@endif<th>Status</th><th>Prioritas</th><th>Tenggat</th><th>Aksi</th></tr></thead>
         <tbody>
             @foreach($tasks as $task)
             <tr>
@@ -39,11 +56,14 @@
                     {{-- Pintu ke utas aktivitas; tanpa ini halaman detailnya tak terjangkau. --}}
                     <a href="{{ route('task.show', $task->id) }}" class="text-body">{{ $task->title }}</a>
                 </td>
+                @if($sayaBerikan ?? false)<td>{{ $task->user?->name ?? '—' }}</td>@endif
                 <td><span class="badge {{ $sb[$task->status] }}">{{ $sl[$task->status] }}</span></td>
                 <td><span class="badge {{ $prioBadge[$task->priority] }}">{{ $prioLabel[$task->priority] }}</span></td>
                 <td>@if($task->due_date)<span class="@if($task->due_date->isPast() && $task->status !== 'done') text-danger fw-semibold @endif">{{ $task->due_date->format('d/m/Y') }}</span>@else<span class="text-muted">—</span>@endif</td>
                 <td>
-                    @if($task->status !== 'done')
+                    {{-- Menandai selesai pekerjaan orang lain bukan hak pemberi tugas;
+                         yang mengerjakannya yang tahu kapan ia selesai. --}}
+                    @if($task->status !== 'done' && ! ($sayaBerikan ?? false))
                         <button class="btn btn-xs btn-outline-success" data-complete data-id="{{ $task->id }}">Selesai</button>
                     @endif
                     @if($task->bolehDikelola(auth()->user()))

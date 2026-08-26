@@ -78,7 +78,11 @@ class AppServiceProvider extends ServiceProvider
                 try {
                     $svc = app(\App\Services\TaskService::class);
                     $svc->notifyDueSoon(app(\App\Services\Notifier::class));
-                    $isOverseer = $user->hasAnyRole(['manager', 'superadmin', 'admin']);
+                    // `admin` sengaja DICABUT 2026-08-26 (izin user). Enam akun admin
+                    // yang mengawasi seluruh tugas di kantor 13 orang lebih terasa
+                    // sebagai kebisingan daripada pengawasan; mereka tetap punya halaman
+                    // Monitor Tugas bila memang perlu melihat semuanya sekaligus.
+                    $isOverseer = $user->hasAnyRole(['manager', 'superadmin']);
                     $deadlines = $isOverseer ? $svc->dueSoonAll() : $svc->dueSoonFor($user);
                 } catch (\Throwable $e) {
                     \Illuminate\Support\Facades\Log::warning('Gagal memuat alert deadline: ' . $e->getMessage());

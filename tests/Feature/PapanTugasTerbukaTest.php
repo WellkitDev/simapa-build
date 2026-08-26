@@ -153,20 +153,81 @@ class PapanTugasTerbukaTest extends TestCase
     }
 
     /**
-     * Memberi tugas tanpa bisa melihat hasilnya adalah setengah fitur.
+     * Papan seseorang adalah daftar kerja PRIBADINYA.
+     *
+     * Sampai 2026-08-26 `?user_id=` terbuka untuk siapa saja — dibuka dengan alasan
+     * pemberi tugas perlu melihat hasilnya. Alasannya benar, jalannya salah: yang
+     * terbuka bukan cuma tugas yang ia berikan, melainkan SELURUH daftar kerja pribadi
+     * orang itu. Dan `reorder` memakai jalur yang sama, jadi orang lain bahkan bisa
+     * menggeser urutan papan orang.
      *
      * @test
      */
-    public function pemberi_tugas_bisa_melihat_papan_penerimanya(): void
+    public function papan_orang_lain_tertutup_untuk_yang_bukan_pengawas(): void
     {
         $budi  = $this->user('production');
         $citra = $this->user('marketing');
         $this->tugas($citra, ['title' => 'Punya Citra']);
 
+        foreach (['task.board', 'task.index', 'task.calendar', 'task.events'] as $layar) {
+            $this->actingAs($budi)
+                ->get(route($layar, ['user_id' => $citra->id]))
+                ->assertForbidden();
+        }
+
+        // Menggeser urutan papan orang lain sekalian ditutup.
         $this->actingAs($budi)
-            ->get(route('task.board', ['user_id' => $citra->id]))
+            ->post(route('task.reorder'), ['user_id' => $citra->id, 'status' => 'todo', 'ids' => []])
+            ->assertForbidden();
+    }
+
+    /** Pengawas tetap boleh — itulah gunanya peran itu ada. */
+    /** @test */
+    public function pengawas_tetap_bisa_membuka_papan_orang_lain(): void
+    {
+        $citra = $this->user('marketing');
+        $this->tugas($citra, ['title' => 'Punya Citra']);
+
+        foreach (['superadmin', 'manager'] as $peran) {
+            $this->actingAs($this->user($peran))
+                ->get(route('task.board', ['user_id' => $citra->id]))
+                ->assertOk()->assertSee('Punya Citra');
+        }
+    }
+
+    /** Membuka papan sendiri lewat parameter bukan pelanggaran apa pun. */
+    /** @test */
+    public function membuka_papan_sendiri_lewat_parameter_tetap_boleh(): void
+    {
+        $budi = $this->user('production');
+        $this->tugas($budi, ['title' => 'Punya Budi']);
+
+        $this->actingAs($budi)
+            ->get(route('task.board', ['user_id' => $budi->id]))
+            ->assertOk()->assertSee('Punya Budi');
+    }
+
+    /**
+     * Menutup papan orang lain akan membuat pemberi tugas buta terhadap apa pun yang
+     * tenggatnya lebih dari tujuh hari lagi — kartu deadline hanya menjangkau sejauh
+     * itu. Daftar "Saya berikan" yang menggantikannya.
+     *
+     * @test
+     */
+    public function pemberi_tugas_punya_daftar_tugas_yang_ia_berikan(): void
+    {
+        $budi  = $this->user('production');
+        $citra = $this->user('marketing');
+
+        Task::create(['user_id' => $citra->id, 'created_by' => $budi->id,
+                      'title' => 'TITIPAN BUDI', 'status' => 'todo', 'priority' => 'normal']);
+        $this->tugas($citra, ['title' => 'RAHASIA CITRA']);
+
+        $this->actingAs($budi)->get(route('task.index', ['dari' => 'saya']))
             ->assertOk()
-            ->assertSee('Punya Citra');
+            ->assertSee('TITIPAN BUDI')
+            ->assertSee($citra->name)
+            ->assertDontSee('RAHASIA CITRA');
     }
 
     /**
