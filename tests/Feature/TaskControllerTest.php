@@ -212,6 +212,26 @@ class TaskControllerTest extends TestCase
         $this->assertDatabaseHas('tb_tasks', ['id' => $t->id, 'status' => 'done']);
     }
 
+    /**
+     * Tugas terkunci tetap menerima laporan.
+     *
+     * `abortIfLocked()` sengaja TIDAK dipasang di `report()` — laporan tak mengubah
+     * satu pun kolom yang dibaca Laporan Harian. Test ini menjaga supaya penjaga itu
+     * tak "dirapikan" masuk ke sana suatu hari nanti.
+     *
+     * @test
+     */
+    public function tugas_terkunci_masih_menerima_laporan(): void
+    {
+        $u = $this->user('production');
+        $today = today();
+        $t = $this->task($u, ['status' => 'done', 'completed_at' => $today]);
+        DailyReport::create(['user_id' => $u->id, 'report_date' => $today->toDateString(), 'status' => 'submitted', 'submitted_at' => now()]);
+
+        $this->actingAs($u)->post(route('task.report', $t->id), ['body' => 'Masih ada sisa'])->assertRedirect();
+        $this->assertDatabaseHas('tb_task_updates', ['task_id' => $t->id, 'body' => 'Masih ada sisa', 'kind' => 'laporan']);
+    }
+
     /** @test */
     public function changing_due_date_resets_deadline_flag(): void
     {

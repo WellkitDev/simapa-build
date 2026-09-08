@@ -61,4 +61,26 @@ class TaskPagesTest extends TestCase
 
         $this->actingAs($u)->get(route('task.board'))->assertOk()->assertSee('task-locked');
     }
+
+    /**
+     * Kunci laporan harian menjaga SYARAT tugas, bukan percakapannya.
+     *
+     * Yang tampil di Laporan Harian cuma judul dan prioritas; utas laporan tak pernah
+     * muncul di sana. Menutup formulir laporan tak melindungi apa pun — ia cuma
+     * membungkam dua orang yang pekerjaannya belum tentu selesai hanya karena harinya
+     * sudah ditutup.
+     *
+     * @test
+     */
+    public function halaman_tugas_terkunci_tetap_menampilkan_formulir_laporan(): void
+    {
+        $u = $this->user('production');
+        $today = today();
+        $t = Task::create(['user_id' => $u->id, 'title' => 'Beku', 'status' => 'done', 'priority' => 'normal', 'completed_at' => $today]);
+        DailyReport::create(['user_id' => $u->id, 'report_date' => $today->toDateString(), 'status' => 'submitted', 'submitted_at' => now()]);
+
+        $this->actingAs($u)->get(route('task.show', $t->id))->assertOk()
+            ->assertSee('Tulis laporan')
+            ->assertSee(route('task.report', $t->id));
+    }
 }

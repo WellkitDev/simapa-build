@@ -54,7 +54,8 @@
                                     <a href="{{ route('task.show', $task->id) }}"
                                        class="fw-semibold text-body text-decoration-none stretched-link-none"
                                        style="font-size:13px">
-                                        @if($locked)<i data-feather="lock" class="icon-xs me-1 text-muted"></i>@endif{{ $task->title }}
+                                        @if($locked)<i data-feather="lock" class="icon-xs me-1 text-muted"
+                                            title="Syarat tugas terkunci laporan harian yang sudah dikirim — melapor dan melampirkan berkas tetap bisa"></i>@endif{{ $task->title }}
                                     </a>
                                     @unless($locked || ! $task->bolehDikelola(auth()->user()))
                                         <div class="dropdown">

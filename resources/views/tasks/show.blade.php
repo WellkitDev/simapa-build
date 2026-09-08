@@ -8,7 +8,6 @@
     $statBadge = ['todo' => 'bg-secondary', 'in_progress' => 'bg-warning text-dark', 'done' => 'bg-success'];
 
     $lewat = $task->due_date && $task->status !== 'done' && $task->due_date->isPast();
-    $bolehTulis = ! $terkunci;
 @endphp
 
 <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
@@ -62,6 +61,19 @@
                 <div class="text-muted small mb-1">Deskripsi</div>
                 <div style="white-space:pre-line">{{ $task->description }}</div>
             @endif
+
+            {{-- Kunci laporan harian menjaga SYARAT tugas, bukan percakapannya. Yang
+                 tampil di Laporan Harian cuma judul dan prioritas; utas dan lampiran tak
+                 pernah muncul di sana, jadi membungkamnya tak melindungi apa pun. --}}
+            @if($terkunci)
+                <hr>
+                <div class="alert alert-light border small mb-0 py-2">
+                    <i data-feather="lock" class="icon-xs me-1"></i>
+                    Syarat tugas ini terkunci laporan harian yang sudah dikirim — judul,
+                    prioritas, tenggat, dan statusnya tak bisa diubah lagi.
+                    Melapor dan melampirkan berkas tetap bisa.
+                </div>
+            @endif
         </div></div>
 
         <div class="card"><div class="card-body">
@@ -109,36 +121,31 @@
 
             <hr>
 
-            @if($bolehTulis)
-                <form method="POST" action="{{ route('task.report', $task->id) }}">
-                    @csrf
-                    <label for="taskBody" class="form-label small fw-bold">Tulis laporan</label>
-                    <textarea name="body" id="taskBody" rows="3" maxlength="4000"
-                              class="form-control @error('body') is-invalid @enderror"
-                              placeholder="Apa yang sudah dikerjakan, apa yang menghambat?">{{ old('body') }}</textarea>
-                    @error('body')<div class="invalid-feedback">{{ $message }}</div>@enderror
+            {{-- Selalu terbuka, termasuk pada tugas terkunci: laporan tak menyentuh satu
+                 pun kolom yang dibaca Laporan Harian, dan pekerjaan yang belum benar-benar
+                 selesai tak berhenti hanya karena harinya sudah ditutup. --}}
+            <form method="POST" action="{{ route('task.report', $task->id) }}">
+                @csrf
+                <label for="taskBody" class="form-label small fw-bold">Tulis laporan</label>
+                <textarea name="body" id="taskBody" rows="3" maxlength="4000"
+                          class="form-control @error('body') is-invalid @enderror"
+                          placeholder="Apa yang sudah dikerjakan, apa yang menghambat?">{{ old('body') }}</textarea>
+                @error('body')<div class="invalid-feedback">{{ $message }}</div>@enderror
 
-                    <div class="d-flex align-items-end gap-2 mt-2 flex-wrap">
-                        <div style="max-width:170px">
-                            <label for="taskProgress" class="form-label small mb-1 text-muted">Kemajuan (opsional)</label>
-                            <div class="input-group input-group-sm">
-                                <input type="number" name="progress" id="taskProgress" min="0" max="100"
-                                       class="form-control @error('progress') is-invalid @enderror"
-                                       value="{{ old('progress') }}" placeholder="{{ $task->progress }}">
-                                <span class="input-group-text">%</span>
-                            </div>
+                <div class="d-flex align-items-end gap-2 mt-2 flex-wrap">
+                    <div style="max-width:170px">
+                        <label for="taskProgress" class="form-label small mb-1 text-muted">Kemajuan (opsional)</label>
+                        <div class="input-group input-group-sm">
+                            <input type="number" name="progress" id="taskProgress" min="0" max="100"
+                                   class="form-control @error('progress') is-invalid @enderror"
+                                   value="{{ old('progress') }}" placeholder="{{ $task->progress }}">
+                            <span class="input-group-text">%</span>
                         </div>
-                        <button type="submit" class="btn btn-primary btn-sm">Kirim laporan</button>
                     </div>
-                    @error('progress')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
-                </form>
-            @else
-                {{-- Tugas yang sudah masuk laporan harian terkirim tak boleh berubah lagi;
-                     mengubahnya berarti mengubah laporan yang sudah diserahkan. --}}
-                <p class="text-muted small mb-0">
-                    Tugas ini sudah terkunci karena laporan hariannya sudah dikirim.
-                </p>
-            @endif
+                    <button type="submit" class="btn btn-primary btn-sm">Kirim laporan</button>
+                </div>
+                @error('progress')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
+            </form>
         </div></div>
     </div>
 </div>
