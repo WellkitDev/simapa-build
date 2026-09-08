@@ -42,7 +42,16 @@
                 </div>
                 @forelse($recap[$key] as $task)
                     <div class="d-flex justify-content-between align-items-center border-bottom py-1">
-                        <span style="font-size:13px">{{ $task->title }}</span>
+                        <span style="font-size:13px">
+                            <a href="{{ route('task.show', $task->id) }}" class="text-body">{{ $task->title }}</a>
+                            {{-- Lampirannya DITUNJUK, tidak disalin ke sini. Menyalin akan
+                                 melahirkan dua kebenaran atas satu berkas. --}}
+                            @if(($task->files_count ?? 0) > 0)
+                                <span class="badge bg-light text-muted" title="{{ $task->files_count }} lampiran pada tugas ini">
+                                    <i data-feather="paperclip" class="icon-xs"></i> {{ $task->files_count }}
+                                </span>
+                            @endif
+                        </span>
                         <span class="badge {{ $prioBadge[$task->priority] }}">{{ $prioLabel[$task->priority] }}</span>
                     </div>
                 @empty
@@ -87,7 +96,7 @@
         <div class="card"><div class="card-body">
             <h6 class="card-title">Bukti / Lampiran @if($files->count())<span class="badge bg-success">{{ $files->count() }} bukti terlampir</span>@endif</h6>
             @if($isOwner && ! $submitted)
-                <p class="text-muted mb-2" style="font-size:12px">Lampirkan bukti pekerjaan (screenshot/file). <strong>Wajib minimal 1</strong> sebelum Kirim Report.</p>
+                <p class="text-muted mb-2" style="font-size:12px">Lampirkan bukti pekerjaan (screenshot/file). <strong>Wajib minimal 1</strong> sebelum Kirim Report — lampiran pada tugas yang selesai hari ini juga dihitung.</p>
                 <div id="reportDropzone" class="dropzone mb-2" style="min-height:120px"></div>
             @endif
             <ul id="savedFiles" class="list-group list-group-flush">

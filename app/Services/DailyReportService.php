@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\DailyReport;
 use App\Models\DailyReportFile;
 use App\Models\Task;
+use App\Models\TaskFile;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -15,7 +16,11 @@ class DailyReportService
     public function recapFor(User $user, Carbon $date): array
     {
         $range = [$date->copy()->startOfDay(), $date->copy()->endOfDay()];
-        $selesai = Task::forUser($user->id)->whereBetween('completed_at', $range)->orderByDesc('completed_at')->get();
+
+        // withCount, supaya kartu rekap bisa MENUNJUK lampiran tugasnya tanpa memuat
+        // barisnya. Berkasnya sengaja tidak disalin ke report: satu berkas, satu tempat.
+        $selesai = Task::forUser($user->id)->withCount('files')
+            ->whereBetween('completed_at', $range)->orderByDesc('completed_at')->get();
         $dibuat  = Task::forUser($user->id)->whereBetween('created_at', $range)->orderByDesc('created_at')->get();
         $dikerjakan = $date->isToday()
             ? Task::forUser($user->id)->where('status', 'in_progress')->get()
@@ -87,6 +92,27 @@ class DailyReportService
             'selesai'   => (int) ($doneCounts[$u->id] ?? 0),
             'bukti'     => (int) ($buktiPerUser[$u->id] ?? 0),
         ])->values();
+    }
+
+    /**
+     * Jumlah lampiran pada tugas user yang SELESAI pada tanggal itu.
+     *
+     * Dipakai syarat "minimal 1 bukti": orang yang seharian mengerjakan satu tugas dan
+     * sudah melampirkan hasilnya di sana tak perlu mengunggah berkas yang sama sekali
+     * lagi — prinsip pendiri modul ini sendiri, "nol input ganda".
+     *
+     * Terikat pada HARI PENYELESAIAN tugasnya, bukan pada tanggal berkasnya diunggah.
+     * Berkas boleh menyusul atau mendahului; yang menentukan hari mana ia jadi bukti
+     * adalah kapan pekerjaannya rampung. Tanpa batas ini, satu lampiran lama akan
+     * membuka kunci kirim untuk setiap hari sesudahnya.
+     */
+    public function buktiTugas(User $user, Carbon $date): int
+    {
+        $range = [$date->copy()->startOfDay(), $date->copy()->endOfDay()];
+
+        return TaskFile::whereHas('task', fn ($q) => $q
+            ->where('user_id', $user->id)
+            ->whereBetween('completed_at', $range))->count();
     }
 
     /** Ambil/buat baris report untuk (user, tanggal) — agar catatan/lampiran punya induk. */

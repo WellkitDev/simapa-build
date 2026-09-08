@@ -69,8 +69,12 @@ class DailyReportController extends Controller
         $report = $this->service->getOrCreateReport(Auth::user(), Carbon::parse($data['date']));
 
         if (! $report->isSubmitted()) {
-            if ($report->files()->count() === 0) {
-                return back()->with('error', 'Wajib lampirkan minimal 1 bukti sebelum mengirim report.');
+            // Lampiran pada tugas yang selesai hari ini ikut dihitung. Memaksa berkas
+            // yang sama diunggah dua kali melanggar prinsip pendiri modul ini sendiri:
+            // report adalah rekap, bukan sistem input paralel.
+            $tanggal = Carbon::parse($data['date']);
+            if ($report->files()->count() === 0 && $this->service->buktiTugas(Auth::user(), $tanggal) === 0) {
+                return back()->with('error', 'Wajib lampirkan minimal 1 bukti sebelum mengirim report — lampiran pada tugas yang selesai hari ini juga dihitung.');
             }
             $report->update(['status' => 'submitted', 'submitted_at' => now()]);
         }

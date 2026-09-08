@@ -134,4 +134,52 @@ class DailyReportControllerTest extends TestCase
         $this->actingAs($u)->post(route('report.submit'), ['date' => today()->toDateString()])->assertRedirect();
         $this->assertDatabaseHas('tb_daily_reports', ['id' => $report->id, 'status' => 'submitted']);
     }
+
+    /** Lampiran pada tugas yang selesai hari itu, milik user itu. */
+    private function tugasSelesaiBerberkas(User $u, $tanggal): void
+    {
+        $t = \App\Models\Task::create([
+            'user_id' => $u->id, 'title' => 'Tugas berberkas', 'status' => 'done',
+            'priority' => 'normal', 'completed_at' => $tanggal,
+        ]);
+        \App\Models\TaskFile::create([
+            'task_id' => $t->id, 'drive_file_id' => 'd9', 'name' => 'hasil.pdf',
+            'url' => 'https://drive/x', 'uploaded_by' => $u->id,
+        ]);
+    }
+
+    /**
+     * "Nol input ganda" — prinsip pendiri modul report ini sendiri.
+     *
+     * Orang yang seharian mengerjakan satu tugas dan sudah melampirkan hasilnya di sana
+     * tak perlu mengunggah berkas yang sama sekali lagi hanya untuk bisa mengirim
+     * laporan hariannya.
+     *
+     * @test
+     */
+    public function lampiran_tugas_selesai_hari_ini_dihitung_sebagai_bukti(): void
+    {
+        $u = $this->user('production');
+        $this->tugasSelesaiBerberkas($u, today());
+
+        $this->actingAs($u)->post(route('report.submit'), ['date' => today()->toDateString()])->assertRedirect();
+        $this->assertDatabaseHas('tb_daily_reports', ['user_id' => $u->id, 'status' => 'submitted']);
+    }
+
+    /**
+     * Bukti terikat pada HARI penyelesaian tugasnya, bukan pada keberadaan berkas.
+     *
+     * Tanpa batas ini, satu lampiran lama akan membuka kunci kirim untuk setiap hari
+     * sesudahnya — dan syarat bukti berhenti berarti apa pun.
+     *
+     * @test
+     */
+    public function lampiran_tugas_yang_selesai_hari_lain_tidak_dihitung(): void
+    {
+        $u = $this->user('production');
+        $this->tugasSelesaiBerberkas($u, today()->subDay());
+
+        $this->actingAs($u)->post(route('report.submit'), ['date' => today()->toDateString()])->assertRedirect();
+        $this->assertDatabaseHas('tb_daily_reports', ['user_id' => $u->id, 'status' => 'draft']);
+    }
 }
