@@ -105,4 +105,33 @@ class TaskPagesTest extends TestCase
             ->assertSee('Tulis laporan')
             ->assertSee(route('task.report', $t->id));
     }
+
+    /**
+     * Kotak unggah menghilang tepat di batas yang ditegakkan server: TERKUNCI, bukan
+     * `done`.
+     *
+     * Menampilkan kotak unggah yang pasti ditolak 422 adalah janji yang dipatahkan
+     * sendiri oleh aplikasinya — dan orang akan menyalahkan berkasnya, bukan aturannya.
+     *
+     * @test
+     */
+    public function kotak_unggah_mengikuti_kunci_bukan_status_selesai(): void
+    {
+        $u = $this->user('production');
+
+        // Diasersi ELEMENNYA (`id="..."`), bukan namanya: nama itu juga muncul di dalam
+        // JS halaman ini sendiri (`getElementById('taskDropzone')`), yang selalu ikut
+        // dirender — asersi atas namanya lolos semu di kedua arah.
+        $selesai = Task::create(['user_id' => $u->id, 'title' => 'Rampung', 'status' => 'done',
+            'priority' => 'normal', 'completed_at' => today()]);
+        $this->actingAs($u)->get(route('task.show', $selesai->id))->assertOk()
+            ->assertSee('id="taskDropzone"', false);
+
+        // Terkunci → kotaknya hilang, daftar berkasnya tetap terbaca.
+        DailyReport::create(['user_id' => $u->id, 'report_date' => today()->toDateString(),
+            'status' => 'submitted', 'submitted_at' => now()]);
+        $this->actingAs($u)->get(route('task.show', $selesai->id))->assertOk()
+            ->assertDontSee('id="taskDropzone"', false)
+            ->assertSee('id="taskFiles"', false);
+    }
 }
