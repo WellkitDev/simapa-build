@@ -101,6 +101,22 @@ class Kernel extends ConsoleKernel
             ->everyTenMinutes()
             ->withoutOverlapping(10)
             ->appendOutputTo(storage_path('logs/unggahan-bangkitkan.log'));
+
+        // Migrasi tertunda dijalankan sendiri. Server produksi tak punya terminal, jadi
+        // sampai sekarang setiap perubahan skema harus lewat tujuh langkah manual
+        // (migrasikan salinan DB di lokal → sensus baris → ekspor → unggah), dan yang
+        // sekali terlewat membuat aplikasi 500 pada tabel yang tak ada.
+        //
+        // Cron produksi TETAP satu baris; perintah ini hidup di dalam scheduler. Ia diam
+        // total bila tak ada yang tertunda, jadi lognya hanya berisi rilis yang
+        // benar-benar terjadi.
+        //
+        // withoutOverlapping WAJIB di sini, dan bukan basa-basi: dua proses migrate yang
+        // berjalan berbarengan menulis ke tabel `migrations` yang sama.
+        $schedule->command('simapa:migrasi-otomatis')
+            ->everyFiveMinutes()
+            ->withoutOverlapping(10)
+            ->appendOutputTo(storage_path('logs/migrasi-otomatis.log'));
     }
 
     /**
