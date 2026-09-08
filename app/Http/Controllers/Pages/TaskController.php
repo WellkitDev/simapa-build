@@ -4,10 +4,13 @@ namespace App\Http\Controllers\Pages;
 
 use App\Http\Controllers\Controller;
 use App\Models\Task;
+use App\Models\TaskFile;
 use App\Models\User;
 use App\Services\Notifier;
+use App\Services\TaskFileService;
 use App\Services\TaskThreadService;
 use App\Services\TaskService;
+use App\Support\BatasUnggah;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -115,11 +118,12 @@ class TaskController extends Controller
             $user  = Auth::user();
             $tasks = Task::where('created_by', $user->id)
                 ->where('user_id', '!=', $user->id)
-                ->with('user')
+                ->with('user')->withCount('files')
                 ->orderBy('due_date')->orderBy('id')->get();
         } else {
             $user  = $this->targetUser($request);
-            $tasks = Task::forUser($user->id)->orderBy('position')->orderBy('id')->get();
+            $tasks = Task::forUser($user->id)->withCount('files')
+                ->orderBy('position')->orderBy('id')->get();
         }
 
         return view('tasks.index', [
@@ -266,7 +270,7 @@ class TaskController extends Controller
      */
     public function show(int $id, TaskThreadService $utas)
     {
-        $task = Task::with(['user', 'creator', 'updates.author'])->findOrFail($id);
+        $task = Task::with(['user', 'creator', 'updates.author', 'files.uploader'])->findOrFail($id);
         $this->authorizeTask($task);
 
         return view('tasks.show', [
@@ -298,6 +302,65 @@ class TaskController extends Controller
             $request->filled('progress') ? (int) $data['progress'] : null);
 
         return back()->with('success', 'Laporan tercatat.');
+    }
+
+    /**
+     * Melampirkan berkas pada sebuah tugas — dua pihak, opsional selamanya.
+     *
+     * Gerbangnya authorizeTask(), bukan authorizeKelola(): melampirkan berkas adalah
+     * MENGERJAKAN tugas, bukan mengubah syaratnya, jadi pemberi tugas dan pelaksana
+     * sama-sama lolos.
+     *
+     * Batasnya kunci laporan harian, BUKAN status `done`. Menaruh batas di `done`
+     * membuat pintu satu arah: orang menggeser kartu ke Selesai lebih dulu, baru ingat
+     * berkasnya, dan tak ada jalan kembali karena perpindahan status pun terkunci.
+     */
+    public function storeFile(Request $request, int $id, TaskFileService $berkas)
+    {
+        $task = Task::findOrFail($id);
+        $this->authorizeTask($task);
+        $this->abortIfLocked($task);
+
+        // Plafon aplikasi TIDAK ditulis sebagai angka tetap: yang menolak lebih dulu
+        // adalah PHP, dan janji 10 MB di layar server yang cuma menerima 2 MB berakhir
+        // sebagai galat "failed to upload" yang tak menyebut sebab apa pun.
+        $request->validate([
+            'file' => 'required|file|mimes:jpg,jpeg,png,gif,webp,pdf,doc,docx,xls,xlsx,ppt,pptx,zip'
+                . '|max:' . BatasUnggah::kb(10240),
+        ]);
+
+        $file = $berkas->unggah($task, $request->file('file'), Auth::user());
+        if (! $file) {
+            return response()->json(['message' => 'Gagal mengunggah ke Google Drive.'], 500);
+        }
+
+        return response()->json([
+            'id'   => $file->id,
+            'name' => $file->name,
+            'url'  => $file->url,
+            'oleh' => $file->pelaku(),
+        ]);
+    }
+
+    /**
+     * Mencabut lampiran: pengunggahnya sendiri, atau pengawas.
+     *
+     * Kedua pihak boleh melampirkan, tapi mencabut berkas orang lain adalah menghapus
+     * pekerjaannya — urusan yang berbeda, dan gerbangnya ada di TaskFile::bolehDihapus().
+     */
+    public function destroyFile(int $fileId, TaskFileService $berkas)
+    {
+        $file = TaskFile::with('task')->findOrFail($fileId);
+        $this->authorizeTask($file->task);
+        $this->abortIfLocked($file->task);
+
+        if (! $file->bolehDihapus(Auth::user())) {
+            abort(403);
+        }
+
+        $berkas->hapus($file, Auth::user());
+
+        return response()->json(['ok' => true]);
     }
 
     public function reorder(Request $request)

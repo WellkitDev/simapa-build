@@ -63,6 +63,28 @@ class TaskPagesTest extends TestCase
     }
 
     /**
+     * Lampiran harus terlihat dari papan.
+     *
+     * Berkas yang hanya ketahuan setelah membuka detail sama saja dengan berkas yang
+     * tak ada: tak seorang pun membuka tugas untuk memeriksa sesuatu yang belum tentu
+     * ada di sana.
+     *
+     * @test
+     */
+    public function papan_menandai_tugas_yang_punya_lampiran(): void
+    {
+        $u = $this->user('production');
+        $t = Task::create(['user_id' => $u->id, 'title' => 'AdaBerkas', 'status' => 'todo', 'priority' => 'normal']);
+        \App\Models\TaskFile::create([
+            'task_id' => $t->id, 'drive_file_id' => 'd1', 'name' => 'hasil.pdf',
+            'url' => 'https://drive/x', 'uploaded_by' => $u->id,
+        ]);
+
+        $this->actingAs($u)->get(route('task.board'))->assertOk()->assertSee('1 lampiran');
+        $this->actingAs($u)->get(route('task.index'))->assertOk()->assertSee('1 lampiran');
+    }
+
+    /**
      * Kunci laporan harian menjaga SYARAT tugas, bukan percakapannya.
      *
      * Yang tampil di Laporan Harian cuma judul dan prioritas; utas laporan tak pernah

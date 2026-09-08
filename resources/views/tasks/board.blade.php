@@ -84,6 +84,13 @@
                                             <i data-feather="message-square" class="icon-xs"></i> {{ $task->laporan_count }}
                                         </span>
                                     @endif
+                                    {{-- Lampiran yang cuma ketahuan setelah membuka detail sama
+                                         saja dengan lampiran yang tak ada. --}}
+                                    @if(($task->files_count ?? 0) > 0)
+                                        <span class="badge bg-light text-muted" title="{{ $task->files_count }} lampiran">
+                                            <i data-feather="paperclip" class="icon-xs"></i> {{ $task->files_count }}
+                                        </span>
+                                    @endif
                                 </div>
                                 {{-- Kemajuan hanya ditampilkan bila memang dilaporkan; bilah 0%
                                      di setiap kartu cuma kebisingan yang tak memberi tahu apa pun. --}}

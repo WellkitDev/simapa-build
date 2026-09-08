@@ -55,6 +55,11 @@
                 <td class="dt-judul">
                     {{-- Pintu ke utas aktivitas; tanpa ini halaman detailnya tak terjangkau. --}}
                     <a href="{{ route('task.show', $task->id) }}" class="text-body">{{ $task->title }}</a>
+                    @if(($task->files_count ?? 0) > 0)
+                        <span class="badge bg-light text-muted" title="{{ $task->files_count }} lampiran">
+                            <i data-feather="paperclip" class="icon-xs"></i> {{ $task->files_count }}
+                        </span>
+                    @endif
                 </td>
                 @if($sayaBerikan ?? false)<td>{{ $task->user?->name ?? '—' }}</td>@endif
                 <td><span class="badge {{ $sb[$task->status] }}">{{ $sl[$task->status] }}</span></td>

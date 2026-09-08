@@ -1,6 +1,10 @@
 @extends('layouts.master')
 @section('title', 'Detail Tugas - SiMAPA')
 
+@push('plugin-styles')
+<link href="{{ asset('assets/plugins/dropzone/dropzone.min.css') }}" rel="stylesheet" />
+@endpush
+
 @section('content')
 @php
     $prioBadge = ['high' => 'bg-danger', 'normal' => 'bg-secondary', 'low' => 'bg-info'];
@@ -76,7 +80,7 @@
             @endif
         </div></div>
 
-        <div class="card"><div class="card-body">
+        <div class="card mb-3"><div class="card-body">
             <h6 class="mb-2">Laporan</h6>
             <div class="text-muted small">
                 {{ $ringkasan['jumlah'] }} laporan tercatat.
@@ -87,6 +91,47 @@
                     Belum ada yang melapor.
                 @endif
             </div>
+        </div></div>
+
+        {{-- ── lampiran ─────────────────────────────────────────────────────
+             Berkas milik TUGASNYA, bukan milik hari tempat ia kebetulan selesai.
+             Kedua pihak boleh melampirkan; hanya pengunggahnya yang boleh mencabut. --}}
+        <div class="card"><div class="card-body">
+            <h6 class="mb-2">
+                Berkas
+                @if($task->files->count())
+                    <span class="badge bg-light text-muted">{{ $task->files->count() }}</span>
+                @endif
+            </h6>
+
+            @unless($terkunci)
+                <p class="text-muted mb-2" style="font-size:12px">
+                    Opsional — tak semua tugas berbentuk berkas. Pemberi dan penerima tugas
+                    sama-sama boleh melampirkan.
+                </p>
+                <div id="taskDropzone" class="dropzone mb-2" style="min-height:100px"></div>
+            @endunless
+
+            <ul id="taskFiles" class="list-group list-group-flush">
+                @forelse($task->files as $f)
+                    <li class="list-group-item d-flex justify-content-between align-items-start px-0" data-file="{{ $f->id }}">
+                        <a href="{{ $f->url }}" target="_blank" class="text-body" style="font-size:13px">
+                            <i data-feather="paperclip" class="icon-xs me-1"></i>{{ $f->name }}
+                            <span class="text-muted d-block" style="font-size:11px">
+                                {{ $f->pelaku() }} · {{ $f->created_at?->translatedFormat('j M Y, H:i') }}
+                            </span>
+                        </a>
+                        @if(! $terkunci && $f->bolehDihapus(auth()->user()))
+                            <button class="btn btn-xs btn-outline-danger" data-del-berkas="{{ $f->id }}">Hapus</button>
+                        @endif
+                    </li>
+                @empty
+                    {{-- Kalimat ini yang mencegah orang mengira dirinya lupa sesuatu. --}}
+                    <li class="list-group-item text-muted px-0" style="font-size:12px">
+                        Belum ada berkas dilampirkan.
+                    </li>
+                @endforelse
+            </ul>
         </div></div>
     </div>
 
@@ -170,4 +215,85 @@
     }
     .utas-sistem .utas-titik { background: rgba(148, 163, 184, .9); box-shadow: none; }
 </style>
+@endpush
+
+@push('plugin-scripts')
+<script src="{{ asset('assets/plugins/dropzone/dropzone.min.js') }}"></script>
+<script>if (window.Dropzone) Dropzone.autoDiscover = false;</script>
+@endpush
+
+@push('custom-scripts')
+<script>
+(function () {
+    var token = document.querySelector('meta[name="_token"]').getAttribute('content');
+    var daftar = document.getElementById('taskFiles');
+
+    // Baris berkas dibangun lewat DOM, bukan innerHTML: nama berkas datang dari
+    // pengguna, dan menempelkannya sebagai HTML berarti mempercayai nama itu.
+    function tambahBaris(f) {
+        var kosong = daftar.querySelector('li:not([data-file])');
+        if (kosong) kosong.remove();
+
+        var li = document.createElement('li');
+        li.className = 'list-group-item d-flex justify-content-between align-items-start px-0';
+        li.setAttribute('data-file', f.id);
+
+        var a = document.createElement('a');
+        a.href = f.url; a.target = '_blank'; a.className = 'text-body'; a.style.fontSize = '13px';
+        var ikon = document.createElement('i');
+        ikon.setAttribute('data-feather', 'paperclip');
+        ikon.className = 'icon-xs me-1';
+        a.appendChild(ikon);
+        a.appendChild(document.createTextNode(f.name));
+        var oleh = document.createElement('span');
+        oleh.className = 'text-muted d-block';
+        oleh.style.fontSize = '11px';
+        oleh.textContent = f.oleh + ' · baru saja';
+        a.appendChild(oleh);
+
+        var tombol = document.createElement('button');
+        tombol.className = 'btn btn-xs btn-outline-danger';
+        tombol.setAttribute('data-del-berkas', f.id);
+        tombol.textContent = 'Hapus';
+
+        li.appendChild(a);
+        li.appendChild(tombol);
+        daftar.prepend(li);
+        if (window.feather) feather.replace();
+    }
+
+    if (daftar) daftar.addEventListener('click', function (e) {
+        var tombol = e.target.closest('[data-del-berkas]');
+        if (! tombol) return;
+        e.preventDefault();
+        var baris = tombol.closest('[data-file]');
+        fetch("{{ url('tasks/berkas') }}/" + tombol.getAttribute('data-del-berkas'), {
+            method: 'DELETE',
+            headers: { 'X-CSRF-TOKEN': token, 'X-Requested-With': 'XMLHttpRequest' }
+        }).then(function (r) { if (r.ok && baris) baris.remove(); });
+    });
+
+    var dz = document.getElementById('taskDropzone');
+    if (dz && window.Dropzone) {
+        new Dropzone(dz, {
+            url: "{{ route('task.files.store', $task->id) }}",
+            maxFiles: 10, maxFilesize: 10,
+            acceptedFiles: "image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip",
+            addRemoveLinks: true,
+            resizeWidth: 1600, resizeQuality: 0.8,
+            headers: { 'X-CSRF-TOKEN': token },
+            dictDefaultMessage: 'Tarik &amp; lepas berkas ke sini atau klik untuk pilih',
+            dictRemoveFile: 'Batal',
+            init: function () {
+                this.on('success', function (file, resp) { tambahBaris(resp); this.removeFile(file); });
+                this.on('error', function (file, msg) {
+                    var m = (msg && msg.message) ? msg.message : 'Gagal mengunggah.';
+                    var el = file.previewElement && file.previewElement.querySelector('[data-dz-errormessage]');
+                    if (el) el.textContent = m;
+                });
+            }
+        });
+    }
+})();
+</script>
 @endpush

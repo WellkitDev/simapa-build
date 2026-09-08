@@ -62,6 +62,12 @@ class Task extends Model
         return $this->hasMany(TaskUpdate::class)->orderBy('id');
     }
 
+    /** Lampiran dari kedua pihak, terbaru di atas. */
+    public function files()
+    {
+        return $this->hasMany(TaskFile::class)->orderByDesc('id');
+    }
+
     /** Laporan manusia saja — dipakai menghitung "sudah dilaporkan atau belum". */
     public function laporan()
     {

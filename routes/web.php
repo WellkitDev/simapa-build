@@ -245,6 +245,11 @@ Route::middleware(['auth', 'access'])->group(function () {
     Route::get('tasks/{id}', [TaskController::class, 'show'])->name('task.show')->whereNumber('id');
     Route::post('tasks/{id}/laporan', [TaskController::class, 'report'])->name('task.report')->whereNumber('id');
 
+    // Lampiran tugas. Dua pihak boleh mengunggah; batasnya kunci laporan harian,
+    // bukan status `done` — lihat docs/superpowers/specs/2026-09-08-lampiran-tugas-design.md.
+    Route::post('tasks/{id}/berkas', [TaskController::class, 'storeFile'])->name('task.files.store')->whereNumber('id');
+    Route::delete('tasks/berkas/{fileId}', [TaskController::class, 'destroyFile'])->name('task.files.destroy')->whereNumber('fileId');
+
     Route::get('tasks/monitor', [TaskController::class, 'monitor'])->name('task.monitor');
 
     Route::get('reports/daily', [DailyReportController::class, 'daily'])->name('report.daily');

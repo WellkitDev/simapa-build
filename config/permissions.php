@@ -17,6 +17,8 @@ return [
         // Detail + utas aktivitas: yang menjaganya authorizeTask() (pelaksana, pemberi,
         // atau manager), bukan izin peran — sama seperti sunting dan hapus di atas.
         'task.show', 'task.report',
+        // Lampiran tugas: dijaga bolehDibaca() + kepemilikan berkas, sama seperti utas.
+        'task.files.store', 'task.files.destroy',
         'report.daily', 'report.note', 'report.submit',
         'report.files.store', 'report.files.destroy', 'report.monthly',
         // Slip gaji milik-sendiri (self-service) — terbuka utk semua user login.

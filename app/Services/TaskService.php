@@ -14,7 +14,7 @@ class TaskService
     {
         // withCount, bukan with: kartu hanya perlu ANGKA laporannya, dan memuat seluruh
         // utas tiap kartu berarti puluhan kueri untuk teks yang tak pernah ditampilkan.
-        $tasks = Task::forUser($user->id)->withCount('laporan')
+        $tasks = Task::forUser($user->id)->withCount(['laporan', 'files'])
             ->orderBy('position')->orderBy('id')->get();
 
         // Tanggal report submitted milik user → menandai tugas selesai yang terkunci.

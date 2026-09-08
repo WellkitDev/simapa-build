@@ -232,6 +232,115 @@ class TaskControllerTest extends TestCase
         $this->assertDatabaseHas('tb_task_updates', ['task_id' => $t->id, 'body' => 'Masih ada sisa', 'kind' => 'laporan']);
     }
 
+    /** Drive dipalsukan lewat container, BUKAN konstruktor — atau test benar-benar mengunggah. */
+    private function driveBerhasil(): void
+    {
+        $this->mock(GoogleDriveService::class, function ($m) {
+            $m->shouldReceive('getOrCreateFolderByPath')->andReturn('folder-1');
+            $m->shouldReceive('uploadFile')->andReturn(['id' => 'drive-1', 'name' => 'hasil.pdf', 'url' => 'https://drive/x']);
+            $m->shouldReceive('deleteFile')->andReturn(true);
+        });
+    }
+
+    private function berkas(): \Illuminate\Http\UploadedFile
+    {
+        return \Illuminate\Http\UploadedFile::fake()->create('hasil.pdf', 40, 'application/pdf');
+    }
+
+    /** @test */
+    public function pelaksana_melampirkan_berkas_dan_utas_mencatatnya(): void
+    {
+        $this->driveBerhasil();
+        $u = $this->user('production');
+        $t = $this->task($u);
+
+        $this->actingAs($u)->post(route('task.files.store', $t->id), ['file' => $this->berkas()])->assertOk();
+
+        $this->assertDatabaseHas('tb_task_files', [
+            'task_id' => $t->id, 'drive_file_id' => 'drive-1', 'name' => 'hasil.pdf', 'uploaded_by' => $u->id,
+        ]);
+        $this->assertDatabaseHas('tb_task_updates', ['task_id' => $t->id, 'kind' => 'sistem', 'user_id' => $u->id]);
+    }
+
+    /**
+     * Melampirkan berkas adalah MENGERJAKAN tugas, bukan mengubah syaratnya — jadi
+     * gerbangnya bolehDibaca(), dan pemberi tugas ikut lolos.
+     *
+     * @test
+     */
+    public function pemberi_tugas_juga_boleh_melampirkan(): void
+    {
+        $this->driveBerhasil();
+        $pemberi = $this->user('production');
+        $pelaksana = $this->user('production');
+        $t = $this->task($pelaksana, ['created_by' => $pemberi->id]);
+
+        $this->actingAs($pemberi)->post(route('task.files.store', $t->id), ['file' => $this->berkas()])->assertOk();
+        $this->assertDatabaseHas('tb_task_files', ['task_id' => $t->id, 'uploaded_by' => $pemberi->id]);
+    }
+
+    /** @test */
+    public function orang_luar_tak_boleh_melampirkan(): void
+    {
+        $this->driveBerhasil();
+        $t = $this->task($this->user('production'));
+
+        $this->actingAs($this->user('production'))
+            ->post(route('task.files.store', $t->id), ['file' => $this->berkas()])->assertForbidden();
+        $this->assertDatabaseCount('tb_task_files', 0);
+    }
+
+    /**
+     * INTI KEPUTUSAN 2026-09-08: batas unggah ada di kunci laporan harian, BUKAN di
+     * status `done`.
+     *
+     * Menaruh batas di `done` membuat pintu satu arah — orang menggeser kartu ke
+     * Selesai lebih dulu, baru ingat berkasnya, dan tak ada jalan kembali.
+     *
+     * @test
+     */
+    public function tugas_selesai_yang_belum_terkunci_masih_menerima_berkas(): void
+    {
+        $this->driveBerhasil();
+        $u = $this->user('production');
+        $t = $this->task($u, ['status' => 'done', 'completed_at' => today()]);
+
+        $this->actingAs($u)->post(route('task.files.store', $t->id), ['file' => $this->berkas()])->assertOk();
+        $this->assertDatabaseHas('tb_task_files', ['task_id' => $t->id]);
+    }
+
+    /** @test */
+    public function tugas_terkunci_menolak_berkas(): void
+    {
+        $this->driveBerhasil();
+        $u = $this->user('production');
+        $today = today();
+        $t = $this->task($u, ['status' => 'done', 'completed_at' => $today]);
+        DailyReport::create(['user_id' => $u->id, 'report_date' => $today->toDateString(), 'status' => 'submitted', 'submitted_at' => now()]);
+
+        $this->actingAs($u)->post(route('task.files.store', $t->id), ['file' => $this->berkas()])->assertStatus(422);
+        $this->assertDatabaseCount('tb_task_files', 0);
+    }
+
+    /** @test */
+    public function hanya_pengunggah_yang_boleh_menghapus_berkasnya(): void
+    {
+        $this->driveBerhasil();
+        $pemberi = $this->user('production');
+        $pelaksana = $this->user('production');
+        $t = $this->task($pelaksana, ['created_by' => $pemberi->id]);
+
+        $this->actingAs($pelaksana)->post(route('task.files.store', $t->id), ['file' => $this->berkas()])->assertOk();
+        $id = \App\Models\TaskFile::first()->id;
+
+        // Pihak seberang boleh melihat, tak boleh mencabut berkas orang.
+        $this->actingAs($pemberi)->delete(route('task.files.destroy', $id))->assertForbidden();
+
+        $this->actingAs($pelaksana)->delete(route('task.files.destroy', $id))->assertOk();
+        $this->assertDatabaseCount('tb_task_files', 0);
+        $this->assertDatabaseHas('tb_task_updates', ['task_id' => $t->id, 'kind' => 'sistem']);
+    }
+
     /** @test */
     public function changing_due_date_resets_deadline_flag(): void
     {
